@@ -49,7 +49,8 @@ namespace {
 int alpn_select_proto_h3_cb(WOLFSSL *ssl, const unsigned char **out,
                             unsigned char *outlen, const unsigned char *in,
                             unsigned int inlen, void *arg) {
-  auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(wolfSSL_get_app_data(ssl));
+  auto conn_ref =
+      static_cast<ngtcp2_crypto_conn_ref *>(wolfSSL_get_app_data(ssl));
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   const uint8_t *alpn;
   size_t alpnlen;
@@ -107,7 +108,8 @@ namespace {
 int alpn_select_proto_hq_cb(WOLFSSL *ssl, const unsigned char **out,
                             unsigned char *outlen, const unsigned char *in,
                             unsigned int inlen, void *arg) {
-  auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(wolfSSL_get_app_data(ssl));
+  auto conn_ref =
+      static_cast<ngtcp2_crypto_conn_ref *>(wolfSSL_get_app_data(ssl));
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   const uint8_t *alpn;
   size_t alpnlen;
@@ -204,7 +206,8 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
 
   ssl_ctx_ = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
   if (!ssl_ctx_) {
-    std::cerr << "wolfSSL_CTX_new: " << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
+    std::cerr << "wolfSSL_CTX_new: "
+              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
               << std::endl;
     return -1;
   }
@@ -219,9 +222,9 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   wolfSSL_CTX_set_max_early_data(ssl_ctx_, UINT32_MAX);
 #endif
 
-  constexpr auto ssl_opts = (WOLFSSL_OP_ALL & ~WOLFSSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
-                            WOLFSSL_OP_SINGLE_ECDH_USE |
-                            WOLFSSL_OP_CIPHER_SERVER_PREFERENCE;
+  constexpr auto ssl_opts =
+      (WOLFSSL_OP_ALL & ~WOLFSSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
+      WOLFSSL_OP_SINGLE_ECDH_USE | WOLFSSL_OP_CIPHER_SERVER_PREFERENCE;
 
   wolfSSL_CTX_set_options(ssl_ctx_, ssl_opts);
 
@@ -231,8 +234,9 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     return -1;
   }
 
-  if (wolfSSL_CTX_set1_curves_list(ssl_ctx_, (char*)config.groups) != 1) {
-    std::cerr << "wolfSSL_CTX_set1_curves_list(" << config.groups << ") failed" << std::endl;
+  if (wolfSSL_CTX_set1_curves_list(ssl_ctx_, (char *)config.groups) != 1) {
+    std::cerr << "wolfSSL_CTX_set1_curves_list(" << config.groups << ") failed"
+              << std::endl;
     return -1;
   }
 
@@ -246,28 +250,32 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     wolfSSL_CTX_set_alpn_select_cb(ssl_ctx_, alpn_select_proto_hq_cb, nullptr);
     break;
   case AppProtocol::Perf:
-    wolfSSL_CTX_set_alpn_select_cb(ssl_ctx_, alpn_select_proto_perf_cb, nullptr);
+    wolfSSL_CTX_set_alpn_select_cb(ssl_ctx_, alpn_select_proto_perf_cb,
+                                   nullptr);
     break;
   }
 
   wolfSSL_CTX_set_default_verify_paths(ssl_ctx_);
 
   if (wolfSSL_CTX_use_PrivateKey_file(ssl_ctx_, private_key_file,
-                                     SSL_FILETYPE_PEM) != 1) {
+                                      SSL_FILETYPE_PEM) != 1) {
     std::cerr << "wolfSSL_CTX_use_PrivateKey_file: "
-              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr) << std::endl;
+              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
+              << std::endl;
     return -1;
   }
 
   if (wolfSSL_CTX_use_certificate_chain_file(ssl_ctx_, cert_file) != 1) {
     std::cerr << "wolfSSL_CTX_use_certificate_chain_file: "
-              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr) << std::endl;
+              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
+              << std::endl;
     return -1;
   }
 
   if (wolfSSL_CTX_check_private_key(ssl_ctx_) != 1) {
     std::cerr << "wolfSSL_CTX_check_private_key: "
-              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr) << std::endl;
+              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
+              << std::endl;
     return -1;
   }
 
@@ -276,7 +284,7 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   if (config.verify_client) {
     wolfSSL_CTX_set_verify(ssl_ctx_,
                            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_CLIENT_ONCE |
-                           WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                               WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT,
                            verify_cb);
   }
 

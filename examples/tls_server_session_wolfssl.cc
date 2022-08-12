@@ -39,7 +39,8 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
 
   ssl_ = wolfSSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "wolfSSL_new: " << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
+    std::cerr << "wolfSSL_new: "
+              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
               << std::endl;
     return -1;
   }

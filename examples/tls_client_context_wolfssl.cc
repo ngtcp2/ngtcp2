@@ -63,7 +63,7 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
     return 0;
   }
 
-  unsigned char sbuffer[16*1024], *data;
+  unsigned char sbuffer[16 * 1024], *data;
   unsigned int sz;
   sz = wolfSSL_i2d_SSL_SESSION(session, NULL);
   if (sz <= 0) {
@@ -73,15 +73,16 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
   }
   if ((size_t)sz > sizeof(sbuffer)) {
     std::cerr << "Exported TLS session too large" << std::endl;
-        return 0;
+    return 0;
   }
   data = sbuffer;
   sz = wolfSSL_i2d_SSL_SESSION(session, &data);
   wolfSSL_BIO_write(f, sbuffer, sz);
   wolfSSL_BIO_free(f);
-  std::cerr << "new_session_cb: wrote " << sz << " of session data" << std::endl;
+  std::cerr << "new_session_cb: wrote " << sz << " of session data"
+            << std::endl;
 #else
-    std::cerr << "TLS session tickets not enabled in wolfSSL " << std::endl;
+  std::cerr << "TLS session tickets not enabled in wolfSSL " << std::endl;
 #endif
   return 0;
 }
@@ -91,7 +92,8 @@ int TLSClientContext::init(const char *private_key_file,
                            const char *cert_file) {
   ssl_ctx_ = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
   if (!ssl_ctx_) {
-    std::cerr << "wolfSSL_CTX_new: " << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
+    std::cerr << "wolfSSL_CTX_new: "
+              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
               << std::endl;
     return -1;
   }
@@ -102,33 +104,41 @@ int TLSClientContext::init(const char *private_key_file,
     return -1;
   }
 
-  if (wolfSSL_CTX_set_default_verify_paths(ssl_ctx_) == WOLFSSL_NOT_IMPLEMENTED) {
+  if (wolfSSL_CTX_set_default_verify_paths(ssl_ctx_) ==
+      WOLFSSL_NOT_IMPLEMENTED) {
     /* hmm, not verifying the server cert for now */
     wolfSSL_CTX_set_verify(ssl_ctx_, WOLFSSL_VERIFY_NONE, 0);
   }
 
-  if (wolfSSL_CTX_set_cipher_list(ssl_ctx_, config.ciphers) != WOLFSSL_SUCCESS) {
+  if (wolfSSL_CTX_set_cipher_list(ssl_ctx_, config.ciphers) !=
+      WOLFSSL_SUCCESS) {
     std::cerr << "wolfSSL_CTX_set_cipher_list: "
-              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr) << std::endl;
+              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
+              << std::endl;
     return -1;
   }
 
-  if (wolfSSL_CTX_set1_curves_list(ssl_ctx_, (char *)config.groups) != WOLFSSL_SUCCESS) {
-    std::cerr << "wolfSSL_CTX_set1_curves_list(" << config.groups << ") failed" << std::endl;
+  if (wolfSSL_CTX_set1_curves_list(ssl_ctx_, (char *)config.groups) !=
+      WOLFSSL_SUCCESS) {
+    std::cerr << "wolfSSL_CTX_set1_curves_list(" << config.groups << ") failed"
+              << std::endl;
     return -1;
   }
 
   if (private_key_file && cert_file) {
     if (wolfSSL_CTX_use_PrivateKey_file(ssl_ctx_, private_key_file,
-                                    SSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+                                        SSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
       std::cerr << "wolfSSL_CTX_use_PrivateKey_file: "
-                << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr) << std::endl;
+                << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
+                << std::endl;
       return -1;
     }
 
-    if (wolfSSL_CTX_use_certificate_chain_file(ssl_ctx_, cert_file) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_CTX_use_certificate_chain_file(ssl_ctx_, cert_file) !=
+        WOLFSSL_SUCCESS) {
       std::cerr << "wolfSSL_CTX_use_certificate_chain_file: "
-                << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr) << std::endl;
+                << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
+                << std::endl;
       return -1;
     }
   }
