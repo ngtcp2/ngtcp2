@@ -11131,7 +11131,14 @@ int ngtcp2_conn_set_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
   int rv;
 
-  assert(!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED));
+  /* We expect this function is called once per QUIC connection, but
+     GnuTLS server seems to call TLS extension callback twice if it
+     sends HelloRetryRequest.  In practice, same QUIC transport
+     parameters are sent in the 2nd client flight, just returning 0
+     would cause no harm. */
+  if (conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED) {
+    return 0;
+  }
 
   /* Assume that ngtcp2_decode_transport_params sets default value if
      active_connection_id_limit is omitted. */
