@@ -232,7 +232,7 @@ analyze QUIC traffic using the following steps:
 
 3. Set Pre-Master-Secret logfile
 
-   Go to *Preferences->Protocols->TLS* add set the *Pre-Master-Secret
+   Go to *Preferences->Protocols->TLS* and set the *Pre-Master-Secret
    log file* to the same value that was specified for *SSLKEYLOGFILE*.
 
 4. Choose the correct network interface for capturing
