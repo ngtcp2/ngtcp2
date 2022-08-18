@@ -93,12 +93,15 @@ jobs:
       if: matrix.openssl == 'openssl1'
       run: |
         ./ci/build_picotls.sh
+    - name: Build wolfSSL
+      run: |
+        ./ci/build_wolfssl.sh
     - name: Build nghttp3
       run: |
         ./ci/build_nghttp3.sh
     - name: Setup environment variables
       run: |
-        PKG_CONFIG_PATH="$PWD/openssl/build/lib/pkgconfig:$PWD/openssl/build/lib64/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig"
+        PKG_CONFIG_PATH="$PWD/openssl/build/lib/pkgconfig:$PWD/openssl/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig"
         LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/openssl/build/lib -Wl,-rpath,$PWD/openssl/build/lib64"
         BORINGSSL_CFLAGS="-I$PWD/boringssl/include/"
         BORINGSSL_LIBS="-L$PWD/boringssl/build/ssl -lssl -L$PWD/boringssl/build/crypto -lcrypto"
@@ -151,7 +154,8 @@ jobs:
       run: |
         autoreconf -i && \
         ./configure --enable-werror \
-          --with-openssl --with-gnutls --with-boringssl $EXTRA_AUTOTOOLS_OPTS
+          --with-openssl --with-gnutls --with-boringssl --with-wolfssl \
+          $EXTRA_AUTOTOOLS_OPTS
     - name: Configure autotools for distcheck
       if: matrix.buildtool == 'distcheck'
       run: |
@@ -176,7 +180,8 @@ jobs:
           -DBORINGSSL_LIBRARIES="$BORINGSSL_LIBS" \
           -DBORINGSSL_INCLUDE_DIR="$NGTCP2_SOURCE_DIR/boringssl/include/" \
           -DPICOTLS_LIBRARIES="$PICOTLS_LIBS" \
-          -DPICOTLS_INCLUDE_DIR="$NGTCP2_SOURCE_DIR/picotls/include/" ..
+          -DPICOTLS_INCLUDE_DIR="$NGTCP2_SOURCE_DIR/picotls/include/" \
+          -DENABLE_WOLFSSL=ON ..
     - name: Build ngtcp2
       if: matrix.buildtool != 'distcheck'
       run: |
@@ -194,8 +199,8 @@ jobs:
         [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
         "$NGTCP2_SOURCE_DIR"/ci/gen-certificate.sh
 
-        CLIENTS="client gtlsclient bsslclient"
-        SERVERS="server gtlsserver bsslserver"
+        CLIENTS="client gtlsclient bsslclient wsslclient"
+        SERVERS="server gtlsserver bsslserver wsslserver"
         if [ "$HAVE_PICOTLS" = "1" ]; then
           CLIENTS="$CLIENTS ptlsclient"
           SERVERS="$SERVERS ptlsserver"

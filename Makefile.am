@@ -42,6 +42,7 @@ EXTRA_DIST = \
 	cmake/FindCUnit.cmake \
 	cmake/FindLibev.cmake \
 	cmake/FindLibnghttp3.cmake \
+	cmake/Findwolfssl.cmake \
 	cmake/Version.cmake
 
 # Format source files using clang-format.  Don't format source files
