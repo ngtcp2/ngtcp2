@@ -24,6 +24,7 @@ for which we provide crypto helper libraries:
 * GnuTLS >= 3.7.2
 * BoringSSL
 * Picotls
+* wolfSSL
 
 Creating ngtcp2_conn object
 ---------------------------
@@ -182,6 +183,11 @@ supported TLS stack:
   * `ngtcp2_crypto_picotls_configure_server_context`
   * `ngtcp2_crypto_picotls_configure_client_session`
   * `ngtcp2_crypto_picotls_configure_server_session`
+
+- wolfSSL
+
+  * `ngtcp2_crypto_wolfssl_configure_client_context`
+  * `ngtcp2_crypto_wolfssl_configure_server_context`
 
 They make the minimal QUIC specific changes to TLS stack object.  See
 the ngtcp2 crypto API header files for each supported TLS stack.  In
