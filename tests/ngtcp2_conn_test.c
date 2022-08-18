@@ -3097,6 +3097,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_vec datav;
   int accepted;
   int rv;
+  ngtcp2_strm *strm;
 
   /* Retransmit a packet completely */
   setup_default_client(&conn);
@@ -3115,6 +3116,11 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
   ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(1 == strm->tx.loss_count);
+
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);

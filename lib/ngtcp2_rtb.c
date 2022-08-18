@@ -394,13 +394,20 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   }
 }
 
+/* NGTCP2_RECLAIM_FLAG_NONE indicates that no flag is set. */
+#define NGTCP2_RECLAIM_FLAG_NONE 0x00u
+/* NGTCP2_RECLAIM_FLAG_ON_LOSS indicates that frames are reclaimed
+   because of the packet loss.*/
+#define NGTCP2_RECLAIM_FLAG_ON_LOSS 0x01u
+
 /*
  * rtb_reclaim_frame queues unacknowledged frames included in |ent|
  * for retransmission.  The re-queued frames are not deleted from
- * |ent|.  It returns the number of frames queued.
+ * |ent|.  It returns the number of frames queued.  |flags| is bitwise
+ * OR of 0 or more of NGTCP2_RECLAIM_FLAG_*.
  */
-static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
-                                      ngtcp2_pktns *pktns,
+static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
+                                      ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                       ngtcp2_rtb_entry *ent) {
   ngtcp2_frame_chain *frc, *nfrc, **pfrc = &pktns->tx.frq;
   ngtcp2_frame *fr;
@@ -445,6 +452,12 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
         } else if (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED) {
           continue;
         }
+      }
+
+      if ((flags & NGTCP2_RECLAIM_FLAG_ON_LOSS) &&
+          ent->hd.pkt_num != strm->tx.last_lost_pkt_num) {
+        strm->tx.last_lost_pkt_num = ent->hd.pkt_num;
+        ++strm->tx.loss_count;
       }
 
       rv = ngtcp2_frame_chain_stream_datacnt_objalloc_new(
@@ -635,7 +648,8 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
     assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
     assert(UINT64_MAX == ent->lost_ts);
 
-    reclaimed = rtb_reclaim_frame(rtb, conn, pktns, ent);
+    reclaimed =
+        rtb_reclaim_frame(rtb, NGTCP2_RECLAIM_FLAG_ON_LOSS, conn, pktns, ent);
     if (reclaimed < 0) {
       return (int)reclaimed;
     }
@@ -1596,7 +1610,8 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
     assert(ent->frc);
 
-    reclaimed = rtb_reclaim_frame(rtb, conn, pktns, ent);
+    reclaimed =
+        rtb_reclaim_frame(rtb, NGTCP2_RECLAIM_FLAG_NONE, conn, pktns, ent);
     if (reclaimed < 0) {
       return reclaimed;
     }
