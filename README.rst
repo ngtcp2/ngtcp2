@@ -60,7 +60,7 @@ directory require at least one of the following TLS backends:
 - GnuTLS >= 3.7.2
 - BoringSSL (commit b95124305ab15c7523d3e21437309fa5dd717ee8)
 - Picotls (commit 7970614ad049d194fe1691bdf0cc66c6930a3a2f)
-- wolfSSL (commit 90c65bd50bac8c0414feaaa6b297ac420260a811)
+- wolfSSL (commit 3f7d56d957ac7418abab13540af5e4a6c8ba364a)
 
 Build from git
 --------------
