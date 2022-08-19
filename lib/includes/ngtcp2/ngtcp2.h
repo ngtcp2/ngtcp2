@@ -5377,6 +5377,18 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_stream_loss_count` returns the number of packets
+ * that contain STREAM frame for a stream identified by |stream_id|
+ * and are declared to be lost.  The number may include the spurious
+ * losses.  If no stream identified by |stream_id| is found, this
+ * function returns 0.
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_get_stream_loss_count(ngtcp2_conn *conn,
+                                                       int64_t stream_id);
+
+/**
+ * @function
+ *
  * `ngtcp2_strerror` returns the text representation of |liberr|.
  * |liberr| must be one of ngtcp2 library error codes (which is
  * defined as NGTCP2_ERR_* macro, such as

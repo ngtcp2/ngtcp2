@@ -111,6 +111,18 @@ struct ngtcp2_strm {
         /* last_max_stream_data_ts is the timestamp when last
            MAX_STREAM_DATA frame is sent. */
         ngtcp2_tstamp last_max_stream_data_ts;
+        /* loss_count is the number of packets that contain STREAM
+           frame for this stream and are declared to be lost.  It may
+           include the spurious losses.  It does not include a packet
+           whose contents have been reclaimed for PTO and which is
+           later declared to be lost.  Those data are not blocked by
+           the flow control and will be sent immediately if no other
+           restrictions are applied. */
+        size_t loss_count;
+        /* last_lost_pkt_num is the packet number of the packet that
+           is counted to loss_count.  It is used to avoid to count
+           multiple STREAM frames in one lost packet. */
+        int64_t last_lost_pkt_num;
       } tx;
 
       struct {

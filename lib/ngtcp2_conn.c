@@ -13377,6 +13377,16 @@ void ngtcp2_conn_untrack_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq) {
   }
 }
 
+size_t ngtcp2_conn_get_stream_loss_count(ngtcp2_conn *conn, int64_t stream_id) {
+  ngtcp2_strm *strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  if (strm == NULL) {
+    return 0;
+  }
+
+  return strm->tx.loss_count;
+}
+
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const ngtcp2_path *path,
                                       const uint8_t *data) {
