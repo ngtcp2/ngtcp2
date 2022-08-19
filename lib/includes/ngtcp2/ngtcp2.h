@@ -2288,6 +2288,37 @@ NGTCP2_EXTERN void ngtcp2_transport_params_del(ngtcp2_transport_params *params,
                                                const ngtcp2_mem *mem);
 
 /**
+ * @struct
+ *
+ * :type:`ngtcp2_version_cid` is a convenient struct to store the
+ * result of `ngtcp2_pkt_decode_version_cid`.
+ */
+typedef struct ngtcp2_version_cid {
+  /**
+   * :member:`version` stores QUIC version.
+   */
+  uint32_t version;
+  /**
+   * :member:`dcid` points to the Destination Connection ID.
+   */
+  const uint8_t *dcid;
+  /**
+   * :member:`dcidlen` is the length of the Destination Connection ID
+   * pointed by :member:`dcid`.
+   */
+  size_t dcidlen;
+  /**
+   * :member:`scid` points to the Source Connection ID.
+   */
+  const uint8_t *scid;
+  /**
+   * :member:`scidlen` is the length of the Source Connection ID
+   * pointed by :member:`scid`.
+   */
+  size_t scidlen;
+} ngtcp2_version_cid;
+
+/**
  * @function
  *
  * `ngtcp2_pkt_decode_version_cid` extracts QUIC version, Destination
@@ -2300,24 +2331,30 @@ NGTCP2_EXTERN void ngtcp2_transport_params_del(ngtcp2_transport_params *params,
  * QUIC version.
  *
  * If the given packet is Long header packet, this function extracts
- * the version from the packet and assigns it to |*pversion|.  It also
+ * the version from the packet and assigns it to
+ * :member:`dest->version <ngtcp2_version_cid.version>`.  It also
  * extracts the pointer to the Destination Connection ID and its
- * length and assigns them to |*pdcid| and |*pdcidlen| respectively.
- * Similarly, it extracts the pointer to the Source Connection ID and
- * its length and assigns them to |*pscid| and |*pscidlen|
- * respectively.
+ * length and assigns them to :member:`dest->dcid
+ * <ngtcp2_version_cid.dcid>` and :member:`dest->dcidlen
+ * <ngtcp2_version_cid.dcidlen>` respectively.  Similarly, it extracts
+ * the pointer to the Source Connection ID and its length and assigns
+ * them to :member:`dest->scid <ngtcp2_version_cid.scid>` and
+ * :member:`dest->scidlen <ngtcp2_version_cid.scidlen>` respectively.
  *
- * If the given packet is Short header packet, |*pversion| will be 0,
- * |*pscid| will be ``NULL``, and |*pscidlen| will be 0.  Because the
- * Short header packet does not have the length of Destination
- * Connection ID, the caller has to pass the length in
+ * If the given packet is Short header packet, :member:`dest->version
+ * <ngtcp2_version_cid.version>` will be 0, :member:`dest->scid
+ * <ngtcp2_version_cid.scid>` will be ``NULL``, and
+ * :member:`dest->scidlen <ngtcp2_version_cid.scidlen>` will be 0.
+ * Because the Short header packet does not have the length of
+ * Destination Connection ID, the caller has to pass the length in
  * |short_dcidlen|.  This function extracts the pointer to the
- * Destination Connection ID and assigns it to |*pdcid|.
- * |short_dcidlen| is assigned to |*pdcidlen|.
+ * Destination Connection ID and assigns it to :member:`dest->dcid
+ * <ngtcp2_version_cid.dcid>`.  |short_dcidlen| is assigned to
+ * :member:`dest->dcidlen <ngtcp2_version_cid.dcidlen>`.
  *
  * If Version Negotiation is required, this function returns
  * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`.  Unlike the other error
- * cases, all output parameters are assigned as described above.
+ * cases, all fields of |dest| are assigned as described above.
  *
  * This function returns 0 if it succeeds.  Otherwise, one of the
  * following negative error code:
@@ -2327,11 +2364,10 @@ NGTCP2_EXTERN void ngtcp2_transport_params_del(ngtcp2_transport_params *params,
  * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`
  *     Version Negotiation packet should be sent.
  */
-NGTCP2_EXTERN int
-ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
-                              size_t *pdcidlen, const uint8_t **pscid,
-                              size_t *pscidlen, const uint8_t *data,
-                              size_t datalen, size_t short_dcidlen);
+NGTCP2_EXTERN int ngtcp2_pkt_decode_version_cid(ngtcp2_version_cid *dest,
+                                                const uint8_t *data,
+                                                size_t datalen,
+                                                size_t short_dcidlen);
 
 /**
  * @function

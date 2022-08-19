@@ -2433,19 +2433,17 @@ int Server::on_read(Endpoint &ep) {
       continue;
     }
 
-    uint32_t version;
-    const uint8_t *dcid, *scid;
-    size_t dcidlen, scidlen;
+    ngtcp2_version_cid vc;
 
-    switch (auto rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen,
-                                                    &scid, &scidlen, buf.data(),
-                                                    nread, NGTCP2_SV_SCIDLEN);
+    switch (auto rv = ngtcp2_pkt_decode_version_cid(&vc, buf.data(), nread,
+                                                    NGTCP2_SV_SCIDLEN);
             rv) {
     case 0:
       break;
     case NGTCP2_ERR_VERSION_NEGOTIATION:
-      send_version_negotiation(version, scid, scidlen, dcid, dcidlen, ep,
-                               *local_addr, &su.sa, msg.msg_namelen);
+      send_version_negotiation(vc.version, vc.scid, vc.scidlen, vc.dcid,
+                               vc.dcidlen, ep, *local_addr, &su.sa,
+                               msg.msg_namelen);
       continue;
     default:
       std::cerr << "Could not decode version and CID from QUIC packet header: "
@@ -2453,7 +2451,7 @@ int Server::on_read(Endpoint &ep) {
       continue;
     }
 
-    auto dcid_key = util::make_cid_key(dcid, dcidlen);
+    auto dcid_key = util::make_cid_key(vc.dcid, vc.dcidlen);
 
     auto handler_it = handlers_.find(dcid_key);
     if (handler_it == std::end(handlers_)) {
