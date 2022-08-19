@@ -43,6 +43,26 @@ foreach(name libngtcp2_crypto_wolfssl.pc)
   configure_file("${name}.in" "${name}" @ONLY)
 endforeach()
 
+# Public shared library
+if(ENABLE_SHARED_LIB)
+  add_library(ngtcp2_crypto_wolfssl SHARED ${ngtcp2_crypto_wolfssl_SOURCES})
+  set_target_properties(ngtcp2_crypto_wolfssl PROPERTIES
+    COMPILE_FLAGS "${WARNCFLAGS}"
+    VERSION ${CRYPTO_WOLFSSL_LT_VERSION}
+    SOVERSION ${CRYPTO_WOLFSSL_LT_SOVERSION}
+    C_VISIBILITY_PRESET hidden
+    POSITION_INDEPENDENT_CODE ON
+  )
+  target_include_directories(ngtcp2_crypto_wolfssl PUBLIC
+    ${ngtcp2_crypto_wolfssl_INCLUDE_DIRS})
+  target_link_libraries(ngtcp2_crypto_wolfssl ngtcp2 ${WOLFSSL_LIBRARIES})
+
+  install(TARGETS ngtcp2_crypto_wolfssl
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+endif()
+
 if(ENABLE_STATIC_LIB)
   # Public static library
   add_library(ngtcp2_crypto_wolfssl_static ${ngtcp2_crypto_wolfssl_SOURCES})
