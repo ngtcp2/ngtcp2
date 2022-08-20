@@ -336,6 +336,10 @@ typedef struct ngtcp2_rtb {
   /* num_lost_pkts is the number entries in ents which has
      NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED flag set. */
   size_t num_lost_pkts;
+  /* num_lost_pmtud_pkts is the number of entries in ents which have
+     both NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED and
+     NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE flags set. */
+  size_t num_lost_pmtud_pkts;
 } ngtcp2_rtb;
 
 /*
