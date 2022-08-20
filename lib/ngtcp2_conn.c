@@ -12623,16 +12623,15 @@ static void conn_get_loss_time_and_pktns(ngtcp2_conn *conn,
 }
 
 static ngtcp2_tstamp conn_get_earliest_pto_expiry(ngtcp2_conn *conn,
-                                                  const ngtcp2_tstamp *times,
-                                                  size_t pto_count,
                                                   ngtcp2_tstamp ts) {
   ngtcp2_pktns *ns[] = {conn->in_pktns, conn->hs_pktns, &conn->pktns};
   size_t i;
   ngtcp2_tstamp earliest_ts = UINT64_MAX, t;
   ngtcp2_conn_stat *cstat = &conn->cstat;
+  ngtcp2_tstamp *times = cstat->last_tx_pkt_ts;
   ngtcp2_duration duration =
       compute_pto(cstat->smoothed_rtt, cstat->rttvar, /* max_ack_delay = */ 0) *
-      (1ULL << pto_count);
+      (1ULL << cstat->pto_count);
 
   for (i = NGTCP2_PKTNS_ID_INITIAL; i < NGTCP2_PKTNS_ID_MAX; ++i) {
     if (ns[i] == NULL || ns[i]->rtb.num_pto_eliciting == 0 ||
@@ -12646,7 +12645,8 @@ static ngtcp2_tstamp conn_get_earliest_pto_expiry(ngtcp2_conn *conn,
 
     if (i == NGTCP2_PKTNS_ID_APPLICATION) {
       assert(conn->remote.transport_params);
-      t += conn->remote.transport_params->max_ack_delay * (1ULL << pto_count);
+      t += conn->remote.transport_params->max_ack_delay *
+           (1ULL << cstat->pto_count);
     }
 
     if (t < earliest_ts) {
@@ -12696,8 +12696,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return;
   }
 
-  cstat->loss_detection_timer = conn_get_earliest_pto_expiry(
-      conn, cstat->last_tx_pkt_ts, cstat->pto_count, ts);
+  cstat->loss_detection_timer = conn_get_earliest_pto_expiry(conn, ts);
 
   timeout =
       cstat->loss_detection_timer > ts ? cstat->loss_detection_timer - ts : 0;
