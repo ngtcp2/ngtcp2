@@ -1087,6 +1087,8 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
     size_t destlen, uint64_t app_error_code, const uint8_t *reason,
     size_t reasonlen, ngtcp2_tstamp ts);
 
+int ngtcp2_conn_start_pmtud(ngtcp2_conn *conn);
+
 void ngtcp2_conn_stop_pmtud(ngtcp2_conn *conn);
 
 /**
