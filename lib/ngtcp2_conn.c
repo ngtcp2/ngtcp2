@@ -12553,9 +12553,8 @@ int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
           &conn->log, NGTCP2_LOG_EVENT_RCV,
           "ignore rtt sample because ack_delay is too large latest_rtt=%" PRIu64
           " min_rtt=%" PRIu64 " ack_delay=%" PRIu64,
-          (uint64_t)(rtt / NGTCP2_MILLISECONDS),
-          (uint64_t)(cstat->min_rtt / NGTCP2_MILLISECONDS),
-          (uint64_t)(ack_delay / NGTCP2_MILLISECONDS));
+          rtt / NGTCP2_MILLISECONDS, cstat->min_rtt / NGTCP2_MILLISECONDS,
+          ack_delay / NGTCP2_MILLISECONDS);
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
@@ -12573,15 +12572,14 @@ int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
     cstat->smoothed_rtt = (cstat->smoothed_rtt * 7 + rtt) / 8;
   }
 
-  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                  "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64
-                  " smoothed_rtt=%" PRIu64 " rttvar=%" PRIu64
-                  " ack_delay=%" PRIu64,
-                  (uint64_t)(cstat->latest_rtt / NGTCP2_MILLISECONDS),
-                  (uint64_t)(cstat->min_rtt / NGTCP2_MILLISECONDS),
-                  cstat->smoothed_rtt / NGTCP2_MILLISECONDS,
-                  cstat->rttvar / NGTCP2_MILLISECONDS,
-                  (uint64_t)(ack_delay / NGTCP2_MILLISECONDS));
+  ngtcp2_log_info(
+      &conn->log, NGTCP2_LOG_EVENT_RCV,
+      "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64 " smoothed_rtt=%" PRIu64
+      " rttvar=%" PRIu64 " ack_delay=%" PRIu64,
+      cstat->latest_rtt / NGTCP2_MILLISECONDS,
+      cstat->min_rtt / NGTCP2_MILLISECONDS,
+      cstat->smoothed_rtt / NGTCP2_MILLISECONDS,
+      cstat->rttvar / NGTCP2_MILLISECONDS, ack_delay / NGTCP2_MILLISECONDS);
 
   return 0;
 }
@@ -12704,8 +12702,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "loss_detection_timer=%" PRIu64 " timeout=%" PRIu64,
-                  cstat->loss_detection_timer,
-                  (uint64_t)(timeout / NGTCP2_MILLISECONDS));
+                  cstat->loss_detection_timer, timeout / NGTCP2_MILLISECONDS);
 }
 
 int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
