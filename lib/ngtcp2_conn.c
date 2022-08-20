@@ -4707,6 +4707,10 @@ static int conn_start_pmtud(ngtcp2_conn *conn) {
   return 0;
 }
 
+int ngtcp2_conn_start_pmtud(ngtcp2_conn *conn) {
+  return conn_start_pmtud(conn);
+}
+
 void ngtcp2_conn_stop_pmtud(ngtcp2_conn *conn) {
   if (!conn->pmtud) {
     return;

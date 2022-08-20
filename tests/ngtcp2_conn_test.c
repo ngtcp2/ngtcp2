@@ -6003,6 +6003,8 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   CU_ASSERT(0 == rv);
 
+  ngtcp2_conn_on_loss_detection_timer(conn, t);
+
   /* Retransmits the contents of lost packet */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -7291,6 +7293,7 @@ void test_ngtcp2_conn_validate_ecn(void) {
   int64_t stream_id;
   ngtcp2_ssize nwrite;
   size_t i;
+  ngtcp2_tstamp t = 0;
 
   setup_default_client(&conn);
 
@@ -7484,6 +7487,8 @@ void test_ngtcp2_conn_validate_ecn(void) {
   /* ECN validation fails if all ECN marked packets are lost */
   setup_default_client(&conn);
 
+  t = 0;
+
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
   CU_ASSERT(0 == rv);
@@ -7491,7 +7496,7 @@ void test_ngtcp2_conn_validate_ecn(void) {
   for (i = 0; i < NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS; ++i) {
     spktlen = ngtcp2_conn_write_stream(conn, NULL, &pi, buf, sizeof(buf),
                                        &nwrite, NGTCP2_WRITE_STREAM_FLAG_NONE,
-                                       stream_id, null_data, 25, 0);
+                                       stream_id, null_data, 25, t);
 
     CU_ASSERT(0 < spktlen);
     CU_ASSERT(NGTCP2_ECN_ECT_0 == pi.ecn);
@@ -7500,9 +7505,11 @@ void test_ngtcp2_conn_validate_ecn(void) {
   CU_ASSERT(NGTCP2_ECN_STATE_UNKNOWN == conn->tx.ecn.state);
   CU_ASSERT(NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS == conn->tx.ecn.dgram_sent);
 
+  t += NGTCP2_MILLISECONDS;
+
   spktlen = ngtcp2_conn_write_stream(conn, NULL, &pi, buf, sizeof(buf), &nwrite,
                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
-                                     null_data, 25, 0);
+                                     null_data, 25, t);
 
   CU_ASSERT(0 < spktlen);
   CU_ASSERT(NGTCP2_ECN_NOT_ECT == pi.ecn);
@@ -7518,12 +7525,14 @@ void test_ngtcp2_conn_validate_ecn(void) {
   fr.ack.first_ack_blklen = 0;
   fr.ack.num_blks = 0;
 
+  t += NGTCP2_MILLISECONDS;
+
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr,
                                   conn->pktns.crypto.rx.ckm);
-  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen,
-                            NGTCP2_SECONDS);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
 
   CU_ASSERT(0 == rv);
+
   CU_ASSERT(NGTCP2_ECN_STATE_FAILED == conn->tx.ecn.state);
   CU_ASSERT(NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS ==
             conn->pktns.tx.ecn.validation_pkt_lost);
@@ -8676,6 +8685,50 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
 
   CU_ASSERT(conn->client_chosen_version ==
             ngtcp2_conn_server_negotiate_version(conn, &version_info));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_pmtud_loss(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  ngtcp2_ssize spktlen;
+  uint64_t t = 0;
+  ngtcp2_frame fr;
+  int64_t pkt_num = 0;
+  size_t pktlen;
+  int rv;
+
+  setup_default_client(&conn);
+
+  ngtcp2_conn_start_pmtud(conn);
+
+  /* This sends PMTUD packet. */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(1406 == spktlen);
+
+  t += NGTCP2_SECONDS;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, pkt_num++,
+                                  &fr, conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == conn->pktns.rtb.num_lost_pkts);
+  CU_ASSERT(1 == conn->pktns.rtb.num_lost_pmtud_pkts);
+  CU_ASSERT(0 == conn->pktns.rtb.cc_bytes_in_flight);
 
   ngtcp2_conn_del(conn);
 }
