@@ -28,11 +28,11 @@ cmake_minimum_required(VERSION 3.1)
 cmake_policy(SET CMP0063 NEW)
 
 # XXX using 0.1.90 instead of 0.2.0-DEV
-project(ngtcp2 VERSION 0.7.90)
+project(ngtcp2 VERSION 0.8.0)
 
 # See versioning rule:
 #  https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
-set(LT_CURRENT  6)
+set(LT_CURRENT  7)
 set(LT_REVISION 0)
 set(LT_AGE      0)
 
