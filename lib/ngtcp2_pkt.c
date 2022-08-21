@@ -60,9 +60,7 @@ void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, pc);
 }
 
-int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
-                                  size_t *pdcidlen, const uint8_t **pscid,
-                                  size_t *pscidlen, const uint8_t *data,
+int ngtcp2_pkt_decode_version_cid(ngtcp2_version_cid *dest, const uint8_t *data,
                                   size_t datalen, size_t short_dcidlen) {
   size_t len;
   uint32_t version;
@@ -107,11 +105,11 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
-    *pversion = version;
-    *pdcid = &data[6];
-    *pdcidlen = dcidlen;
-    *pscid = &data[6 + dcidlen + 1];
-    *pscidlen = scidlen;
+    dest->version = version;
+    dest->dcid = &data[6];
+    dest->dcidlen = dcidlen;
+    dest->scid = &data[6 + dcidlen + 1];
+    dest->scidlen = scidlen;
 
     if (!version) {
       /* VN */
@@ -131,11 +129,11 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  *pversion = 0;
-  *pdcid = &data[1];
-  *pdcidlen = short_dcidlen;
-  *pscid = NULL;
-  *pscidlen = 0;
+  dest->version = 0;
+  dest->dcid = &data[1];
+  dest->dcidlen = short_dcidlen;
+  dest->scid = NULL;
+  dest->scidlen = 0;
 
   return 0;
 }
