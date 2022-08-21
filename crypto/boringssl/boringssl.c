@@ -344,11 +344,17 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const uint8_t *ciphertext, size_t ciphertextlen,
                           const uint8_t *nonce, size_t noncelen,
                           const uint8_t *aad, size_t aadlen) {
+  const EVP_AEAD *cipher = aead->native_handle;
   EVP_AEAD_CTX *actx = aead_ctx->native_handle;
-  size_t max_outlen = ciphertextlen;
+  size_t max_overhead = EVP_AEAD_max_overhead(cipher);
+  size_t max_outlen;
   size_t outlen;
 
-  (void)aead;
+  if (ciphertextlen < max_overhead) {
+    return -1;
+  }
+
+  max_outlen = ciphertextlen - max_overhead;
 
   if (EVP_AEAD_CTX_open(actx, dest, &outlen, max_outlen, nonce, noncelen,
                         ciphertext, ciphertextlen, aad, aadlen) != 1) {
