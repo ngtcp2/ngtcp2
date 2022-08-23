@@ -373,6 +373,8 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   dest->len = 0;
   dest->pkt_num = 0;
   dest->pkt_numlen = 0;
+  dest->token.base = NULL;
+  dest->token.len = 0;
 
   assert((size_t)(p - pkt) == len);
 
