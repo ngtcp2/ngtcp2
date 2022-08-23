@@ -44,6 +44,9 @@ if [ "$ROLE" == "client" ]; then
     if [ "$TESTCASE" == "v2" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --other-versions v2draft,v1"
     fi
+    if [ "$TESTCASE" == "ecn" ]; then
+	CLIENT_ARGS="$CLIENT_ARGS --no-pmtud"
+    fi
     if [ "$TESTCASE" == "resumption" ] || [ "$TESTCASE" == "zerortt" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt"
 	if [ "$TESTCASE" == "resumption" ]; then
@@ -75,6 +78,8 @@ elif [ "$ROLE" == "server" ]; then
 	SERVER_ARGS="$SERVER_ARGS --timeout=180s --handshake-timeout=180s"
     elif [ "$TESTCASE" == "v2" ]; then
 	SERVER_ARGS="$SERVER_ARGS --preferred-versions v2draft"
+    elif [ "$TESTCASE" == "ecn" ]; then
+	SERVER_ARGS="$SERVER_ARGS --no-pmtud"
     fi
 
     $SERVER_BIN '*' 443 $SERVER_ARGS $SERVER_PARAMS &> $LOG
