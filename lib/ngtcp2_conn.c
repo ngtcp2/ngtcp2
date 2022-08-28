@@ -12232,15 +12232,15 @@ int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn) {
 int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   int rv;
 
+  rv = conn_call_stream_close(conn, strm);
+  if (rv != 0) {
+    return rv;
+  }
+
   rv = ngtcp2_map_remove(&conn->strms, (ngtcp2_map_key_type)strm->stream_id);
   if (rv != 0) {
     assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
     return rv;
-  }
-
-  rv = conn_call_stream_close(conn, strm);
-  if (rv != 0) {
-    goto fin;
   }
 
   if (ngtcp2_strm_is_tx_queued(strm)) {
@@ -12251,11 +12251,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
     }
   }
 
-fin:
-  ngtcp2_strm_free(strm);
-  ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
-
-  return rv;
+  return 0;
 }
 
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
