@@ -816,7 +816,7 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
   cstat->bytes_in_flight = 0;
   cstat->delivery_rate_sec = 0;
   cstat->pacing_rate = 0.0;
-  cstat->send_quantum = SIZE_MAX;
+  cstat->send_quantum = 64 * 1024;
 }
 
 /*
@@ -13326,13 +13326,23 @@ int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn, int64_t stream_id,
 }
 
 void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  if (!(conn->cstat.pacing_rate > 0) || conn->tx.pacing.pktlen == 0) {
+  if (conn->tx.pacing.pktlen == 0) {
     return;
   }
 
-  conn->tx.pacing.next_ts =
-      ts + (ngtcp2_duration)((double)conn->tx.pacing.pktlen /
-                             conn->cstat.pacing_rate);
+  if (conn->cstat.pacing_rate > 0) {
+    conn->tx.pacing.next_ts =
+        ts + (ngtcp2_duration)((double)conn->tx.pacing.pktlen /
+                               conn->cstat.pacing_rate);
+  } else {
+    double pacing_rate =
+        (double)conn->cstat.cwnd / (double)(conn->cstat.min_rtt != UINT64_MAX
+                                                ? conn->cstat.min_rtt
+                                                : NGTCP2_MILLISECONDS);
+    conn->tx.pacing.next_ts =
+        ts + (ngtcp2_duration)((double)conn->tx.pacing.pktlen / pacing_rate);
+  }
+
   conn->tx.pacing.pktlen = 0;
 }
 
