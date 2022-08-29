@@ -12251,6 +12251,9 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
     }
   }
 
+  ngtcp2_strm_free(strm);
+  ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
+
   return 0;
 }
 
