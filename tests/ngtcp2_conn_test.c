@@ -8733,6 +8733,64 @@ void test_ngtcp2_conn_pmtud_loss(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_amplification(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  uint8_t buf[2048];
+  ngtcp2_cid rcid;
+  int64_t pkt_num = 0;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_ssize spktlen;
+  int rv;
+
+  rcid_init(&rcid);
+
+  /* ACK only frame should not be sent due to amplification limit. */
+  setup_early_server(&conn);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, ngtcp2_conn_get_dcid(conn),
+      ++pkt_num, conn->client_chosen_version, &fr, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 111;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_single_frame_0rtt_pkt(
+      buf, sizeof(buf), &rcid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
+      conn->client_chosen_version, &fr, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  /* Adjust condition so that the execution path goes into sending ACK
+     only frame. */
+  conn->dcid.current.bytes_sent = conn->dcid.current.bytes_recv * 3 - 1;
+  conn->cstat.bytes_in_flight = conn->cstat.cwnd;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 == spktlen);
+
+  ngtcp2_conn_del(conn);
+}
+
 typedef struct failmalloc {
   size_t nmalloc;
   size_t fail_start;

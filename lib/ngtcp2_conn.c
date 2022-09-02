@@ -11835,20 +11835,20 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
           }
         }
       }
+    }
 
-      if (conn->server &&
-          !(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
-        server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
-        origlen = (size_t)ngtcp2_min((uint64_t)origlen, server_tx_left);
-        destlen = (size_t)ngtcp2_min((uint64_t)destlen, server_tx_left);
+    if (conn->server &&
+        !(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
+      server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
+      origlen = (size_t)ngtcp2_min((uint64_t)origlen, server_tx_left);
+      destlen = (size_t)ngtcp2_min((uint64_t)destlen, server_tx_left);
 
-        if (server_tx_left == 0 &&
-            conn->cstat.loss_detection_timer != UINT64_MAX) {
-          ngtcp2_log_info(
-              &conn->log, NGTCP2_LOG_EVENT_RCV,
-              "loss detection timer canceled due to amplification limit");
-          conn->cstat.loss_detection_timer = UINT64_MAX;
-        }
+      if (server_tx_left == 0 &&
+          conn->cstat.loss_detection_timer != UINT64_MAX) {
+        ngtcp2_log_info(
+            &conn->log, NGTCP2_LOG_EVENT_RCV,
+            "loss detection timer canceled due to amplification limit");
+        conn->cstat.loss_detection_timer = UINT64_MAX;
       }
     }
   }
