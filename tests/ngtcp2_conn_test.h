@@ -94,6 +94,7 @@ void test_ngtcp2_conn_get_connection_close_error(void);
 void test_ngtcp2_conn_version_negotiation(void);
 void test_ngtcp2_conn_server_negotiate_version(void);
 void test_ngtcp2_conn_pmtud_loss(void);
+void test_ngtcp2_conn_amplification(void);
 void test_ngtcp2_conn_new_failmalloc(void);
 void test_ngtcp2_accept(void);
 void test_ngtcp2_select_version(void);
