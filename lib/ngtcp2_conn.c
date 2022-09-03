@@ -13056,6 +13056,8 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
                                              ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_dcid *dcid;
+  ngtcp2_duration pto, initial_pto, timeout;
+  ngtcp2_pv *pv;
 
   assert(!conn->server);
 
@@ -13087,22 +13089,26 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
   ngtcp2_dcid_copy(&conn->dcid.current, dcid);
   ngtcp2_ringbuf_pop_front(&conn->dcid.unused.rb);
 
-  rv = conn_call_activate_dcid(conn, &conn->dcid.current);
+  conn_reset_congestion_state(conn, ts);
+  conn_reset_ecn_validation_state(conn);
+
+  pto = conn_compute_pto(conn, &conn->pktns);
+  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
+  timeout = 3 * ngtcp2_max(pto, initial_pto);
+
+  /* TODO It might be better to add a new flag which indicates that a
+     connection should be closed if this path validation failed.  The
+     current design allows an application to continue, by migrating
+     into yet another path. */
+  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
+                     conn->mem);
   if (rv != 0) {
     return rv;
   }
 
-  conn_reset_congestion_state(conn, ts);
-  conn_reset_ecn_validation_state(conn);
+  conn->pv = pv;
 
-  if (!conn->local.settings.no_pmtud) {
-    rv = conn_start_pmtud(conn);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
-  return 0;
+  return conn_call_activate_dcid(conn, &conn->dcid.current);
 }
 
 int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
