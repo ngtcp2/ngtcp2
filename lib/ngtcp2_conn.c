@@ -11827,6 +11827,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
         }
 
         if (conn->pmtud &&
+            (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) &&
             (!conn->hs_pktns ||
              ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) == 0)) {
           nwrite = conn_write_pmtud_probe(conn, pi, dest, origdestlen, ts);
