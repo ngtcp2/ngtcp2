@@ -1896,7 +1896,7 @@ static uint64_t conn_get_cwnd(ngtcp2_conn *conn) {
  * conn_cwnd_is_zero returns nonzero if the number of bytes the local
  * endpoint can sent at this time is zero.
  */
-static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
+static int conn_cwnd_is_zero(ngtcp2_conn *conn) {
   uint64_t bytes_in_flight = conn->cstat.bytes_in_flight;
   uint64_t cwnd = conn_get_cwnd(conn);
 
