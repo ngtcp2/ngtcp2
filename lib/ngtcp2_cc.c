@@ -307,8 +307,8 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                      const ngtcp2_cc_pkt *pkt,
                                      ngtcp2_tstamp ts) {
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
-  ngtcp2_duration t, min_rtt, eta;
-  uint64_t target;
+  ngtcp2_duration t, eta;
+  uint64_t target, cwnd_thres;
   uint64_t tx, kx, time_delta, delta;
   uint64_t add, tcp_add;
   uint64_t m;
@@ -382,12 +382,10 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     cc->pending_w_add = 0;
   }
 
-  min_rtt = cstat->min_rtt == UINT64_MAX ? cstat->initial_rtt : cstat->min_rtt;
+  t = ts - cc->epoch_start;
 
-  t = ts + min_rtt - cc->epoch_start;
-
-  tx = (t << 4) / NGTCP2_SECONDS;
-  kx = (cc->k << 4);
+  tx = (t << 10) / NGTCP2_SECONDS;
+  kx = (cc->k << 10);
 
   if (tx > kx) {
     time_delta = tx - kx;
@@ -396,12 +394,23 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   }
 
   delta = cstat->max_udp_payload_size *
-          ((((time_delta * time_delta) >> 4) * time_delta) >> 8) * 4 / 10;
+          ((((time_delta * time_delta) >> 10) * time_delta) >> 10) * 4 / 10;
+  delta >>= 10;
 
   if (tx > kx) {
     target = cc->origin_point + delta;
   } else {
     target = cc->origin_point - delta;
+  }
+
+  cwnd_thres =
+      (target * (((t + cstat->smoothed_rtt) << 10) / NGTCP2_SECONDS)) >> 10;
+  if (cwnd_thres < cstat->cwnd) {
+    target = cstat->cwnd;
+  } else if (2 * cwnd_thres > 3 * cstat->cwnd) {
+    target = cstat->cwnd * 3 / 2;
+  } else {
+    target = cwnd_thres;
   }
 
   if (target > cstat->cwnd) {
