@@ -4922,10 +4922,10 @@ ngtcp2_conn_get_path_max_udp_payload_size(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_initiate_immediate_migration` starts connection
- * migration to the given |path|.
- * Only client can initiate migration.  This function does
- * immediate migration; it does not probe peer reachability from a new
- * local address.
+ * migration to the given |path|.  Only client can initiate migration.
+ * This function does immediate migration; while the path validation
+ * is nonetheless performed, this function does not wait for it to
+ * succeed.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
