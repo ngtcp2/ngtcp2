@@ -5919,23 +5919,23 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
     if (ngtcp2_path_eq(&pv->dcid.ps.path, &conn->dcid.current.ps.path)) {
       conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
+
+      if (!conn->local.settings.no_pmtud) {
+        ngtcp2_conn_stop_pmtud(conn);
+
+        if (!(pv->flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED)) {
+          rv = conn_start_pmtud(conn);
+          if (rv != 0) {
+            return rv;
+          }
+        }
+      }
     }
 
     rv = conn_call_path_validation(conn, pv,
                                    NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
     if (rv != 0) {
       return rv;
-    }
-
-    if (!conn->local.settings.no_pmtud) {
-      ngtcp2_conn_stop_pmtud(conn);
-
-      if (!(pv->flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED)) {
-        rv = conn_start_pmtud(conn);
-        if (rv != 0) {
-          return rv;
-        }
-      }
     }
   }
 
