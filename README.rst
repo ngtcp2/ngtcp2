@@ -60,7 +60,7 @@ directory require at least one of the following TLS backends:
 - GnuTLS >= 3.7.2
 - BoringSSL (commit a6d321b11fa80496b7c8ae6405468c212d4f5c87)
 - Picotls (commit 7970614ad049d194fe1691bdf0cc66c6930a3a2f)
-- wolfSSL (commit 3f7d56d957ac7418abab13540af5e4a6c8ba364a)
+- wolfSSL >= 5.5.0
 
 Build from git
 --------------
@@ -177,7 +177,7 @@ available crypto helper libraries are:
 - libngtcp2_crypto_picotls: Use Picotls as TLS backend
 - libngtcp2_crypto_wolfssl: Use wolfSSL as TLS backend
 
-Because BoringSSL, Picotls and wolfSSL are an unversioned product, we only
+Because BoringSSL and Picotls are an unversioned product, we only
 tested their particular revision.  See Requirements section above.
 
 We use Picotls with OpenSSL as crypto backend.  It does not work with
