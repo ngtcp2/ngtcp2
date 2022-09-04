@@ -2485,6 +2485,11 @@ void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
   conn->keep_alive.timeout = timeout;
 }
 
+void ngtcp2_conn_schedule_ping(ngtcp2_conn *conn)
+{
+  conn->flags |= (uint32_t)NGTCP2_CONN_FLAG_PING_SCHEDULED;
+}
+
 /*
  * NGTCP2_PKT_PACING_OVERHEAD defines overhead of userspace event
  * loop.  Packet pacing might require sub milliseconds packet spacing,
@@ -3520,6 +3525,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint64_t delta;
   const ngtcp2_cid *scid = NULL;
   int keep_alive_expired = 0;
+  int ping_scheduled = (conn->flags & NGTCP2_CONN_FLAG_PING_SCHEDULED) != 0;
   uint32_t version = 0;
 
   /* Return 0 if destlen is less than minimum packet length which can
@@ -4162,7 +4168,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     keep_alive_expired = conn_keep_alive_expired(conn, ts);
 
-    if (conn->pktns.rtb.probe_pkt_left == 0 && !keep_alive_expired) {
+    if (conn->pktns.rtb.probe_pkt_left == 0 &&
+        !keep_alive_expired && !ping_scheduled) {
       return 0;
     }
   } else if (write_more) {
@@ -4199,7 +4206,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   if (!(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
     if (pktns->tx.num_non_ack_pkt >= NGTCP2_MAX_NON_ACK_TX_PKT ||
-        keep_alive_expired || conn->pktns.rtb.probe_pkt_left) {
+        keep_alive_expired || ping_scheduled || 
+        conn->pktns.rtb.probe_pkt_left) {
       lfr.type = NGTCP2_FRAME_PING;
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
@@ -4311,6 +4319,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   }
 
   conn_update_keep_alive_last_ts(conn, ts);
+
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_PING_SCHEDULED;
 
   conn->dcid.current.bytes_sent += (uint64_t)nwrite;
 

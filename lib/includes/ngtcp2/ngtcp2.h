@@ -4099,6 +4099,13 @@ NGTCP2_EXTERN void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * `ngtcp2_conn_schedule_ping` schedules PING frame on next write.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_schedule_ping(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_get_expiry` returns the next expiry time.
  *
  * Call `ngtcp2_conn_handle_expiry()` and `ngtcp2_conn_write_pkt` (or

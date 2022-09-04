@@ -220,6 +220,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR is set when the local
    endpoint has initiated key update. */
 #define NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR 0x10000u
+/* NGTCP2_CONN_FLAG_PING_SCHEDULED is set when PING frame
+   should be sent on next write. */
+#define NGTCP2_CONN_FLAG_PING_SCHEDULED 0x20000u
 
 typedef struct ngtcp2_crypto_data {
   ngtcp2_buf buf;
