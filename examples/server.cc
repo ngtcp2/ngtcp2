@@ -1387,6 +1387,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       ngtcp2_crypto_version_negotiation_cb,
       nullptr, // recv_rx_key
       ::recv_tx_key,
+      nullptr, // recv_ping
   };
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;

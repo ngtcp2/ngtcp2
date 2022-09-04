@@ -635,6 +635,21 @@ static int conn_call_recv_tx_key(ngtcp2_conn *conn, ngtcp2_crypto_level level) {
   return 0;
 }
 
+static int conn_call_recv_ping(ngtcp2_conn *conn) {
+  int rv;
+
+  if (!conn->callbacks.recv_ping) {
+    return 0;
+  }
+
+  rv = conn->callbacks.recv_ping(conn, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int crypto_offset_less(const ngtcp2_ksl_key *lhs,
                               const ngtcp2_ksl_key *rhs) {
   return *(int64_t *)lhs < *(int64_t *)rhs;
@@ -6644,6 +6659,10 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       break;
     case NGTCP2_FRAME_PING:
+      rv = conn_call_recv_ping(conn);
+      if (rv != 0) {
+        return rv;
+      }
       require_ack = 1;
       break;
     default:
@@ -8668,7 +8687,13 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
       }
       break;
     case NGTCP2_FRAME_CRYPTO:
+      require_ack = 1;
+      break;
     case NGTCP2_FRAME_PING:
+      rv = conn_call_recv_ping(conn);
+      if (rv != 0) {
+        return rv;
+      }
       require_ack = 1;
       break;
     default:
@@ -9166,6 +9191,10 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       break;
     case NGTCP2_FRAME_PING:
+      rv = conn_call_recv_ping(conn);
+      if (rv != 0) {
+        return rv;
+      }
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_PATH_CHALLENGE:

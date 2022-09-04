@@ -662,6 +662,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       ngtcp2_crypto_version_negotiation_cb,
       ::recv_rx_key,
       nullptr, // recv_tx_key
+      nullptr, // recv_ping
   };
 
   ngtcp2_cid scid, dcid;

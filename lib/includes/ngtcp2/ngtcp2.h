@@ -3320,6 +3320,17 @@ typedef int (*ngtcp2_version_negotiation)(ngtcp2_conn *conn, uint32_t version,
 typedef int (*ngtcp2_recv_key)(ngtcp2_conn *conn, ngtcp2_crypto_level level,
                                void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_recv_ping` is invoked when new PING frame is received.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_recv_ping)(ngtcp2_conn *conn, void *user_data);
+
 #define NGTCP2_CALLBACKS_VERSION_V1 1
 #define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_VERSION_V1
 
@@ -3578,6 +3589,12 @@ typedef struct ngtcp2_callbacks {
    * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_INITIAL`.
    */
   ngtcp2_recv_key recv_tx_key;
+  /**
+   * :member:`recv_ping` is a callback function which is invoked
+   * when a new PING frame is received.  This callback function is
+   * optional.
+   */
+  ngtcp2_recv_ping recv_ping;
 } ngtcp2_callbacks;
 
 /**
