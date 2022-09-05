@@ -457,11 +457,17 @@ if test "x${request_libev}" = "xyes" &&
   AC_MSG_ERROR([libev was requested (--with-libev) but not found])
 fi
 
+if test "x${lib_only}" = "xno" &&
+   test "x${HAVE_CXX20}" != "x1"; then
+  AC_MSG_WARN([C++ compiler is not capable of C++20.  Examples will not be built.])
+fi
+
 enable_examples=no
 if test "x${lib_only}" = "xno" &&
    test "x${have_libnghttp3}" = "xyes" &&
    test "x${have_crypto}" = "xyes" &&
-   test "x${have_libev}" = "xyes"; then
+   test "x${have_libev}" = "xyes" &&
+   test "x${HAVE_CXX20}" = "x1"; then
   enable_examples=yes
 
   if test "x${have_openssl}" = "xyes"; then
