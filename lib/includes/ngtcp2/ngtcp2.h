@@ -1642,8 +1642,10 @@ typedef struct ngtcp2_conn_stat {
    */
   uint64_t delivery_rate_sec;
   /**
-   * :member:`pacing_rate` is the current packet sending rate.  If
-   * pacing is disabled, 0 is set.
+   * :member:`pacing_rate` is the current packet sending rate computed
+   * by a congestion controller.  0 if a congestion controller does
+   * not set pacing rate.  Even if this value is set to 0, the library
+   * paces packets.
    */
   double pacing_rate;
   /**
@@ -1668,13 +1670,11 @@ typedef enum ngtcp2_cc_algo {
    */
   NGTCP2_CC_ALGO_CUBIC = 0x01,
   /**
-   * :enum:`NGTCP2_CC_ALGO_BBR` represents BBR.  If BBR is chosen,
-   * packet pacing is enabled.
+   * :enum:`NGTCP2_CC_ALGO_BBR` represents BBR.
    */
   NGTCP2_CC_ALGO_BBR = 0x02,
   /**
-   * :enum:`NGTCP2_CC_ALGO_BBR2` represents BBR v2.  If BBR v2 is
-   * chosen, packet pacing is enabled.
+   * :enum:`NGTCP2_CC_ALGO_BBR2` represents BBR v2.
    */
   NGTCP2_CC_ALGO_BBR2 = 0x03
 } ngtcp2_cc_algo;
@@ -4473,11 +4473,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * This function must not be called from inside the callback
  * functions.
  *
- * If pacing is enabled, `ngtcp2_conn_update_pkt_tx_time` must be
- * called after this function.  Application may call this function
- * multiple times before calling `ngtcp2_conn_update_pkt_tx_time`.
- * Packet pacing is enabled if BBR congestion controller algorithm is
- * used.
+ * `ngtcp2_conn_update_pkt_tx_time` must be called after this
+ * function.  Application may call this function multiple times before
+ * calling `ngtcp2_conn_update_pkt_tx_time`.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -5391,12 +5389,11 @@ NGTCP2_EXTERN int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_update_pkt_tx_time` sets the time instant of the next
- * packet transmission.  This function is noop if packet pacing is
- * disabled.  If packet pacing is enabled, this function must be
- * called after (multiple invocation of) `ngtcp2_conn_writev_stream`.
- * If packet aggregation (e.g., packet batching, GSO) is used, call
- * this function after all aggregated datagrams are sent, which
- * indicates multiple invocation of `ngtcp2_conn_writev_stream`.
+ * packet transmission.  This function must be called after (multiple
+ * invocation of) `ngtcp2_conn_writev_stream`.  If packet aggregation
+ * (e.g., packet batching, GSO) is used, call this function after all
+ * aggregated datagrams are sent, which indicates multiple invocation
+ * of `ngtcp2_conn_writev_stream`.
  */
 NGTCP2_EXTERN void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn,
                                                   ngtcp2_tstamp ts);
@@ -5405,8 +5402,7 @@ NGTCP2_EXTERN void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_get_send_quantum` returns the maximum number of bytes
- * that can be sent in one go without packet spacing.  If packet
- * pacing is disabled, this function returns SIZE_MAX.
+ * that can be sent in one go without packet spacing.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn);
 

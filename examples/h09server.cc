@@ -965,13 +965,7 @@ int Handler::write_streams() {
   ngtcp2_path_storage_zero(&ps);
   ngtcp2_path_storage_zero(&prev_ps);
 
-  if (config.cc_algo != NGTCP2_CC_ALGO_BBR &&
-      config.cc_algo != NGTCP2_CC_ALGO_BBR2) {
-    /* If bbr is chosen, pacing is enabled.  No need to cap the number
-       of datagrams to send. */
-    max_pktcnt =
-        std::min(max_pktcnt, static_cast<size_t>(config.max_gso_dgrams));
-  }
+  max_pktcnt = std::min(max_pktcnt, static_cast<size_t>(config.max_gso_dgrams));
 
   for (;;) {
     int64_t stream_id = -1;
@@ -2464,7 +2458,7 @@ void config_set_default(Config &config) {
   config.max_dyn_length = 20_m;
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  config.max_gso_dgrams = 10;
+  config.max_gso_dgrams = 64;
   config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
   config.ack_thresh = 2;
 }
