@@ -12597,8 +12597,8 @@ static void conn_get_loss_time_and_pktns(ngtcp2_conn *conn,
                                          ngtcp2_pktns **ppktns) {
   ngtcp2_pktns *const ns[] = {conn->hs_pktns, &conn->pktns};
   ngtcp2_conn_stat *cstat = &conn->cstat;
-  ngtcp2_duration *loss_time = cstat->loss_time;
-  ngtcp2_tstamp earliest_loss_time = loss_time[NGTCP2_PKTNS_ID_INITIAL];
+  ngtcp2_duration *loss_time = cstat->loss_time + 1;
+  ngtcp2_tstamp earliest_loss_time = cstat->loss_time[NGTCP2_PKTNS_ID_INITIAL];
   ngtcp2_pktns *pktns = conn->in_pktns;
   size_t i;
 

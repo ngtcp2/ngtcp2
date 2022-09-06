@@ -6047,10 +6047,11 @@ void test_ngtcp2_conn_handshake_loss(void) {
       ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->client_chosen_version, &fr,
       &null_ckm);
 
-  t += 8;
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
 
   CU_ASSERT(0 == rv);
+
+  t += NGTCP2_MILLISECONDS;
 
   ngtcp2_conn_on_loss_detection_timer(conn, t);
 
