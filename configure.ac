@@ -503,6 +503,13 @@ AM_CONDITIONAL([ENABLE_EXAMPLE_BORINGSSL], [ test "x${enable_examples}" = "xyes"
 AM_CONDITIONAL([ENABLE_EXAMPLE_PICOTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_picotls}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_WOLFSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_wolfssl}" = "xyes" ])
 
+AC_SUBST([EXAMPLES_ENABLED], "${enable_examples}")
+AC_SUBST([EXAMPLES_OPENSSL], "${have_openssl}")
+AC_SUBST([EXAMPLES_GNUTLS], "${have_gnutls}")
+AC_SUBST([EXAMPLES_BORINGSSL], "${have_boringssl}")
+AC_SUBST([EXAMPLES_PICOTLS], "${have_picotls}")
+AC_SUBST([EXAMPLES_WOLFSSL], "${have_wolfssl}")
+
 # jemalloc
 have_jemalloc=no
 if test "x${request_jemalloc}" != "xno"; then
@@ -725,6 +732,7 @@ AC_CONFIG_FILES([
   doc/source/conf.py
   third-party/Makefile
   examples/Makefile
+  examples/tests/config.ini
 ])
 AC_OUTPUT
 
