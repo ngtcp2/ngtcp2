@@ -12595,11 +12595,11 @@ void ngtcp2_conn_get_conn_stat_versioned(ngtcp2_conn *conn,
 static void conn_get_loss_time_and_pktns(ngtcp2_conn *conn,
                                          ngtcp2_tstamp *ploss_time,
                                          ngtcp2_pktns **ppktns) {
-  ngtcp2_pktns *const ns[] = {conn->hs_pktns, &conn->pktns};
+  ngtcp2_pktns *const ns[] = {conn->in_pktns, conn->hs_pktns, &conn->pktns};
   ngtcp2_conn_stat *cstat = &conn->cstat;
-  ngtcp2_duration *loss_time = cstat->loss_time + 1;
-  ngtcp2_tstamp earliest_loss_time = cstat->loss_time[NGTCP2_PKTNS_ID_INITIAL];
-  ngtcp2_pktns *pktns = conn->in_pktns;
+  ngtcp2_duration *loss_time = cstat->loss_time;
+  ngtcp2_tstamp earliest_loss_time = UINT64_MAX;
+  ngtcp2_pktns *pktns = NULL;
   size_t i;
 
   for (i = 0; i < sizeof(ns) / sizeof(ns[0]); ++i) {
