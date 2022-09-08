@@ -597,7 +597,7 @@ int recv_rx_key(ngtcp2_conn *conn, ngtcp2_crypto_level level, void *user_data) {
   }
 
   auto c = static_cast<Client *>(user_data);
-  if (c->setup_httpconn() != 0) {
+  if (!c->get_early_data() && c->setup_httpconn() != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -2091,6 +2091,8 @@ int Client::setup_httpconn() {
 const std::vector<uint32_t> &Client::get_offered_versions() const {
   return offered_versions_;
 }
+
+bool Client::get_early_data() const { return early_data_; };
 
 namespace {
 int run(Client &c, const char *addr, const char *port,
