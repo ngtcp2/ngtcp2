@@ -24,17 +24,23 @@ class TestResume:
         yield client
 
     def test_02_01(self, env: Env, server, client):
-        # run GET with sessions, cleared first, then reused
+        # run GET with sessions but no early data, cleared first, then reused
         client.clear_session()
-        cr = client.http_get(server, url=f'https://{env.example_domain}/', use_session=True)
+        cr = client.http_get(server, url=f'https://{env.example_domain}/',
+                             use_session=True,
+                             extra_args=['--disable-early-data'])
         assert cr.returncode == 0
         cr.assert_non_resume_handshake()
         # Now do this again and we expect a resumption, meaning no certificate
-        cr = client.http_get(server, url=f'https://{env.example_domain}/', use_session=True)
+        cr = client.http_get(server, url=f'https://{env.example_domain}/',
+                             use_session=True,
+                             extra_args=['--disable-early-data'])
         assert cr.returncode == 0
         cr.assert_resume_handshake()
         # restart the server, do it again
         server.restart()
-        cr = client.http_get(server, url=f'https://{env.example_domain}/', use_session=True)
+        cr = client.http_get(server, url=f'https://{env.example_domain}/',
+                             use_session=True,
+                             extra_args=['--disable-early-data'])
         assert cr.returncode == 0
         cr.assert_non_resume_handshake()

@@ -45,3 +45,12 @@ class TestEarlyData:
         assert cr.returncode == 0
         assert cr.early_data_rejected
         cr.assert_non_resume_handshake()
+        # restart again, sent data, but not as early data
+        server.restart()
+        cr = client.http_get(server, url=f'https://{env.example_domain}/',
+                             use_session=True, data=edata,
+                             extra_args=['--disable-early-data'])
+        assert cr.returncode == 0
+        # we see no rejection, since it was not used
+        assert not cr.early_data_rejected
+        cr.assert_non_resume_handshake()
