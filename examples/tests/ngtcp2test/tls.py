@@ -907,43 +907,58 @@ class HandShake:
     RT_CLS_BY_ID = {}
 
     @classmethod
+    def _parse_rec(cls, data):
+        d, hsid = _get_int(data, 1)
+        if hsid not in cls.RT_CLS_BY_ID:
+            raise ParseError(f'unknown type {hsid}')
+        d, rec_len = _get_int(d, 3)
+        if rec_len > len(d):
+            # incomplete, need more data
+            return data, None
+        d, rec_data = _get_field(d, rec_len)
+        if hsid in cls.RT_CLS_BY_ID:
+            name = cls.RT_NAME_BY_ID[hsid]
+            rcls = cls.RT_CLS_BY_ID[hsid]
+        else:
+            name = f'CryptoRecord(0x{hsid:0x})'
+            rcls = HSRecord
+        return d, rcls(hsid=hsid, name=name, data=rec_data)
+
+    @classmethod
     def _parse(cls, source, strict=False, verbose: int = 0):
         d = b''
         hsid = 0
         hsrecs = []
         if verbose > 0:
             log.debug(f'scanning for handshake records')
-        for data in source:
-            if verbose > 3:
-                log.debug(f'inspecting data {data}')
-            d += data
-            while len(d) > 0:
-                try:
-                    hsdata, hsid = _get_int(d, 1)
-                    if hsid not in cls.RT_CLS_BY_ID:
-                        raise ParseError(f'unknown type {hsid}')
-                    hsdata, rec_len = _get_int(hsdata, 3)
-                    if rec_len > len(hsdata):
-                        # incomplete, need more data
-                        break
-                    d, rec_data = _get_field(hsdata, rec_len)
-                    if hsid in cls.RT_CLS_BY_ID:
-                        name = cls.RT_NAME_BY_ID[hsid]
-                        rcls = cls.RT_CLS_BY_ID[hsid]
+        blocks = [d for d in source]
+        while len(blocks) > 0:
+            try:
+                total_data = b''.join(blocks)
+                remain, r = cls._parse_rec(total_data)
+                if r is None:
+                    # if we could not recognize a record, skip the first
+                    # data block and try again
+                    blocks = blocks[1:]
+                    continue
+                hsrecs.append(r)
+                cons_len = len(total_data) - len(remain)
+                while cons_len > 0 and len(blocks) > 0:
+                    if cons_len >= len(blocks[0]):
+                        cons_len -= len(blocks[0])
+                        blocks = blocks[1:]
                     else:
-                        name = f'CryptoRecord(0x{hsid:0x})'
-                        rcls = HSRecord
-                    r = rcls(hsid=hsid, name=name, data=rec_data)
-                    hsrecs.append(r)
-                    if verbose > 2:
-                        log.debug(f'added record: {r.to_text()}')
-                except ParseError as err:
-                    d = b''
-                    log.error(f'parsing suspected crypto record: {err}\n')
-                    break
-        if len(d) > 0 and strict:
+                        blocks[0] = blocks[0][cons_len:]
+                        cons_len = 0
+                if verbose > 2:
+                    log.debug(f'added record: {r.to_text()}')
+            except ParseError as err:
+                # if we could not recognize a record, skip the first
+                # data block and try again
+                blocks = blocks[1:]
+        if len(blocks) > 0 and strict:
             raise Exception(f'possibly incomplete handshake record '
-                            f'id={hsid}, data_len={len(d)} from raw={d}\n')
+                            f'id={hsid}, from raw={blocks}\n')
         return hsrecs
 
 

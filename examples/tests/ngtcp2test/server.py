@@ -30,12 +30,14 @@ class ServerRun:
         if self._data_recs is None:
             self._data_recs = [data for data in HexDumpScanner(source=self.log_lines)]
             if self.env.verbose > 1:
-                log.debug(f'detected {len(self._data_recs)} hexdumps in log file')
+                log.debug(f'detected {len(self._data_recs)} hexdumps '
+                          f'in {self._logfile.path}')
         if self._hs_recs is None:
             self._hs_recs = [hrec for hrec in HandShake(source=self._data_recs,
                                                         verbose=self.env.verbose)]
             if self.env.verbose > 1:
-                log.debug(f'detected {len(self._hs_recs)} crypto records')
+                log.debug(f'detected {len(self._hs_recs)} crypto records '
+                          f'in {self._logfile.path}')
         return self._hs_recs
 
     @property
