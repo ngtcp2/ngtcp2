@@ -12344,14 +12344,18 @@ int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, int64_t stream_id,
     return 0;
   }
 
-  rv = conn_shutdown_stream_read(conn, strm, app_error_code);
-  if (rv != 0) {
-    return rv;
+  if (bidi_stream(stream_id) || !conn_local_stream(conn, stream_id)) {
+    rv = conn_shutdown_stream_read(conn, strm, app_error_code);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
-  rv = conn_shutdown_stream_write(conn, strm, app_error_code);
-  if (rv != 0) {
-    return rv;
+  if (bidi_stream(stream_id) || conn_local_stream(conn, stream_id)) {
+    rv = conn_shutdown_stream_write(conn, strm, app_error_code);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   return 0;
@@ -12360,6 +12364,10 @@ int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, int64_t stream_id,
 int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, int64_t stream_id,
                                       uint64_t app_error_code) {
   ngtcp2_strm *strm;
+
+  if (!bidi_stream(stream_id) && !conn_local_stream(conn, stream_id)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {
@@ -12372,6 +12380,10 @@ int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, int64_t stream_id,
 int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, int64_t stream_id,
                                      uint64_t app_error_code) {
   ngtcp2_strm *strm;
+
+  if (!bidi_stream(stream_id) && conn_local_stream(conn, stream_id)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {

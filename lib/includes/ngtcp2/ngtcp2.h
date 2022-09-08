@@ -4287,7 +4287,11 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
  * deletion is done when the remote endpoint sends acknowledgement.
  * Calling this function is equivalent to call
  * `ngtcp2_conn_shutdown_stream_read`, and
- * `ngtcp2_conn_shutdown_stream_write` sequentially.
+ * `ngtcp2_conn_shutdown_stream_write` sequentially with the following
+ * differences.  If |stream_id| refers to a local unidirectional
+ * stream, this function only shutdowns write side of the stream.  If
+ * |stream_id| refers to a remote unidirectional stream, this function
+ * only shutdowns read side of the stream.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4314,6 +4318,8 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |stream_id| refers to a remote unidirectional stream.
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
                                                     int64_t stream_id,
@@ -4333,6 +4339,8 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |stream_id| refers to a local unidirectional stream.
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
                                                    int64_t stream_id,
