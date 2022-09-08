@@ -129,10 +129,6 @@ class ExampleClient:
         return self._crypto_lib
 
     @property
-    def can_resume_reject(self):
-        return CryptoLib.can_resume_reject(self.crypto_lib)
-
-    @property
     def uses_cipher_config(self):
         return CryptoLib.uses_cipher_config(self.crypto_lib)
 

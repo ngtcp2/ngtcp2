@@ -37,6 +37,4 @@ class TestResume:
         server.restart()
         cr = client.http_get(server, url=f'https://{env.example_domain}/', use_session=True)
         assert cr.returncode == 0
-        # some clients do not Finish the handshake when resumption was rejected
-        if client.can_resume_reject:
-            cr.assert_non_resume_handshake()
+        cr.assert_non_resume_handshake()

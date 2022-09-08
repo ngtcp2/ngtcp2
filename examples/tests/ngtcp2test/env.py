@@ -10,9 +10,6 @@ log = logging.getLogger(__name__)
 
 class CryptoLib:
 
-    FAILS_REJECTED_RESUME = [
-        'picotls', 'boringssl'
-    ]
     IGNORES_CIPHER_CONFIG = [
         'picotls', 'boringssl'
     ]
@@ -33,10 +30,6 @@ class CryptoLib:
         'TLS_CHACHA20_POLY1305_SHA256': 'CHACHA20-POLY1305',
         'TLS_AES_128_CCM_SHA256': 'AES-128-CCM',
     }
-
-    @classmethod
-    def can_resume_reject(cls, crypto_lib):
-        return crypto_lib not in cls.FAILS_REJECTED_RESUME
 
     @classmethod
     def uses_cipher_config(cls, crypto_lib):

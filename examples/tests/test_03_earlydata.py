@@ -44,5 +44,4 @@ class TestEarlyData:
                              use_session=True, data=edata)
         assert cr.returncode == 0
         assert cr.early_data_rejected
-        if client.can_resume_reject:
-            cr.assert_non_resume_handshake()
+        cr.assert_non_resume_handshake()
