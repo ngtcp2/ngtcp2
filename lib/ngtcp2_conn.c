@@ -12615,8 +12615,7 @@ static void conn_get_loss_time_and_pktns(ngtcp2_conn *conn,
   size_t i;
 
   for (i = 0; i < sizeof(ns) / sizeof(ns[0]); ++i) {
-    if (ns[i] == NULL || ns[i]->rtb.num_pto_eliciting == 0 ||
-        loss_time[i] >= earliest_loss_time) {
+    if (ns[i] == NULL || loss_time[i] >= earliest_loss_time) {
       continue;
     }
 
