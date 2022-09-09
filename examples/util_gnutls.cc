@@ -127,7 +127,7 @@ const char *crypto_default_ciphers() {
 }
 
 const char *crypto_default_groups() {
-  return "-GROUP-ALL:+GROUP-SECP256R1:+GROUP-X25519:+GROUP-SECP384R1:"
+  return "-GROUP-ALL:+GROUP-X25519:+GROUP-SECP256R1:+GROUP-SECP384R1:"
          "+GROUP-SECP521R1";
 }
 
