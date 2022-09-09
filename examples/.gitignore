@@ -12,3 +12,4 @@ ptlsserver
 simpleclient
 wsslclient
 wsslserver
+gtlssimpleclient
