@@ -145,7 +145,9 @@ int TLSClientSession::init(bool &early_data_enabled,
         return -1;
       }
 
-      early_data_enabled = true;
+      if (!config.disable_early_data) {
+        early_data_enabled = true;
+      }
     }
   }
 
