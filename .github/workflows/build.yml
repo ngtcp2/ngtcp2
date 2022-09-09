@@ -54,7 +54,8 @@ jobs:
           libev-dev \
           libgnutls28-dev \
           cmake \
-          cmake-data
+          cmake-data \
+          python3-pytest
 
         echo 'NPROC='"$(nproc)" >> $GITHUB_ENV
     - name: MacOS setup
@@ -193,6 +194,13 @@ jobs:
       run: |
         make -j"$NPROC" distcheck \
           DISTCHECK_CONFIGURE_FLAGS="--enable-werror --with-openssl --with-gnutls --with-boringssl $EXTRA_AUTOTOOLS_OPTS"
+    - name: examples/tests
+      if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr' && runner.os == 'Linux'
+      run: |
+        cd examples/tests
+        # Do not run resumption and earlydata between gtlsserver and
+        # wsslclient until ubuntu gets GnuTLS v3.7.5.
+        pytest-3 -k 'not (gnutls-wolfssl and (resume or earlydata))'
     - name: Integration test
       if: matrix.buildtool != 'distcheck' && matrix.sockaddr == 'native-sockaddr'
       run: |
