@@ -93,4 +93,3 @@ class HexDumpScanner:
                 offset = 0
         if len(data) > 0:
             yield data
-
