@@ -12312,6 +12312,8 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
  */
 static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                      uint64_t app_error_code) {
+  ngtcp2_strm_set_app_error_code(strm, app_error_code);
+
   if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
     return 0;
   }
@@ -12329,7 +12331,6 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 
   strm->flags |= NGTCP2_STRM_FLAG_STOP_SENDING;
-  ngtcp2_strm_set_app_error_code(strm, app_error_code);
 
   return conn_stop_sending(conn, strm, app_error_code);
 }
