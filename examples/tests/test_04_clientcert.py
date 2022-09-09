@@ -55,4 +55,3 @@ class TestClientCert:
         assert len(crec['certificate_list']) == 1
         assert creq['context'] == crec['context']
         # TODO: check that GET indeed gave a response
-
