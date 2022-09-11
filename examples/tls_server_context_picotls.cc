@@ -30,6 +30,9 @@
 #include <ngtcp2/ngtcp2_crypto_picotls.h>
 
 #include <openssl/pem.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#  include <openssl/core_names.h>
+#endif // OPENSSL_VERSION_NUMBER >= 0x30000000L
 
 #include "server_base.h"
 #include "template.h"
@@ -88,7 +91,13 @@ const std::array<uint8_t, 32> &get_ticket_hmac_key() {
 
 namespace {
 int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
-                  EVP_CIPHER_CTX *ctx, HMAC_CTX *hctx, int enc) {
+                  EVP_CIPHER_CTX *ctx,
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+                  EVP_MAC_CTX *hctx,
+#else  // OPENSSL_VERSION_NUMBER < 0x30000000L
+                  HMAC_CTX *hctx,
+#endif // OPENSSL_VERSION_NUMBER < 0x30000000L
+                  int enc) {
   static const auto &static_key_name = get_ticket_key_name();
   static const auto &static_key = get_ticket_key();
   static const auto &static_hmac_key = get_ticket_hmac_key();
@@ -99,8 +108,24 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
     memcpy(key_name, static_key_name.data(), static_key_name.size());
 
     EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(), iv);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    std::array<OSSL_PARAM, 3> params{
+        OSSL_PARAM_construct_octet_string(
+            OSSL_MAC_PARAM_KEY, const_cast<uint8_t *>(static_hmac_key.data()),
+            static_hmac_key.size()),
+        OSSL_PARAM_construct_utf8_string(
+            OSSL_MAC_PARAM_DIGEST,
+            const_cast<char *>(EVP_MD_get0_name(ticket_hmac)), 0),
+        OSSL_PARAM_construct_end(),
+    };
+    if (!EVP_MAC_CTX_set_params(hctx, params.data())) {
+      /* TODO Which value should we return on error? */
+      return 0;
+    }
+#else  // OPENSSL_VERSION_NUMBER < 0x30000000L
     HMAC_Init_ex(hctx, static_hmac_key.data(), static_hmac_key.size(),
                  ticket_hmac, nullptr);
+#endif // OPENSSL_VERSION_NUMBER < 0x30000000L
 
     return 1;
   }
@@ -110,8 +135,24 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
   }
 
   EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(), iv);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  std::array<OSSL_PARAM, 3> params{
+      OSSL_PARAM_construct_octet_string(
+          OSSL_MAC_PARAM_KEY, const_cast<uint8_t *>(static_hmac_key.data()),
+          static_hmac_key.size()),
+      OSSL_PARAM_construct_utf8_string(
+          OSSL_MAC_PARAM_DIGEST,
+          const_cast<char *>(EVP_MD_get0_name(ticket_hmac)), 0),
+      OSSL_PARAM_construct_end(),
+  };
+  if (!EVP_MAC_CTX_set_params(hctx, params.data())) {
+    /* TODO Which value should we return on error? */
+    return 0;
+  }
+#else  // OPENSSL_VERSION_NUMBER < 0x30000000L
   HMAC_Init_ex(hctx, static_hmac_key.data(), static_hmac_key.size(),
                ticket_hmac, nullptr);
+#endif // OPENSSL_VERSION_NUMBER < 0x30000000L
 
   return 1;
 }
@@ -123,7 +164,11 @@ int encrypt_ticket_cb(ptls_encrypt_ticket_t *encrypt_ticket, ptls_t *ptls,
   int rv;
 
   if (is_encrypt) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    rv = ptls_openssl_encrypt_ticket_evp(dst, src, ticket_key_cb);
+#else  // OPENSSL_VERSION_NUMBER < 0x30000000L
     rv = ptls_openssl_encrypt_ticket(dst, src, ticket_key_cb);
+#endif // OPENSSL_VERSION_NUMBER < 0x30000000L
     if (rv != 0) {
       return -1;
     }
@@ -131,7 +176,11 @@ int encrypt_ticket_cb(ptls_encrypt_ticket_t *encrypt_ticket, ptls_t *ptls,
     return 0;
   }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  rv = ptls_openssl_decrypt_ticket_evp(dst, src, ticket_key_cb);
+#else  // OPENSSL_VERSION_NUMBER < 0x30000000L
   rv = ptls_openssl_decrypt_ticket(dst, src, ticket_key_cb);
+#endif // OPENSSL_VERSION_NUMBER < 0x30000000L
   if (rv != 0) {
     return -1;
   }
