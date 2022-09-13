@@ -56,12 +56,6 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
       std::numeric_limits<uint32_t>::max()) {
     std::cerr << "max_early_data_size is not 0xffffffff" << std::endl;
   }
-  auto f = wolfSSL_BIO_new_file(config.session_file, "w");
-  if (f == nullptr) {
-    std::cerr << "Could not write TLS session in " << config.session_file
-              << std::endl;
-    return 0;
-  }
 
   unsigned char sbuffer[16 * 1024], *data;
   unsigned int sz;
@@ -78,12 +72,20 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
   data = sbuffer;
   sz = wolfSSL_i2d_SSL_SESSION(session, &data);
 
+  auto f = wolfSSL_BIO_new_file(config.session_file, "w");
+  if (f == nullptr) {
+    std::cerr << "Could not write TLS session in " << config.session_file
+              << std::endl;
+    return 0;
+  }
+
+  auto f_d = defer(wolfSSL_BIO_free, f);
+
   if (!wolfSSL_PEM_write_bio(f, "WOLFSSL SESSION PARAMETERS", "", sbuffer,
                              sz)) {
     std::cerr << "Unable to write TLS session to file" << std::endl;
     return 0;
   }
-  wolfSSL_BIO_free(f);
   std::cerr << "new_session_cb: wrote " << sz << " of session data"
             << std::endl;
 #else
