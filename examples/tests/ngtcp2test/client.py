@@ -32,9 +32,12 @@ class ClientRun:
     @property
     def handshake(self) -> List[HSRecord]:
         if self._data_recs is None:
-            self._data_recs = [data for data in HexDumpScanner(source=self.log_lines)]
+            crypto_line =  re.compile(r'Ordered CRYPTO data in \S+ crypto level')
+            scanner = HexDumpScanner(source=self.log_lines,
+                                     leading_regex=crypto_line)
+            self._data_recs = [data for data in scanner]
             if self.env.verbose > 1:
-                log.debug(f'detected {len(self._data_recs)} hexdumps '
+                log.debug(f'detected {len(self._data_recs)} crypto hexdumps '
                           f'in {self.logfile.path}')
         if self._hs_recs is None:
             self._hs_recs = [hrec for hrec in HandShake(source=self._data_recs,
@@ -59,8 +62,8 @@ class ClientRun:
     def server(self) -> ServerRun:
         return self._srun
 
-    def norm_exp(self, c_hs, s_hs):
-        if self.hs_stripe.startswith('HelloRetryRequest:'):
+    def norm_exp(self, c_hs, s_hs, allow_hello_retry=True):
+        if allow_hello_retry and self.hs_stripe.startswith('HelloRetryRequest:'):
             c_hs = "HelloRetryRequest:" + c_hs
             s_hs = "ClientHello:" + s_hs
         return c_hs, s_hs
@@ -82,11 +85,11 @@ class ClientRun:
         assert self.server.hs_stripe == s_hs, \
             f'Expected "{s_hs}", got "{self.server.hs_stripe}"\n'
 
-    def assert_non_resume_handshake(self):
+    def assert_non_resume_handshake(self, allow_hello_retry=True):
         # for client/server where KEY_SHARE do not match, the hello is retried
         c_hs, s_hs = self.norm_exp(
             "ServerHello:EncryptedExtensions:Certificate:CertificateVerify:Finished",
-            "ClientHello:Finished")
+            "ClientHello:Finished", allow_hello_retry=allow_hello_retry)
         self._assert_hs(c_hs, s_hs)
 
     def assert_resume_handshake(self):
