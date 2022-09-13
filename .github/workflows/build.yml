@@ -200,7 +200,11 @@ jobs:
         cd examples/tests
         # Do not run resumption and earlydata between gtlsserver and
         # wsslclient until ubuntu gets GnuTLS v3.7.5.
-        pytest-3 -k 'not (gnutls-wolfssl and (resume or earlydata))'
+        #
+        # There is an issue around the ticket age validation between
+        # gtlsserver and bsslclient that causes early data test
+        # failure; see https://gitlab.com/gnutls/gnutls/-/issues/1403
+        pytest-3 -k 'not (gnutls-wolfssl and (resume or earlydata)) and not (gnutls-boringssl and earlydata)'
     - name: Integration test
       if: matrix.buildtool != 'distcheck' && matrix.sockaddr == 'native-sockaddr'
       run: |
