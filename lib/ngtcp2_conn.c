@@ -6653,9 +6653,9 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     ngtcp2_qlog_write_frame(&conn->qlog, fr);
   }
 
-  if (conn->server && hd.type == NGTCP2_PKT_HANDSHAKE) {
-    /* Successful processing of Handshake packet from client verifies
-       source address. */
+  if (hd.type == NGTCP2_PKT_HANDSHAKE) {
+    /* Successful processing of Handshake packet from a remote
+       endpoint validates its source address. */
     conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   }
 
