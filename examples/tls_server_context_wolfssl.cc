@@ -234,7 +234,8 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     return -1;
   }
 
-  if (wolfSSL_CTX_set1_curves_list(ssl_ctx_, (char *)config.groups) != 1) {
+  if (wolfSSL_CTX_set1_curves_list(ssl_ctx_,
+                                   const_cast<char *>(config.groups)) != 1) {
     std::cerr << "wolfSSL_CTX_set1_curves_list(" << config.groups << ") failed"
               << std::endl;
     return -1;

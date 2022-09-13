@@ -127,7 +127,7 @@ int TLSClientSession::init(bool &early_data_enabled,
                     << std::endl;
         } else {
           pdata = data;
-          session = wolfSSL_d2i_SSL_SESSION(NULL, &pdata, datalen);
+          session = wolfSSL_d2i_SSL_SESSION(nullptr, &pdata, datalen);
           if (session == nullptr) {
             std::cerr << "Could not parse TLS session from file "
                       << config.session_file << std::endl;
@@ -154,7 +154,7 @@ int TLSClientSession::init(bool &early_data_enabled,
       wolfSSL_BIO_free(f);
     }
     wolfSSL_UseSessionTicket(ssl_);
-    wolfSSL_set_SessionTicket_cb(ssl_, wolfssl_session_ticket_cb, NULL);
+    wolfSSL_set_SessionTicket_cb(ssl_, wolfssl_session_ticket_cb, nullptr);
 #else
     std::cerr << "TLS session im-/export not enabled in wolfSSL" << std::endl;
 #endif

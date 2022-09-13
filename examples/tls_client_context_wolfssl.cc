@@ -59,13 +59,13 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
 
   unsigned char sbuffer[16 * 1024], *data;
   unsigned int sz;
-  sz = wolfSSL_i2d_SSL_SESSION(session, NULL);
+  sz = wolfSSL_i2d_SSL_SESSION(session, nullptr);
   if (sz <= 0) {
     std::cerr << "Could not export TLS session in " << config.session_file
               << std::endl;
     return 0;
   }
-  if ((size_t)sz > sizeof(sbuffer)) {
+  if (static_cast<size_t>(sz) > sizeof(sbuffer)) {
     std::cerr << "Exported TLS session too large" << std::endl;
     return 0;
   }
@@ -125,8 +125,8 @@ int TLSClientContext::init(const char *private_key_file,
     return -1;
   }
 
-  if (wolfSSL_CTX_set1_curves_list(ssl_ctx_, (char *)config.groups) !=
-      WOLFSSL_SUCCESS) {
+  if (wolfSSL_CTX_set1_curves_list(
+          ssl_ctx_, const_cast<char *>(config.groups)) != WOLFSSL_SUCCESS) {
     std::cerr << "wolfSSL_CTX_set1_curves_list(" << config.groups << ") failed"
               << std::endl;
     return -1;
