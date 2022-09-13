@@ -77,7 +77,12 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
   }
   data = sbuffer;
   sz = wolfSSL_i2d_SSL_SESSION(session, &data);
-  wolfSSL_BIO_write(f, sbuffer, sz);
+
+  if (!wolfSSL_PEM_write_bio(f, "WOLFSSL SESSION PARAMETERS", "", sbuffer,
+                             sz)) {
+    std::cerr << "Unable to write TLS session to file" << std::endl;
+    return 0;
+  }
   wolfSSL_BIO_free(f);
   std::cerr << "new_session_cb: wrote " << sz << " of session data"
             << std::endl;
