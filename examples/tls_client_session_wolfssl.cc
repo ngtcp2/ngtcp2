@@ -32,6 +32,8 @@
 #include "template.h"
 #include "util.h"
 
+using namespace std::literals;
+
 TLSClientSession::TLSClientSession() {}
 
 TLSClientSession::~TLSClientSession() {}
@@ -109,35 +111,45 @@ int TLSClientSession::init(bool &early_data_enabled,
       std::cerr << "Could not open TLS session file " << config.session_file
                 << std::endl;
     } else {
-      unsigned char sbuffer[16 * 1024];
-      const unsigned char *pbuffer;
-      unsigned int sz = sizeof(sbuffer), ret;
+      char *name, *header;
+      unsigned char *data;
+      const unsigned char *pdata;
+      long datalen;
+      unsigned int ret;
       WOLFSSL_SESSION *session;
 
-      sz = wolfSSL_BIO_read(f, sbuffer, sz);
-      if (sz <= 0) {
+      if (wolfSSL_PEM_read_bio(f, &name, &header, &data, &datalen) != 1) {
         std::cerr << "Could not read TLS session file " << config.session_file
                   << std::endl;
       } else {
-        pbuffer = sbuffer;
-        session = wolfSSL_d2i_SSL_SESSION(NULL, &pbuffer, sz);
-        if (session == nullptr) {
-          std::cerr << "Could not parse TLS session from file "
-                    << config.session_file << std::endl;
+        if ("WOLFSSL SESSION PARAMETERS"sv != name) {
+          std::cerr << "TLS session file contains unexpected name: " << name
+                    << std::endl;
         } else {
-          ret = wolfSSL_set_session(ssl_, session);
-          if (ret != WOLFSSL_SUCCESS) {
-            std::cerr << "Could not install TLS session from file "
+          pdata = data;
+          session = wolfSSL_d2i_SSL_SESSION(NULL, &pdata, datalen);
+          if (session == nullptr) {
+            std::cerr << "Could not parse TLS session from file "
                       << config.session_file << std::endl;
           } else {
-            if (!config.disable_early_data &&
-                wolfSSL_SESSION_get_max_early_data(session)) {
-              early_data_enabled = true;
-              wolfSSL_set_quic_early_data_enabled(ssl_, 1);
+            ret = wolfSSL_set_session(ssl_, session);
+            if (ret != WOLFSSL_SUCCESS) {
+              std::cerr << "Could not install TLS session from file "
+                        << config.session_file << std::endl;
+            } else {
+              if (!config.disable_early_data &&
+                  wolfSSL_SESSION_get_max_early_data(session)) {
+                early_data_enabled = true;
+                wolfSSL_set_quic_early_data_enabled(ssl_, 1);
+              }
             }
+            wolfSSL_SESSION_free(session);
           }
-          wolfSSL_SESSION_free(session);
         }
+
+        wolfSSL_OPENSSL_free(name);
+        wolfSSL_OPENSSL_free(header);
+        wolfSSL_OPENSSL_free(data);
       }
       wolfSSL_BIO_free(f);
     }
