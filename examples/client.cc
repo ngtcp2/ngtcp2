@@ -184,6 +184,7 @@ Client::Client(struct ev_loop *loop, uint32_t client_chosen_version,
       original_version_(original_version),
       early_data_(false),
       should_exit_(false),
+      should_exit_on_handshake_confirmed_(false),
       handshake_confirmed_(false),
       tx_{} {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
@@ -360,6 +361,10 @@ int Client::handshake_confirmed() {
   }
   if (config.delay_stream) {
     start_delay_stream_timer();
+  }
+
+  if (should_exit_on_handshake_confirmed_) {
+    should_exit_ = true;
   }
 
   return 0;
@@ -1973,7 +1978,11 @@ int Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
         (config.exit_on_all_streams_close &&
          config.nstreams == nstreams_done_ &&
          nstreams_closed_ == nstreams_done_)) {
-      should_exit_ = true;
+      if (handshake_confirmed_) {
+        should_exit_ = true;
+      } else {
+        should_exit_on_handshake_confirmed_ = true;
+      }
     }
   } else {
     assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
