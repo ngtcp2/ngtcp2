@@ -39,7 +39,7 @@ class LogFile:
                     self._last_pos = fd.tell()
         return lines
 
-    def scan_recent(self, pattern: re, timeout=10, advance=True) -> bool:
+    def scan_recent(self, pattern: re, timeout=10) -> bool:
         if not os.path.isfile(self.path):
             return False
         with open(self.path) as fd:
@@ -57,15 +57,19 @@ class LogFile:
 
 class HexDumpScanner:
 
-    def __init__(self, source):
+    def __init__(self, source, leading_regex=None):
         self._source = source
+        self._leading_regex = leading_regex
 
     def __iter__(self):
         data = b''
-        offset = 0
+        offset = 0 if self._leading_regex is None else -1
         idx = 0
         for l in self._source:
-            if offset == 0:
+            if offset == -1:
+                pass
+            elif offset == 0:
+                # possible start of a hex dump
                 m = re.match(r'^\s*0+(\s+-)?((\s+[0-9a-f]{2}){1,16})(\s+.*)$',
                              l, re.IGNORECASE)
                 if m:
@@ -74,6 +78,7 @@ class HexDumpScanner:
                     idx = 1
                     continue
             else:
+                # possible continuation of a hexdump
                 m = re.match(r'^\s*([0-9a-f]+)(\s+-)?((\s+[0-9a-f]{2}){1,16})'
                              r'(\s+.*)$', l, re.IGNORECASE)
                 if m:
@@ -86,10 +91,11 @@ class HexDumpScanner:
                         continue
                     else:
                         sys.stderr.write(f'wrong offset {loffset}, expected {offset} or {idx}\n')
-            # not a match
+            # not a hexdump line, produce any collected data
             if len(data) > 0:
                 yield data
                 data = b''
-                offset = 0
+            offset = 0 if self._leading_regex is None \
+                or self._leading_regex.match(l) else -1
         if len(data) > 0:
             yield data
