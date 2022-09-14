@@ -60,7 +60,10 @@ int new_session_cb(SSL *ssl, SSL_SESSION *session) {
     return 0;
   }
 
-  PEM_write_bio_SSL_SESSION(f, session);
+  if (!PEM_write_bio_SSL_SESSION(f, session)) {
+    std::cerr << "Unable to write TLS session to file" << std::endl;
+  }
+
   BIO_free(f);
 
   return 0;

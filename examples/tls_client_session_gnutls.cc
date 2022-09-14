@@ -70,6 +70,9 @@ int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
     }
 
     f.write(reinterpret_cast<const char *>(d.data), d.size);
+    if (!f) {
+      std::cerr << "Unable to write TLS session to file" << std::endl;
+    }
     gnutls_free(d.data);
     gnutls_free(data.data);
   }
