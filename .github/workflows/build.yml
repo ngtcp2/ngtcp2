@@ -91,7 +91,6 @@ jobs:
       run: |
         ./ci/build_boringssl.sh
     - name: Build Picotls
-      if: matrix.openssl == 'openssl1'
       run: |
         ./ci/build_picotls.sh
     - name: Build wolfSSL
@@ -141,21 +140,13 @@ jobs:
 
         echo 'CFLAGS='"$CFLAGS" >> $GITHUB_ENV
         echo 'EXTRA_AUTOTOOLS_OPTS='"$EXTRA_AUTOTOOLS_OPTS" >> $GITHUB_ENV
-    - name: Enable Picotls when OpenSSL is v1
-      if: matrix.openssl == 'openssl1'
-      run: |
-        EXTRA_AUTOTOOLS_OPTS="$EXTRA_AUTOTOOLS_OPTS --with-picotls"
-        CMAKE_OPTS="$CMAKE_OPTS -DENABLE_PICOTLS=ON"
-
-        echo 'HAVE_PICOTLS=1' >> $GITHUB_ENV
-        echo 'EXTRA_AUTOTOOLS_OPTS='"$EXTRA_AUTOTOOLS_OPTS" >> $GITHUB_ENV
-        echo 'CMAKE_OPTS='"$CMAKE_OPTS" >> $GITHUB_ENV
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
         autoreconf -i && \
         ./configure --enable-werror \
           --with-openssl --with-gnutls --with-boringssl --with-wolfssl \
+          --with-picotls \
           $EXTRA_AUTOTOOLS_OPTS
     - name: Configure autotools for distcheck
       if: matrix.buildtool == 'distcheck'
@@ -180,6 +171,7 @@ jobs:
           -DENABLE_BORINGSSL=ON \
           -DBORINGSSL_LIBRARIES="$BORINGSSL_LIBS" \
           -DBORINGSSL_INCLUDE_DIR="$NGTCP2_SOURCE_DIR/boringssl/include/" \
+          -DENABLE_PICOTLS=ON \
           -DPICOTLS_LIBRARIES="$PICOTLS_LIBS" \
           -DPICOTLS_INCLUDE_DIR="$NGTCP2_SOURCE_DIR/picotls/include/" \
           -DENABLE_WOLFSSL=ON ..
@@ -211,12 +203,8 @@ jobs:
         [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
         "$NGTCP2_SOURCE_DIR"/ci/gen-certificate.sh
 
-        CLIENTS="client gtlsclient bsslclient wsslclient"
-        SERVERS="server gtlsserver bsslserver wsslserver"
-        if [ "$HAVE_PICOTLS" = "1" ]; then
-          CLIENTS="$CLIENTS ptlsclient"
-          SERVERS="$SERVERS ptlsserver"
-        fi
+        CLIENTS="client gtlsclient bsslclient wsslclient ptlsclient"
+        SERVERS="server gtlsserver bsslserver wsslserver ptlsserver"
 
         for client in $CLIENTS; do
           for server in $SERVERS; do
