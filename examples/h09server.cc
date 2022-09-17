@@ -724,6 +724,8 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.token = ngtcp2_vec{const_cast<uint8_t *>(token), tokenlen};
   settings.cc_algo = config.cc_algo;
   settings.initial_rtt = config.initial_rtt;
+  settings.max_window = config.max_window;
+  settings.max_stream_window = config.max_stream_window;
   settings.handshake_timeout = config.handshake_timeout;
   settings.no_pmtud = config.no_pmtud;
   settings.ack_thresh = config.ack_thresh;
@@ -2453,6 +2455,8 @@ void config_set_default(Config &config) {
   config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;
   config.max_stream_data_uni = 256_k;
+  config.max_window = 6_m;
+  config.max_stream_window = 6_m;
   config.max_streams_bidi = 100;
   config.max_streams_uni = 3;
   config.max_dyn_length = 20_m;
@@ -2574,6 +2578,18 @@ Options:
             << util::format_duration(config.initial_rtt) << R"(
   --max-udp-payload-size=<SIZE>
               Override maximum UDP payload size that server transmits.
+  --max-window=<SIZE>
+              Maximum connection-level flow  control window size.  The
+              window auto-tuning is enabled if nonzero value is given,
+              and window size is scaled up to this value.
+              Default: )"
+            << util::format_uint_iec(config.max_window) << R"(
+  --max-stream-window=<SIZE>
+              Maximum stream-level flow control window size.  The
+              window auto-tuning is enabled if nonzero value is given,
+              and window size is scaled up to this value.
+              Default: )"
+            << util::format_uint_iec(config.max_stream_window) << R"(
   --send-trailers
               Send trailer fields.
   --max-gso-dgrams=<N>
@@ -2662,6 +2678,8 @@ int main(int argc, char **argv) {
         {"initial-rtt", required_argument, &flag, 20},
         {"max-udp-payload-size", required_argument, &flag, 21},
         {"send-trailers", no_argument, &flag, 22},
+        {"max-window", required_argument, &flag, 23},
+        {"max-stream-window", required_argument, &flag, 24},
         {"max-gso-dgrams", required_argument, &flag, 25},
         {"handshake-timeout", required_argument, &flag, 26},
         {"preferred-versions", required_argument, &flag, 27},
@@ -2885,6 +2903,24 @@ int main(int argc, char **argv) {
       case 22:
         // --send-trailers
         config.send_trailers = true;
+        break;
+      case 23:
+        // --max-window
+        if (auto n = util::parse_uint_iec(optarg); !n) {
+          std::cerr << "max-window: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_window = *n;
+        }
+        break;
+      case 24:
+        // --max-stream-window
+        if (auto n = util::parse_uint_iec(optarg); !n) {
+          std::cerr << "max-stream-window: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_stream_window = *n;
+        }
         break;
       case 25:
         // --max-gso-dgrams
