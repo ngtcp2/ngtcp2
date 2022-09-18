@@ -660,6 +660,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.cc_algo = config.cc_algo;
   settings.initial_ts = util::timestamp(loop_);
   settings.initial_rtt = config.initial_rtt;
+  settings.max_window = config.max_window;
+  settings.max_stream_window = config.max_stream_window;
   if (config.max_udp_payload_size) {
     settings.max_udp_payload_size = config.max_udp_payload_size;
     settings.no_udp_payload_size_shaping = 1;
@@ -1802,6 +1804,8 @@ void config_set_default(Config &config) {
   config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;
   config.max_stream_data_uni = 256_k;
+  config.max_window = 6_m;
+  config.max_stream_window = 6_m;
   config.max_streams_uni = 100;
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
@@ -1975,6 +1979,18 @@ Options:
               Set an initial RTT.
               Default: )"
             << util::format_duration(config.initial_rtt) << R"(
+  --max-window=<SIZE>
+              Maximum connection-level flow  control window size.  The
+              window auto-tuning is enabled if nonzero value is given,
+              and window size is scaled up to this value.
+              Default: )"
+            << util::format_uint_iec(config.max_window) << R"(
+  --max-stream-window=<SIZE>
+              Maximum stream-level flow control window size.  The
+              window auto-tuning is enabled if nonzero value is given,
+              and window size is scaled up to this value.
+              Default: )"
+            << util::format_uint_iec(config.max_stream_window) << R"(
   --max-udp-payload-size=<SIZE>
               Override maximum UDP payload size that client transmits.
   --handshake-timeout=<DURATION>
@@ -2050,7 +2066,9 @@ int main(int argc, char **argv) {
         {"token-file", required_argument, &flag, 29},
         {"sni", required_argument, &flag, 30},
         {"initial-rtt", required_argument, &flag, 31},
-        {"max-udp-payload-size", required_argument, &flag, 32},
+        {"max-window", required_argument, &flag, 32},
+        {"max-stream-window", required_argument, &flag, 33},
+        {"max-udp-payload-size", required_argument, &flag, 35},
         {"handshake-timeout", required_argument, &flag, 36},
         {"other-versions", required_argument, &flag, 37},
         {"no-pmtud", no_argument, &flag, 38},
@@ -2336,6 +2354,24 @@ int main(int argc, char **argv) {
         }
         break;
       case 32:
+        // --max-window
+        if (auto n = util::parse_uint_iec(optarg); !n) {
+          std::cerr << "max-window: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_window = *n;
+        }
+        break;
+      case 33:
+        // --max-stream-window
+        if (auto n = util::parse_uint_iec(optarg); !n) {
+          std::cerr << "max-stream-window: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_stream_window = *n;
+        }
+        break;
+      case 35:
         // --max-udp-payload-size
         if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-udp-payload-size: invalid argument" << std::endl;
