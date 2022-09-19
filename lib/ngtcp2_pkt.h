@@ -454,7 +454,8 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
  * frame if it succeeds, or one of the following negative error codes:
  *
  * :enum:`NGTCP2_ERR_FRAME_ENCODING`
- *     Frame is badly formatted; or frame type is unknown.
+ *     Frame is badly formatted; or frame type is unknown; or
+ *     |payloadlen| is 0.
  */
 ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
                                      size_t payloadlen);

@@ -475,7 +475,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
   uint8_t type;
 
   if (payloadlen == 0) {
-    return 0;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   type = payload[0];
