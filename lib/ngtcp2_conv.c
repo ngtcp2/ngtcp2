@@ -30,6 +30,7 @@
 #include "ngtcp2_str.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_net.h"
+#include "ngtcp2_unreachable.h"
 
 uint64_t ngtcp2_get_uint64(const uint8_t *p) {
   uint64_t n;
@@ -87,7 +88,7 @@ uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p) {
     n.b[0] &= 0x3f;
     return ngtcp2_ntohl64(n.n64);
   default:
-    assert(0);
+    ngtcp2_unreachable();
   }
 
   return 0;
@@ -104,8 +105,7 @@ int64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen) {
   case 4:
     return (int64_t)ngtcp2_get_uint32(p);
   default:
-    assert(0);
-    abort();
+    ngtcp2_unreachable();
   }
 }
 
@@ -182,8 +182,7 @@ uint8_t *ngtcp2_put_pkt_num(uint8_t *p, int64_t pkt_num, size_t len) {
     ngtcp2_put_uint32be(p, (uint32_t)pkt_num);
     return p + 4;
   default:
-    assert(0);
-    abort();
+    ngtcp2_unreachable();
   }
 }
 

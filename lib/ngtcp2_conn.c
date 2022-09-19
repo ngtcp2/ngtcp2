@@ -35,6 +35,7 @@
 #include "ngtcp2_addr.h"
 #include "ngtcp2_path.h"
 #include "ngtcp2_rcvry.h"
+#include "ngtcp2_unreachable.h"
 
 /* NGTCP2_FLOW_WINDOW_RTT_FACTOR is the factor of RTT when flow
    control window auto-tuning is triggered. */
@@ -959,7 +960,7 @@ static void conn_handle_tx_ecn(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   case NGTCP2_ECN_STATE_FAILED:
     break;
   default:
-    assert(0);
+    ngtcp2_unreachable();
   }
 }
 
@@ -1194,7 +1195,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     }
     break;
   default:
-    assert(0);
+    ngtcp2_unreachable();
   }
 
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
@@ -2590,8 +2591,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
     cc.hp_ctx = pktns->crypto.tx.hp_ctx;
     break;
   default:
-    assert(0);
-    abort();
+    ngtcp2_unreachable();
   }
 
   cc.aead = pktns->crypto.ctx.aead;
@@ -2673,7 +2673,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
 
       rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &nfrc->fr);
       if (rv != 0) {
-        assert(0);
+        ngtcp2_unreachable();
       }
 
       *pfrc = nfrc;
@@ -2872,8 +2872,7 @@ static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     ack_delay_exponent = conn->local.transport_params.ack_delay_exponent;
     break;
   default:
-    assert(0);
-    abort();
+    ngtcp2_unreachable();
   }
 
   if (!pktns->crypto.tx.ckm) {
@@ -3574,7 +3573,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       break;
     default:
       /* Unreachable */
-      assert(0);
+      ngtcp2_unreachable();
     }
 
     cc->encrypt = conn->callbacks.encrypt;
@@ -3717,8 +3716,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
         break;
       case NGTCP2_FRAME_STREAM:
-        assert(0);
-        break;
+        ngtcp2_unreachable();
       case NGTCP2_FRAME_MAX_STREAMS_BIDI:
         if ((*pfrc)->fr.max_streams.max_streams <
             conn->remote.bidi.max_streams) {
@@ -3757,8 +3755,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         }
         break;
       case NGTCP2_FRAME_CRYPTO:
-        assert(0);
-        break;
+        ngtcp2_unreachable();
       }
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &(*pfrc)->fr);
@@ -3802,7 +3799,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
         rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
         if (rv != 0) {
-          assert(0);
+          ngtcp2_unreachable();
         }
 
         *pfrc = nfrc;
@@ -3976,7 +3973,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
         rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
         if (rv != 0) {
-          assert(0);
+          ngtcp2_unreachable();
         }
 
         *pfrc = nfrc;
@@ -4068,7 +4065,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
     if (rv != 0) {
-      assert(0);
+      ngtcp2_unreachable();
     }
 
     *pfrc = nfrc;
@@ -4178,7 +4175,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
          calls ngtcp2_conn_writev_datagram again. */
       break;
     default:
-      assert(0);
+      ngtcp2_unreachable();
     }
   }
 
@@ -4360,8 +4357,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     break;
   default:
     /* We don't support 0-RTT packet in this function. */
-    assert(0);
-    abort();
+    ngtcp2_unreachable();
   }
 
   cc.aead = pktns->crypto.ctx.aead;
@@ -6009,8 +6005,7 @@ static size_t pkt_num_bits(size_t pkt_numlen) {
   case 4:
     return 32;
   default:
-    assert(0);
-    abort();
+    ngtcp2_unreachable();
   }
 }
 
@@ -6578,7 +6573,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
     break;
   default:
-    assert(0);
+    ngtcp2_unreachable();
   }
 
   if (payloadlen == 0) {
@@ -9030,7 +9025,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       break;
     default:
       /* Unreachable */
-      assert(0);
+      ngtcp2_unreachable();
     }
   } else {
     rv = conn_verify_dcid(conn, &new_cid_used, &hd);
@@ -9909,8 +9904,7 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
     break;
   default:
-    assert(0);
-    abort();
+    ngtcp2_unreachable();
   }
 
   return conn_recv_cpkt(conn, path, pi, pkt, pktlen, ts);
@@ -11745,7 +11739,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
               NGTCP2_DATAGRAM_OVERHEAD;
           break;
         default:
-          assert(0);
+          ngtcp2_unreachable();
         }
 
         if (conn->in_pktns && write_datalen > 0) {
@@ -13422,7 +13416,7 @@ int ngtcp2_conn_track_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq) {
   /* Make sure that we do not have a duplicate */
   for (i = 0; i < conn->dcid.retire_unacked.len; ++i) {
     if (conn->dcid.retire_unacked.seqs[i] == seq) {
-      assert(0);
+      ngtcp2_unreachable();
     }
   }
 

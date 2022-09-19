@@ -30,6 +30,7 @@
 #include "ngtcp2_vec.h"
 #include "ngtcp2_conv.h"
 #include "ngtcp2_net.h"
+#include "ngtcp2_unreachable.h"
 
 void ngtcp2_qlog_init(ngtcp2_qlog *qlog, ngtcp2_qlog_write write,
                       ngtcp2_tstamp ts, void *user_data) {
@@ -897,7 +898,7 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
     p = write_datagram_frame(p, &fr->datagram);
     break;
   default:
-    assert(0);
+    ngtcp2_unreachable();
   }
 
   *p++ = ',';
