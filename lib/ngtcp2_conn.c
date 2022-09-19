@@ -11584,7 +11584,11 @@ ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
   }
 
   datalen = ngtcp2_vec_len_varint(datav, datavcnt);
-  if (datalen == -1 || (uint64_t)datalen > SIZE_MAX) {
+  if (datalen == -1
+#if UINT64_MAX > SIZE_MAX
+      || (uint64_t)datalen > SIZE_MAX
+#endif /* UINT64_MAX > SIZE_MAX */
+  ) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
