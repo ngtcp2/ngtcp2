@@ -482,8 +482,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
 
   switch (type) {
   case NGTCP2_FRAME_PADDING:
-    return (ngtcp2_ssize)ngtcp2_pkt_decode_padding_frame(&dest->padding,
-                                                         payload, payloadlen);
+    return ngtcp2_pkt_decode_padding_frame(&dest->padding, payload, payloadlen);
   case NGTCP2_FRAME_RESET_STREAM:
     return ngtcp2_pkt_decode_reset_stream_frame(&dest->reset_stream, payload,
                                                 payloadlen);
@@ -799,9 +798,9 @@ ngtcp2_ssize ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest,
   return (ngtcp2_ssize)len;
 }
 
-size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
-                                       const uint8_t *payload,
-                                       size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
+                                             const uint8_t *payload,
+                                             size_t payloadlen) {
   const uint8_t *p, *ep;
 
   assert(payloadlen > 0);
@@ -815,7 +814,7 @@ size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
   dest->type = NGTCP2_FRAME_PADDING;
   dest->len = (size_t)(p - payload);
 
-  return dest->len;
+  return (ngtcp2_ssize)dest->len;
 }
 
 ngtcp2_ssize ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,

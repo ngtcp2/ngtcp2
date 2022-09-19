@@ -555,9 +555,9 @@ ngtcp2_ssize ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest,
  * This function returns the exact number of bytes read to decode
  * PADDING frames.
  */
-size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
-                                       const uint8_t *payload,
-                                       size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
+                                             const uint8_t *payload,
+                                             size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_reset_stream_frame decodes RESET_STREAM frame
