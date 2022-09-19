@@ -64,6 +64,7 @@ set(ngtcp2_SOURCES
   ngtcp2_opl.c
   ngtcp2_balloc.c
   ngtcp2_objalloc.c
+  ngtcp2_unreachable.c
 )
 
 set(ngtcp2_INCLUDE_DIRS
