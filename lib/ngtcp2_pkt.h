@@ -454,7 +454,8 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
  * frame if it succeeds, or one of the following negative error codes:
  *
  * :enum:`NGTCP2_ERR_FRAME_ENCODING`
- *     Frame is badly formatted; or frame type is unknown.
+ *     Frame is badly formatted; or frame type is unknown; or
+ *     |payloadlen| is 0.
  */
 ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
                                      size_t payloadlen);
@@ -554,9 +555,9 @@ ngtcp2_ssize ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest,
  * This function returns the exact number of bytes read to decode
  * PADDING frames.
  */
-size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
-                                       const uint8_t *payload,
-                                       size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
+                                             const uint8_t *payload,
+                                             size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_reset_stream_frame decodes RESET_STREAM frame
@@ -639,11 +640,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_max_streams_frame(ngtcp2_max_streams *dest,
  * length |payloadlen|.  The result is stored in the object pointed by
  * |dest|.  PING frame must start at payload[0].  This function
  * finishes when it decodes one PING frame, and returns the exact
- * number of bytes read to decode a frame if it succeeds, or one of
- * the following negative error codes:
- *
- * NGTCP2_ERR_FRAME_ENCODING
- *     Payload is too short to include PING frame.
+ * number of bytes read to decode a frame.
  */
 ngtcp2_ssize ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest,
                                           const uint8_t *payload,
@@ -814,11 +811,7 @@ ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
  * object pointed by |dest|.  HANDSHAKE_DONE frame must start at
  * payload[0].  This function finishes when it decodes one
  * HANDSHAKE_DONE frame, and returns the exact number of bytes read to
- * decode a frame if it succeeds, or one of the following negative
- * error codes:
- *
- * NGTCP2_ERR_FRAME_ENCODING
- *     Payload is too short to include HANDSHAKE_DONE frame.
+ * decode a frame.
  */
 ngtcp2_ssize ngtcp2_pkt_decode_handshake_done_frame(ngtcp2_handshake_done *dest,
                                                     const uint8_t *payload,

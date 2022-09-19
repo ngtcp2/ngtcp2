@@ -556,7 +556,7 @@ void test_ngtcp2_pkt_decode_ack_frame(void) {
 void test_ngtcp2_pkt_decode_padding_frame(void) {
   uint8_t buf[256];
   ngtcp2_frame fr;
-  size_t rv;
+  ngtcp2_ssize rv;
   size_t paddinglen = 31;
 
   memset(buf, 0, paddinglen);
@@ -564,7 +564,7 @@ void test_ngtcp2_pkt_decode_padding_frame(void) {
 
   rv = ngtcp2_pkt_decode_padding_frame(&fr.padding, buf, paddinglen + 1);
 
-  CU_ASSERT(paddinglen == rv);
+  CU_ASSERT((ngtcp2_ssize)paddinglen == rv);
   CU_ASSERT((size_t)31 == fr.padding.len);
 }
 
