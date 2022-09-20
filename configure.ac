@@ -356,43 +356,13 @@ fi
 
 AM_CONDITIONAL([HAVE_PICOTLS], [ test "x${have_picotls}" = "xyes" ])
 
-# wolfSSL (required for libngtcp2_crypto_wolfssl,
+# wolfSSL (required for libngtcp2_crypto_wolfssl)
 have_wolfssl=no
 if test "x${request_wolfssl}" != "xno"; then
-  PKG_CHECK_MODULES([WOLFSSL], [wolfssl >= 1.1.1],
+  PKG_CHECK_MODULES([WOLFSSL], [wolfssl >= 5.5.0],
                     [have_wolfssl=yes], [have_wolfssl=no])
   if test "x${have_wolfssl}" = "xno"; then
     AC_MSG_NOTICE($WOLFSSL_PKG_ERRORS)
-  else
-    # Until wolfSSL gains mainline support for QUIC, check for a
-    # patched version.
-
-    save_CFLAGS="$CFLAGS"
-    save_LIBS="$LIBS"
-    CFLAGS="$WOLFSSL_CFLAGS $CFLAGS"
-    LIBS="$WOLFSSL_LIBS $LIBS"
-
-    AC_MSG_CHECKING([for wolfSSL_is_quic])
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-      #include <wolfssl/options.h>
-      #include <wolfssl/ssl.h>
-      #include <wolfssl/quic.h>
-    ]], [[
-      WOLFSSL *ssl = NULL;
-      wolfSSL_is_quic(ssl);
-    ]])],
-    [AC_MSG_RESULT([yes]); have_wolfssl_quic=yes],
-    [AC_MSG_RESULT([no]); have_wolfssl_quic=no])
-
-    CFLAGS="$save_CFLAGS"
-    LIBS="$save_LIBS"
-
-    if test "x${have_wolfssl_quic}" = "xno"; then
-      AC_MSG_NOTICE([wolfssl does not have QUIC interface, disabling it])
-      have_wolfssl=no
-      WOLFSSL_LIBS=
-      WOLFSSL_CFLAGS=
-    fi
   fi
 fi
 
