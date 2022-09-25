@@ -3,7 +3,7 @@ name: interop
 on:
   push:
     branches:
-    - main
+    - sat-debug
 
 jobs:
   build:
@@ -25,4 +25,4 @@ jobs:
       with:
         context: interop
         push: true
-        tags: ghcr.io/ngtcp2/ngtcp2-interop:latest
+        tags: ghcr.io/ngtcp2/ngtcp2-interop:sat-debug
