@@ -13342,23 +13342,25 @@ int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn, int64_t stream_id,
 }
 
 void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  double pacing_rate;
+  ngtcp2_duration interval;
+
   if (conn->tx.pacing.pktlen == 0) {
     return;
   }
 
   if (conn->cstat.pacing_rate > 0) {
-    conn->tx.pacing.next_ts =
-        ts + (ngtcp2_duration)((double)conn->tx.pacing.pktlen /
-                               conn->cstat.pacing_rate);
+    pacing_rate = conn->cstat.pacing_rate;
   } else {
-    double pacing_rate =
-        (double)conn->cstat.cwnd / (double)(conn->cstat.min_rtt != UINT64_MAX
-                                                ? conn->cstat.min_rtt
-                                                : NGTCP2_MILLISECONDS);
-    conn->tx.pacing.next_ts =
-        ts + (ngtcp2_duration)((double)conn->tx.pacing.pktlen / pacing_rate);
+    /* 1.25 is the under-utilization avoidance factor described in
+       https://datatracker.ietf.org/doc/html/rfc9002#section-7.7 */
+    pacing_rate =
+        (double)conn->cstat.cwnd / (double)conn->cstat.smoothed_rtt * 1.25;
   }
 
+  interval = (ngtcp2_duration)((double)conn->tx.pacing.pktlen / pacing_rate);
+
+  conn->tx.pacing.next_ts = ts + interval;
   conn->tx.pacing.pktlen = 0;
 }
 
