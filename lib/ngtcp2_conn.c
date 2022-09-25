@@ -2992,11 +2992,11 @@ static ngtcp2_ssize conn_write_handshake_ack_pkts(ngtcp2_conn *conn,
   ngtcp2_ssize res = 0, nwrite = 0;
 
   /* In the most cases, client sends ACK in conn_write_handshake_pkt.
-     This function is only called when it is CWND limited.  It is not
-     required for client to send ACK for server Initial.  This is
-     because once it gets server Initial, it gets Handshake tx key and
-     discards Initial key.  The only good reason to send ACK is give
-     server RTT measurement early. */
+     This function is only called when it is CWND limited or pacing
+     limited.  It is not required for client to send ACK for server
+     Initial.  This is because once it gets server Initial, it gets
+     Handshake tx key and discards Initial key.  The only good reason
+     to send ACK is give server RTT measurement early. */
   if (conn->server && conn->in_pktns) {
     nwrite =
         conn_write_ack_pkt(conn, pi, dest, destlen, NGTCP2_PKT_INITIAL, ts);
@@ -4488,7 +4488,17 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     conn_update_keep_alive_last_ts(conn, ts);
   }
 
-  conn->tx.pacing.pktlen += (size_t)nwrite;
+  if (!padded) {
+    switch (fr->type) {
+    case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_ACK_ECN:
+      break;
+    default:
+      conn->tx.pacing.pktlen += (size_t)nwrite;
+    }
+  } else {
+    conn->tx.pacing.pktlen += (size_t)nwrite;
+  }
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
 
@@ -11642,14 +11652,16 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     pi->ecn = NGTCP2_ECN_NOT_ECT;
   }
 
-  if (!conn_pacing_pkt_tx_allowed(conn, ts)) {
-    return 0;
-  }
-
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
+    if (!conn_pacing_pkt_tx_allowed(conn, ts)) {
+      assert(!ppe_pending);
+
+      return conn_write_handshake_ack_pkts(conn, pi, dest, origlen, ts);
+    }
+
     nwrite = conn_client_write_handshake(conn, pi, dest, destlen, vmsg, ts);
     /* We might be unable to write a packet because of depletion of
        congestion window budget, perhaps due to packet loss that
@@ -11680,6 +11692,21 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
+    if (!conn_pacing_pkt_tx_allowed(conn, ts)) {
+      assert(!ppe_pending);
+
+      if (!(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
+        server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
+        if (server_tx_left == 0) {
+          return 0;
+        }
+
+        origlen = (size_t)ngtcp2_min((uint64_t)origlen, server_tx_left);
+      }
+
+      return conn_write_handshake_ack_pkts(conn, pi, dest, origlen, ts);
+    }
+
     if (!ppe_pending) {
       if (!(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
         server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
@@ -11758,6 +11785,22 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     }
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
+    if (!conn_pacing_pkt_tx_allowed(conn, ts)) {
+      assert(!ppe_pending);
+
+      if (conn->server &&
+          !(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
+        server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
+        if (server_tx_left == 0) {
+          return 0;
+        }
+
+        origlen = (size_t)ngtcp2_min((uint64_t)origlen, server_tx_left);
+      }
+
+      return conn_write_ack_pkt(conn, pi, dest, origlen, NGTCP2_PKT_1RTT, ts);
+    }
+
     break;
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
