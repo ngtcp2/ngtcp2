@@ -1507,10 +1507,9 @@ typedef struct ngtcp2_transport_params {
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   /**
    * :member:`grease_quic_bit` is nonzero if sender supports "Greasing
-   * the QUIC Bit" extension.  See
-   * https://datatracker.ietf.org/doc/html/draft-ietf-quic-bit-grease.
-   * Note that the local endpoint always enables greasing QUIC bit
-   * regardless of this field value.
+   * the QUIC Bit" extension.  See :rfc:`9287`.  Note that the local
+   * endpoint always enables greasing QUIC bit regardless of this
+   * field value.
    */
   uint8_t grease_quic_bit;
   /**
