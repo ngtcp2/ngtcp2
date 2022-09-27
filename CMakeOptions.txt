@@ -6,6 +6,7 @@ option(ENABLE_SHARED_LIB "Build as shared libraries" ON)
 option(ENABLE_WERROR    "Make compiler warnings fatal" OFF)
 option(ENABLE_DEBUG     "Turn on debug output" OFF)
 option(ENABLE_ASAN      "Enable AddressSanitizer (ASAN)" OFF)
+option(ENABLE_JEMALLOC  "Enable Jemalloc" OFF)
 
 option(ENABLE_GNUTLS    "Enable GnuTLS crypto backend" OFF)
 option(ENABLE_OPENSSL   "Enable OpenSSL crypto backend (required for examples)" ON)
