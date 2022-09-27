@@ -151,7 +151,8 @@ noinst_PROGRAMS += bsslclient bsslserver
 bsslclient_CPPFLAGS = ${AM_CPPFLAGS} @BORINGSSL_CFLAGS@ -DWITH_EXAMPLE_BORINGSSL
 bsslclient_LDADD = ${LDADD} \
 	$(top_builddir)/crypto/boringssl/libngtcp2_crypto_boringssl.a \
-	@BORINGSSL_LIBS@
+	@BORINGSSL_LIBS@ \
+	@JEMALLOC_LIBS@
 bsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 	tls_client_context_boringssl.cc tls_client_context_boringssl.h \
 	tls_client_session_boringssl.cc tls_client_session_boringssl.h \
@@ -174,7 +175,8 @@ ptlsclient_CPPFLAGS = ${AM_CPPFLAGS} @PICOTLS_CFLAGS@ @VANILLA_OPENSSL_CFLAGS@ \
 	-DWITH_EXAMPLE_PICOTLS
 ptlsclient_LDADD = ${LDADD} \
 	$(top_builddir)/crypto/picotls/libngtcp2_crypto_picotls.a \
-	@PICOTLS_LIBS@ @VANILLA_OPENSSL_LIBS@
+	@PICOTLS_LIBS@ @VANILLA_OPENSSL_LIBS@ \
+	@JEMALLOC_LIBS@
 ptlsclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 	tls_client_context_picotls.cc tls_client_context_picotls.h \
 	tls_client_session_picotls.cc tls_client_session_picotls.h \
@@ -196,7 +198,8 @@ noinst_PROGRAMS += wsslclient wsslserver
 wsslclient_CPPFLAGS = ${AM_CPPFLAGS} @WOLFSSL_CFLAGS@ -DWITH_EXAMPLE_WOLFSSL
 wsslclient_LDADD = ${LDADD} \
 	$(top_builddir)/crypto/wolfssl/libngtcp2_crypto_wolfssl.la \
-	@WOLFSSL_LIBS@
+	@WOLFSSL_LIBS@ \
+	@JEMALLOC_LIBS@
 wsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 	tls_client_context_wolfssl.cc tls_client_context_wolfssl.h \
 	tls_client_session_wolfssl.cc tls_client_session_wolfssl.h \
