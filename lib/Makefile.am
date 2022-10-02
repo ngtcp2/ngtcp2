@@ -71,7 +71,8 @@ OBJECTS = \
 	ngtcp2_window_filter.c \
 	ngtcp2_opl.c \
 	ngtcp2_balloc.c \
-	ngtcp2_objalloc.c
+	ngtcp2_objalloc.c \
+	ngtcp2_unreachable.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -112,7 +113,8 @@ HFILES = \
 	ngtcp2_balloc.h \
 	ngtcp2_objalloc.h \
 	ngtcp2_rcvry.h \
-	ngtcp2_net.h
+	ngtcp2_net.h \
+	ngtcp2_unreachable.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
 libngtcp2_la_LDFLAGS = -no-undefined \

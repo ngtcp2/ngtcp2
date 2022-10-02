@@ -33,6 +33,7 @@
 #include "ngtcp2_cid.h"
 #include "ngtcp2_mem.h"
 #include "ngtcp2_vec.h"
+#include "ngtcp2_unreachable.h"
 
 int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
                          const ngtcp2_pkt_info *pi, const uint8_t *pkt,
@@ -218,7 +219,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
       break;
     default:
       /* Unreachable */
-      assert(0);
+      ngtcp2_unreachable();
     }
   }
 
@@ -1472,8 +1473,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_datagram_frame(ngtcp2_datagram *dest,
     len += datalen;
     break;
   default:
-    assert(0);
-    abort();
+    ngtcp2_unreachable();
   }
 
   dest->type = type;
@@ -2538,8 +2538,7 @@ uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type) {
     case NGTCP2_PKT_RETRY:
       return NGTCP2_PKT_TYPE_RETRY_V2_DRAFT;
     default:
-      assert(0);
-      abort();
+      ngtcp2_unreachable();
     }
   default:
     /* Assume that unsupported versions share the numeric long packet
@@ -2558,8 +2557,7 @@ uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type) {
     case NGTCP2_PKT_RETRY:
       return NGTCP2_PKT_TYPE_RETRY_V1;
     default:
-      assert(0);
-      abort();
+      ngtcp2_unreachable();
     }
   }
 }

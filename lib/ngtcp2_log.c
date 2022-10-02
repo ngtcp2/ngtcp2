@@ -35,6 +35,7 @@
 #include "ngtcp2_vec.h"
 #include "ngtcp2_macro.h"
 #include "ngtcp2_conv.h"
+#include "ngtcp2_unreachable.h"
 
 void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
                      ngtcp2_printf log_printf, ngtcp2_tstamp ts,
@@ -535,7 +536,7 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     log_fr_datagram(log, hd, &fr->datagram, dir);
     break;
   default:
-    assert(0);
+    ngtcp2_unreachable();
   }
 }
 
