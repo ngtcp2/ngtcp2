@@ -41,7 +41,7 @@ static size_t mtu_probes[] = {
     1492 - 48, /* PPPoE */
 };
 
-static size_t mtu_probeslen = sizeof(mtu_probes) / sizeof(mtu_probes[0]);
+static size_t mtu_probeslen = ngtcp2_arraylen(mtu_probes);
 
 int ngtcp2_pmtud_new(ngtcp2_pmtud **ppmtud, size_t max_udp_payload_size,
                      size_t hard_max_udp_payload_size, int64_t tx_pkt_num,

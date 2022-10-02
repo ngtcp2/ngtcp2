@@ -1540,10 +1540,10 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
 
   spktlen = ngtcp2_pkt_write_version_negotiation(
       buf, sizeof(buf), 133, dcid.data, dcid.datalen, scid.data, scid.datalen,
-      sv, arraylen(sv));
+      sv, ngtcp2_arraylen(sv));
 
   CU_ASSERT((ngtcp2_ssize)(1 + 4 + 1 + dcid.datalen + 1 + scid.datalen +
-                           arraylen(sv) * 4) == spktlen);
+                           ngtcp2_arraylen(sv) * 4) == spktlen);
 
   p = buf;
 
@@ -1571,7 +1571,7 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
 
   p += scid.datalen;
 
-  for (i = 0; i < arraylen(sv); ++i, p += 4) {
+  for (i = 0; i < ngtcp2_arraylen(sv); ++i, p += 4) {
     CU_ASSERT(sv[i] == ngtcp2_get_uint32(p));
   }
 }

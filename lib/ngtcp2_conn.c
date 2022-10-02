@@ -12662,7 +12662,7 @@ static void conn_get_loss_time_and_pktns(ngtcp2_conn *conn,
   ngtcp2_pktns *pktns = conn->in_pktns;
   size_t i;
 
-  for (i = 0; i < sizeof(ns) / sizeof(ns[0]); ++i) {
+  for (i = 0; i < ngtcp2_arraylen(ns); ++i) {
     if (ns[i] == NULL || loss_time[i] >= earliest_loss_time) {
       continue;
     }
@@ -13415,8 +13415,7 @@ int ngtcp2_conn_track_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq) {
   size_t i;
 
   if (conn->dcid.retire_unacked.len >=
-      sizeof(conn->dcid.retire_unacked.seqs) /
-          sizeof(conn->dcid.retire_unacked.seqs[0])) {
+      ngtcp2_arraylen(conn->dcid.retire_unacked.seqs)) {
     return NGTCP2_ERR_CONNECTION_ID_LIMIT;
   }
 

@@ -42,7 +42,7 @@ void test_ngtcp2_acktr_add(void) {
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_acktr_init(&acktr, &log, mem);
 
-  for (i = 0; i < arraylen(pkt_nums); ++i) {
+  for (i = 0; i < ngtcp2_arraylen(pkt_nums); ++i) {
     rv = ngtcp2_acktr_add(&acktr, pkt_nums[i], 1, 999);
 
     CU_ASSERT(0 == rv);
@@ -320,7 +320,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_acktr_init(&acktr, &log, mem);
 
-  for (i = 0; i < arraylen(rpkt_nums); ++i) {
+  for (i = 0; i < ngtcp2_arraylen(rpkt_nums); ++i) {
     ngtcp2_acktr_add(&acktr, rpkt_nums[i], 1, 999 + i);
   }
 

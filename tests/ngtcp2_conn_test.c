@@ -784,7 +784,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   server_default_transport_params(&params);
 
   settings.preferred_versions = preferred_versions;
-  settings.preferred_versionslen = arraylen(preferred_versions);
+  settings.preferred_versionslen = ngtcp2_arraylen(preferred_versions);
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path.path,
                          NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
@@ -819,10 +819,10 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   client_default_transport_params(&params);
 
   settings.preferred_versions = preferred_versions;
-  settings.preferred_versionslen = arraylen(preferred_versions);
+  settings.preferred_versionslen = ngtcp2_arraylen(preferred_versions);
 
   settings.other_versions = other_versions;
-  settings.other_versionslen = arraylen(other_versions);
+  settings.other_versionslen = ngtcp2_arraylen(other_versions);
 
   ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path.path,
                          NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
@@ -8523,7 +8523,7 @@ void test_ngtcp2_conn_get_connection_close_error(void) {
   frs[1].connection_close.reason = reason;
 
   pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs,
-                     arraylen(frs), conn->pktns.crypto.rx.ckm);
+                     ngtcp2_arraylen(frs), conn->pktns.crypto.rx.ckm);
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
@@ -8922,9 +8922,9 @@ void test_ngtcp2_conn_new_failmalloc(void) {
   settings.qlog.write = qlog_write;
   settings.token = token;
   settings.preferred_versions = preferred_versions;
-  settings.preferred_versionslen = arraylen(preferred_versions);
+  settings.preferred_versionslen = ngtcp2_arraylen(preferred_versions);
   settings.other_versions = other_versions;
-  settings.other_versionslen = arraylen(other_versions);
+  settings.other_versionslen = ngtcp2_arraylen(other_versions);
 
   /* server */
   server_default_callbacks(&cb);
@@ -9147,10 +9147,10 @@ void test_ngtcp2_select_version(void) {
     uint32_t offered_versions[] = {0x00000004, 0x00000003,
                                    NGTCP2_PROTO_VER_V2_DRAFT};
 
-    CU_ASSERT(
-        NGTCP2_PROTO_VER_V2_DRAFT ==
-        ngtcp2_select_version(preferred_versions, arraylen(preferred_versions),
-                              offered_versions, arraylen(offered_versions)));
+    CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT ==
+              ngtcp2_select_version(
+                  preferred_versions, ngtcp2_arraylen(preferred_versions),
+                  offered_versions, ngtcp2_arraylen(offered_versions)));
   }
 
   {
@@ -9159,8 +9159,8 @@ void test_ngtcp2_select_version(void) {
     uint32_t offered_versions[] = {0x00000004, 0x00000003};
 
     CU_ASSERT(0 == ngtcp2_select_version(
-                       preferred_versions, arraylen(preferred_versions),
-                       offered_versions, arraylen(offered_versions)));
+                       preferred_versions, ngtcp2_arraylen(preferred_versions),
+                       offered_versions, ngtcp2_arraylen(offered_versions)));
   }
 }
 

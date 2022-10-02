@@ -413,13 +413,14 @@ void test_ngtcp2_vec_len_varint(void) {
   {
     ngtcp2_vec v[] = {{NULL, NGTCP2_MAX_VARINT}, {NULL, 1}};
 
-    CU_ASSERT(-1 == ngtcp2_vec_len_varint(v, arraylen(v)));
+    CU_ASSERT(-1 == ngtcp2_vec_len_varint(v, ngtcp2_arraylen(v)));
   }
 
   {
     ngtcp2_vec v[] = {{NULL, NGTCP2_MAX_VARINT - 1}, {NULL, 1}};
 
-    CU_ASSERT(NGTCP2_MAX_VARINT == ngtcp2_vec_len_varint(v, arraylen(v)));
+    CU_ASSERT(NGTCP2_MAX_VARINT ==
+              ngtcp2_vec_len_varint(v, ngtcp2_arraylen(v)));
   }
 #endif /* SIZE_MAX == UINT64_MAX */
 }
