@@ -6012,13 +6012,14 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   CU_ASSERT(0 == spktlen);
 
-  t += 1000;
+  t += 30 * NGTCP2_MILLISECONDS;
 
   ngtcp2_conn_on_loss_detection_timer(conn, t);
 
   CU_ASSERT(1 == conn->in_pktns->rtb.probe_pkt_left);
   CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
 
+  /* Send a PTO probe packet */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
@@ -6051,9 +6052,11 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   CU_ASSERT(0 == rv);
 
-  t += NGTCP2_MILLISECONDS;
+  t += 40 * NGTCP2_MILLISECONDS;
 
   ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  CU_ASSERT(0 == conn->hs_pktns->rtb.probe_pkt_left);
 
   /* Retransmits the contents of lost packet */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -6074,10 +6077,13 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   CU_ASSERT(0 == spktlen);
 
-  t += 1000;
+  t += 30 * NGTCP2_MILLISECONDS;
 
   ngtcp2_conn_on_loss_detection_timer(conn, t);
 
+  CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
+
+  /* Send a PTO probe packet */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
@@ -6141,9 +6147,12 @@ void test_ngtcp2_conn_handshake_loss(void) {
                                   ent->frc->fr.crypto.datacnt));
   CU_ASSERT(2 == ent->hd.pkt_num);
 
-  t += 1000;
+  t += 30 * NGTCP2_MILLISECONDS;
 
   ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  CU_ASSERT(1 == conn->in_pktns->rtb.probe_pkt_left);
+  CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
 
   /* 1st PTO */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -6162,9 +6171,12 @@ void test_ngtcp2_conn_handshake_loss(void) {
                                   ent->frc->fr.crypto.datacnt));
   CU_ASSERT(3 == ent->hd.pkt_num);
 
-  t += 1000;
+  t += 30 * NGTCP2_MILLISECONDS;
 
   ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  CU_ASSERT(1 == conn->in_pktns->rtb.probe_pkt_left);
+  CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
 
   /* 2nd PTO.  Initial and Handshake packets are coalesced.  Handshake
      CRYPTO is split into 2 because of Initial CRYPTO. */
@@ -6207,15 +6219,18 @@ void test_ngtcp2_conn_handshake_loss(void) {
       ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->client_chosen_version, &fr,
       &null_ckm);
 
-  t += 8;
+  t += NGTCP2_MILLISECONDS;
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
 
   CU_ASSERT(0 == rv);
 
-  t += 1000;
+  t += 40 * NGTCP2_MILLISECONDS;
 
   ngtcp2_conn_on_loss_detection_timer(conn, t);
 
+  CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
+
+  /* 3rd PTO */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
