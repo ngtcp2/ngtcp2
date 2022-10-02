@@ -297,7 +297,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.grease_quic_bit = 1;
   params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
   params.version_info.other_versions = other_versions;
-  params.version_info.other_versionslen = arraylen(other_versions);
+  params.version_info.other_versionslen = ngtcp2_arraylen(other_versions);
   params.version_info_present = 1;
 
   len =
@@ -543,7 +543,7 @@ void test_ngtcp2_decode_transport_params_new(void) {
   params.grease_quic_bit = 1;
   params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
   params.version_info.other_versions = other_versions;
-  params.version_info.other_versionslen = arraylen(other_versions);
+  params.version_info.other_versionslen = ngtcp2_arraylen(other_versions);
   params.version_info_present = 1;
 
   len =

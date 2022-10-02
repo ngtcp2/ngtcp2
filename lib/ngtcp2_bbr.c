@@ -34,8 +34,7 @@
 
 static const double pacing_gain_cycle[] = {1.25, 0.75, 1, 1, 1, 1, 1, 1};
 
-#define NGTCP2_BBR_GAIN_CYCLELEN                                               \
-  (sizeof(pacing_gain_cycle) / sizeof(pacing_gain_cycle[0]))
+#define NGTCP2_BBR_GAIN_CYCLELEN ngtcp2_arraylen(pacing_gain_cycle)
 
 #define NGTCP2_BBR_HIGH_GAIN 2.89
 #define NGTCP2_BBR_PROBE_RTT_DURATION (200 * NGTCP2_MILLISECONDS)

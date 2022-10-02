@@ -39,11 +39,6 @@
 #define strsize(S) (sizeof(S) - 1)
 
 /*
- * arraylen macro returns the number of elements in array |A|.
- */
-#define arraylen(A) (sizeof(A) / sizeof(A[0]))
-
-/*
  * NGTCP2_APP_ERRxx is an application error code solely used in test
  * code.
  */
