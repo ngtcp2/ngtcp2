@@ -1739,7 +1739,7 @@ int parse_uri(Request &req, const char *uri) {
   req.scheme = get_string(uri, u, UF_SCHEMA);
 
   req.authority = get_string(uri, u, UF_HOST);
-  if (util::numeric_host(req.authority.c_str())) {
+  if (util::numeric_host(req.authority.c_str(), AF_INET6)) {
     req.authority = '[' + req.authority + ']';
   }
   if (u.field_set & (1 << UF_PORT)) {
