@@ -1197,7 +1197,7 @@ static void bbr_modulate_cwnd_for_recovery(ngtcp2_bbr2_cc *bbr,
       cstat->cwnd -= ack->bytes_lost;
       cstat->cwnd = ngtcp2_max(cstat->cwnd, 2 * cstat->max_udp_payload_size);
     } else {
-      cstat->cwnd = cstat->max_udp_payload_size;
+      cstat->cwnd = 2 * cstat->max_udp_payload_size;
     }
   }
 
