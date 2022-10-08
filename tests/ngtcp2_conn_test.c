@@ -791,7 +791,8 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
                          /* mem = */ NULL, NULL);
 }
 
-static void setup_handshake_client(ngtcp2_conn **pconn) {
+static void setup_handshake_client_version(ngtcp2_conn **pconn,
+                                           uint32_t client_chosen_version) {
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
@@ -825,12 +826,16 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   settings.other_versionslen = ngtcp2_arraylen(other_versions);
 
   ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
+                         client_chosen_version, &cb, &settings, &params,
                          /* mem = */ NULL, NULL);
   ngtcp2_conn_set_initial_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
                                   &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
   ngtcp2_conn_set_retry_aead(*pconn, &retry_aead, &aead_ctx);
+}
+
+static void setup_handshake_client(ngtcp2_conn **pconn) {
+  setup_handshake_client_version(pconn, NGTCP2_PROTO_VER_V1);
 }
 
 static void setup_early_server(ngtcp2_conn **pconn) {
@@ -6625,10 +6630,29 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* client: No version_information after Version Negotiation */
+  /* client: Special handling for QUIC v1 regarding Version
+     Negotiation */
   setup_handshake_client(&conn);
 
   conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->negotiated_version = conn->client_chosen_version;
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
+  params.initial_scid = conn->dcid.current.cid;
+  params.original_dcid = conn->rcid;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client: No version_information after Version Negotiation */
+  setup_handshake_client_version(&conn, NGTCP2_PROTO_VER_V2_DRAFT);
+
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V1;
   conn->negotiated_version = conn->client_chosen_version;
 
   memset(&params, 0, sizeof(params));
