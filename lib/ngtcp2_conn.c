@@ -11086,15 +11086,28 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
     assert(vneg_other_versions_includes(conn->vneg.other_versions,
                                         conn->vneg.other_versionslen,
                                         conn->negotiated_version));
-  } else if (conn->client_chosen_version != conn->negotiated_version ||
-             conn->client_chosen_version !=
-                 conn->local.settings.original_version) {
+  } else if (conn->client_chosen_version != conn->negotiated_version) {
     return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
   }
 
   /* When client reacted upon Version Negotiation */
   if (conn->local.settings.original_version != conn->client_chosen_version) {
-    assert(params->version_info_present);
+    if (!params->version_info_present) {
+      assert(conn->client_chosen_version == conn->negotiated_version);
+
+      /* QUIC v1 (and the supported draft versions) are treated
+         specially.  If version_info is missing, no further validation
+         is necessary.
+         https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation-10#section-8
+       */
+      if (conn->client_chosen_version == NGTCP2_PROTO_VER_V1 ||
+          (NGTCP2_PROTO_VER_DRAFT_MIN <= conn->client_chosen_version &&
+           conn->client_chosen_version <= NGTCP2_PROTO_VER_DRAFT_MAX)) {
+        return 0;
+      }
+
+      return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
+    }
 
     /* Server choose original version after Version Negotiation.
        Draft does not say this particular case, but this smells like
