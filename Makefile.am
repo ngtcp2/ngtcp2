@@ -56,4 +56,5 @@ clang-format:
 	crypto/openssl/*.c crypto/gnutls/*.c crypto/boringssl/*.c \
 	crypto/wolfssl/*.c \
 	crypto/includes/ngtcp2/*.h \
-	examples/*.{cc,c,h}
+	examples/*.{cc,c,h} \
+	fuzz/*.cc
