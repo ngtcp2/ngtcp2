@@ -296,10 +296,15 @@ int Client::handshake_completed() {
       std::cerr << "Early data was rejected by server" << std::endl;
     }
 
-    ngtcp2_conn_early_data_rejected(conn_);
-
-    nstreams_done_ = 0;
-    streams_.clear();
+    // Some TLS backends only report early data rejection after
+    // handshake completion (e.g., OpenSSL).  For TLS backends which
+    // report it early (e.g., BoringSSL and PicoTLS), the following
+    // functions are noop.
+    if (auto rv = ngtcp2_conn_early_data_rejected(conn_); rv != 0) {
+      std::cerr << "ngtcp2_conn_early_data_rejected: " << ngtcp2_strerror(rv)
+                << std::endl;
+      return -1;
+    }
   }
 
   if (!config.quiet) {
@@ -560,6 +565,21 @@ int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
 }
 } // namespace
 
+namespace {
+int early_data_rejected(ngtcp2_conn *conn, void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  c->early_data_rejected();
+
+  return 0;
+}
+} // namespace
+
+void Client::early_data_rejected() {
+  nstreams_done_ = 0;
+  streams_.clear();
+}
+
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                  const char *addr, const char *port,
                  TLSClientContext &tls_ctx) {
@@ -617,6 +637,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       ngtcp2_crypto_version_negotiation_cb,
       nullptr, // recv_rx_key
       nullptr, // recv_tx_key
+      ::early_data_rejected,
   };
 
   ngtcp2_cid scid, dcid;

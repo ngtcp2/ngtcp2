@@ -137,6 +137,7 @@ public:
   const std::vector<uint32_t> &get_offered_versions() const;
 
   bool get_early_data() const;
+  void early_data_rejected();
 
 private:
   std::vector<Endpoint> endpoints_;

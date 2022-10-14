@@ -141,6 +141,8 @@ public:
 
   const std::vector<uint32_t> &get_offered_versions() const;
 
+  void early_data_rejected();
+
 private:
   std::vector<Endpoint> endpoints_;
   Address remote_addr_;
