@@ -323,6 +323,7 @@ static int client_quic_init(struct client *c,
       ngtcp2_crypto_version_negotiation_cb,
       NULL, /* recv_rx_key */
       NULL, /* recv_tx_key */
+      NULL, /* early_data_rejected */
   };
   ngtcp2_cid dcid, scid;
   ngtcp2_settings settings;

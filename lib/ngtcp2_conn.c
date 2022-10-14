@@ -12586,14 +12586,24 @@ static void conn_discard_early_data_state(ngtcp2_conn *conn) {
   }
 }
 
-void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
+int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
   if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
-    return;
+    return 0;
   }
 
   conn->flags |= NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED;
 
   conn_discard_early_data_state(conn);
+
+  if (conn->callbacks.early_data_rejected) {
+    return conn->callbacks.early_data_rejected(conn, conn->user_data);
+  }
+
+  return 0;
+}
+
+int ngtcp2_conn_get_early_data_rejected(ngtcp2_conn *conn) {
+  return (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) != 0;
 }
 
 int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
