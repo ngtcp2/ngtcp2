@@ -222,7 +222,7 @@ Read and write packets
 `ngtcp2_conn_read_pkt()` processes the incoming QUIC packets.  In
 order to write QUIC packets, call `ngtcp2_conn_writev_stream()` or
 `ngtcp2_conn_write_pkt()`.  The *destlen* parameter must be at least
-the value returned from `ngtcp2_conn_get_max_udp_payload_size()`.
+the value returned from `ngtcp2_conn_get_max_tx_udp_payload_size()`.
 
 In order to send stream data, the application has to first open a
 stream.  Use `ngtcp2_conn_open_bidi_stream()` to open bidirectional

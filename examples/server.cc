@@ -1408,8 +1408,8 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.no_pmtud = config.no_pmtud;
   settings.ack_thresh = config.ack_thresh;
   if (config.max_udp_payload_size) {
-    settings.max_udp_payload_size = config.max_udp_payload_size;
-    settings.no_udp_payload_size_shaping = 1;
+    settings.max_tx_udp_payload_size = config.max_udp_payload_size;
+    settings.no_tx_udp_payload_size_shaping = 1;
   }
   if (!config.qlog_dir.empty()) {
     auto path = std::string{config.qlog_dir};
@@ -1631,9 +1631,9 @@ int Handler::write_streams() {
   ngtcp2_path_storage ps, prev_ps;
   uint32_t prev_ecn = 0;
   size_t pktcnt = 0;
-  auto max_udp_payload_size = ngtcp2_conn_get_max_udp_payload_size(conn_);
+  auto max_udp_payload_size = ngtcp2_conn_get_max_tx_udp_payload_size(conn_);
   auto path_max_udp_payload_size =
-      ngtcp2_conn_get_path_max_udp_payload_size(conn_);
+      ngtcp2_conn_get_path_max_tx_udp_payload_size(conn_);
   auto max_pktcnt = ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size;
   uint8_t *bufpos = tx_.data.get();
   ngtcp2_pkt_info pi;

@@ -541,8 +541,8 @@ static void server_default_settings(ngtcp2_settings *settings) {
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  settings->max_udp_payload_size = 2048;
-  settings->no_udp_payload_size_shaping = 1;
+  settings->max_tx_udp_payload_size = 2048;
+  settings->no_tx_udp_payload_size_shaping = 1;
   settings->handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
 }
 
@@ -593,8 +593,8 @@ static void client_default_settings(ngtcp2_settings *settings) {
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  settings->max_udp_payload_size = 2048;
-  settings->no_udp_payload_size_shaping = 1;
+  settings->max_tx_udp_payload_size = 2048;
+  settings->no_tx_udp_payload_size_shaping = 1;
 }
 
 static void client_default_transport_params(ngtcp2_transport_params *params) {
