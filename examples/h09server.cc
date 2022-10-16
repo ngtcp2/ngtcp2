@@ -956,9 +956,7 @@ int Handler::write_streams() {
   auto max_udp_payload_size = ngtcp2_conn_get_max_udp_payload_size(conn_);
   auto path_max_udp_payload_size =
       ngtcp2_conn_get_path_max_udp_payload_size(conn_);
-  size_t max_pktcnt =
-      std::min(static_cast<size_t>(64_k), ngtcp2_conn_get_send_quantum(conn_)) /
-      max_udp_payload_size;
+  auto max_pktcnt = ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size;
   uint8_t *bufpos = tx_.data.get();
   ngtcp2_pkt_info pi;
   size_t gso_size = 0;
