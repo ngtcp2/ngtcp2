@@ -1190,7 +1190,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
   ngtcp2_cc *cc = rtb->cc;
   int rv;
   uint64_t pkt_thres =
-      rtb->cc_bytes_in_flight / cstat->max_udp_payload_size / 2;
+      rtb->cc_bytes_in_flight / cstat->max_tx_udp_payload_size / 2;
   size_t ecn_pkt_lost = 0;
   ngtcp2_tstamp start_ts;
   ngtcp2_duration pto = ngtcp2_conn_compute_pto(conn, pktns);

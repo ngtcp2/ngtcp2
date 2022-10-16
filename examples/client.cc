@@ -739,8 +739,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.max_window = config.max_window;
   settings.max_stream_window = config.max_stream_window;
   if (config.max_udp_payload_size) {
-    settings.max_udp_payload_size = config.max_udp_payload_size;
-    settings.no_udp_payload_size_shaping = 1;
+    settings.max_tx_udp_payload_size = config.max_udp_payload_size;
+    settings.no_tx_udp_payload_size_shaping = 1;
   }
   settings.handshake_timeout = config.handshake_timeout;
   settings.no_pmtud = config.no_pmtud;
@@ -976,7 +976,7 @@ int Client::write_streams() {
   std::array<nghttp3_vec, 16> vec;
   ngtcp2_path_storage ps;
   size_t pktcnt = 0;
-  auto max_udp_payload_size = ngtcp2_conn_get_max_udp_payload_size(conn_);
+  auto max_udp_payload_size = ngtcp2_conn_get_max_tx_udp_payload_size(conn_);
   auto max_pktcnt = ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size;
   auto ts = util::timestamp(loop_);
 
