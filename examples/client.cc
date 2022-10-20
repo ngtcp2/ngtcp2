@@ -744,6 +744,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   }
   settings.handshake_timeout = config.handshake_timeout;
   settings.no_pmtud = config.no_pmtud;
+  settings.ack_thresh = config.ack_thresh;
 
   std::string token;
 
@@ -2260,6 +2261,7 @@ void config_set_default(Config &config) {
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
+  config.ack_thresh = 2;
 }
 } // namespace
 
@@ -2453,6 +2455,11 @@ Options:
               Default: )"
             << util::format_duration(config.handshake_timeout) << R"(
   --no-pmtud  Disables Path MTU Discovery.
+  --ack-thresh=<N>
+              The minimum number of the received ACK eliciting packets
+              that triggers immediate acknowledgement.
+              Default: )"
+            << config.ack_thresh << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -2529,6 +2536,7 @@ int main(int argc, char **argv) {
         {"other-versions", required_argument, &flag, 37},
         {"no-pmtud", no_argument, &flag, 38},
         {"preferred-versions", required_argument, &flag, 39},
+        {"ack-thresh", required_argument, &flag, 40},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2925,6 +2933,18 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      case 40:
+        // --ack-thresh
+        if (auto n = util::parse_uint(optarg); !n) {
+          std::cerr << "ack-thresh: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (*n > 100) {
+          std::cerr << "ack-thresh: must not exceed 100" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.ack_thresh = *n;
+        }
+        break;
       }
       break;
     default:

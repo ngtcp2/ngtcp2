@@ -178,6 +178,9 @@ struct Config {
   std::vector<uint32_t> other_versions;
   // no_pmtud disables Path MTU Discovery.
   bool no_pmtud;
+  // ack_thresh is the minimum number of the received ACK eliciting
+  // packets that triggers immediate acknowledgement.
+  size_t ack_thresh;
 };
 
 class ClientBase {
