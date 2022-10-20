@@ -300,15 +300,14 @@ clock should work better.  It should be same clock passed to
 is :type:`ngtcp2_duration` which is also nanosecond resolution.
 
 `ngtcp2_conn_get_expiry()` tells an application when timer fires.
-When timer fires, call `ngtcp2_conn_handle_expiry()` and
-`ngtcp2_conn_write_pkt()` (or `ngtcp2_conn_writev_stream()`).
-
-After calling these functions, new expiry will be set.  The
-application should call `ngtcp2_conn_get_expiry()` to restart timer.
-If `ngtcp2_conn_get_expiry()` returned :macro:`NGTCP2_ERR_IDLE_CLOSE`,
-it means that an idle timer has expired for this particular
-connection.  In this case, drop the connection without calling
-`ngtcp2_conn_write_connection_close()`.
+When it fires, call `ngtcp2_conn_handle_expiry()`.  If it returns
+:macro:`NGTCP2_ERR_IDLE_CLOSE`, it means that an idle timer has fired
+for this particular connection.  In this case, drop the connection
+without calling `ngtcp2_conn_write_connection_close()`.  Otherwise,
+call `ngtcp2_conn_writev_stream()`.  After calling
+`ngtcp2_conn_handle_expiry()` and `ngtcp2_conn_writev_stream()`, new
+expiry is set.  The application should call `ngtcp2_conn_get_expiry()`
+to get a new deadline.
 
 Connection migration
 --------------------
