@@ -3002,7 +3002,7 @@ int main(int argc, char **argv) {
         break;
       case 30:
         // --ack-thresh
-        if (auto n = util::parse_uint_iec(optarg); !n) {
+        if (auto n = util::parse_uint(optarg); !n) {
           std::cerr << "ack-thresh: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else if (*n > 100) {
