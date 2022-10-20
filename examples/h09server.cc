@@ -2617,9 +2617,10 @@ Options:
               draft.
   --no-pmtud  Disables Path MTU Discovery.
   --ack-thresh=<N>
-              Override   ACK  threshold,   aka,   maximum  number   of
-              unacknowledged   packets    before   sending    an   ACK
-              immediately.
+              The minimum number of the received ACK eliciting packets
+              that triggers immediate acknowledgement.
+              Default: )"
+            << config.ack_thresh << R"(
   -h, --help  Display this help and exit.
 
 ---
