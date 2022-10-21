@@ -1833,9 +1833,8 @@ typedef struct ngtcp2_settings {
    */
   uint64_t max_stream_window;
   /**
-   * :member:`ack_thresh` is the maximum number of unacknowledged
-   * packets before sending acknowledgement.  It triggers the
-   * immediate acknowledgement.
+   * :member:`ack_thresh` is the minimum number of the received ACK
+   * eliciting packets that triggers the immediate acknowledgement.
    */
   size_t ack_thresh;
   /**
