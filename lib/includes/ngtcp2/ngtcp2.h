@@ -4465,31 +4465,48 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * - The function returns the written length of packet just like
  *   without :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE`.  This is because
  *   packet is nearly full and the library decided to make a complete
- *   packet.  |*pdatalen| might be -1 or >= 0.
+ *   packet.  |*pdatalen| might be -1 or >= 0.  It may return 0 which
+ *   indicates that no packet transmission is possible at the moment
+ *   for some reason.
  *
  * - The function returns :macro:`NGTCP2_ERR_WRITE_MORE`.  In this
- *   case, |*pdatalen| >= 0 is asserted.  This indicates that
- *   application can call this function with different stream data (or
+ *   case, |*pdatalen| >= 0 is asserted.  It indicates that
+ *   application can still call this function with different stream
+ *   data (or `ngtcp2_conn_writev_datagram` if it has data to send in
+ *   unreliable datagram) to pack them into the same packet.
+ *   Application has to specify the same |conn|, |path|, |pi|, |dest|,
+ *   |destlen|, and |ts| parameters, otherwise the behaviour is
+ *   undefined.  The application can change |flags|.
+ *
+ * - The function returns one of the following negative error codes:
+ *   :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED`,
+ *   :macro:`NGTCP2_ERR_STREAM_NOT_FOUND`,
+ *   :macro:`NGTCP2_ERR_STREAM_SHUT_WR`.  In this case, |*pdatalen| ==
+ *   -1 is asserted.  Application can still write the stream data of
+ *   the other streams by calling this function (or
  *   `ngtcp2_conn_writev_datagram` if it has data to send in
  *   unreliable datagram) to pack them into the same packet.
  *   Application has to specify the same |conn|, |path|, |pi|, |dest|,
  *   |destlen|, and |ts| parameters, otherwise the behaviour is
  *   undefined.  The application can change |flags|.
  *
- * - The function returns :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED` which
- *   indicates that stream is blocked because of flow control.
+ * - The other negative error codes might be returned just like
+ *   without :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE`.  These errors
+ *   should be treated as a connection error.
  *
- * - The other error might be returned just like without
- *   :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE`.
- *
- * When application sees :macro:`NGTCP2_ERR_WRITE_MORE`, it must not
- * call other ngtcp2 API functions (application can still call
- * `ngtcp2_conn_write_connection_close` to handle error from this
- * function).  Just keep calling `ngtcp2_conn_writev_stream`,
- * `ngtcp2_conn_write_pkt`, or `ngtcp2_conn_writev_datagram` until it
- * returns a positive number (which indicates a complete packet is
- * ready).  If there is no stream data to include, call this function
- * with |stream_id| as -1 to stop coalescing and write a packet.
+ * When application uses :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` at
+ * least once, it must not call other ngtcp2 API functions
+ * (application can still call `ngtcp2_conn_write_connection_close` to
+ * handle error from this function), just keep calling this function
+ * (or `ngtcp2_conn_write_pkt`, or `ngtcp2_conn_writev_datagram`)
+ * until it returns 0, a positive number (which indicates a complete
+ * packet is ready), or the error codes other than
+ * :macro:`NGTCP2_ERR_WRITE_MORE`,
+ * :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED`,
+ * :macro:`NGTCP2_ERR_STREAM_NOT_FOUND`, and
+ * :macro:`NGTCP2_ERR_STREAM_SHUT_WR`.  If there is no stream data to
+ * include, call this function with |stream_id| as -1 to stop
+ * coalescing and write a packet.
  *
  * This function returns 0 if it cannot write any frame because buffer
  * is too small, or packet is congestion limited.  Application should
