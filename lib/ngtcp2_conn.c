@@ -4013,15 +4013,16 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         goto build_pkt;
       }
 
-      /* We had pktns->rtb.num_retransmittable > 0 but the contents of
-         those packets have been acknowledged (i.e., retransmission in
-         another packet).  In this case, we don't have to send any
-         probe packet. */
+      /* We had pktns->rtb.num_retransmittable > 0 but we were unable
+         to reclaim any frame.  In this case, we do not have to send
+         any probe packet. */
       if (pktns->rtb.num_pto_eliciting == 0) {
         pktns->rtb.probe_pkt_left = 0;
         ngtcp2_conn_set_loss_detection_timer(conn, ts);
-        /* TODO If packet is empty, we should return now if cwnd is
-           zero. */
+
+        if (pkt_empty && conn_cwnd_is_zero(conn) && !require_padding) {
+          return 0;
+        }
       }
     }
   } else {
