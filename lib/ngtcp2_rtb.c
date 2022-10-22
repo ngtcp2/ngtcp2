@@ -993,7 +993,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     return 0;
   }
 
-  min_ack = largest_ack - (int64_t)fr->first_ack_blklen;
+  min_ack = largest_ack - (int64_t)fr->first_ack_range;
 
   for (; !ngtcp2_ksl_it_end(&it);) {
     pkt_num = *(int64_t *)ngtcp2_ksl_it_key(&it);
@@ -1018,9 +1018,9 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     ++num_acked;
   }
 
-  for (i = 0; i < fr->num_blks;) {
-    largest_ack = min_ack - (int64_t)fr->blks[i].gap - 2;
-    min_ack = largest_ack - (int64_t)fr->blks[i].blklen;
+  for (i = 0; i < fr->rangecnt;) {
+    largest_ack = min_ack - (int64_t)fr->ranges[i].gap - 2;
+    min_ack = largest_ack - (int64_t)fr->ranges[i].len;
 
     it = ngtcp2_ksl_lower_bound(&rtb->ents, &largest_ack);
     if (ngtcp2_ksl_it_end(&it)) {

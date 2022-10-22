@@ -1605,8 +1605,8 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 }
 
 /*
- * conn_ensure_ack_blks makes sure that conn->tx.ack->ack.blks can
- * contain at least |n| additional ngtcp2_ack_blk.
+ * conn_ensure_ack_ranges makes sure that conn->tx.ack->ack.ranges can
+ * contain at least |n| additional ngtcp2_ack_range.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1614,9 +1614,9 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-static int conn_ensure_ack_blks(ngtcp2_conn *conn, size_t n) {
+static int conn_ensure_ack_ranges(ngtcp2_conn *conn, size_t n) {
   ngtcp2_frame *fr;
-  size_t max = conn->tx.max_ack_blks;
+  size_t max = conn->tx.max_ack_ranges;
 
   if (n <= max) {
     return 0;
@@ -1627,13 +1627,13 @@ static int conn_ensure_ack_blks(ngtcp2_conn *conn, size_t n) {
   assert(max >= n);
 
   fr = ngtcp2_mem_realloc(conn->mem, conn->tx.ack,
-                          sizeof(ngtcp2_ack) + sizeof(ngtcp2_ack_blk) * max);
+                          sizeof(ngtcp2_ack) + sizeof(ngtcp2_ack_range) * max);
   if (fr == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
 
   conn->tx.ack = fr;
-  conn->tx.max_ack_blks = max;
+  conn->tx.max_ack_ranges = max;
 
   return 0;
 }
@@ -1673,14 +1673,14 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  uint64_t ack_delay_exponent) {
   /* TODO Measure an actual size of ACK blocks to find the best
      default value. */
-  const size_t initial_max_ack_blks = 8;
+  const size_t initial_max_ack_ranges = 8;
   int64_t last_pkt_num;
   ngtcp2_acktr *acktr = &pktns->acktr;
-  ngtcp2_ack_blk *blk;
+  ngtcp2_ack_range *range;
   ngtcp2_ksl_it it;
   ngtcp2_acktr_entry *rpkt;
   ngtcp2_ack *ack;
-  size_t blk_idx;
+  size_t range_idx;
   ngtcp2_tstamp largest_ack_ts;
   int rv;
 
@@ -1701,11 +1701,11 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   if (conn->tx.ack == NULL) {
     conn->tx.ack = ngtcp2_mem_malloc(
         conn->mem,
-        sizeof(ngtcp2_ack) + sizeof(ngtcp2_ack_blk) * initial_max_ack_blks);
+        sizeof(ngtcp2_ack) + sizeof(ngtcp2_ack_range) * initial_max_ack_ranges);
     if (conn->tx.ack == NULL) {
       return NGTCP2_ERR_NOMEM;
     }
-    conn->tx.max_ack_blks = initial_max_ack_blks;
+    conn->tx.max_ack_ranges = initial_max_ack_ranges;
   }
 
   ack = &conn->tx.ack->ack;
@@ -1718,7 +1718,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   } else {
     ack->type = NGTCP2_FRAME_ACK;
   }
-  ack->num_blks = 0;
+  ack->rangecnt = 0;
 
   rpkt = ngtcp2_ksl_it_get(&it);
 
@@ -1726,7 +1726,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
     largest_ack_ts = rpkt->tstamp;
     ack->largest_ack = rpkt->pkt_num;
-    ack->first_ack_blklen = rpkt->len - 1;
+    ack->first_ack_range = rpkt->len - 1;
 
     ngtcp2_ksl_it_next(&it);
   } else {
@@ -1735,7 +1735,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     last_pkt_num = pktns->rx.max_pkt_num;
     largest_ack_ts = pktns->rx.max_pkt_ts;
     ack->largest_ack = pktns->rx.max_pkt_num;
-    ack->first_ack_blklen = 0;
+    ack->first_ack_range = 0;
   }
 
   if (type == NGTCP2_PKT_1RTT) {
@@ -1748,21 +1748,21 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   }
 
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
-    if (ack->num_blks == NGTCP2_MAX_ACK_BLKS) {
+    if (ack->rangecnt == NGTCP2_MAX_ACK_RANGES) {
       break;
     }
 
     rpkt = ngtcp2_ksl_it_get(&it);
 
-    blk_idx = ack->num_blks++;
-    rv = conn_ensure_ack_blks(conn, ack->num_blks);
+    range_idx = ack->rangecnt++;
+    rv = conn_ensure_ack_ranges(conn, ack->rangecnt);
     if (rv != 0) {
       return rv;
     }
     ack = &conn->tx.ack->ack;
-    blk = &ack->blks[blk_idx];
-    blk->gap = (uint64_t)(last_pkt_num - rpkt->pkt_num - 2);
-    blk->blklen = rpkt->len - 1;
+    range = &ack->ranges[range_idx];
+    range->gap = (uint64_t)(last_pkt_num - rpkt->pkt_num - 2);
+    range->len = rpkt->len - 1;
 
     last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
   }

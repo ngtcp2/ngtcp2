@@ -1412,8 +1412,8 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 899, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -1468,8 +1468,8 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 332, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -1495,8 +1495,8 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 999, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -1646,8 +1646,8 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 3, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -1709,8 +1709,8 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 4, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -2192,8 +2192,8 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num,
                                   &fr, conn->pktns.crypto.rx.ckm);
@@ -2295,8 +2295,8 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -3184,8 +3184,8 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -3230,8 +3230,8 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -4598,8 +4598,8 @@ void test_ngtcp2_conn_writev_datagram(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -5811,8 +5811,8 @@ void test_ngtcp2_conn_key_update(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt_flags(
       buf, sizeof(buf), NGTCP2_PKT_FLAG_KEY_PHASE, &conn->oscid, ++pkt_num, &fr,
@@ -5892,8 +5892,8 @@ void test_ngtcp2_conn_handshake_probe(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = 0;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_handshake_pkt(
       buf, sizeof(buf), NGTCP2_PKT_INITIAL, &conn->oscid,
@@ -6045,8 +6045,8 @@ void test_ngtcp2_conn_handshake_loss(void) {
   fr.ack.largest_ack = 2;
   fr.ack.ack_delay = 0;
   fr.ack.ack_delay_unscaled = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_handshake_pkt(
       buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->oscid,
@@ -6216,8 +6216,8 @@ void test_ngtcp2_conn_handshake_loss(void) {
   fr.ack.largest_ack = 0;
   fr.ack.ack_delay = 0;
   fr.ack.ack_delay_unscaled = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_handshake_pkt(
       buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->oscid,
@@ -7397,8 +7397,8 @@ void test_ngtcp2_conn_validate_ecn(void) {
   fr.type = NGTCP2_FRAME_ACK_ECN;
   fr.ack.largest_ack = 0;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
   fr.ack.ecn.ect0 = 1;
   fr.ack.ecn.ect1 = 0;
   fr.ack.ecn.ce = 0;
@@ -7425,8 +7425,8 @@ void test_ngtcp2_conn_validate_ecn(void) {
   fr.type = NGTCP2_FRAME_ACK_ECN;
   fr.ack.largest_ack = 1;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
   fr.ack.ecn.ect0 = 0;
   fr.ack.ecn.ect1 = 0;
   fr.ack.ecn.ce = 0;
@@ -7462,8 +7462,8 @@ void test_ngtcp2_conn_validate_ecn(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = 0;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -7497,8 +7497,8 @@ void test_ngtcp2_conn_validate_ecn(void) {
   fr.type = NGTCP2_FRAME_ACK_ECN;
   fr.ack.largest_ack = 1;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 1;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 1;
+  fr.ack.rangecnt = 0;
   fr.ack.ecn.ect0 = 1;
   fr.ack.ecn.ect1 = 0;
   fr.ack.ecn.ce = 1;
@@ -7528,8 +7528,8 @@ void test_ngtcp2_conn_validate_ecn(void) {
   fr.type = NGTCP2_FRAME_ACK_ECN;
   fr.ack.largest_ack = 0;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
   fr.ack.ecn.ect0 = 0;
   fr.ack.ecn.ect1 = 1;
   fr.ack.ecn.ce = 0;
@@ -7558,8 +7558,8 @@ void test_ngtcp2_conn_validate_ecn(void) {
   fr.type = NGTCP2_FRAME_ACK_ECN;
   fr.ack.largest_ack = 0;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
   fr.ack.ecn.ect0 = 2;
   fr.ack.ecn.ect1 = 0;
   fr.ack.ecn.ce = 0;
@@ -7611,8 +7611,8 @@ void test_ngtcp2_conn_validate_ecn(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   t += NGTCP2_MILLISECONDS;
 
@@ -7663,8 +7663,8 @@ void test_ngtcp2_conn_validate_ecn(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = 2;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr,
                                   conn->pktns.crypto.rx.ckm);
@@ -8212,8 +8212,8 @@ void test_ngtcp2_conn_stream_close(void) {
   frs[0].type = NGTCP2_FRAME_ACK;
   frs[0].ack.largest_ack = 0;
   frs[0].ack.ack_delay = 0;
-  frs[0].ack.first_ack_blklen = 0;
-  frs[0].ack.num_blks = 0;
+  frs[0].ack.first_ack_range = 0;
+  frs[0].ack.rangecnt = 0;
 
   pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1,
                      conn->pktns.crypto.tx.ckm);
@@ -8271,8 +8271,8 @@ void test_ngtcp2_conn_stream_close(void) {
   frs[0].type = NGTCP2_FRAME_ACK;
   frs[0].ack.largest_ack = 0;
   frs[0].ack.ack_delay = 0;
-  frs[0].ack.first_ack_blklen = 0;
-  frs[0].ack.num_blks = 0;
+  frs[0].ack.first_ack_range = 0;
+  frs[0].ack.rangecnt = 0;
 
   pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1,
                      conn->pktns.crypto.tx.ckm);
@@ -8313,8 +8313,8 @@ void test_ngtcp2_conn_stream_close(void) {
   frs[0].type = NGTCP2_FRAME_ACK;
   frs[0].ack.largest_ack = conn->pktns.tx.last_pkt_num;
   frs[0].ack.ack_delay = 0;
-  frs[0].ack.first_ack_blklen = 0;
-  frs[0].ack.num_blks = 0;
+  frs[0].ack.first_ack_range = 0;
+  frs[0].ack.rangecnt = 0;
 
   pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1,
                      conn->pktns.crypto.tx.ckm);
@@ -8386,8 +8386,8 @@ void test_ngtcp2_conn_stream_close(void) {
   frs[1].type = NGTCP2_FRAME_ACK;
   frs[1].ack.largest_ack = conn->pktns.tx.last_pkt_num;
   frs[1].ack.ack_delay = 0;
-  frs[1].ack.first_ack_blklen = 0;
-  frs[1].ack.num_blks = 0;
+  frs[1].ack.first_ack_range = 0;
+  frs[1].ack.rangecnt = 0;
 
   spktlen =
       ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -8806,8 +8806,8 @@ void test_ngtcp2_conn_pmtud_loss(void) {
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
   fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
 
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, pkt_num++,
                                   &fr, conn->pktns.crypto.rx.ckm);

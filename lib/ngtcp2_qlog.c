@@ -317,7 +317,7 @@ static uint8_t *write_ping_frame(uint8_t *p, const ngtcp2_ping *fr) {
 static uint8_t *write_ack_frame(uint8_t *p, const ngtcp2_ack *fr) {
   int64_t largest_ack, min_ack;
   size_t i;
-  const ngtcp2_ack_blk *blk;
+  const ngtcp2_ack_range *range;
 
   /*
    * {"frame_type":"ack","ack_delay":0000000000000000000,"acked_ranges":[]}
@@ -337,7 +337,7 @@ static uint8_t *write_ack_frame(uint8_t *p, const ngtcp2_ack *fr) {
   p = write_verbatim(p, ",\"acked_ranges\":[");
 
   largest_ack = fr->largest_ack;
-  min_ack = fr->largest_ack - (int64_t)fr->first_ack_blklen;
+  min_ack = fr->largest_ack - (int64_t)fr->first_ack_range;
 
   *p++ = '[';
   p = write_number(p, (uint64_t)min_ack);
@@ -347,10 +347,10 @@ static uint8_t *write_ack_frame(uint8_t *p, const ngtcp2_ack *fr) {
   }
   *p++ = ']';
 
-  for (i = 0; i < fr->num_blks; ++i) {
-    blk = &fr->blks[i];
-    largest_ack = min_ack - (int64_t)blk->gap - 2;
-    min_ack = largest_ack - (int64_t)blk->blklen;
+  for (i = 0; i < fr->rangecnt; ++i) {
+    range = &fr->ranges[i];
+    largest_ack = min_ack - (int64_t)range->gap - 2;
+    min_ack = largest_ack - (int64_t)range->len;
     *p++ = ',';
     *p++ = '[';
     p = write_number(p, (uint64_t)min_ack);
@@ -766,7 +766,7 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
             (size_t)(fr->type == NGTCP2_FRAME_ACK_ECN
                          ? NGTCP2_QLOG_ACK_FRAME_ECN_OVERHEAD
                          : 0) +
-            NGTCP2_QLOG_ACK_FRAME_RANGE_OVERHEAD * (1 + fr->ack.num_blks) + 1) {
+            NGTCP2_QLOG_ACK_FRAME_RANGE_OVERHEAD * (1 + fr->ack.rangecnt) + 1) {
       return;
     }
     p = write_ack_frame(p, &fr->ack);

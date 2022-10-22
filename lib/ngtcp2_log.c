@@ -236,29 +236,29 @@ static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_PKT " ACK(0x%02x) largest_ack=%" PRId64
                                   " ack_delay=%" PRIu64 "(%" PRIu64
-                                  ") ack_block_count=%zu"),
+                                  ") ack_range_count=%zu"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->largest_ack,
                   fr->ack_delay_unscaled / NGTCP2_MILLISECONDS, fr->ack_delay,
-                  fr->num_blks);
+                  fr->rangecnt);
 
   largest_ack = fr->largest_ack;
-  min_ack = fr->largest_ack - (int64_t)fr->first_ack_blklen;
+  min_ack = fr->largest_ack - (int64_t)fr->first_ack_range;
 
   log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " ACK(0x%02x) block=[%" PRId64 "..%" PRId64
-                                  "] block_count=%" PRIu64),
+                  (NGTCP2_LOG_PKT " ACK(0x%02x) range=[%" PRId64 "..%" PRId64
+                                  "] len=%" PRIu64),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, largest_ack, min_ack,
-                  fr->first_ack_blklen);
+                  fr->first_ack_range);
 
-  for (i = 0; i < fr->num_blks; ++i) {
-    const ngtcp2_ack_blk *blk = &fr->blks[i];
-    largest_ack = min_ack - (int64_t)blk->gap - 2;
-    min_ack = largest_ack - (int64_t)blk->blklen;
+  for (i = 0; i < fr->rangecnt; ++i) {
+    const ngtcp2_ack_range *range = &fr->ranges[i];
+    largest_ack = min_ack - (int64_t)range->gap - 2;
+    min_ack = largest_ack - (int64_t)range->len;
     log->log_printf(log->user_data,
-                    (NGTCP2_LOG_PKT " ACK(0x%02x) block=[%" PRId64 "..%" PRId64
-                                    "] gap=%" PRIu64 " block_count=%" PRIu64),
+                    (NGTCP2_LOG_PKT " ACK(0x%02x) range=[%" PRId64 "..%" PRId64
+                                    "] gap=%" PRIu64 " len=%" PRIu64),
                     NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, largest_ack,
-                    min_ack, blk->gap, blk->blklen);
+                    min_ack, range->gap, range->len);
   }
 
   if (fr->type == NGTCP2_FRAME_ACK_ECN) {
