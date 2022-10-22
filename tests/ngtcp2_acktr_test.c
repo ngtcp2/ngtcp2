@@ -332,8 +332,8 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ackfr.type = NGTCP2_FRAME_ACK;
   ackfr.largest_ack = 998;
   ackfr.ack_delay = 0;
-  ackfr.first_ack_blklen = 0;
-  ackfr.num_blks = 0;
+  ackfr.first_ack_range = 0;
+  ackfr.rangecnt = 0;
 
   ngtcp2_acktr_recv_ack(&acktr, &ackfr);
 
@@ -349,8 +349,8 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ackfr.type = NGTCP2_FRAME_ACK;
   ackfr.largest_ack = 999;
   ackfr.ack_delay = 0;
-  ackfr.first_ack_blklen = 0;
-  ackfr.num_blks = 0;
+  ackfr.first_ack_range = 0;
+  ackfr.rangecnt = 0;
 
   ngtcp2_acktr_recv_ack(&acktr, &ackfr);
 

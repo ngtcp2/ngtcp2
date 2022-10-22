@@ -88,9 +88,9 @@
    client stream ID. */
 #define NGTCP2_MAX_CLIENT_STREAM_ID_UNI ((int64_t)0x3ffffffffffffffell)
 
-/* NGTCP2_MAX_NUM_ACK_BLK is the maximum number of Additional ACK
-   blocks which this library can create, or decode. */
-#define NGTCP2_MAX_ACK_BLKS 32
+/* NGTCP2_MAX_NUM_ACK_RANGES is the maximum number of Additional ACK
+   ranges which this library can create, or decode. */
+#define NGTCP2_MAX_ACK_RANGES 32
 
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
 #define NGTCP2_MAX_PKT_NUM ((int64_t)((1ll << 62) - 1))
@@ -190,10 +190,10 @@ typedef struct ngtcp2_stream {
   ngtcp2_vec data[1];
 } ngtcp2_stream;
 
-typedef struct ngtcp2_ack_blk {
+typedef struct ngtcp2_ack_range {
   uint64_t gap;
-  uint64_t blklen;
-} ngtcp2_ack_blk;
+  uint64_t len;
+} ngtcp2_ack_range;
 
 typedef struct ngtcp2_ack {
   uint8_t type;
@@ -209,9 +209,9 @@ typedef struct ngtcp2_ack {
     uint64_t ect1;
     uint64_t ce;
   } ecn;
-  uint64_t first_ack_blklen;
-  size_t num_blks;
-  ngtcp2_ack_blk blks[1];
+  uint64_t first_ack_range;
+  size_t rangecnt;
+  ngtcp2_ack_range ranges[1];
 } ngtcp2_ack;
 
 typedef struct ngtcp2_padding {
