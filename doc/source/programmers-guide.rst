@@ -309,6 +309,11 @@ call `ngtcp2_conn_writev_stream()`.  After calling
 expiry is set.  The application should call `ngtcp2_conn_get_expiry()`
 to get a new deadline.
 
+Please note that :type:`ngtcp2_tstamp` of value ``UINT64_MAX`` is
+treated as an invalid timestamp.  Do not pass ``UINT64_MAX`` to any
+ngtcp2 functions which take :type:`ngtcp2_tstamp` unless it is
+explicitly allowed.
+
 Connection migration
 --------------------
 

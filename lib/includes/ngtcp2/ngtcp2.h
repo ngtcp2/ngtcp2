@@ -1096,6 +1096,7 @@ typedef enum ngtcp2_path_validation_result {
  * @typedef
  *
  * :type:`ngtcp2_tstamp` is a timestamp with nanosecond resolution.
+ * ``UINT64_MAX`` is an invalid value.
  */
 typedef uint64_t ngtcp2_tstamp;
 
@@ -1103,7 +1104,7 @@ typedef uint64_t ngtcp2_tstamp;
  * @typedef
  *
  * :type:`ngtcp2_duration` is a period of time in nanosecond
- * resolution.
+ * resolution.  ``UINT64_MAX`` is an invalid value.
  */
 typedef uint64_t ngtcp2_duration;
 
@@ -4099,7 +4100,8 @@ NGTCP2_EXTERN void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_expiry` returns the next expiry time.
+ * `ngtcp2_conn_get_expiry` returns the next expiry time.  It returns
+ * ``UINT64_MAX`` if there is no next expiry.
  *
  * Call `ngtcp2_conn_handle_expiry()` and `ngtcp2_conn_write_pkt` (or
  * `ngtcp2_conn_writev_stream`) if expiry time is passed.
