@@ -111,26 +111,6 @@ static int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   return 0;
 }
 
-size_t write_single_frame_pkt(uint8_t *out, size_t outlen,
-                              const ngtcp2_cid *dcid, int64_t pkt_num,
-                              ngtcp2_frame *fr, ngtcp2_crypto_km *ckm) {
-  return write_pkt_flags(out, outlen, NGTCP2_PKT_FLAG_NONE, dcid, pkt_num, fr,
-                         1, ckm);
-}
-
-size_t write_single_frame_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
-                                    const ngtcp2_cid *dcid, int64_t pkt_num,
-                                    ngtcp2_frame *fr, ngtcp2_crypto_km *ckm) {
-  return write_pkt_flags(out, outlen, flags, dcid, pkt_num, fr, 1, ckm);
-}
-
-size_t write_single_frame_pkt_without_conn_id(uint8_t *out, size_t outlen,
-                                              int64_t pkt_num, ngtcp2_frame *fr,
-                                              ngtcp2_crypto_km *ckm) {
-  return write_pkt_flags(out, outlen, NGTCP2_PKT_FLAG_NONE, NULL, pkt_num, fr,
-                         1, ckm);
-}
-
 size_t write_pkt(uint8_t *out, size_t outlen, const ngtcp2_cid *dcid,
                  int64_t pkt_num, ngtcp2_frame *fr, size_t frlen,
                  ngtcp2_crypto_km *ckm) {

@@ -83,33 +83,6 @@ size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
                                  uint64_t ack_blklen);
 
 /*
- * write_single_frame_pkt_flags writes a QUIC packet containing single
- * frame |fr| in |out| whose capacity is |outlen|.  This function
- * returns the number of bytes written.
- */
-size_t write_single_frame_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
-                                    const ngtcp2_cid *dcid, int64_t pkt_num,
-                                    ngtcp2_frame *fr, ngtcp2_crypto_km *ckm);
-
-/*
- * write_single_frame_pkt is write_single_frame_pkt_flags with flag =
- * NGTCP2_PKT_FLAG_NONE.
- */
-size_t write_single_frame_pkt(uint8_t *out, size_t outlen,
-                              const ngtcp2_cid *dcid, int64_t pkt_num,
-                              ngtcp2_frame *fr, ngtcp2_crypto_km *ckm);
-
-/*
- * write_single_frame_pkt_without_conn_id writes a QUIC packet
- * containing single frame |fr| in |out| whose capacity is |outlen|.
- * Connection ID is omitted.  This function returns the number of
- * bytes written.
- */
-size_t write_single_frame_pkt_without_conn_id(uint8_t *out, size_t outlen,
-                                              int64_t pkt_num, ngtcp2_frame *fr,
-                                              ngtcp2_crypto_km *ckm);
-
-/*
  * write_pkt_flags writes a QUIC packet containing frames pointed by
  * |fr| of length |frlen| in |out| whose capacity is |outlen|.  This
  * function returns the number of bytes written.
