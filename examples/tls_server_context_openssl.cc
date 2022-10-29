@@ -198,7 +198,7 @@ namespace {
 int gen_ticket_cb(SSL *ssl, void *arg) {
   auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
-  auto ver = htonl(ngtcp2_conn_get_client_chosen_version(h->conn()));
+  auto ver = htonl(ngtcp2_conn_get_negotiated_version(h->conn()));
 
   if (!SSL_SESSION_set1_ticket_appdata(SSL_get0_session(ssl), &ver,
                                        sizeof(ver))) {
