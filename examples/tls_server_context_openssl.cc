@@ -24,6 +24,7 @@
  */
 #include "tls_server_context_openssl.h"
 
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <limits>
@@ -220,12 +221,13 @@ SSL_TICKET_RETURN decrypt_ticket_cb(SSL *ssl, SSL_SESSION *session,
     return SSL_TICKET_RETURN_IGNORE_RENEW;
   }
 
-  uint32_t *pver;
+  uint8_t *pver;
+  uint32_t ver;
   size_t verlen;
 
   if (!SSL_SESSION_get0_ticket_appdata(
           session, reinterpret_cast<void **>(&pver), &verlen) ||
-      verlen != sizeof(*pver)) {
+      verlen != sizeof(ver)) {
     switch (status) {
     case SSL_TICKET_SUCCESS:
       return SSL_TICKET_RETURN_IGNORE;
@@ -235,10 +237,12 @@ SSL_TICKET_RETURN decrypt_ticket_cb(SSL *ssl, SSL_SESSION *session,
     }
   }
 
+  memcpy(&ver, pver, sizeof(ver));
+
   auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
 
-  if (ngtcp2_conn_get_client_chosen_version(h->conn()) != ntohl(*pver)) {
+  if (ngtcp2_conn_get_client_chosen_version(h->conn()) != ntohl(ver)) {
     switch (status) {
     case SSL_TICKET_SUCCESS:
       return SSL_TICKET_RETURN_IGNORE;
