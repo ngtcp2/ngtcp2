@@ -194,6 +194,70 @@ int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
 }
 } // namespace
 
+namespace {
+int gen_ticket_cb(SSL *ssl, void *arg) {
+  auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
+  auto h = static_cast<HandlerBase *>(conn_ref->user_data);
+  auto ver = htonl(ngtcp2_conn_get_client_chosen_version(h->conn()));
+
+  if (!SSL_SESSION_set1_ticket_appdata(SSL_get0_session(ssl), &ver,
+                                       sizeof(ver))) {
+    return 0;
+  }
+
+  return 1;
+}
+} // namespace
+
+namespace {
+SSL_TICKET_RETURN decrypt_ticket_cb(SSL *ssl, SSL_SESSION *session,
+                                    const unsigned char *keyname,
+                                    size_t keynamelen, SSL_TICKET_STATUS status,
+                                    void *arg) {
+  switch (status) {
+  case SSL_TICKET_EMPTY:
+  case SSL_TICKET_NO_DECRYPT:
+    return SSL_TICKET_RETURN_IGNORE_RENEW;
+  }
+
+  uint32_t *pver;
+  size_t verlen;
+
+  if (!SSL_SESSION_get0_ticket_appdata(
+          session, reinterpret_cast<void **>(&pver), &verlen) ||
+      verlen != sizeof(*pver)) {
+    switch (status) {
+    case SSL_TICKET_SUCCESS:
+      return SSL_TICKET_RETURN_IGNORE;
+    case SSL_TICKET_SUCCESS_RENEW:
+    default:
+      return SSL_TICKET_RETURN_IGNORE_RENEW;
+    }
+  }
+
+  auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
+  auto h = static_cast<HandlerBase *>(conn_ref->user_data);
+
+  if (ngtcp2_conn_get_client_chosen_version(h->conn()) != ntohl(*pver)) {
+    switch (status) {
+    case SSL_TICKET_SUCCESS:
+      return SSL_TICKET_RETURN_IGNORE;
+    case SSL_TICKET_SUCCESS_RENEW:
+    default:
+      return SSL_TICKET_RETURN_IGNORE_RENEW;
+    }
+  }
+
+  switch (status) {
+  case SSL_TICKET_SUCCESS:
+    return SSL_TICKET_RETURN_USE;
+  case SSL_TICKET_SUCCESS_RENEW:
+  default:
+    return SSL_TICKET_RETURN_USE_RENEW;
+  }
+}
+} // namespace
+
 int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                            AppProtocol app_proto) {
   constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
@@ -274,6 +338,9 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                            SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
                        verify_cb);
   }
+
+  SSL_CTX_set_session_ticket_cb(ssl_ctx_, gen_ticket_cb, decrypt_ticket_cb,
+                                nullptr);
 
   return 0;
 }
