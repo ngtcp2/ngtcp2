@@ -858,7 +858,7 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
 }
 
 int Client::on_read(const Endpoint &ep) {
-  std::array<uint8_t, 65536> buf;
+  std::array<uint8_t, 64_k> buf;
   sockaddr_union su;
   size_t pktcnt = 0;
   ngtcp2_pkt_info pi;
@@ -2041,7 +2041,7 @@ int Client::setup_httpconn() {
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);
-  settings.qpack_max_dtable_capacity = 4096;
+  settings.qpack_max_dtable_capacity = 4_k;
   settings.qpack_blocked_streams = 100;
 
   auto mem = nghttp3_mem_default();
