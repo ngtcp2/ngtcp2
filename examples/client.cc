@@ -2024,7 +2024,7 @@ int Client::setup_httpconn() {
   }
 
   nghttp3_callbacks callbacks{
-      nullptr, /* acked_stream_data*/
+      nullptr, // acked_stream_data
       ::http_stream_close,
       ::http_recv_data,
       ::http_deferred_consume,
@@ -2035,9 +2035,9 @@ int Client::setup_httpconn() {
       ::http_recv_trailer,
       ::http_end_trailers,
       ::http_stop_sending,
-      nullptr, /* end_stream */
+      nullptr, // end_stream
       ::http_reset_stream,
-      nullptr, /* shutdown */
+      nullptr, // shutdown
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);
