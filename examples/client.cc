@@ -1688,16 +1688,16 @@ int Client::submit_http_request(const Stream *stream) {
   const auto &req = stream->req;
 
   std::array<nghttp3_nv, 6> nva{
-      util::make_nv(":method", config.http_method),
-      util::make_nv(":scheme", req.scheme),
-      util::make_nv(":authority", req.authority),
-      util::make_nv(":path", req.path),
-      util::make_nv("user-agent", "nghttp3/ngtcp2 client"),
+      util::make_nv_nn(":method", config.http_method),
+      util::make_nv_nn(":scheme", req.scheme),
+      util::make_nv_nn(":authority", req.authority),
+      util::make_nv_nn(":path", req.path),
+      util::make_nv_nn("user-agent", "nghttp3/ngtcp2 client"),
   };
   size_t nvlen = 5;
   if (config.fd != -1) {
     content_length_str = util::format_uint(config.datalen);
-    nva[nvlen++] = util::make_nv("content-length", content_length_str);
+    nva[nvlen++] = util::make_nv_nc("content-length", content_length_str);
   }
 
   if (!config.quiet) {

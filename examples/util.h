@@ -47,22 +47,31 @@ namespace ngtcp2 {
 
 namespace util {
 
-template <typename T, size_t N1, size_t N2>
-constexpr nghttp3_nv make_nv(const T (&name)[N1], const T (&value)[N2]) {
-  return nghttp3_nv{(uint8_t *)name, (uint8_t *)value, N1 - 1, N2 - 1,
-                    NGHTTP3_NV_FLAG_NONE};
+inline nghttp3_nv make_nv(const std::string_view &name,
+                          const std::string_view &value, uint8_t flags) {
+  return nghttp3_nv{
+      reinterpret_cast<uint8_t *>(const_cast<char *>(std::data(name))),
+      reinterpret_cast<uint8_t *>(const_cast<char *>(std::data(value))),
+      name.size(),
+      value.size(),
+      flags,
+  };
 }
 
-template <typename T, size_t N, typename S>
-constexpr nghttp3_nv make_nv(const T (&name)[N], const S &value) {
-  return nghttp3_nv{(uint8_t *)name, (uint8_t *)value.data(), N - 1,
-                    value.size(), NGHTTP3_NV_FLAG_NONE};
+inline nghttp3_nv make_nv_cc(const std::string_view &name,
+                             const std::string_view &value) {
+  return make_nv(name, value, NGHTTP3_NV_FLAG_NONE);
 }
 
-template <typename S1, typename S2>
-constexpr nghttp3_nv make_nv(const S1 &name, const S2 &value) {
-  return nghttp3_nv{(uint8_t *)name.data(), (uint8_t *)value.data(),
-                    name.size(), value.size(), NGHTTP3_NV_FLAG_NONE};
+inline nghttp3_nv make_nv_nc(const std::string_view &name,
+                             const std::string_view &value) {
+  return make_nv(name, value, NGHTTP3_NV_FLAG_NO_COPY_NAME);
+}
+
+inline nghttp3_nv make_nv_nn(const std::string_view &name,
+                             const std::string_view &value) {
+  return make_nv(name, value,
+                 NGHTTP3_NV_FLAG_NO_COPY_NAME | NGHTTP3_NV_FLAG_NO_COPY_VALUE);
 }
 
 std::string format_hex(uint8_t c);

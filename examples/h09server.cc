@@ -241,7 +241,7 @@ int Stream::start_response() {
 
   if (!config.quiet) {
     std::array<nghttp3_nv, 1> nva{
-        util::make_nv(":status", "200"),
+        util::make_nv_nn(":status", "200"),
     };
 
     debug::print_http_response_headers(stream_id, nva.data(), nva.size());

@@ -326,7 +326,7 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
       *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;
       auto stream_id_str = util::format_uint(stream_id);
       std::array<nghttp3_nv, 1> trailers{
-          util::make_nv("x-ngtcp2-stream-id", stream_id_str),
+          util::make_nv_nc("x-ngtcp2-stream-id"sv, stream_id_str),
       };
 
       if (auto rv = nghttp3_conn_submit_trailers(
@@ -362,14 +362,14 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
   auto content_length_str = util::format_uint(status_resp_body.size());
 
   std::vector<nghttp3_nv> nva(4 + extra_headers.size());
-  nva[0] = util::make_nv(":status", status_code_str);
-  nva[1] = util::make_nv("server", NGTCP2_SERVER);
-  nva[2] = util::make_nv("content-type", "text/html; charset=utf-8");
-  nva[3] = util::make_nv("content-length", content_length_str);
+  nva[0] = util::make_nv_nc(":status"sv, status_code_str);
+  nva[1] = util::make_nv_nn("server"sv, NGTCP2_SERVER);
+  nva[2] = util::make_nv_nn("content-type"sv, "text/html; charset=utf-8");
+  nva[3] = util::make_nv_nc("content-length"sv, content_length_str);
   for (size_t i = 0; i < extra_headers.size(); ++i) {
     auto &hdr = extra_headers[i];
     auto &nv = nva[4 + i];
-    nv = util::make_nv(hdr.name, hdr.value);
+    nv = util::make_nv_cc(hdr.name, hdr.value);
   }
 
   data = (uint8_t *)status_resp_body.data();
@@ -389,7 +389,7 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
   if (config.send_trailers) {
     auto stream_id_str = util::format_uint(stream_id);
     std::array<nghttp3_nv, 1> trailers{
-        util::make_nv("x-ngtcp2-stream-id", stream_id_str),
+        util::make_nv_nc("x-ngtcp2-stream-id"sv, stream_id_str),
     };
 
     if (auto rv = nghttp3_conn_submit_trailers(
@@ -477,10 +477,10 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   auto content_length_str = util::format_uint(content_length);
 
   std::array<nghttp3_nv, 5> nva{
-      util::make_nv(":status", "200"),
-      util::make_nv("server", NGTCP2_SERVER),
-      util::make_nv("content-type", content_type),
-      util::make_nv("content-length", content_length_str),
+      util::make_nv_nn(":status"sv, "200"sv),
+      util::make_nv_nn("server"sv, NGTCP2_SERVER),
+      util::make_nv_nn("content-type"sv, content_type),
+      util::make_nv_nc("content-length"sv, content_length_str),
   };
 
   size_t nvlen = 4;
@@ -518,7 +518,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
       prival += "=?0";
     }
 
-    nva[nvlen++] = util::make_nv("priority", prival);
+    nva[nvlen++] = util::make_nv_nc("priority"sv, prival);
   }
 
   if (!config.quiet) {
@@ -536,7 +536,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   if (config.send_trailers && dyn_len == -1) {
     auto stream_id_str = util::format_uint(stream_id);
     std::array<nghttp3_nv, 1> trailers{
-        util::make_nv("x-ngtcp2-stream-id", stream_id_str),
+        util::make_nv_nc("x-ngtcp2-stream-id"sv, stream_id_str),
     };
 
     if (auto rv = nghttp3_conn_submit_trailers(
