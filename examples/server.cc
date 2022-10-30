@@ -61,7 +61,7 @@ constexpr size_t NGTCP2_SV_SCIDLEN = 18;
 } // namespace
 
 namespace {
-constexpr size_t MAX_DYNBUFLEN = 10 * 1024 * 1024;
+constexpr size_t MAX_DYNBUFLEN = 10_m;
 } // namespace
 
 namespace {
@@ -1107,7 +1107,7 @@ int http_acked_stream_data(nghttp3_conn *conn, int64_t stream_id,
 void Handler::http_acked_stream_data(Stream *stream, uint64_t datalen) {
   stream->http_acked_stream_data(datalen);
 
-  if (stream->dynresp && stream->dynbuflen < MAX_DYNBUFLEN - 16384) {
+  if (stream->dynresp && stream->dynbuflen < MAX_DYNBUFLEN - 16_k) {
     if (auto rv = nghttp3_conn_resume_stream(httpconn_, stream->stream_id);
         rv != 0) {
       // TODO Handle error
