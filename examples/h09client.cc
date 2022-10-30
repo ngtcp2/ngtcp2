@@ -79,10 +79,10 @@ int Stream::open_file(const std::string_view &path) {
 
   auto it = std::find(std::rbegin(path), std::rend(path), '/').base();
   if (it == std::end(path)) {
-    filename = "index.html";
+    filename = "index.html"sv;
   } else {
     filename = std::string_view{it, static_cast<size_t>(std::end(path) - it)};
-    if (filename == ".." || filename == ".") {
+    if (filename == ".."sv || filename == "."sv) {
       std::cerr << "Invalid file name: " << filename << std::endl;
       return -1;
     }
@@ -2143,11 +2143,11 @@ int main(int argc, char **argv) {
       break;
     case 'v': {
       // --version
-      if (optarg == std::string_view{"v1"}) {
+      if (optarg == "v1"sv) {
         config.version = NGTCP2_PROTO_VER_V1;
         break;
       }
-      if (optarg == std::string_view{"v2draft"}) {
+      if (optarg == "v2draft"sv) {
         config.version = NGTCP2_PROTO_VER_V2_DRAFT;
         break;
       }
@@ -2423,11 +2423,11 @@ int main(int argc, char **argv) {
         config.other_versions.resize(l.size());
         auto it = std::begin(config.other_versions);
         for (const auto &k : l) {
-          if (k == "v1") {
+          if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2draft") {
+          if (k == "v2draft"sv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
@@ -2455,11 +2455,11 @@ int main(int argc, char **argv) {
         config.preferred_versions.resize(l.size());
         auto it = std::begin(config.preferred_versions);
         for (const auto &k : l) {
-          if (k == "v1") {
+          if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2draft") {
+          if (k == "v2draft"sv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
