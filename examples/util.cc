@@ -624,7 +624,7 @@ std::vector<std::string_view> split_str(const std::string_view &s, char delim) {
 
 std::optional<uint32_t> parse_version(const std::string_view &s) {
   auto k = s;
-  if (!util::istarts_with_l(k, "0x")) {
+  if (!util::istarts_with(k, "0x"sv)) {
     return {};
   }
   k = k.substr(2);

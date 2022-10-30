@@ -147,11 +147,6 @@ template <typename S, typename T> bool istarts_with(const S &a, const T &b) {
   return istarts_with(a.begin(), a.end(), b.begin(), b.end());
 }
 
-template <typename T, typename CharT, size_t N>
-bool istarts_with_l(const T &a, const CharT (&b)[N]) {
-  return istarts_with(a.begin(), a.end(), b, b + N - 1);
-}
-
 // make_cid_key returns the key for |cid|.
 std::string make_cid_key(const ngtcp2_cid *cid);
 std::string make_cid_key(const uint8_t *cid, size_t cidlen);
