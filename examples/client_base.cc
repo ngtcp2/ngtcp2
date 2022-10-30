@@ -34,6 +34,7 @@
 #include "util.h"
 
 using namespace ngtcp2;
+using namespace std::literals;
 
 extern Config config;
 
@@ -93,9 +94,9 @@ int ClientBase::read_transport_params(const char *path,
   }
 
   for (std::string line; std::getline(f, line);) {
-    if (util::istarts_with_l(line, "initial_max_streams_bidi=")) {
+    if (util::istarts_with(line, "initial_max_streams_bidi="sv)) {
       if (auto n = util::parse_uint(line.c_str() +
-                                    str_size("initial_max_streams_bidi="));
+                                    "initial_max_streams_bidi="sv.size());
           !n) {
         return -1;
       } else {
@@ -104,9 +105,9 @@ int ClientBase::read_transport_params(const char *path,
       continue;
     }
 
-    if (util::istarts_with_l(line, "initial_max_streams_uni=")) {
+    if (util::istarts_with(line, "initial_max_streams_uni="sv)) {
       if (auto n = util::parse_uint(line.c_str() +
-                                    str_size("initial_max_streams_uni="));
+                                    "initial_max_streams_uni="sv.size());
           !n) {
         return -1;
       } else {
@@ -115,9 +116,9 @@ int ClientBase::read_transport_params(const char *path,
       continue;
     }
 
-    if (util::istarts_with_l(line, "initial_max_stream_data_bidi_local=")) {
+    if (util::istarts_with(line, "initial_max_stream_data_bidi_local="sv)) {
       if (auto n = util::parse_uint(
-              line.c_str() + str_size("initial_max_stream_data_bidi_local="));
+              line.c_str() + "initial_max_stream_data_bidi_local="sv.size());
           !n) {
         return -1;
       } else {
@@ -126,9 +127,9 @@ int ClientBase::read_transport_params(const char *path,
       continue;
     }
 
-    if (util::istarts_with_l(line, "initial_max_stream_data_bidi_remote=")) {
+    if (util::istarts_with(line, "initial_max_stream_data_bidi_remote="sv)) {
       if (auto n = util::parse_uint(
-              line.c_str() + str_size("initial_max_stream_data_bidi_remote="));
+              line.c_str() + "initial_max_stream_data_bidi_remote="sv.size());
           !n) {
         return -1;
       } else {
@@ -137,9 +138,9 @@ int ClientBase::read_transport_params(const char *path,
       continue;
     }
 
-    if (util::istarts_with_l(line, "initial_max_stream_data_uni=")) {
+    if (util::istarts_with(line, "initial_max_stream_data_uni="sv)) {
       if (auto n = util::parse_uint(line.c_str() +
-                                    str_size("initial_max_stream_data_uni="));
+                                    "initial_max_stream_data_uni="sv.size());
           !n) {
         return -1;
       } else {
@@ -148,9 +149,9 @@ int ClientBase::read_transport_params(const char *path,
       continue;
     }
 
-    if (util::istarts_with_l(line, "initial_max_data=")) {
+    if (util::istarts_with(line, "initial_max_data="sv)) {
       if (auto n =
-              util::parse_uint(line.c_str() + str_size("initial_max_data="));
+              util::parse_uint(line.c_str() + "initial_max_data="sv.size());
           !n) {
         return -1;
       } else {
@@ -159,9 +160,9 @@ int ClientBase::read_transport_params(const char *path,
       continue;
     }
 
-    if (util::istarts_with_l(line, "active_connection_id_limit=")) {
+    if (util::istarts_with(line, "active_connection_id_limit="sv)) {
       if (auto n = util::parse_uint(line.c_str() +
-                                    str_size("active_connection_id_limit="));
+                                    "active_connection_id_limit="sv.size());
           !n) {
         return -1;
       } else {
@@ -170,9 +171,9 @@ int ClientBase::read_transport_params(const char *path,
       continue;
     }
 
-    if (util::istarts_with_l(line, "max_datagram_frame_size=")) {
+    if (util::istarts_with(line, "max_datagram_frame_size="sv)) {
       if (auto n = util::parse_uint(line.c_str() +
-                                    str_size("max_datagram_frame_size="));
+                                    "max_datagram_frame_size="sv.size());
           !n) {
         return -1;
       } else {
