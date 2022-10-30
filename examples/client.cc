@@ -473,13 +473,6 @@ int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
 } // namespace
 
 namespace {
-int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
-                         void *user_data) {
-  return 0;
-}
-} // namespace
-
-namespace {
 int do_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                const ngtcp2_crypto_cipher_ctx *hp_ctx, const uint8_t *sample) {
   if (ngtcp2_crypto_hp_mask(dest, hp, hp_ctx, sample) != 0) {
@@ -667,7 +660,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // extend_max_streams_uni
       rand,
       get_new_connection_id,
-      remove_connection_id,
+      nullptr, // remove_connection_id
       ::update_key,
       path_validation,
       ::select_preferred_address,
