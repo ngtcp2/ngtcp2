@@ -162,8 +162,22 @@ namespace {
 int encrypt_ticket_cb(ptls_encrypt_ticket_t *encrypt_ticket, ptls_t *ptls,
                       int is_encrypt, ptls_buffer_t *dst, ptls_iovec_t src) {
   int rv;
+  auto conn_ref =
+      static_cast<ngtcp2_crypto_conn_ref *>(*ptls_get_data_ptr(ptls));
+  auto conn = conn_ref->get_conn(conn_ref);
+  uint32_t ver;
 
   if (is_encrypt) {
+    ver = htonl(ngtcp2_conn_get_negotiated_version(conn));
+    // TODO Replace std::make_unique with
+    // std::make_unique_for_overwrite when it is available.
+    auto buf = std::make_unique<uint8_t[]>(src.len + sizeof(ver));
+    auto p = std::copy_n(src.base, src.len, buf.get());
+    p = std::copy_n(reinterpret_cast<uint8_t *>(&ver), sizeof(ver), p);
+
+    src.base = buf.get();
+    src.len = p - buf.get();
+
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
     rv = ptls_openssl_encrypt_ticket_evp(dst, src, ticket_key_cb);
 #else  // OPENSSL_VERSION_NUMBER < 0x30000000L
@@ -184,6 +198,18 @@ int encrypt_ticket_cb(ptls_encrypt_ticket_t *encrypt_ticket, ptls_t *ptls,
   if (rv != 0) {
     return -1;
   }
+
+  if (dst->off < sizeof(ver)) {
+    return -1;
+  }
+
+  memcpy(&ver, dst->base + dst->off - sizeof(ver), sizeof(ver));
+
+  if (ngtcp2_conn_get_client_chosen_version(conn) != ntohl(ver)) {
+    return -1;
+  }
+
+  dst->off -= sizeof(ver);
 
   return 0;
 }
