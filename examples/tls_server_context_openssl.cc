@@ -62,24 +62,24 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
 
   switch (version) {
   case QUIC_VER_DRAFT29:
-    alpn = reinterpret_cast<const uint8_t *>(H3_ALPN_DRAFT29);
+    alpn = H3_ALPN_DRAFT29;
     alpnlen = str_size(H3_ALPN_DRAFT29);
     break;
   case QUIC_VER_DRAFT30:
-    alpn = reinterpret_cast<const uint8_t *>(H3_ALPN_DRAFT30);
+    alpn = H3_ALPN_DRAFT30;
     alpnlen = str_size(H3_ALPN_DRAFT30);
     break;
   case QUIC_VER_DRAFT31:
-    alpn = reinterpret_cast<const uint8_t *>(H3_ALPN_DRAFT31);
+    alpn = H3_ALPN_DRAFT31;
     alpnlen = str_size(H3_ALPN_DRAFT31);
     break;
   case QUIC_VER_DRAFT32:
-    alpn = reinterpret_cast<const uint8_t *>(H3_ALPN_DRAFT32);
+    alpn = H3_ALPN_DRAFT32;
     alpnlen = str_size(H3_ALPN_DRAFT32);
     break;
   case NGTCP2_PROTO_VER_V1:
   case NGTCP2_PROTO_VER_V2_DRAFT:
-    alpn = reinterpret_cast<const uint8_t *>(H3_ALPN_V1);
+    alpn = H3_ALPN_V1;
     alpnlen = str_size(H3_ALPN_V1);
     break;
   default:
@@ -120,24 +120,24 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
 
   switch (version) {
   case QUIC_VER_DRAFT29:
-    alpn = reinterpret_cast<const uint8_t *>(HQ_ALPN_DRAFT29);
+    alpn = HQ_ALPN_DRAFT29;
     alpnlen = str_size(HQ_ALPN_DRAFT29);
     break;
   case QUIC_VER_DRAFT30:
-    alpn = reinterpret_cast<const uint8_t *>(HQ_ALPN_DRAFT30);
+    alpn = HQ_ALPN_DRAFT30;
     alpnlen = str_size(HQ_ALPN_DRAFT30);
     break;
   case QUIC_VER_DRAFT31:
-    alpn = reinterpret_cast<const uint8_t *>(HQ_ALPN_DRAFT31);
+    alpn = HQ_ALPN_DRAFT31;
     alpnlen = str_size(HQ_ALPN_DRAFT31);
     break;
   case QUIC_VER_DRAFT32:
-    alpn = reinterpret_cast<const uint8_t *>(HQ_ALPN_DRAFT32);
+    alpn = HQ_ALPN_DRAFT32;
     alpnlen = str_size(HQ_ALPN_DRAFT32);
     break;
   case NGTCP2_PROTO_VER_V1:
   case NGTCP2_PROTO_VER_V2_DRAFT:
-    alpn = reinterpret_cast<const uint8_t *>(HQ_ALPN_V1);
+    alpn = HQ_ALPN_V1;
     alpnlen = str_size(HQ_ALPN_V1);
     break;
   default:
@@ -147,29 +147,6 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
     }
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
-
-  for (auto p = in, end = in + inlen; p + alpnlen <= end; p += *p + 1) {
-    if (std::equal(alpn, alpn + alpnlen, p)) {
-      *out = p + 1;
-      *outlen = *p;
-      return SSL_TLSEXT_ERR_OK;
-    }
-  }
-
-  if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << &alpn[1] << std::endl;
-  }
-
-  return SSL_TLSEXT_ERR_ALERT_FATAL;
-}
-} // namespace
-
-namespace {
-int alpn_select_proto_perf_cb(SSL *ssl, const unsigned char **out,
-                              unsigned char *outlen, const unsigned char *in,
-                              unsigned int inlen, void *arg) {
-  constexpr static uint8_t alpn[] = "\x4perf";
-  size_t alpnlen = str_size(alpn);
 
   for (auto p = in, end = in + inlen; p + alpnlen <= end; p += *p + 1) {
     if (std::equal(alpn, alpn + alpnlen, p)) {
@@ -307,9 +284,6 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     break;
   case AppProtocol::HQ:
     SSL_CTX_set_alpn_select_cb(ssl_ctx_, alpn_select_proto_hq_cb, nullptr);
-    break;
-  case AppProtocol::Perf:
-    SSL_CTX_set_alpn_select_cb(ssl_ctx_, alpn_select_proto_perf_cb, nullptr);
     break;
   }
 
