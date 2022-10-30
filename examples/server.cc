@@ -84,7 +84,7 @@ Stream::Stream(int64_t stream_id, Handler *handler)
       dynbuflen(0) {}
 
 namespace {
-constexpr char NGTCP2_SERVER[] = "nghttp3/ngtcp2 server";
+constexpr auto NGTCP2_SERVER = "nghttp3/ngtcp2 server"sv;
 } // namespace
 
 namespace {
@@ -153,14 +153,14 @@ Request request_path(const std::string_view &uri, bool is_connect) {
   }
 
   if (u.field_set & (1 << UF_QUERY)) {
-    static constexpr char urgency_prefix[] = "u=";
-    static constexpr char inc_prefix[] = "i=";
+    static constexpr auto urgency_prefix = "u="sv;
+    static constexpr auto inc_prefix = "i="sv;
     auto q = std::string(uri.data() + u.field_data[UF_QUERY].off,
                          u.field_data[UF_QUERY].len);
     for (auto p = std::begin(q); p != std::end(q);) {
       if (util::istarts_with(p, std::end(q), std::begin(urgency_prefix),
-                             std::end(urgency_prefix) - 1)) {
-        auto urgency_start = p + sizeof(urgency_prefix) - 1;
+                             std::end(urgency_prefix))) {
+        auto urgency_start = p + urgency_prefix.size();
         auto urgency_end = std::find(urgency_start, std::end(q), '&');
         if (urgency_start + 1 == urgency_end && '0' <= *urgency_start &&
             *urgency_start <= '7') {
@@ -173,8 +173,8 @@ Request request_path(const std::string_view &uri, bool is_connect) {
         continue;
       }
       if (util::istarts_with(p, std::end(q), std::begin(inc_prefix),
-                             std::end(inc_prefix) - 1)) {
-        auto inc_start = p + sizeof(inc_prefix) - 1;
+                             std::end(inc_prefix))) {
+        auto inc_start = p + inc_prefix.size();
         auto inc_end = std::find(inc_start, std::end(q), '&');
         if (inc_start + 1 == inc_end &&
             (*inc_start == '0' || *inc_start == '1')) {
@@ -427,7 +427,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
 
   int64_t content_length = -1;
   nghttp3_data_reader dr{};
-  std::string content_type = "text/plain";
+  auto content_type = "text/plain"sv;
 
   if (dyn_len == -1) {
     auto path = config.htdocs + req.path;
@@ -471,7 +471,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
       dyndataleft = dyn_len;
     }
 
-    content_type = "application/octet-stream";
+    content_type = "application/octet-stream"sv;
   }
 
   auto content_length_str = util::format_uint(content_length);

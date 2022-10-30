@@ -78,7 +78,7 @@ Stream::Stream(int64_t stream_id, Handler *handler)
 }
 
 namespace {
-constexpr char NGTCP2_SERVER[] = "ngtcp2 server";
+constexpr auto NGTCP2_SERVER = "ngtcp2 server"sv;
 } // namespace
 
 namespace {
