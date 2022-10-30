@@ -3106,7 +3106,7 @@ void config_set_default(Config &config) {
     config.htdocs = path;
     free(path);
   }
-  config.mime_types_file = "/etc/mime.types";
+  config.mime_types_file = "/etc/mime.types"sv;
   config.max_data = 1_m;
   config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;
@@ -3607,11 +3607,11 @@ int main(int argc, char **argv) {
         config.preferred_versions.resize(l.size());
         auto it = std::begin(config.preferred_versions);
         for (const auto &k : l) {
-          if (k == "v1") {
+          if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2draft") {
+          if (k == "v2draft"sv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
@@ -3636,11 +3636,11 @@ int main(int argc, char **argv) {
         config.other_versions.resize(l.size());
         auto it = std::begin(config.other_versions);
         for (const auto &k : l) {
-          if (k == "v1") {
+          if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2draft") {
+          if (k == "v2draft"sv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
