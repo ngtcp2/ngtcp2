@@ -78,7 +78,7 @@ Stream::Stream(int64_t stream_id, Handler *handler)
 }
 
 namespace {
-constexpr char NGTCP2_SERVER[] = "ngtcp2 server";
+constexpr auto NGTCP2_SERVER = "ngtcp2 server"sv;
 } // namespace
 
 namespace {
@@ -107,19 +107,12 @@ std::string make_status_body(unsigned int status_code) {
 
 struct Request {
   std::string path;
-  struct {
-    int32_t urgency;
-    int inc;
-  } pri;
 };
 
 namespace {
 Request request_path(const std::string_view &uri) {
   http_parser_url u;
   Request req;
-
-  req.pri.urgency = -1;
-  req.pri.inc = -1;
 
   http_parser_url_init(&u);
 
@@ -147,48 +140,6 @@ Request request_path(const std::string_view &uri) {
     req.path = "/index.html";
   }
 
-  if (u.field_set & (1 << UF_QUERY)) {
-    static constexpr char urgency_prefix[] = "u=";
-    static constexpr char inc_prefix[] = "i=";
-    auto q = std::string(uri.data() + u.field_data[UF_QUERY].off,
-                         u.field_data[UF_QUERY].len);
-    for (auto p = std::begin(q); p != std::end(q);) {
-      if (util::istarts_with(p, std::end(q), std::begin(urgency_prefix),
-                             std::end(urgency_prefix) - 1)) {
-        auto urgency_start = p + sizeof(urgency_prefix) - 1;
-        auto urgency_end = std::find(urgency_start, std::end(q), '&');
-        if (urgency_start + 1 == urgency_end && '0' <= *urgency_start &&
-            *urgency_start <= '7') {
-          req.pri.urgency = *urgency_start - '0';
-        }
-        if (urgency_end == std::end(q)) {
-          break;
-        }
-        p = urgency_end + 1;
-        continue;
-      }
-      if (util::istarts_with(p, std::end(q), std::begin(inc_prefix),
-                             std::end(inc_prefix) - 1)) {
-        auto inc_start = p + sizeof(inc_prefix) - 1;
-        auto inc_end = std::find(inc_start, std::end(q), '&');
-        if (inc_start + 1 == inc_end &&
-            (*inc_start == '0' || *inc_start == '1')) {
-          req.pri.inc = *inc_start - '0';
-        }
-        if (inc_end == std::end(q)) {
-          break;
-        }
-        p = inc_end + 1;
-        continue;
-      }
-
-      p = std::find(p, std::end(q), '&');
-      if (p == std::end(q)) {
-        break;
-      }
-      ++p;
-    }
-  }
   return req;
 }
 } // namespace
@@ -2448,7 +2399,7 @@ void config_set_default(Config &config) {
     config.htdocs = path;
     free(path);
   }
-  config.mime_types_file = "/etc/mime.types";
+  config.mime_types_file = "/etc/mime.types"sv;
   config.max_data = 1_m;
   config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;
@@ -2949,11 +2900,11 @@ int main(int argc, char **argv) {
         config.preferred_versions.resize(l.size());
         auto it = std::begin(config.preferred_versions);
         for (const auto &k : l) {
-          if (k == "v1") {
+          if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2draft") {
+          if (k == "v2draft"sv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
@@ -2978,11 +2929,11 @@ int main(int argc, char **argv) {
         config.other_versions.resize(l.size());
         auto it = std::begin(config.other_versions);
         for (const auto &k : l) {
-          if (k == "v1") {
+          if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2draft") {
+          if (k == "v2draft"sv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }

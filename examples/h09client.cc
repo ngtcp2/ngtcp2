@@ -79,10 +79,10 @@ int Stream::open_file(const std::string_view &path) {
 
   auto it = std::find(std::rbegin(path), std::rend(path), '/').base();
   if (it == std::end(path)) {
-    filename = "index.html";
+    filename = "index.html"sv;
   } else {
     filename = std::string_view{it, static_cast<size_t>(std::end(path) - it)};
-    if (filename == ".." || filename == ".") {
+    if (filename == ".."sv || filename == "."sv) {
       std::cerr << "Invalid file name: " << filename << std::endl;
       return -1;
     }
@@ -431,13 +431,6 @@ int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
 } // namespace
 
 namespace {
-int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
-                         void *user_data) {
-  return 0;
-}
-} // namespace
-
-namespace {
 int do_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                const ngtcp2_crypto_cipher_ctx *hp_ctx, const uint8_t *sample) {
   if (ngtcp2_crypto_hp_mask(dest, hp, hp_ctx, sample) != 0) {
@@ -616,7 +609,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // extend_max_streams_uni
       rand,
       get_new_connection_id,
-      remove_connection_id,
+      nullptr, // remove_connection_id
       ::update_key,
       path_validation,
       ::select_preferred_address,
@@ -810,7 +803,7 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
 }
 
 int Client::on_read(const Endpoint &ep) {
-  std::array<uint8_t, 65536> buf;
+  std::array<uint8_t, 64_k> buf;
   sockaddr_union su;
   size_t pktcnt = 0;
   ngtcp2_pkt_info pi;
@@ -2150,11 +2143,11 @@ int main(int argc, char **argv) {
       break;
     case 'v': {
       // --version
-      if (optarg == std::string_view{"v1"}) {
+      if (optarg == "v1"sv) {
         config.version = NGTCP2_PROTO_VER_V1;
         break;
       }
-      if (optarg == std::string_view{"v2draft"}) {
+      if (optarg == "v2draft"sv) {
         config.version = NGTCP2_PROTO_VER_V2_DRAFT;
         break;
       }
@@ -2430,11 +2423,11 @@ int main(int argc, char **argv) {
         config.other_versions.resize(l.size());
         auto it = std::begin(config.other_versions);
         for (const auto &k : l) {
-          if (k == "v1") {
+          if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2draft") {
+          if (k == "v2draft"sv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
@@ -2462,11 +2455,11 @@ int main(int argc, char **argv) {
         config.preferred_versions.resize(l.size());
         auto it = std::begin(config.preferred_versions);
         for (const auto &k : l) {
-          if (k == "v1") {
+          if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2draft") {
+          if (k == "v2draft"sv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }

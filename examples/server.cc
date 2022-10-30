@@ -61,7 +61,7 @@ constexpr size_t NGTCP2_SV_SCIDLEN = 18;
 } // namespace
 
 namespace {
-constexpr size_t MAX_DYNBUFLEN = 10 * 1024 * 1024;
+constexpr size_t MAX_DYNBUFLEN = 10_m;
 } // namespace
 
 namespace {
@@ -84,7 +84,7 @@ Stream::Stream(int64_t stream_id, Handler *handler)
       dynbuflen(0) {}
 
 namespace {
-constexpr char NGTCP2_SERVER[] = "nghttp3/ngtcp2 server";
+constexpr auto NGTCP2_SERVER = "nghttp3/ngtcp2 server"sv;
 } // namespace
 
 namespace {
@@ -153,14 +153,14 @@ Request request_path(const std::string_view &uri, bool is_connect) {
   }
 
   if (u.field_set & (1 << UF_QUERY)) {
-    static constexpr char urgency_prefix[] = "u=";
-    static constexpr char inc_prefix[] = "i=";
+    static constexpr auto urgency_prefix = "u="sv;
+    static constexpr auto inc_prefix = "i="sv;
     auto q = std::string(uri.data() + u.field_data[UF_QUERY].off,
                          u.field_data[UF_QUERY].len);
     for (auto p = std::begin(q); p != std::end(q);) {
       if (util::istarts_with(p, std::end(q), std::begin(urgency_prefix),
-                             std::end(urgency_prefix) - 1)) {
-        auto urgency_start = p + sizeof(urgency_prefix) - 1;
+                             std::end(urgency_prefix))) {
+        auto urgency_start = p + urgency_prefix.size();
         auto urgency_end = std::find(urgency_start, std::end(q), '&');
         if (urgency_start + 1 == urgency_end && '0' <= *urgency_start &&
             *urgency_start <= '7') {
@@ -173,8 +173,8 @@ Request request_path(const std::string_view &uri, bool is_connect) {
         continue;
       }
       if (util::istarts_with(p, std::end(q), std::begin(inc_prefix),
-                             std::end(inc_prefix) - 1)) {
-        auto inc_start = p + sizeof(inc_prefix) - 1;
+                             std::end(inc_prefix))) {
+        auto inc_start = p + inc_prefix.size();
         auto inc_end = std::find(inc_start, std::end(q), '&');
         if (inc_start + 1 == inc_end &&
             (*inc_start == '0' || *inc_start == '1')) {
@@ -427,7 +427,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
 
   int64_t content_length = -1;
   nghttp3_data_reader dr{};
-  std::string content_type = "text/plain";
+  auto content_type = "text/plain"sv;
 
   if (dyn_len == -1) {
     auto path = config.htdocs + req.path;
@@ -471,7 +471,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
       dyndataleft = dyn_len;
     }
 
-    content_type = "application/octet-stream";
+    content_type = "application/octet-stream"sv;
   }
 
   auto content_length_str = util::format_uint(content_length);
@@ -1107,7 +1107,7 @@ int http_acked_stream_data(nghttp3_conn *conn, int64_t stream_id,
 void Handler::http_acked_stream_data(Stream *stream, uint64_t datalen) {
   stream->http_acked_stream_data(datalen);
 
-  if (stream->dynresp && stream->dynbuflen < MAX_DYNBUFLEN - 16384) {
+  if (stream->dynresp && stream->dynbuflen < MAX_DYNBUFLEN - 16_k) {
     if (auto rv = nghttp3_conn_resume_stream(httpconn_, stream->stream_id);
         rv != 0) {
       // TODO Handle error
@@ -3106,7 +3106,7 @@ void config_set_default(Config &config) {
     config.htdocs = path;
     free(path);
   }
-  config.mime_types_file = "/etc/mime.types";
+  config.mime_types_file = "/etc/mime.types"sv;
   config.max_data = 1_m;
   config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;
@@ -3607,11 +3607,11 @@ int main(int argc, char **argv) {
         config.preferred_versions.resize(l.size());
         auto it = std::begin(config.preferred_versions);
         for (const auto &k : l) {
-          if (k == "v1") {
+          if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2draft") {
+          if (k == "v2draft"sv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
@@ -3636,11 +3636,11 @@ int main(int argc, char **argv) {
         config.other_versions.resize(l.size());
         auto it = std::begin(config.other_versions);
         for (const auto &k : l) {
-          if (k == "v1") {
+          if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2draft") {
+          if (k == "v2draft"sv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
