@@ -56,7 +56,7 @@ ngtcp2 crypto helper library, and client and server under examples
 directory require at least one of the following TLS backends:
 
 - `OpenSSL with QUIC support
-  <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1q+quic>`_
+  <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1s+quic>`_
 - GnuTLS >= 3.7.2
 - BoringSSL (commit 04989786e9ab16cef5261bbd05a2b1a8cb312dbf)
 - Picotls (commit a71a0e16ccb68e114a42e996a8383cb54d67f0b7)
@@ -67,7 +67,7 @@ Build from git
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b OpenSSL_1_1_1q+quic https://github.com/quictls/openssl
+   $ git clone --depth 1 -b OpenSSL_1_1_1s+quic https://github.com/quictls/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build
