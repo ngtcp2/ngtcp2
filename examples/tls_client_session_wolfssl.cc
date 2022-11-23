@@ -66,11 +66,8 @@ int TLSClientSession::init(bool &early_data_enabled,
   wolfSSL_set_app_data(ssl_, client->conn_ref());
   wolfSSL_set_connect_state(ssl_);
 
-  if ((quic_version & 0xff000000) == 0xff000000) {
-    wolfSSL_set_quic_use_legacy_codepoint(ssl_, 1);
-  } else {
-    wolfSSL_set_quic_use_legacy_codepoint(ssl_, 0);
-  }
+  wolfSSL_set_quic_use_legacy_codepoint(ssl_, (quic_version & 0xff000000) ==
+                                                  0xff000000);
 
   switch (app_proto) {
   case AppProtocol::H3:
