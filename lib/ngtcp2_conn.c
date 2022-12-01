@@ -36,6 +36,7 @@
 #include "ngtcp2_path.h"
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_unreachable.h"
+#include "ngtcp2_net.h"
 
 /* NGTCP2_FLOW_WINDOW_RTT_FACTOR is the factor of RTT when flow
    control window auto-tuning is triggered. */
@@ -8717,6 +8718,75 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
 }
 
 /*
+ * conn_allow_path_change_under_disable_active_migration returns
+ * nonzero if a packet from |path| is acceptable under
+ * disable_active_migration is on.
+ */
+static int
+conn_allow_path_change_under_disable_active_migration(ngtcp2_conn *conn,
+                                                      const ngtcp2_path *path) {
+  uint32_t remote_addr_cmp;
+  const ngtcp2_preferred_addr *paddr;
+  ngtcp2_sockaddr_in sockaddr_in;
+  ngtcp2_sockaddr_in6 sockaddr_in6;
+  ngtcp2_addr addr;
+
+  assert(conn->server);
+  assert(conn->local.transport_params.disable_active_migration);
+
+  /* If local address does not change, it must be passive migration
+     (NAT rebinding). */
+  if (ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local)) {
+    remote_addr_cmp =
+        ngtcp2_addr_compare(&conn->dcid.current.ps.path.remote, &path->remote);
+
+    return (remote_addr_cmp | NGTCP2_ADDR_COMPARE_FLAG_PORT) ==
+           NGTCP2_ADDR_COMPARE_FLAG_PORT;
+  }
+
+  /* If local address changes, it must be one of the preferred
+     addresses. */
+
+  if (!conn->local.transport_params.preferred_address_present) {
+    return 0;
+  }
+
+  paddr = &conn->local.transport_params.preferred_address;
+
+  if (paddr->ipv4_present) {
+    sockaddr_in.sin_family = AF_INET;
+    sockaddr_in.sin_port = ngtcp2_htons(paddr->ipv4_port);
+    memcpy(&sockaddr_in.sin_addr, paddr->ipv4_addr,
+           sizeof(sockaddr_in.sin_addr));
+
+    ngtcp2_addr_init(&addr, (ngtcp2_sockaddr *)&sockaddr_in,
+                     sizeof(sockaddr_in));
+
+    if (ngtcp2_addr_eq(&addr, &path->local)) {
+      return 1;
+    }
+  }
+
+  if (paddr->ipv6_present) {
+    memset(&sockaddr_in6, 0, sizeof(sockaddr_in6));
+
+    sockaddr_in6.sin6_family = AF_INET6;
+    sockaddr_in6.sin6_port = ngtcp2_htons(paddr->ipv6_port);
+    memcpy(&sockaddr_in6.sin6_addr, paddr->ipv6_addr,
+           sizeof(sockaddr_in6.sin6_addr));
+
+    ngtcp2_addr_init(&addr, (ngtcp2_sockaddr *)&sockaddr_in6,
+                     sizeof(sockaddr_in6));
+
+    if (ngtcp2_addr_eq(&addr, &path->local)) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+/*
  * conn_recv_pkt processes a packet contained in the buffer pointed by
  * |pkt| of length |pktlen|.  |pkt| may contain multiple QUIC packets.
  * This function only processes the first packet.  |pkt_ts| is the
@@ -8778,6 +8848,15 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   int recv_ncid = 0;
   int new_cid_used = 0;
   int path_challenge_recved = 0;
+
+  if (conn->server && conn->local.transport_params.disable_active_migration &&
+      !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
+      !conn_allow_path_change_under_disable_active_migration(conn, path)) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "packet is discarded because active migration is disabled");
+
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);

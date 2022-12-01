@@ -37,6 +37,7 @@
 #include "ngtcp2_vec.h"
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_addr.h"
+#include "ngtcp2_net.h"
 
 static void qlog_write(void *user_data, uint32_t flags, const void *data,
                        size_t datalen) {
@@ -136,12 +137,14 @@ static ngtcp2_crypto_km null_ckm = {
 
 static ngtcp2_path_storage null_path;
 static ngtcp2_path_storage new_path;
+static ngtcp2_path_storage new_nat_path;
 
 static ngtcp2_pkt_info null_pi;
 
 void init_static_path(void) {
   path_init(&null_path, 0, 0, 0, 0);
   path_init(&new_path, 1, 0, 2, 0);
+  path_init(&new_nat_path, 0, 0, 0, 1);
 }
 
 static ngtcp2_vec *null_datav(ngtcp2_vec *datav, size_t len) {
@@ -640,7 +643,8 @@ static void conn_set_scid_used(ngtcp2_conn *conn) {
   int rv;
   (void)rv;
 
-  assert(1 == ngtcp2_ksl_len(&conn->scid.set));
+  assert(1 + (conn->local.transport_params.preferred_address_present != 0) ==
+         ngtcp2_ksl_len(&conn->scid.set));
 
   it = ngtcp2_ksl_begin(&conn->scid.set);
   scid = ngtcp2_ksl_it_get(&it);
@@ -653,10 +657,11 @@ static void conn_set_scid_used(ngtcp2_conn *conn) {
   assert(0 == rv);
 }
 
-static void setup_default_server(ngtcp2_conn **pconn) {
+static void
+setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
+                              const ngtcp2_settings *settings,
+                              const ngtcp2_transport_params *params) {
   ngtcp2_callbacks cb;
-  ngtcp2_settings settings;
-  ngtcp2_transport_params params;
   ngtcp2_cid dcid, scid;
   ngtcp2_transport_params remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
@@ -669,11 +674,9 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   init_crypto_ctx(&crypto_ctx);
 
   server_default_callbacks(&cb);
-  server_default_settings(&settings);
-  server_default_transport_params(&params);
 
-  ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
+  ngtcp2_conn_server_new(pconn, &dcid, &scid, path, NGTCP2_PROTO_VER_V1, &cb,
+                         settings, params,
                          /* mem = */ NULL, NULL);
   ngtcp2_conn_set_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
@@ -706,6 +709,16 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   (*pconn)->local.uni.max_streams = remote_params.initial_max_streams_uni;
   (*pconn)->tx.max_offset = remote_params.initial_max_data;
   (*pconn)->negotiated_version = (*pconn)->client_chosen_version;
+}
+
+static void setup_default_server(ngtcp2_conn **pconn) {
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+
+  server_default_settings(&settings);
+  server_default_transport_params(&params);
+
+  setup_default_server_settings(pconn, &null_path.path, &settings, &params);
 }
 
 static void setup_default_client(ngtcp2_conn **pconn) {
@@ -5612,6 +5625,9 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   ngtcp2_ssize shdlen;
   ngtcp2_pkt_hd hd;
   ngtcp2_dcid *dcid;
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+  ngtcp2_sockaddr_in sockaddr;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
@@ -5727,6 +5743,124 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
   CU_ASSERT((uint64_t)spktlen == conn->dcid.current.bytes_sent);
+
+  ngtcp2_conn_del(conn);
+
+  /* PATH_CHALLENGE should be ignored with server
+     disable_active_migration */
+  setup_default_server(&conn);
+
+  conn->local.transport_params.disable_active_migration = 1;
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
+  fr.new_connection_id.cid = cid;
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  frs[0].type = NGTCP2_FRAME_PATH_CHALLENGE;
+  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
+  frs[1].type = NGTCP2_FRAME_PADDING;
+  frs[1].padding.len = 1200;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 2,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+
+  ngtcp2_conn_del(conn);
+
+  /* PATH_CHALLENGE on NAT rebinding (passive migration) should be
+     accepted with server disable_active_migration */
+  setup_default_server(&conn);
+
+  conn->local.transport_params.disable_active_migration = 1;
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
+  fr.new_connection_id.cid = cid;
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  frs[0].type = NGTCP2_FRAME_PATH_CHALLENGE;
+  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
+  frs[1].type = NGTCP2_FRAME_PADDING;
+  frs[1].padding.len = 1200;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 2,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_nat_path.path, &null_pi, buf, pktlen,
+                            ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb) > 0);
+
+  ngtcp2_conn_del(conn);
+
+  /* PATH_CHALLENGE to preferred address should be accepted with
+     server disable_active_migration */
+  server_default_transport_params(&params);
+  params.disable_active_migration = 1;
+  params.preferred_address_present = 1;
+  params.preferred_address.cid = cid;
+
+  /* Set local address of new_path */
+  params.preferred_address.ipv4_present = 1;
+
+  assert(sizeof(sockaddr) == new_path.path.local.addrlen);
+
+  memcpy(&sockaddr, new_path.path.local.addr, sizeof(sockaddr));
+  params.preferred_address.ipv4_port = ngtcp2_ntohs(sockaddr.sin_port);
+  memcpy(params.preferred_address.ipv4_addr, &sockaddr.sin_addr,
+         sizeof(params.preferred_address.ipv4_addr));
+
+  server_default_settings(&settings);
+
+  setup_default_server_settings(&conn, &null_path.path, &settings, &params);
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
+  fr.new_connection_id.cid = cid;
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  frs[0].type = NGTCP2_FRAME_PATH_CHALLENGE;
+  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
+  frs[1].type = NGTCP2_FRAME_PADDING;
+  frs[1].padding.len = 1200;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 2,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb) > 0);
 
   ngtcp2_conn_del(conn);
 }
