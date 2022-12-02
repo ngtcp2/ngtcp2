@@ -386,8 +386,8 @@ static void addr_init(ngtcp2_sockaddr_in *dest, uint32_t addr, uint16_t port) {
   memset(dest, 0, sizeof(*dest));
 
   dest->sin_family = AF_INET;
-  dest->sin_port = port;
-  dest->sin_addr.s_addr = addr;
+  dest->sin_port = ngtcp2_htons(port);
+  dest->sin_addr.s_addr = ngtcp2_htonl(addr);
 }
 
 void path_init(ngtcp2_path_storage *path, uint32_t local_addr,
