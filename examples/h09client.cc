@@ -1615,10 +1615,6 @@ int Client::acked_stream_data_offset(int64_t stream_id, uint64_t offset,
 
 int Client::select_preferred_address(Address &selected_addr,
                                      const ngtcp2_preferred_addr *paddr) {
-  int af;
-  const uint8_t *binaddr;
-  uint16_t port;
-
   auto path = ngtcp2_conn_get_path(conn_);
 
   switch (path->local.addr->sa_family) {
@@ -1626,53 +1622,33 @@ int Client::select_preferred_address(Address &selected_addr,
     if (!paddr->ipv4_present) {
       return -1;
     }
-    af = AF_INET;
-    binaddr = paddr->ipv4_addr;
-    port = paddr->ipv4_port;
+    selected_addr.su.in = paddr->ipv4;
+    selected_addr.len = sizeof(paddr->ipv4);
     break;
   case AF_INET6:
     if (!paddr->ipv6_present) {
       return -1;
     }
-    af = AF_INET6;
-    binaddr = paddr->ipv6_addr;
-    port = paddr->ipv6_port;
+    selected_addr.su.in6 = paddr->ipv6;
+    selected_addr.len = sizeof(paddr->ipv6);
     break;
   default:
     return -1;
   }
 
-  char host[NI_MAXHOST];
-  if (inet_ntop(af, binaddr, host, sizeof(host)) == nullptr) {
-    std::cerr << "inet_ntop: " << strerror(errno) << std::endl;
+  char host[NI_MAXHOST], service[NI_MAXSERV];
+  if (auto rv = getnameinfo(&selected_addr.su.sa, selected_addr.len, host,
+                            sizeof(host), service, sizeof(service),
+                            NI_NUMERICHOST | NI_NUMERICSERV);
+      rv != 0) {
+    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
     return -1;
   }
 
   if (!config.quiet) {
     std::cerr << "selected server preferred_address is [" << host
-              << "]:" << port << std::endl;
+              << "]:" << service << std::endl;
   }
-
-  addrinfo hints{};
-  addrinfo *res;
-
-  hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
-  hints.ai_family = af;
-  hints.ai_socktype = SOCK_DGRAM;
-
-  if (auto rv =
-          getaddrinfo(host, util::format_uint(port).c_str(), &hints, &res);
-      rv != 0) {
-    std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
-    return -1;
-  }
-
-  assert(res);
-
-  selected_addr.len = res->ai_addrlen;
-  memcpy(&selected_addr.su, res->ai_addr, res->ai_addrlen);
-
-  freeaddrinfo(res);
 
   return 0;
 }

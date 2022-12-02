@@ -930,6 +930,8 @@ void ngtcp2_qlog_parameters_set_transport_params(
   uint8_t buf[1024];
   uint8_t *p = buf;
   const ngtcp2_preferred_addr *paddr;
+  const ngtcp2_sockaddr_in *sa_in;
+  const ngtcp2_sockaddr_in6 *sa_in6;
 
   if (!qlog->write) {
     return;
@@ -1003,14 +1005,27 @@ void ngtcp2_qlog_parameters_set_transport_params(
     p = write_string(p, "preferred_address");
     *p++ = ':';
     *p++ = '{';
-    p = write_pair_hex(p, "ip_v4", paddr->ipv4_addr, sizeof(paddr->ipv4_addr));
-    *p++ = ',';
-    p = write_pair_number(p, "port_v4", paddr->ipv4_port);
-    *p++ = ',';
-    p = write_pair_hex(p, "ip_v6", paddr->ipv6_addr, sizeof(paddr->ipv6_addr));
-    *p++ = ',';
-    p = write_pair_number(p, "port_v6", paddr->ipv6_port);
-    *p++ = ',';
+
+    if (paddr->ipv4_present) {
+      sa_in = &paddr->ipv4;
+
+      p = write_pair_hex(p, "ip_v4", (const uint8_t *)&sa_in->sin_addr,
+                         sizeof(sa_in->sin_addr));
+      *p++ = ',';
+      p = write_pair_number(p, "port_v4", ngtcp2_ntohs(sa_in->sin_port));
+      *p++ = ',';
+    }
+
+    if (paddr->ipv6_present) {
+      sa_in6 = &paddr->ipv6;
+
+      p = write_pair_hex(p, "ip_v6", (const uint8_t *)&sa_in6->sin6_addr,
+                         sizeof(sa_in6->sin6_addr));
+      *p++ = ',';
+      p = write_pair_number(p, "port_v6", ngtcp2_ntohs(sa_in6->sin6_port));
+      *p++ = ',';
+    }
+
     p = write_pair_cid(p, "connection_id", &paddr->cid);
     p = write_verbatim(p, ",\"stateless_reset_token\":{");
     p = write_pair_hex(p, "data", paddr->stateless_reset_token,

@@ -29,6 +29,7 @@
 #include "ngtcp2_crypto.h"
 #include "ngtcp2_cid.h"
 #include "ngtcp2_conv.h"
+#include "ngtcp2_net.h"
 #include "ngtcp2_test_helper.h"
 
 static size_t varint_paramlen(ngtcp2_transport_param_id id, uint64_t value) {
@@ -44,6 +45,7 @@ void test_ngtcp2_encode_transport_params(void) {
   size_t i, len;
   ngtcp2_cid rcid, scid, dcid;
   uint8_t other_versions[sizeof(uint32_t) * 3];
+  ngtcp2_sockaddr_in6 *sa_in6;
 
   rcid_init(&rcid);
   scid_init(&scid);
@@ -275,13 +277,11 @@ void test_ngtcp2_encode_transport_params(void) {
          sizeof(params.stateless_reset_token));
   params.ack_delay_exponent = 20;
   params.preferred_address_present = 1;
-  memset(params.preferred_address.ipv4_addr, 0,
-         sizeof(params.preferred_address.ipv4_addr));
-  params.preferred_address.ipv4_port = 0;
   params.preferred_address.ipv4_present = 0;
-  memset(params.preferred_address.ipv6_addr, 0xe1,
-         sizeof(params.preferred_address.ipv6_addr));
-  params.preferred_address.ipv6_port = 63111;
+  sa_in6 = &params.preferred_address.ipv6;
+  sa_in6->sin6_family = AF_INET6;
+  memset(&sa_in6->sin6_addr, 0xe1, sizeof(sa_in6->sin6_addr));
+  sa_in6->sin6_port = ngtcp2_htons(63111);
   params.preferred_address.ipv6_present = 1;
   scid_init(&params.preferred_address.cid);
   memset(params.preferred_address.stateless_reset_token, 0xd1,
@@ -396,18 +396,14 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
   CU_ASSERT(params.preferred_address_present ==
             nparams.preferred_address_present);
-  CU_ASSERT(0 == memcmp(params.preferred_address.ipv4_addr,
-                        nparams.preferred_address.ipv4_addr,
-                        sizeof(params.preferred_address.ipv4_addr)));
-  CU_ASSERT(params.preferred_address.ipv4_port ==
-            nparams.preferred_address.ipv4_port);
+  CU_ASSERT(0 == memcmp(&params.preferred_address.ipv4,
+                        &nparams.preferred_address.ipv4,
+                        sizeof(params.preferred_address.ipv4)));
   CU_ASSERT(params.preferred_address.ipv4_present ==
             nparams.preferred_address.ipv4_present);
-  CU_ASSERT(0 == memcmp(params.preferred_address.ipv6_addr,
-                        nparams.preferred_address.ipv6_addr,
-                        sizeof(params.preferred_address.ipv6_addr)));
-  CU_ASSERT(params.preferred_address.ipv6_port ==
-            nparams.preferred_address.ipv6_port);
+  CU_ASSERT(0 == memcmp(&params.preferred_address.ipv6,
+                        &nparams.preferred_address.ipv6,
+                        sizeof(params.preferred_address.ipv6)));
   CU_ASSERT(params.preferred_address.ipv6_present ==
             nparams.preferred_address.ipv6_present);
   CU_ASSERT(ngtcp2_cid_eq(&params.preferred_address.cid,
@@ -443,6 +439,7 @@ void test_ngtcp2_decode_transport_params_new(void) {
   size_t i, len;
   ngtcp2_cid rcid, scid, dcid;
   uint8_t other_versions[sizeof(uint32_t) * 3];
+  ngtcp2_sockaddr_in *sa_in;
 
   rcid_init(&rcid);
   scid_init(&scid);
@@ -521,14 +518,12 @@ void test_ngtcp2_decode_transport_params_new(void) {
          sizeof(params.stateless_reset_token));
   params.ack_delay_exponent = 20;
   params.preferred_address_present = 1;
-  memset(params.preferred_address.ipv4_addr, 0,
-         sizeof(params.preferred_address.ipv4_addr));
-  params.preferred_address.ipv4_port = 0;
-  params.preferred_address.ipv4_present = 0;
-  memset(params.preferred_address.ipv6_addr, 0xe1,
-         sizeof(params.preferred_address.ipv6_addr));
-  params.preferred_address.ipv6_port = 63111;
-  params.preferred_address.ipv6_present = 1;
+  sa_in = &params.preferred_address.ipv4;
+  sa_in->sin_family = AF_INET;
+  memset(&sa_in->sin_addr, 0xf1, sizeof(sa_in->sin_addr));
+  sa_in->sin_port = ngtcp2_htons(11732);
+  params.preferred_address.ipv4_present = 1;
+  params.preferred_address.ipv6_present = 0;
   scid_init(&params.preferred_address.cid);
   memset(params.preferred_address.stateless_reset_token, 0xd1,
          sizeof(params.preferred_address.stateless_reset_token));
@@ -632,18 +627,14 @@ void test_ngtcp2_decode_transport_params_new(void) {
   CU_ASSERT(params.ack_delay_exponent == nparams->ack_delay_exponent);
   CU_ASSERT(params.preferred_address_present ==
             nparams->preferred_address_present);
-  CU_ASSERT(0 == memcmp(params.preferred_address.ipv4_addr,
-                        nparams->preferred_address.ipv4_addr,
-                        sizeof(params.preferred_address.ipv4_addr)));
-  CU_ASSERT(params.preferred_address.ipv4_port ==
-            nparams->preferred_address.ipv4_port);
+  CU_ASSERT(0 == memcmp(&params.preferred_address.ipv4,
+                        &nparams->preferred_address.ipv4,
+                        sizeof(params.preferred_address.ipv4)));
   CU_ASSERT(params.preferred_address.ipv4_present ==
             nparams->preferred_address.ipv4_present);
-  CU_ASSERT(0 == memcmp(params.preferred_address.ipv6_addr,
-                        nparams->preferred_address.ipv6_addr,
-                        sizeof(params.preferred_address.ipv6_addr)));
-  CU_ASSERT(params.preferred_address.ipv6_port ==
-            nparams->preferred_address.ipv6_port);
+  CU_ASSERT(0 == memcmp(&params.preferred_address.ipv6,
+                        &nparams->preferred_address.ipv6,
+                        sizeof(params.preferred_address.ipv6)));
   CU_ASSERT(params.preferred_address.ipv6_present ==
             nparams->preferred_address.ipv6_present);
   CU_ASSERT(ngtcp2_cid_eq(&params.preferred_address.cid,

@@ -159,6 +159,8 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
   /* For some reason, gcc 7.3.0 requires this initialization. */
   size_t preferred_addrlen = 0;
   size_t version_infolen = 0;
+  const ngtcp2_sockaddr_in *sa_in;
+  const ngtcp2_sockaddr_in6 *sa_in6;
   (void)transport_params_version;
 
   switch (exttype) {
@@ -293,23 +295,21 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
       p = ngtcp2_put_varint(p, preferred_addrlen);
 
       if (params->preferred_address.ipv4_present) {
-        p = ngtcp2_cpymem(p, params->preferred_address.ipv4_addr,
-                          sizeof(params->preferred_address.ipv4_addr));
-        p = ngtcp2_put_uint16be(p, params->preferred_address.ipv4_port);
+        sa_in = &params->preferred_address.ipv4;
+        p = ngtcp2_cpymem(p, &sa_in->sin_addr, sizeof(sa_in->sin_addr));
+        p = ngtcp2_put_uint16(p, sa_in->sin_port);
       } else {
-        p = ngtcp2_cpymem(p, empty_address,
-                          sizeof(params->preferred_address.ipv4_addr));
-        p = ngtcp2_put_uint16be(p, 0);
+        p = ngtcp2_cpymem(p, empty_address, sizeof(sa_in->sin_addr));
+        p = ngtcp2_put_uint16(p, 0);
       }
 
       if (params->preferred_address.ipv6_present) {
-        p = ngtcp2_cpymem(p, params->preferred_address.ipv6_addr,
-                          sizeof(params->preferred_address.ipv6_addr));
-        p = ngtcp2_put_uint16be(p, params->preferred_address.ipv6_port);
+        sa_in6 = &params->preferred_address.ipv6;
+        p = ngtcp2_cpymem(p, &sa_in6->sin6_addr, sizeof(sa_in6->sin6_addr));
+        p = ngtcp2_put_uint16(p, sa_in6->sin6_port);
       } else {
-        p = ngtcp2_cpymem(p, empty_address,
-                          sizeof(params->preferred_address.ipv6_addr));
-        p = ngtcp2_put_uint16be(p, 0);
+        p = ngtcp2_cpymem(p, empty_address, sizeof(sa_in6->sin6_addr));
+        p = ngtcp2_put_uint16(p, 0);
       }
 
       *p++ = (uint8_t)params->preferred_address.cid.datalen;
@@ -527,6 +527,9 @@ int ngtcp2_decode_transport_params_versioned(
   int initial_scid_present = 0;
   int original_dcid_present = 0;
   size_t i;
+  ngtcp2_sockaddr_in *sa_in;
+  ngtcp2_sockaddr_in6 *sa_in6;
+
   (void)transport_params_version;
 
   if (datalen == 0) {
@@ -680,27 +683,31 @@ int ngtcp2_decode_transport_params_versioned(
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
 
-      memcpy(params->preferred_address.ipv4_addr, p,
-             sizeof(params->preferred_address.ipv4_addr));
-      p += sizeof(params->preferred_address.ipv4_addr);
-      params->preferred_address.ipv4_port = ngtcp2_get_uint16(p);
+      sa_in = &params->preferred_address.ipv4;
+
+      memcpy(&sa_in->sin_addr, p, sizeof(sa_in->sin_addr));
+      p += sizeof(sa_in->sin_addr);
+
+      sa_in->sin_port = ngtcp2_get_uint16be(p);
       p += sizeof(uint16_t);
 
-      if (params->preferred_address.ipv4_port ||
-          memcmp(empty_address, params->preferred_address.ipv4_addr,
-                 sizeof(params->preferred_address.ipv4_addr)) != 0) {
+      if (sa_in->sin_port || memcmp(empty_address, &sa_in->sin_addr,
+                                    sizeof(sa_in->sin_addr)) != 0) {
+        sa_in->sin_family = AF_INET;
         params->preferred_address.ipv4_present = 1;
       }
 
-      memcpy(params->preferred_address.ipv6_addr, p,
-             sizeof(params->preferred_address.ipv6_addr));
-      p += sizeof(params->preferred_address.ipv6_addr);
-      params->preferred_address.ipv6_port = ngtcp2_get_uint16(p);
+      sa_in6 = &params->preferred_address.ipv6;
+
+      memcpy(&sa_in6->sin6_addr, p, sizeof(sa_in6->sin6_addr));
+      p += sizeof(sa_in6->sin6_addr);
+
+      sa_in6->sin6_port = ngtcp2_get_uint16be(p);
       p += sizeof(uint16_t);
 
-      if (params->preferred_address.ipv6_port ||
-          memcmp(empty_address, params->preferred_address.ipv6_addr,
-                 sizeof(params->preferred_address.ipv6_addr)) != 0) {
+      if (sa_in6->sin6_port || memcmp(empty_address, &sa_in6->sin6_addr,
+                                      sizeof(sa_in6->sin6_addr)) != 0) {
+        sa_in6->sin6_family = AF_INET6;
         params->preferred_address.ipv6_present = 1;
       }
 

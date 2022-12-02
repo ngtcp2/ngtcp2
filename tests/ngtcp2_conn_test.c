@@ -5627,7 +5627,6 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   ngtcp2_dcid *dcid;
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
-  ngtcp2_sockaddr_in sockaddr;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
@@ -5823,14 +5822,11 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   params.preferred_address.cid = cid;
 
   /* Set local address of new_path */
+  assert(AF_INET == new_path.path.local.addr->sa_family);
+
   params.preferred_address.ipv4_present = 1;
-
-  assert(sizeof(sockaddr) == new_path.path.local.addrlen);
-
-  memcpy(&sockaddr, new_path.path.local.addr, sizeof(sockaddr));
-  params.preferred_address.ipv4_port = ngtcp2_ntohs(sockaddr.sin_port);
-  memcpy(params.preferred_address.ipv4_addr, &sockaddr.sin_addr,
-         sizeof(params.preferred_address.ipv4_addr));
+  memcpy(&params.preferred_address.ipv4, new_path.path.local.addr,
+         sizeof(params.preferred_address.ipv4));
 
   server_default_settings(&settings);
 

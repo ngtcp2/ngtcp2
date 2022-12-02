@@ -62,6 +62,12 @@ uint16_t ngtcp2_get_uint16(const uint8_t *p) {
   return ngtcp2_ntohs(n);
 }
 
+uint16_t ngtcp2_get_uint16be(const uint8_t *p) {
+  uint16_t n;
+  memcpy(&n, p, 2);
+  return n;
+}
+
 uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p) {
   union {
     char b[8];
@@ -131,6 +137,10 @@ uint8_t *ngtcp2_put_uint24be(uint8_t *p, uint32_t n) {
 
 uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n) {
   n = ngtcp2_htons(n);
+  return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
+}
+
+uint8_t *ngtcp2_put_uint16(uint8_t *p, uint16_t n) {
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
 }
 

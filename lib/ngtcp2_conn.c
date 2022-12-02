@@ -8727,8 +8727,6 @@ conn_allow_path_change_under_disable_active_migration(ngtcp2_conn *conn,
                                                       const ngtcp2_path *path) {
   uint32_t remote_addr_cmp;
   const ngtcp2_preferred_addr *paddr;
-  ngtcp2_sockaddr_in sockaddr_in;
-  ngtcp2_sockaddr_in6 sockaddr_in6;
   ngtcp2_addr addr;
 
   assert(conn->server);
@@ -8754,13 +8752,8 @@ conn_allow_path_change_under_disable_active_migration(ngtcp2_conn *conn,
   paddr = &conn->local.transport_params.preferred_address;
 
   if (paddr->ipv4_present) {
-    sockaddr_in.sin_family = AF_INET;
-    sockaddr_in.sin_port = ngtcp2_htons(paddr->ipv4_port);
-    memcpy(&sockaddr_in.sin_addr, paddr->ipv4_addr,
-           sizeof(sockaddr_in.sin_addr));
-
-    ngtcp2_addr_init(&addr, (ngtcp2_sockaddr *)&sockaddr_in,
-                     sizeof(sockaddr_in));
+    ngtcp2_addr_init(&addr, (const ngtcp2_sockaddr *)&paddr->ipv4,
+                     sizeof(paddr->ipv4));
 
     if (ngtcp2_addr_eq(&addr, &path->local)) {
       return 1;
@@ -8768,15 +8761,8 @@ conn_allow_path_change_under_disable_active_migration(ngtcp2_conn *conn,
   }
 
   if (paddr->ipv6_present) {
-    memset(&sockaddr_in6, 0, sizeof(sockaddr_in6));
-
-    sockaddr_in6.sin6_family = AF_INET6;
-    sockaddr_in6.sin6_port = ngtcp2_htons(paddr->ipv6_port);
-    memcpy(&sockaddr_in6.sin6_addr, paddr->ipv6_addr,
-           sizeof(sockaddr_in6.sin6_addr));
-
-    ngtcp2_addr_init(&addr, (ngtcp2_sockaddr *)&sockaddr_in6,
-                     sizeof(sockaddr_in6));
+    ngtcp2_addr_init(&addr, (const ngtcp2_sockaddr *)&paddr->ipv6,
+                     sizeof(paddr->ipv6));
 
     if (ngtcp2_addr_eq(&addr, &path->local)) {
       return 1;
