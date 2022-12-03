@@ -1463,20 +1463,14 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
 
   if (config.preferred_ipv4_addr.len || config.preferred_ipv6_addr.len) {
     params.preferred_address_present = 1;
+
     if (config.preferred_ipv4_addr.len) {
-      auto &dest = params.preferred_address.ipv4_addr;
-      const auto &addr = config.preferred_ipv4_addr;
-      assert(sizeof(dest) == sizeof(addr.su.in.sin_addr));
-      memcpy(&dest, &addr.su.in.sin_addr, sizeof(dest));
-      params.preferred_address.ipv4_port = htons(addr.su.in.sin_port);
+      params.preferred_address.ipv4 = config.preferred_ipv4_addr.su.in;
       params.preferred_address.ipv4_present = 1;
     }
+
     if (config.preferred_ipv6_addr.len) {
-      auto &dest = params.preferred_address.ipv6_addr;
-      const auto &addr = config.preferred_ipv6_addr;
-      assert(sizeof(dest) == sizeof(addr.su.in6.sin6_addr));
-      memcpy(&dest, &addr.su.in6.sin6_addr, sizeof(dest));
-      params.preferred_address.ipv6_port = htons(addr.su.in6.sin6_port);
+      params.preferred_address.ipv6 = config.preferred_ipv6_addr.su.in6;
       params.preferred_address.ipv6_present = 1;
     }
 
