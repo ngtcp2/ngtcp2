@@ -1392,6 +1392,18 @@ typedef struct sockaddr_in6 ngtcp2_sockaddr_in6;
 /**
  * @struct
  *
+ * :type:`ngtcp2_sockaddr_union` conveniently includes all supported
+ * address types.
+ */
+typedef union ngtcp2_sockaddr_union {
+  ngtcp2_sockaddr sa;
+  ngtcp2_sockaddr_in in;
+  ngtcp2_sockaddr_in6 in6;
+} ngtcp2_sockaddr_union;
+
+/**
+ * @struct
+ *
  * :type:`ngtcp2_preferred_addr` represents preferred address
  * structure.
  */
@@ -2060,11 +2072,11 @@ typedef struct ngtcp2_path_storage {
   /**
    * :member:`local_addrbuf` is a buffer to store local address.
    */
-  ngtcp2_sockaddr_storage local_addrbuf;
+  ngtcp2_sockaddr_union local_addrbuf;
   /**
    * :member:`remote_addrbuf` is a buffer to store remote address.
    */
-  ngtcp2_sockaddr_storage remote_addrbuf;
+  ngtcp2_sockaddr_union remote_addrbuf;
 } ngtcp2_path_storage;
 
 /**
