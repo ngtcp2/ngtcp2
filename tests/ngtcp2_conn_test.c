@@ -8710,6 +8710,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
   int rv;
   ngtcp2_transport_params remote_params;
   uint8_t other_versions[sizeof(uint32_t) * 2];
+  uint32_t version;
 
   ngtcp2_put_uint32be(&other_versions[0], NGTCP2_PROTO_VER_V1);
   ngtcp2_put_uint32be(&other_versions[4], NGTCP2_PROTO_VER_V2_DRAFT);
@@ -8744,7 +8745,10 @@ void test_ngtcp2_conn_version_negotiation(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT == ngtcp2_get_uint32(&buf[1]));
+
+  ngtcp2_get_uint32(&version, &buf[1]);
+
+  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT == version);
 
   ngtcp2_conn_del(conn);
 
@@ -8814,7 +8818,10 @@ void test_ngtcp2_conn_version_negotiation(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT == ngtcp2_get_uint32(&buf[1]));
+
+  ngtcp2_get_uint32(&version, &buf[1]);
+
+  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT == version);
 
   ngtcp2_conn_del(conn);
 }

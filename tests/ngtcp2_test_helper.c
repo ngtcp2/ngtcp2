@@ -280,10 +280,11 @@ void rcid_init(ngtcp2_cid *cid) {
 
 uint64_t read_pkt_payloadlen(const uint8_t *pkt, const ngtcp2_cid *dcid,
                              const ngtcp2_cid *scid) {
-  size_t nread;
+  uint64_t len;
 
-  return ngtcp2_get_varint(&nread,
-                           &pkt[1 + 4 + 1 + dcid->datalen + 1 + scid->datalen]);
+  ngtcp2_get_uvarint(&len, &pkt[1 + 4 + 1 + dcid->datalen + 1 + scid->datalen]);
+
+  return len;
 }
 
 void write_pkt_payloadlen(uint8_t *pkt, const ngtcp2_cid *dcid,

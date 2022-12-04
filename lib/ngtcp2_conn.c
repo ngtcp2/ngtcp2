@@ -6092,6 +6092,7 @@ static int vneg_other_versions_includes(const uint8_t *other_versions,
                                         size_t other_versionslen,
                                         uint32_t version) {
   size_t i;
+  uint32_t v;
 
   assert(!(other_versionslen & 0x3));
 
@@ -6100,7 +6101,9 @@ static int vneg_other_versions_includes(const uint8_t *other_versions,
   }
 
   for (i = 0; i < other_versionslen; i += sizeof(uint32_t)) {
-    if (version == ngtcp2_get_uint32(&other_versions[i])) {
+    other_versions = ngtcp2_get_uint32(&v, other_versions);
+
+    if (version == v) {
       return 1;
     }
   }
@@ -6751,7 +6754,7 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
 
       if ((pkt[0] & NGTCP2_HEADER_FORM_BIT) && pktlen > 4) {
         /* Not a Version Negotiation packet */
-        version = ngtcp2_get_uint32(&pkt[1]);
+        ngtcp2_get_uint32(&version, &pkt[1]);
         if (ngtcp2_pkt_get_type_long(version, pkt[0]) == NGTCP2_PKT_INITIAL) {
           if (conn->server) {
             if (is_unrecoverable_error((int)nread)) {
@@ -11094,6 +11097,8 @@ static uint32_t select_preferred_version(const uint32_t *preferred_versions,
                                          size_t other_versionslen,
                                          uint32_t fallback_version) {
   size_t i, j;
+  const uint8_t *p;
+  uint32_t v;
 
   if (!preferred_versionslen ||
       (!other_versionslen && chosen_version == fallback_version)) {
@@ -11104,12 +11109,13 @@ static uint32_t select_preferred_version(const uint32_t *preferred_versions,
     if (preferred_versions[i] == chosen_version) {
       return chosen_version;
     }
-    for (j = 0; j < other_versionslen; j += sizeof(uint32_t)) {
-      if (preferred_versions[i] != ngtcp2_get_uint32(&other_versions[j])) {
-        continue;
-      }
+    for (j = 0, p = other_versions; j < other_versionslen;
+         j += sizeof(uint32_t)) {
+      p = ngtcp2_get_uint32(&v, p);
 
-      return preferred_versions[i];
+      if (preferred_versions[i] == v) {
+        return v;
+      }
     }
   }
 
