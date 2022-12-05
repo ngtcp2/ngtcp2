@@ -141,6 +141,12 @@ int main(void) {
       !CU_add_test(pSuite, "get_varint", test_ngtcp2_get_varint) ||
       !CU_add_test(pSuite, "get_varint_len", test_ngtcp2_get_varint_len) ||
       !CU_add_test(pSuite, "put_varint_len", test_ngtcp2_put_varint_len) ||
+      !CU_add_test(pSuite, "get_uint64", test_ngtcp2_get_uint64) ||
+      !CU_add_test(pSuite, "get_uint48", test_ngtcp2_get_uint48) ||
+      !CU_add_test(pSuite, "get_uint32", test_ngtcp2_get_uint32) ||
+      !CU_add_test(pSuite, "get_uint24", test_ngtcp2_get_uint24) ||
+      !CU_add_test(pSuite, "get_uint16", test_ngtcp2_get_uint16) ||
+      !CU_add_test(pSuite, "get_uint16be", test_ngtcp2_get_uint16be) ||
       !CU_add_test(pSuite, "nth_server_bidi_id",
                    test_ngtcp2_nth_server_bidi_id) ||
       !CU_add_test(pSuite, "nth_server_uni_id",
@@ -331,7 +337,8 @@ int main(void) {
       !CU_add_test(pSuite, "pv_validate", test_ngtcp2_pv_validate) ||
       !CU_add_test(pSuite, "pmtud_probe", test_ngtcp2_pmtud_probe) ||
       !CU_add_test(pSuite, "encode_ipv4", test_ngtcp2_encode_ipv4) ||
-      !CU_add_test(pSuite, "encode_ipv6", test_ngtcp2_encode_ipv6)) {
+      !CU_add_test(pSuite, "encode_ipv6", test_ngtcp2_encode_ipv6) ||
+      !CU_add_test(pSuite, "get_bytes", test_ngtcp2_get_bytes)) {
     CU_cleanup_registry();
     return (int)CU_get_error();
   }

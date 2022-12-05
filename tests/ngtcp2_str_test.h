@@ -31,5 +31,6 @@
 
 void test_ngtcp2_encode_ipv4(void);
 void test_ngtcp2_encode_ipv6(void);
+void test_ngtcp2_get_bytes(void);
 
 #endif /* NGTCP2_STR_TEST_H */

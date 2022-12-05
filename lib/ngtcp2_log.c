@@ -602,6 +602,8 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   size_t i;
   const ngtcp2_sockaddr_in *sa_in;
   const ngtcp2_sockaddr_in6 *sa_in6;
+  const uint8_t *p;
+  uint32_t version;
 
   if (!log->log_printf) {
     return;
@@ -732,13 +734,14 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
 
     assert(!(params->version_info.other_versionslen & 0x3));
 
-    for (i = 0; i < params->version_info.other_versionslen;
-         i += sizeof(uint32_t)) {
+    for (i = 0, p = params->version_info.other_versions;
+         i < params->version_info.other_versionslen; i += sizeof(uint32_t)) {
+      p = ngtcp2_get_uint32(&version, p);
+
       log->log_printf(
           log->user_data,
           (NGTCP2_LOG_TP " version_information.other_versions[%zu]=0x%08x"),
-          NGTCP2_LOG_TP_HD_FIELDS, i >> 2,
-          ngtcp2_get_uint32(&params->version_info.other_versions[i]));
+          NGTCP2_LOG_TP_HD_FIELDS, i >> 2, version);
     }
   }
 }
