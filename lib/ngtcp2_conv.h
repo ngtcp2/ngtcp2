@@ -155,16 +155,16 @@ uint8_t *ngtcp2_put_varint30(uint8_t *p, uint32_t n);
 uint8_t *ngtcp2_put_pkt_num(uint8_t *p, int64_t pkt_num, size_t len);
 
 /*
- * ngtcp2_get_varint_len returns the required number of bytes to read
+ * ngtcp2_get_varintlen returns the required number of bytes to read
  * variable-length integer starting at |p|.
  */
-size_t ngtcp2_get_varint_len(const uint8_t *p);
+size_t ngtcp2_get_varintlen(const uint8_t *p);
 
 /*
- * ngtcp2_put_varint_len returns the required number of bytes to
- * encode |n|.
+ * ngtcp2_put_varintlen returns the required number of bytes to encode
+ * |n|.
  */
-size_t ngtcp2_put_varint_len(uint64_t n);
+size_t ngtcp2_put_varintlen(uint64_t n);
 
 /*
  * ngtcp2_nth_server_bidi_id returns |n|-th server bidirectional

@@ -30,8 +30,8 @@
 #endif /* HAVE_CONFIG_H */
 
 void test_ngtcp2_get_varint(void);
-void test_ngtcp2_get_varint_len(void);
-void test_ngtcp2_put_varint_len(void);
+void test_ngtcp2_get_varintlen(void);
+void test_ngtcp2_put_varintlen(void);
 void test_ngtcp2_get_uint64(void);
 void test_ngtcp2_get_uint48(void);
 void test_ngtcp2_get_uint32(void);

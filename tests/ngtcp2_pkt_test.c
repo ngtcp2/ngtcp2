@@ -1258,7 +1258,7 @@ void test_ngtcp2_pkt_encode_retire_connection_id_frame(void) {
   fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
   fr.retire_connection_id.seq = 1000000007;
 
-  framelen = 1 + ngtcp2_put_varint_len(fr.retire_connection_id.seq);
+  framelen = 1 + ngtcp2_put_varintlen(fr.retire_connection_id.seq);
 
   rv = ngtcp2_pkt_encode_retire_connection_id_frame(buf, sizeof(buf),
                                                     &fr.retire_connection_id);
