@@ -107,8 +107,8 @@ void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
  * which has variable integer in its parameter.
  */
 static size_t varint_paramlen(ngtcp2_transport_param_id id, uint64_t param) {
-  size_t valuelen = ngtcp2_put_varint_len(param);
-  return ngtcp2_put_varint_len(id) + ngtcp2_put_varint_len(valuelen) + valuelen;
+  size_t valuelen = ngtcp2_put_varintlen(param);
+  return ngtcp2_put_varintlen(id) + ngtcp2_put_varintlen(valuelen) + valuelen;
 }
 
 /*
@@ -118,7 +118,7 @@ static size_t varint_paramlen(ngtcp2_transport_param_id id, uint64_t param) {
 static uint8_t *write_varint_param(uint8_t *p, ngtcp2_transport_param_id id,
                                    uint64_t value) {
   p = ngtcp2_put_varint(p, id);
-  p = ngtcp2_put_varint(p, ngtcp2_put_varint_len(value));
+  p = ngtcp2_put_varint(p, ngtcp2_put_varintlen(value));
   return ngtcp2_put_varint(p, value);
 }
 
@@ -128,7 +128,7 @@ static uint8_t *write_varint_param(uint8_t *p, ngtcp2_transport_param_id id,
  */
 static size_t cid_paramlen(ngtcp2_transport_param_id id,
                            const ngtcp2_cid *cid) {
-  return ngtcp2_put_varint_len(id) + ngtcp2_put_varint_len(cid->datalen) +
+  return ngtcp2_put_varintlen(id) + ngtcp2_put_varintlen(cid->datalen) +
          cid->datalen;
 }
 
@@ -173,8 +173,8 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
 
     if (params->stateless_reset_token_present) {
       len +=
-          ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN) +
-          ngtcp2_put_varint_len(NGTCP2_STATELESS_RESET_TOKENLEN) +
+          ngtcp2_put_varintlen(NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN) +
+          ngtcp2_put_varintlen(NGTCP2_STATELESS_RESET_TOKENLEN) +
           NGTCP2_STATELESS_RESET_TOKENLEN;
     }
     if (params->preferred_address_present) {
@@ -185,8 +185,8 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
                           + 1 +
                           params->preferred_address.cid.datalen /* CID */ +
                           NGTCP2_STATELESS_RESET_TOKENLEN;
-      len += ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS) +
-             ngtcp2_put_varint_len(preferred_addrlen) + preferred_addrlen;
+      len += ngtcp2_put_varintlen(NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS) +
+             ngtcp2_put_varintlen(preferred_addrlen) + preferred_addrlen;
     }
     if (params->retry_scid_present) {
       len += cid_paramlen(NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID,
@@ -237,8 +237,8 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
   }
   if (params->disable_active_migration) {
     len +=
-        ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION) +
-        ngtcp2_put_varint_len(0);
+        ngtcp2_put_varintlen(NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION) +
+        ngtcp2_put_varintlen(0);
   }
   if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
     len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY,
@@ -259,14 +259,14 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
                            params->max_datagram_frame_size);
   }
   if (params->grease_quic_bit) {
-    len += ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
-           ngtcp2_put_varint_len(0);
+    len += ngtcp2_put_varintlen(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
+           ngtcp2_put_varintlen(0);
   }
   if (params->version_info_present) {
     version_infolen = sizeof(uint32_t) + params->version_info.other_versionslen;
-    len += ngtcp2_put_varint_len(
-               NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT) +
-           ngtcp2_put_varint_len(version_infolen) + version_infolen;
+    len +=
+        ngtcp2_put_varintlen(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT) +
+        ngtcp2_put_varintlen(version_infolen) + version_infolen;
   }
 
   if (dest == NULL && destlen == 0) {
@@ -437,7 +437,7 @@ static int decode_varint(uint64_t *pdest, const uint8_t **pp,
     return -1;
   }
 
-  len = ngtcp2_get_varint_len(p);
+  len = ngtcp2_get_varintlen(p);
   if ((uint64_t)(end - p) < len) {
     return -1;
   }
@@ -471,7 +471,7 @@ static int decode_varint_param(uint64_t *pdest, const uint8_t **pp,
     return -1;
   }
 
-  if (ngtcp2_get_varint_len(p) != valuelen) {
+  if (ngtcp2_get_varintlen(p) != valuelen) {
     return -1;
   }
 

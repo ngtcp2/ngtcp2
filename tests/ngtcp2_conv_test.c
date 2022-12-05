@@ -136,24 +136,24 @@ void test_ngtcp2_get_varint(void) {
   CU_ASSERT(4611686018427387903LL == s);
 }
 
-void test_ngtcp2_get_varint_len(void) {
+void test_ngtcp2_get_varintlen(void) {
   uint8_t c;
 
   c = 0x00;
 
-  CU_ASSERT(1 == ngtcp2_get_varint_len(&c));
+  CU_ASSERT(1 == ngtcp2_get_varintlen(&c));
 
   c = 0x40;
 
-  CU_ASSERT(2 == ngtcp2_get_varint_len(&c));
+  CU_ASSERT(2 == ngtcp2_get_varintlen(&c));
 
   c = 0x80;
 
-  CU_ASSERT(4 == ngtcp2_get_varint_len(&c));
+  CU_ASSERT(4 == ngtcp2_get_varintlen(&c));
 
   c = 0xc0;
 
-  CU_ASSERT(8 == ngtcp2_get_varint_len(&c));
+  CU_ASSERT(8 == ngtcp2_get_varintlen(&c));
 }
 
 void test_ngtcp2_get_uint64(void) {
@@ -390,15 +390,15 @@ void test_ngtcp2_get_uint16be(void) {
   CU_ASSERT(65535 == n);
 }
 
-void test_ngtcp2_put_varint_len(void) {
-  CU_ASSERT(1 == ngtcp2_put_varint_len(0));
-  CU_ASSERT(1 == ngtcp2_put_varint_len(63));
-  CU_ASSERT(2 == ngtcp2_put_varint_len(64));
-  CU_ASSERT(2 == ngtcp2_put_varint_len(16383));
-  CU_ASSERT(4 == ngtcp2_put_varint_len(16384));
-  CU_ASSERT(4 == ngtcp2_put_varint_len(1073741823));
-  CU_ASSERT(8 == ngtcp2_put_varint_len(1073741824));
-  CU_ASSERT(8 == ngtcp2_put_varint_len(4611686018427387903ULL));
+void test_ngtcp2_put_varintlen(void) {
+  CU_ASSERT(1 == ngtcp2_put_varintlen(0));
+  CU_ASSERT(1 == ngtcp2_put_varintlen(63));
+  CU_ASSERT(2 == ngtcp2_put_varintlen(64));
+  CU_ASSERT(2 == ngtcp2_put_varintlen(16383));
+  CU_ASSERT(4 == ngtcp2_put_varintlen(16384));
+  CU_ASSERT(4 == ngtcp2_put_varintlen(1073741823));
+  CU_ASSERT(8 == ngtcp2_put_varintlen(1073741824));
+  CU_ASSERT(8 == ngtcp2_put_varintlen(4611686018427387903ULL));
 }
 
 void test_ngtcp2_nth_server_bidi_id(void) {
