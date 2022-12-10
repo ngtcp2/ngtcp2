@@ -1361,6 +1361,13 @@ typedef struct sockaddr ngtcp2_sockaddr;
  * defined in ngtcp2.h.
  */
 typedef struct sockaddr_storage ngtcp2_sockaddr_storage;
+/**
+ * @typedef
+ *
+ * :type:`ngtcp2_sockaddr_in` is typedefed to struct sockaddr_in.  If
+ * :macro:`NGTCP2_USE_GENERIC_SOCKADDR` is defined, it is typedefed to
+ * the generic struct sockaddr_in defined in ngtcp2.h.
+ */
 typedef struct sockaddr_in ngtcp2_sockaddr_in;
 /**
  * @typedef
@@ -1386,6 +1393,13 @@ typedef struct ngtcp2_sockaddr_in6 {
   uint32_t sin6_scope_id;
 } ngtcp2_sockaddr_in6;
 #else
+/**
+ * @typedef
+ *
+ * :type:`ngtcp2_sockaddr_in6` is typedefed to struct sockaddr_in6.
+ * If :macro:`NGTCP2_USE_GENERIC_SOCKADDR` is defined, it is typedefed
+ * to the generic struct sockaddr_in6 defined in ngtcp2.h.
+ */
 typedef struct sockaddr_in6 ngtcp2_sockaddr_in6;
 #endif
 
