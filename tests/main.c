@@ -140,7 +140,7 @@ int main(void) {
                    test_ngtcp2_pkt_stream_max_datalen) ||
       !CU_add_test(pSuite, "get_varint", test_ngtcp2_get_varint) ||
       !CU_add_test(pSuite, "get_varint_len", test_ngtcp2_get_varintlen) ||
-      !CU_add_test(pSuite, "put_varint_len", test_ngtcp2_put_varintlen) ||
+      !CU_add_test(pSuite, "put_uvarintlen", test_ngtcp2_put_uvarintlen) ||
       !CU_add_test(pSuite, "get_uint64", test_ngtcp2_get_uint64) ||
       !CU_add_test(pSuite, "get_uint48", test_ngtcp2_get_uint48) ||
       !CU_add_test(pSuite, "get_uint32", test_ngtcp2_get_uint32) ||

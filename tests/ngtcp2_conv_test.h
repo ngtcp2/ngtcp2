@@ -31,7 +31,7 @@
 
 void test_ngtcp2_get_varint(void);
 void test_ngtcp2_get_varintlen(void);
-void test_ngtcp2_put_varintlen(void);
+void test_ngtcp2_put_uvarintlen(void);
 void test_ngtcp2_get_uint64(void);
 void test_ngtcp2_get_uint48(void);
 void test_ngtcp2_get_uint32(void);

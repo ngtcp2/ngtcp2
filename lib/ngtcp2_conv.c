@@ -168,7 +168,7 @@ uint8_t *ngtcp2_put_uint16(uint8_t *p, uint16_t n) {
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
 }
 
-uint8_t *ngtcp2_put_varint(uint8_t *p, uint64_t n) {
+uint8_t *ngtcp2_put_uvarint(uint8_t *p, uint64_t n) {
   uint8_t *rv;
   if (n < 64) {
     *p++ = (uint8_t)n;
@@ -190,7 +190,7 @@ uint8_t *ngtcp2_put_varint(uint8_t *p, uint64_t n) {
   return rv;
 }
 
-uint8_t *ngtcp2_put_varint30(uint8_t *p, uint32_t n) {
+uint8_t *ngtcp2_put_uvarint30(uint8_t *p, uint32_t n) {
   uint8_t *rv;
 
   assert(n < 1073741824);
@@ -224,7 +224,7 @@ size_t ngtcp2_get_varintlen(const uint8_t *p) {
   return (size_t)(1u << (*p >> 6));
 }
 
-size_t ngtcp2_put_varintlen(uint64_t n) {
+size_t ngtcp2_put_uvarintlen(uint64_t n) {
   if (n < 64) {
     return 1;
   }

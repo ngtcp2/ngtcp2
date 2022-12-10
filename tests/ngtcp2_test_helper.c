@@ -43,14 +43,14 @@ size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
   }
   *p++ = NGTCP2_FRAME_STREAM | flags;
 
-  p = ngtcp2_put_varint(p, stream_id);
+  p = ngtcp2_put_uvarint(p, stream_id);
 
   if (offset) {
-    p = ngtcp2_put_varint(p, offset);
+    p = ngtcp2_put_uvarint(p, offset);
   }
 
   if (flags & NGTCP2_STREAM_LEN_BIT) {
-    p = ngtcp2_put_varint(p, datalen);
+    p = ngtcp2_put_uvarint(p, datalen);
   }
 
   memset(p, 0, datalen);
@@ -68,17 +68,17 @@ size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
 
   *p++ = NGTCP2_FRAME_ACK;
   /* Largest Acknowledged */
-  p = ngtcp2_put_varint(p, largest_ack);
+  p = ngtcp2_put_uvarint(p, largest_ack);
   /* ACK Delay */
-  p = ngtcp2_put_varint(p, 0);
+  p = ngtcp2_put_uvarint(p, 0);
   /* ACK Block Count */
-  p = ngtcp2_put_varint(p, 1);
+  p = ngtcp2_put_uvarint(p, 1);
   /* First ACK Block */
-  p = ngtcp2_put_varint(p, first_ack_blklen);
+  p = ngtcp2_put_uvarint(p, first_ack_blklen);
   /* Gap (1) */
-  p = ngtcp2_put_varint(p, gap);
+  p = ngtcp2_put_uvarint(p, gap);
   /* Additional ACK Block (1) */
-  p = ngtcp2_put_varint(p, ack_blklen);
+  p = ngtcp2_put_uvarint(p, ack_blklen);
 
   return (size_t)(p - out);
 }
@@ -290,8 +290,8 @@ uint64_t read_pkt_payloadlen(const uint8_t *pkt, const ngtcp2_cid *dcid,
 void write_pkt_payloadlen(uint8_t *pkt, const ngtcp2_cid *dcid,
                           const ngtcp2_cid *scid, uint64_t payloadlen) {
   assert(payloadlen < 1073741824);
-  ngtcp2_put_varint30(&pkt[1 + 4 + 1 + dcid->datalen + 1 + scid->datalen],
-                      (uint32_t)payloadlen);
+  ngtcp2_put_uvarint30(&pkt[1 + 4 + 1 + dcid->datalen + 1 + scid->datalen],
+                       (uint32_t)payloadlen);
 }
 
 ngtcp2_ssize pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
