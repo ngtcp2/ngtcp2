@@ -436,3 +436,11 @@ second connection attempt, and must be passed to
 Server never know whether client reacted upon Version Negotiation
 packet or not, and there is no particular setup for server to make
 this incompatible version negotiation work.
+
+Thread safety
+-------------
+
+ngtcp2 library is thread-safe as long as a single :type:`ngtcp2_conn`
+object is accessed by a single thread at a time.  For multi-threaded
+applications, it is recommended to create :type:`ngtcp2_conn` objects
+per thread to avoid locks.
