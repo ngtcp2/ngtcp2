@@ -4650,7 +4650,7 @@ void test_ngtcp2_conn_writev_datagram(void) {
      occupy the space */
   setup_default_client(&conn);
   conn->remote.transport_params->max_datagram_frame_size =
-      1 + ngtcp2_put_varintlen(2000) + 2000;
+      1 + ngtcp2_put_uvarintlen(2000) + 2000;
 
   vec.base = null_data;
   vec.len = 2000;
