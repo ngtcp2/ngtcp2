@@ -136,24 +136,24 @@ void test_ngtcp2_get_varint(void) {
   CU_ASSERT(4611686018427387903LL == s);
 }
 
-void test_ngtcp2_get_varintlen(void) {
+void test_ngtcp2_get_uvarintlen(void) {
   uint8_t c;
 
   c = 0x00;
 
-  CU_ASSERT(1 == ngtcp2_get_varintlen(&c));
+  CU_ASSERT(1 == ngtcp2_get_uvarintlen(&c));
 
   c = 0x40;
 
-  CU_ASSERT(2 == ngtcp2_get_varintlen(&c));
+  CU_ASSERT(2 == ngtcp2_get_uvarintlen(&c));
 
   c = 0x80;
 
-  CU_ASSERT(4 == ngtcp2_get_varintlen(&c));
+  CU_ASSERT(4 == ngtcp2_get_uvarintlen(&c));
 
   c = 0xc0;
 
-  CU_ASSERT(8 == ngtcp2_get_varintlen(&c));
+  CU_ASSERT(8 == ngtcp2_get_uvarintlen(&c));
 }
 
 void test_ngtcp2_get_uint64(void) {

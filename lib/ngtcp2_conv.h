@@ -155,10 +155,10 @@ uint8_t *ngtcp2_put_uvarint30(uint8_t *p, uint32_t n);
 uint8_t *ngtcp2_put_pkt_num(uint8_t *p, int64_t pkt_num, size_t len);
 
 /*
- * ngtcp2_get_varintlen returns the required number of bytes to read
+ * ngtcp2_get_uvarintlen returns the required number of bytes to read
  * variable-length integer starting at |p|.
  */
-size_t ngtcp2_get_varintlen(const uint8_t *p);
+size_t ngtcp2_get_uvarintlen(const uint8_t *p);
 
 /*
  * ngtcp2_put_uvarintlen returns the required number of bytes to

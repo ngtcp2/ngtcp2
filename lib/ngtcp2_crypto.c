@@ -437,7 +437,7 @@ static int decode_varint(uint64_t *pdest, const uint8_t **pp,
     return -1;
   }
 
-  len = ngtcp2_get_varintlen(p);
+  len = ngtcp2_get_uvarintlen(p);
   if ((uint64_t)(end - p) < len) {
     return -1;
   }
@@ -471,7 +471,7 @@ static int decode_varint_param(uint64_t *pdest, const uint8_t **pp,
     return -1;
   }
 
-  if (ngtcp2_get_varintlen(p) != valuelen) {
+  if (ngtcp2_get_uvarintlen(p) != valuelen) {
     return -1;
   }
 

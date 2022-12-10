@@ -220,7 +220,7 @@ uint8_t *ngtcp2_put_pkt_num(uint8_t *p, int64_t pkt_num, size_t len) {
   }
 }
 
-size_t ngtcp2_get_varintlen(const uint8_t *p) {
+size_t ngtcp2_get_uvarintlen(const uint8_t *p) {
   return (size_t)(1u << (*p >> 6));
 }
 
