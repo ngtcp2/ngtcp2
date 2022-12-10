@@ -81,9 +81,11 @@ const uint8_t *ngtcp2_get_uint16be(uint16_t *dest, const uint8_t *p);
 const uint8_t *ngtcp2_get_uvarint(uint64_t *dest, const uint8_t *p);
 
 /*
- * ngtcp2_get_varint reads variable-length signed integer from |p|,
- * and stores it in the buffer pointed by |dest| in host byte order.
- * It returns |p| plus the number of bytes read from |p|.
+ * ngtcp2_get_varint reads variable-length unsigned integer from |p|,
+ * and casts it to the signed integer, and stores it in the buffer
+ * pointed by |dest| in host byte order.  No information should be
+ * lost in this cast, because the variable-length integer is 62
+ * bits. It returns |p| plus the number of bytes read from |p|.
  */
 const uint8_t *ngtcp2_get_varint(int64_t *dest, const uint8_t *p);
 
