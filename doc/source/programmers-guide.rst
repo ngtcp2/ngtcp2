@@ -19,9 +19,8 @@ to build QUIC application you have to choose one of them.  Here is the
 list of TLS stacks which are supposed to provide such interface and
 for which we provide crypto helper libraries:
 
-* `OpenSSL with QUIC support
-  <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1q+quic>`_
-* GnuTLS >= 3.7.2
+* `OpenSSL with QUIC support <https://github.com/quictls/openssl>`_
+* GnuTLS
 * BoringSSL
 * Picotls
 * wolfSSL
