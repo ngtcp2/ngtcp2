@@ -250,17 +250,47 @@ should send Version Negotiation packet.  Use
 `ngtcp2_pkt_write_version_negotiation()` for this purpose.  If
 `ngtcp2_pkt_decode_version_cid()` succeeds, then check whether the UDP
 datagram belongs to any existing connection by looking up connection
-tables by Destination Connection ID.  If it belongs to an existing
-connection, pass the UDP datagram to `ngtcp2_conn_read_pkt()`.  If it
-does not belong to any existing connection, it should be passed to
-`ngtcp2_accept()`.  If it returns :macro:`NGTCP2_ERR_RETRY`, the
-server should send Retry packet (use `ngtcp2_crypto_write_retry()` to
-create Retry packet).  If it returns an other negative error code,
-just drop the packet to the floor and take no action, or send
-Stateless Reset packet (use `ngtcp2_pkt_write_stateless_reset()` to
-create Stateless Reset packet).  Otherwise, the UDP datagram is
-acceptable as a new connection.  Create :type:`ngtcp2_conn` object and
-pass the UDP datagram to `ngtcp2_conn_read_pkt()`.
+tables by Destination Connection ID (refer to the next section to know
+how to associate Connection ID to a :type:`ngtcp2_conn`).  If it
+belongs to an existing connection, pass the UDP datagram to
+`ngtcp2_conn_read_pkt()`.  If it does not belong to any existing
+connection, it should be passed to `ngtcp2_accept()`.  If it returns
+:macro:`NGTCP2_ERR_RETRY`, the server should send Retry packet (use
+`ngtcp2_crypto_write_retry()` to create Retry packet).  If it returns
+an other negative error code, just drop the packet to the floor and
+take no action, or send Stateless Reset packet (use
+`ngtcp2_pkt_write_stateless_reset()` to create Stateless Reset
+packet).  Otherwise, the UDP datagram is acceptable as a new
+connection.  Create :type:`ngtcp2_conn` object and pass the UDP
+datagram to `ngtcp2_conn_read_pkt()`.
+
+Associating Connection ID to ngtcp2_conn
+----------------------------------------
+
+Server needs to route an incoming UDP datagram to the correct
+:type:`ngtcp2_conn` by its Destination Connection ID.  When a UDP
+datagram is received, and it does not belong to any existing
+connections, and it is successfully processed by
+`ngtcp2_conn_read_pkt()`, associate the Destination Connection ID in
+the QUIC packet and :type:`ngtcp2_conn` object.  The server must
+associate the Connection ID returned by `ngtcp2_conn_get_scid()` to
+the :type:`ngtcp2_conn` object as well.  Use
+`ngtcp2_conn_get_num_scid()` to get the number of Connection IDs that
+`ngtcp2_conn_get_scid()` returns.  When new Connection ID is asked by
+the library, :member:`ngtcp2_callbacks.get_new_connection_id` is
+called.  Inside the callback, associate the newly generated Connection
+ID to the :type:`ngtcp2_conn` object.
+
+When Connection ID is no longer used, its association should be
+removed.  When Connection ID is retired,
+:member:`ngtcp2_callbacks.remove_connection_id` is called.  Inside the
+callback, remove the association for the Connection ID.
+
+When a QUIC connection is closed, all associations for the connection
+should be removed.  Remove all associations for Connection ID returned
+from `ngtcp2_conn_get_scid()`.  Association for the initial Connection
+ID which can be obtained by calling
+`ngtcp2_conn_get_client_initial_dcid()` should also be removed.
 
 Dealing with early data
 -----------------------
