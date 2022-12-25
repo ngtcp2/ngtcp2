@@ -1840,7 +1840,7 @@ int Server::on_read(Endpoint &ep) {
       ngtcp2_conn_get_scid(conn, scids.data());
 
       for (size_t i = 0; i < num_scid; ++i) {
-        handlers_.emplace(util::make_cid_key(&scids[i]), h.get());
+        associate_cid(&scids[i], h.get());
       }
 
       handlers_.emplace(dcid_key, h.get());
@@ -2303,14 +2303,13 @@ void Server::dissociate_cid(const ngtcp2_cid *cid) {
 void Server::remove(const Handler *h) {
   auto conn = h->conn();
 
-  handlers_.erase(
-      util::make_cid_key(ngtcp2_conn_get_client_initial_dcid(conn)));
+  dissociate_cid(ngtcp2_conn_get_client_initial_dcid(conn));
 
   std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(conn));
   ngtcp2_conn_get_scid(conn, cids.data());
 
   for (auto &cid : cids) {
-    handlers_.erase(util::make_cid_key(&cid));
+    dissociate_cid(&cid);
   }
 
   delete h;
