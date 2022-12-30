@@ -964,7 +964,8 @@ static void bbr_handle_lost_packet(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat,
   }
 
   rs.tx_in_flight = pkt->tx_in_flight;
-  rs.lost = bbr->rst->lost - pkt->lost;
+  /* bbr->rst->lost is not incremented for pkt yet */
+  rs.lost = bbr->rst->lost + pkt->pktlen - pkt->lost;
   rs.is_app_limited = pkt->is_app_limited;
 
   if (is_inflight_too_high(&rs)) {
@@ -977,7 +978,7 @@ static void bbr_handle_lost_packet(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat,
 static uint64_t bbr_inflight_hi_from_lost_packet(ngtcp2_bbr2_cc *bbr,
                                                  const ngtcp2_rs *rs,
                                                  const ngtcp2_cc_pkt *pkt) {
-  uint64_t inflight_prev, lost_prefix;
+  uint64_t inflight_prev, lost_prev, lost_prefix;
   (void)bbr;
 
   assert(rs->tx_in_flight >= pkt->pktlen);
@@ -986,15 +987,15 @@ static uint64_t bbr_inflight_hi_from_lost_packet(ngtcp2_bbr2_cc *bbr,
 
   assert(rs->lost >= pkt->pktlen);
 
-  /* bbr->rst->lost is not incremented for pkt yet */
+  lost_prev = rs->lost - pkt->pktlen;
 
   if (inflight_prev * NGTCP2_BBR_LOSS_THRESH_NUMER <
-      rs->lost * NGTCP2_BBR_LOSS_THRESH_DENOM) {
+      lost_prev * NGTCP2_BBR_LOSS_THRESH_DENOM) {
     return inflight_prev;
   }
 
   lost_prefix = (inflight_prev * NGTCP2_BBR_LOSS_THRESH_NUMER -
-                 rs->lost * NGTCP2_BBR_LOSS_THRESH_DENOM) /
+                 lost_prev * NGTCP2_BBR_LOSS_THRESH_DENOM) /
                 (NGTCP2_BBR_LOSS_THRESH_DENOM - NGTCP2_BBR_LOSS_THRESH_NUMER);
 
   return inflight_prev + lost_prefix;
