@@ -35,6 +35,7 @@
 #endif // OPENSSL_VERSION_NUMBER >= 0x30000000L
 
 #include "server_base.h"
+#include "tls_shared_picotls.h"
 #include "template.h"
 
 extern Config config;
@@ -316,3 +317,5 @@ int TLSServerContext::load_private_key(const char *private_key_file) {
 
   return 0;
 }
+
+void TLSServerContext::enable_keylog() { ctx_.log_event = &log_event; }

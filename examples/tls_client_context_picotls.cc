@@ -32,6 +32,7 @@
 #include <openssl/pem.h>
 
 #include "client_base.h"
+#include "tls_shared_picotls.h"
 #include "template.h"
 
 extern Config config;
@@ -153,3 +154,5 @@ int TLSClientContext::load_private_key(const char *private_key_file) {
 
   return 0;
 }
+
+void TLSClientContext::enable_keylog() { ctx_.log_event = &log_event; }

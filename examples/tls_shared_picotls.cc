@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2022 ngtcp2 contributors
+ * Copyright (c) 2023 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,37 +22,38 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_CONTEXT_PICOTLS_H
-#define TLS_SERVER_CONTEXT_PICOTLS_H
+#include "tls_shared_picotls.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // HAVE_CONFIG_H
+#include <cstdio>
+#include <cstdarg>
+#include <fstream>
 
-#include <picotls.h>
-#include <picotls/openssl.h>
+extern std::ofstream keylog_file;
 
-#include "shared.h"
+namespace {
+void log_event_cb(ptls_log_event_t *self, ptls_t *ptls, const char *type,
+                  const char *fmt, ...) {
+  char buf[128];
+  va_list ap;
 
-using namespace ngtcp2;
+  va_start(ap, fmt);
+  auto len = vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
 
-class TLSServerContext {
-public:
-  TLSServerContext();
-  ~TLSServerContext();
+  if (len < 0 || static_cast<size_t>(len) >= sizeof(buf)) {
+    return;
+  }
 
-  int init(const char *private_key_file, const char *cert_file,
-           AppProtocol app_proto);
+  char randhex[PTLS_HELLO_RANDOM_SIZE * 2 + 1];
 
-  ptls_context_t *get_native_handle();
+  ptls_hexdump(randhex, ptls_get_client_random(ptls).base,
+               PTLS_HELLO_RANDOM_SIZE);
 
-  void enable_keylog();
+  keylog_file << type << ' ' << randhex << ' ';
+  keylog_file.write(buf, len);
+  keylog_file << '\n';
+  keylog_file.flush();
+}
+} // namespace
 
-private:
-  int load_private_key(const char *private_key_file);
-
-  ptls_context_t ctx_;
-  ptls_openssl_sign_certificate_t sign_cert_;
-};
-
-#endif // TLS_SERVER_CONTEXT_PICOTLS_H
+ptls_log_event_t log_event = {log_event_cb};

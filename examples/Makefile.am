@@ -181,6 +181,7 @@ ptlsclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 	tls_client_context_picotls.cc tls_client_context_picotls.h \
 	tls_client_session_picotls.cc tls_client_session_picotls.h \
 	tls_session_base_picotls.cc tls_session_base_picotls.h \
+	tls_shared_picotls.cc tls_shared_picotls.h \
 	util_openssl.cc
 
 ptlsserver_CPPFLAGS = ${ptlsclient_CPPFLAGS}
@@ -189,6 +190,7 @@ ptlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	tls_server_context_picotls.cc tls_server_context_picotls.h \
 	tls_server_session_picotls.cc tls_server_session_picotls.h \
 	tls_session_base_picotls.cc tls_session_base_picotls.h \
+	tls_shared_picotls.cc tls_shared_picotls.h \
 	util_openssl.cc
 endif # ENABLE_EXAMPLE_PICOTLS
 

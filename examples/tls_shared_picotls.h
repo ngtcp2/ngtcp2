@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2022 ngtcp2 contributors
+ * Copyright (c) 2023 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,37 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_CONTEXT_PICOTLS_H
-#define TLS_SERVER_CONTEXT_PICOTLS_H
+#ifndef TLS_SHARED_PICOTLS_H
+#define TLS_SHARED_PICOTLS_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
 #include <picotls.h>
-#include <picotls/openssl.h>
 
-#include "shared.h"
+extern ptls_log_event_t log_event;
 
-using namespace ngtcp2;
-
-class TLSServerContext {
-public:
-  TLSServerContext();
-  ~TLSServerContext();
-
-  int init(const char *private_key_file, const char *cert_file,
-           AppProtocol app_proto);
-
-  ptls_context_t *get_native_handle();
-
-  void enable_keylog();
-
-private:
-  int load_private_key(const char *private_key_file);
-
-  ptls_context_t ctx_;
-  ptls_openssl_sign_certificate_t sign_cert_;
-};
-
-#endif // TLS_SERVER_CONTEXT_PICOTLS_H
+#endif // TLS_SHARED_PICOTLS_H
