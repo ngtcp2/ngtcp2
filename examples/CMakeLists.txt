@@ -232,6 +232,7 @@ if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
     tls_client_context_picotls.cc
     tls_client_session_picotls.cc
     tls_session_base_picotls.cc
+    tls_shared_picotls.cc
     util_openssl.cc
   )
 
@@ -245,6 +246,7 @@ if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
     tls_server_context_picotls.cc
     tls_server_session_picotls.cc
     tls_session_base_picotls.cc
+    tls_shared_picotls.cc
     util_openssl.cc
   )
 

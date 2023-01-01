@@ -41,8 +41,7 @@ public:
 
   ptls_context_t *get_native_handle();
 
-  // TODO Implement keylog.
-  void enable_keylog() {}
+  void enable_keylog();
 
 private:
   int load_private_key(const char *private_key_file);
