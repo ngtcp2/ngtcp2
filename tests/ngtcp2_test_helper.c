@@ -191,8 +191,8 @@ static size_t write_long_header_pkt_generic(
           : version,
       0);
 
-  hd.token.base = (uint8_t *)token;
-  hd.token.len = tokenlen;
+  hd.token = token;
+  hd.tokenlen = tokenlen;
 
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);

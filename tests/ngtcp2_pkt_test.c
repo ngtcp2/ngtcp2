@@ -1232,7 +1232,8 @@ void test_ngtcp2_pkt_encode_new_token_frame(void) {
   size_t framelen;
 
   fr.type = NGTCP2_FRAME_NEW_TOKEN;
-  ngtcp2_vec_init(&fr.new_token.token, token, strsize(token));
+  fr.new_token.token = (uint8_t *)token;
+  fr.new_token.tokenlen = strsize(token);
 
   framelen = 1 + 1 + strsize(token);
 
@@ -1244,9 +1245,9 @@ void test_ngtcp2_pkt_encode_new_token_frame(void) {
 
   CU_ASSERT((ngtcp2_ssize)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
-  CU_ASSERT(fr.new_token.token.len == nfr.new_token.token.len);
-  CU_ASSERT(0 == memcmp(fr.new_token.token.base, nfr.new_token.token.base,
-                        fr.new_token.token.len));
+  CU_ASSERT(fr.new_token.tokenlen == nfr.new_token.tokenlen);
+  CU_ASSERT(0 == memcmp(fr.new_token.token, nfr.new_token.token,
+                        fr.new_token.tokenlen));
 }
 
 void test_ngtcp2_pkt_encode_retire_connection_id_frame(void) {
@@ -1522,8 +1523,8 @@ void test_ngtcp2_pkt_write_retry(void) {
   rv = ngtcp2_pkt_decode_retry(&retry, buf + nread, (size_t)(spktlen - nread));
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(sizeof(token) == retry.token.len);
-  CU_ASSERT(0 == memcmp(token, retry.token.base, sizeof(token)));
+  CU_ASSERT(sizeof(token) == retry.tokenlen);
+  CU_ASSERT(0 == memcmp(token, retry.token, sizeof(token)));
   CU_ASSERT(0 == memcmp(tag, retry.tag, sizeof(tag)));
 }
 

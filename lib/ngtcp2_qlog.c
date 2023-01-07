@@ -285,9 +285,9 @@ static uint8_t *write_pkt_hd(uint8_t *p, const ngtcp2_pkt_hd *hd) {
   p = write_pair(p, "packet_type", qlog_pkt_type(hd));
   *p++ = ',';
   p = write_pair_number(p, "packet_number", (uint64_t)hd->pkt_num);
-  if (hd->type == NGTCP2_PKT_INITIAL && hd->token.len) {
+  if (hd->type == NGTCP2_PKT_INITIAL && hd->tokenlen) {
     p = write_verbatim(p, ",\"token\":{");
-    p = write_pair_hex(p, "data", hd->token.base, hd->token.len);
+    p = write_pair_hex(p, "data", hd->token, hd->tokenlen);
     *p++ = '}';
   }
   /* TODO Write DCIL and DCID */
@@ -433,9 +433,9 @@ static uint8_t *write_new_token_frame(uint8_t *p, const ngtcp2_new_token *fr) {
 #define NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD 75
 
   p = write_verbatim(p, "{\"frame_type\":\"new_token\",");
-  p = write_pair_number(p, "length", fr->token.len);
+  p = write_pair_number(p, "length", fr->tokenlen);
   p = write_verbatim(p, ",\"token\":{");
-  p = write_pair_hex(p, "data", fr->token.base, fr->token.len);
+  p = write_pair_hex(p, "data", fr->token, fr->tokenlen);
   *p++ = '}';
   *p++ = '}';
 
@@ -716,7 +716,7 @@ static void qlog_pkt_write_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
   (1 + 50 + NGTCP2_QLOG_PKT_HD_OVERHEAD)
 
   if (ngtcp2_buf_left(&qlog->buf) <
-      NGTCP2_QLOG_PKT_WRITE_END_OVERHEAD + hd->token.len * 2) {
+      NGTCP2_QLOG_PKT_WRITE_END_OVERHEAD + hd->tokenlen * 2) {
     return;
   }
 
@@ -792,8 +792,8 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
     p = write_crypto_frame(p, &fr->crypto);
     break;
   case NGTCP2_FRAME_NEW_TOKEN:
-    if (ngtcp2_buf_left(&qlog->buf) < NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD +
-                                          fr->new_token.token.len * 2 + 1) {
+    if (ngtcp2_buf_left(&qlog->buf) <
+        NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD + fr->new_token.tokenlen * 2 + 1) {
       return;
     }
     p = write_new_token_frame(p, &fr->new_token);
@@ -1129,16 +1129,15 @@ void ngtcp2_qlog_retry_pkt_received(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
       ",\"name\":\"transport:packet_received\",\"data\":{\"header\":");
 
   if (ngtcp2_buf_left(&buf) <
-      NGTCP2_QLOG_PKT_HD_OVERHEAD + hd->token.len * 2 +
+      NGTCP2_QLOG_PKT_HD_OVERHEAD + hd->tokenlen * 2 +
           sizeof(",\"retry_token\":{\"data\":\"\"}}}\n") - 1 +
-          retry->token.len * 2) {
+          retry->tokenlen * 2) {
     return;
   }
 
   buf.last = write_pkt_hd(buf.last, hd);
   buf.last = write_verbatim(buf.last, ",\"retry_token\":{");
-  buf.last =
-      write_pair_hex(buf.last, "data", retry->token.base, retry->token.len);
+  buf.last = write_pair_hex(buf.last, "data", retry->token, retry->tokenlen);
   buf.last = write_verbatim(buf.last, "}}}\n");
 
   qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf.pos,

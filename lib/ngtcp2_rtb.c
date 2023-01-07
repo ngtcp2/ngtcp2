@@ -106,7 +106,8 @@ int ngtcp2_frame_chain_crypto_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
 }
 
 int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
-                                              const ngtcp2_vec *token,
+                                              const uint8_t *token,
+                                              size_t tokenlen,
                                               ngtcp2_objalloc *objalloc,
                                               const ngtcp2_mem *mem) {
   size_t avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_new_token);
@@ -114,8 +115,8 @@ int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
   uint8_t *p;
   ngtcp2_frame *fr;
 
-  if (token->len > avail) {
-    rv = ngtcp2_frame_chain_extralen_new(pfrc, token->len - avail, mem);
+  if (tokenlen > avail) {
+    rv = ngtcp2_frame_chain_extralen_new(pfrc, tokenlen - avail, mem);
   } else {
     rv = ngtcp2_frame_chain_objalloc_new(pfrc, objalloc);
   }
@@ -127,9 +128,10 @@ int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
   fr->type = NGTCP2_FRAME_NEW_TOKEN;
 
   p = (uint8_t *)fr + sizeof(ngtcp2_new_token);
-  memcpy(p, token->base, token->len);
+  memcpy(p, token, tokenlen);
 
-  ngtcp2_vec_init(&fr->new_token.token, p, token->len);
+  fr->new_token.token = p;
+  fr->new_token.tokenlen = tokenlen;
 
   return 0;
 }
@@ -180,7 +182,7 @@ void ngtcp2_frame_chain_objalloc_del(ngtcp2_frame_chain *frc,
 
     break;
   case NGTCP2_FRAME_NEW_TOKEN:
-    if (frc->fr.new_token.token.len >
+    if (frc->fr.new_token.tokenlen >
         sizeof(ngtcp2_frame) - sizeof(ngtcp2_new_token)) {
       ngtcp2_frame_chain_del(frc, mem);
 
@@ -544,7 +546,8 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
       continue;
     case NGTCP2_FRAME_NEW_TOKEN:
       rv = ngtcp2_frame_chain_new_token_objalloc_new(
-          &nfrc, &fr->new_token.token, rtb->frc_objalloc, rtb->mem);
+          &nfrc, fr->new_token.token, fr->new_token.tokenlen, rtb->frc_objalloc,
+          rtb->mem);
       if (rv != 0) {
         return rv;
       }

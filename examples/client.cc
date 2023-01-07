@@ -578,13 +578,13 @@ int Client::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
 }
 
 namespace {
-int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
+int recv_new_token(ngtcp2_conn *conn, const uint8_t *token, size_t tokenlen,
                    void *user_data) {
   if (config.token_file.empty()) {
     return 0;
   }
 
-  util::write_token(config.token_file, token->base, token->len);
+  util::write_token(config.token_file, token, tokenlen);
 
   return 0;
 }
@@ -747,8 +747,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     auto t = util::read_token(config.token_file);
     if (t) {
       token = std::move(*t);
-      settings.token.base = reinterpret_cast<uint8_t *>(token.data());
-      settings.token.len = token.size();
+      settings.token = reinterpret_cast<const uint8_t *>(token.data());
+      settings.tokenlen = token.size();
     }
   }
 
