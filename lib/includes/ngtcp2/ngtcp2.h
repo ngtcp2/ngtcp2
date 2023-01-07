@@ -1182,7 +1182,11 @@ typedef struct ngtcp2_pkt_hd {
    * :member:`token` contains token for Initial
    * packet.
    */
-  ngtcp2_vec token;
+  const uint8_t *token;
+  /**
+   * :member:`tokenlen` is the length of :member:`token`.
+   */
+  size_t tokenlen;
   /**
    * :member:`pkt_numlen` is the number of bytes spent to encode
    * :member:`pkt_num`.
@@ -1907,7 +1911,11 @@ typedef struct ngtcp2_settings {
    * `ngtcp2_conn_server_new` and `ngtcp2_conn_client_new` make a copy
    * of token.
    */
-  ngtcp2_vec token;
+  const uint8_t *token;
+  /**
+   * :member:`tokenlen` is the length of :member:`token`.
+   */
+  size_t tokenlen;
   /**
    * :member:`rand_ctx` is an optional random number generator to be
    * passed to :type:`ngtcp2_rand` callback.
@@ -3166,14 +3174,14 @@ typedef int (*ngtcp2_connection_id_status)(ngtcp2_conn *conn, int type,
  * :type:`ngtcp2_recv_new_token` is a callback function which is
  * called when new token is received from server.
  *
- * |token| is the received token.
+ * |token| is the received token of length |tokenlen| bytes long.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_recv_new_token)(ngtcp2_conn *conn, const ngtcp2_vec *token,
-                                     void *user_data);
+typedef int (*ngtcp2_recv_new_token)(ngtcp2_conn *conn, const uint8_t *token,
+                                     size_t tokenlen, void *user_data);
 
 /**
  * @functypedef

@@ -160,7 +160,8 @@ int ngtcp2_frame_chain_crypto_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
                                                    const ngtcp2_mem *mem);
 
 int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
-                                              const ngtcp2_vec *token,
+                                              const uint8_t *token,
+                                              size_t tokenlen,
                                               ngtcp2_objalloc *objalloc,
                                               const ngtcp2_mem *mem);
 

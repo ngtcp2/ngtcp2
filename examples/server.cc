@@ -1399,7 +1399,8 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
-  settings.token = ngtcp2_vec{const_cast<uint8_t *>(token), tokenlen};
+  settings.token = token;
+  settings.tokenlen = tokenlen;
   settings.cc_algo = config.cc_algo;
   settings.initial_rtt = config.initial_rtt;
   settings.max_window = config.max_window;
@@ -2460,21 +2461,21 @@ int Server::on_read(Endpoint &ep) {
 
       assert(hd.type == NGTCP2_PKT_INITIAL);
 
-      if (config.validate_addr || hd.token.len) {
+      if (config.validate_addr || hd.tokenlen) {
         std::cerr << "Perform stateless address validation" << std::endl;
-        if (hd.token.len == 0) {
+        if (hd.tokenlen == 0) {
           send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen, nread * 3);
           continue;
         }
 
-        if (hd.token.base[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY &&
+        if (hd.token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY &&
             hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
           send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
                                           msg.msg_namelen);
           continue;
         }
 
-        switch (hd.token.base[0]) {
+        switch (hd.token[0]) {
         case NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY:
           if (verify_retry_token(&ocid, &hd, &su.sa, msg.msg_namelen) != 0) {
             send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
@@ -2491,8 +2492,8 @@ int Server::on_read(Endpoint &ep) {
               continue;
             }
 
-            hd.token.base = nullptr;
-            hd.token.len = 0;
+            hd.token = nullptr;
+            hd.tokenlen = 0;
           }
           break;
         default:
@@ -2505,16 +2506,15 @@ int Server::on_read(Endpoint &ep) {
             continue;
           }
 
-          hd.token.base = nullptr;
-          hd.token.len = 0;
+          hd.token = nullptr;
+          hd.tokenlen = 0;
           break;
         }
       }
 
       auto h = std::make_unique<Handler>(loop_, this);
       if (h->init(ep, *local_addr, &su.sa, msg.msg_namelen, &hd.scid, &hd.dcid,
-                  pocid, hd.token.base, hd.token.len, hd.version,
-                  tls_ctx_) != 0) {
+                  pocid, hd.token, hd.tokenlen, hd.version, tls_ctx_) != 0) {
         continue;
       }
 
@@ -2782,7 +2782,7 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
   if (!config.quiet) {
     std::cerr << "Verifying Retry token from [" << host.data()
               << "]:" << port.data() << std::endl;
-    util::hexdump(stderr, hd->token.base, hd->token.len);
+    util::hexdump(stderr, hd->token, hd->tokenlen);
   }
 
   auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -2790,7 +2790,7 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                .count();
 
   if (ngtcp2_crypto_verify_retry_token(
-          ocid, hd->token.base, hd->token.len, config.static_secret.data(),
+          ocid, hd->token, hd->tokenlen, config.static_secret.data(),
           config.static_secret.size(), hd->version, sa, salen, &hd->dcid,
           10 * NGTCP2_SECONDS, t) != 0) {
     std::cerr << "Could not verify Retry token" << std::endl;
@@ -2820,14 +2820,14 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
   if (!config.quiet) {
     std::cerr << "Verifying token from [" << host.data() << "]:" << port.data()
               << std::endl;
-    util::hexdump(stderr, hd->token.base, hd->token.len);
+    util::hexdump(stderr, hd->token, hd->tokenlen);
   }
 
   auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(
                std::chrono::system_clock::now().time_since_epoch())
                .count();
 
-  if (ngtcp2_crypto_verify_regular_token(hd->token.base, hd->token.len,
+  if (ngtcp2_crypto_verify_regular_token(hd->token, hd->tokenlen,
                                          config.static_secret.data(),
                                          config.static_secret.size(), sa, salen,
                                          3600 * NGTCP2_SECONDS, t) != 0) {

@@ -507,15 +507,15 @@ conn_call_recv_stateless_reset(ngtcp2_conn *conn,
   return 0;
 }
 
-static int conn_call_recv_new_token(ngtcp2_conn *conn,
-                                    const ngtcp2_vec *token) {
+static int conn_call_recv_new_token(ngtcp2_conn *conn, const uint8_t *token,
+                                    size_t tokenlen) {
   int rv;
 
   if (!conn->callbacks.recv_new_token) {
     return 0;
   }
 
-  rv = conn->callbacks.recv_new_token(conn, token, conn->user_data);
+  rv = conn->callbacks.recv_new_token(conn, token, tokenlen, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -1140,17 +1140,16 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   (*pconn)->local.settings = *settings;
 
-  if (settings->token.len) {
-    buf = ngtcp2_mem_malloc(mem, settings->token.len);
+  if (settings->tokenlen) {
+    buf = ngtcp2_mem_malloc(mem, settings->tokenlen);
     if (buf == NULL) {
       rv = NGTCP2_ERR_NOMEM;
       goto fail_token;
     }
-    memcpy(buf, settings->token.base, settings->token.len);
-    (*pconn)->local.settings.token.base = buf;
+    memcpy(buf, settings->token, settings->tokenlen);
+    (*pconn)->local.settings.token = buf;
   } else {
-    (*pconn)->local.settings.token.base = NULL;
-    (*pconn)->local.settings.token.len = 0;
+    (*pconn)->local.settings.token = NULL;
   }
 
   if (!(*pconn)->local.settings.original_version) {
@@ -1367,7 +1366,7 @@ fail_hs_pktns_init:
 fail_in_pktns_init:
   cc_del(&(*pconn)->cc, settings->cc_algo, mem);
 fail_cc_init:
-  ngtcp2_mem_free(mem, (*pconn)->local.settings.token.base);
+  ngtcp2_mem_free(mem, (uint8_t *)(*pconn)->local.settings.token);
 fail_token:
   ngtcp2_mem_free(mem, (*pconn)->qlog.buf.begin);
 fail_qlog_buf:
@@ -1434,7 +1433,7 @@ int ngtcp2_conn_server_new_versioned(
   (*pconn)->local.bidi.next_stream_id = 1;
   (*pconn)->local.uni.next_stream_id = 3;
 
-  if ((*pconn)->local.settings.token.len) {
+  if ((*pconn)->local.settings.tokenlen) {
     /* Usage of token lifts amplification limit */
     (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   }
@@ -1566,7 +1565,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 
   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_buf.base);
   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_hp_buf.base);
-  ngtcp2_mem_free(conn->mem, conn->local.settings.token.base);
+  ngtcp2_mem_free(conn->mem, (uint8_t *)conn->local.settings.token);
 
   ngtcp2_crypto_km_del(conn->crypto.key_update.old_rx_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->crypto.key_update.new_rx_ckm, conn->mem);
@@ -2606,8 +2605,9 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
                      version, 0);
 
   if (!conn->server && type == NGTCP2_PKT_INITIAL &&
-      conn->local.settings.token.len) {
+      conn->local.settings.tokenlen) {
     hd.token = conn->local.settings.token;
+    hd.tokenlen = conn->local.settings.tokenlen;
   }
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &cc);
@@ -5324,7 +5324,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
   ngtcp2_rtb *in_rtb;
   uint8_t cidbuf[sizeof(retry.odcid.data) * 2 + 1];
-  ngtcp2_vec *token;
+  uint8_t *token;
 
   if (!in_pktns || conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
     return 0;
@@ -5352,7 +5352,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                   (const char *)ngtcp2_encode_hex(cidbuf, retry.odcid.data,
                                                   retry.odcid.datalen));
 
-  if (retry.token.len == 0) {
+  if (retry.tokenlen == 0) {
     return NGTCP2_ERR_PROTO;
   }
 
@@ -5388,19 +5388,19 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return rv;
   }
 
-  token = &conn->local.settings.token;
+  ngtcp2_mem_free(conn->mem, (uint8_t *)conn->local.settings.token);
+  conn->local.settings.token = NULL;
+  conn->local.settings.tokenlen = 0;
 
-  ngtcp2_mem_free(conn->mem, token->base);
-  token->base = NULL;
-  token->len = 0;
-
-  token->base = ngtcp2_mem_malloc(conn->mem, retry.token.len);
-  if (token->base == NULL) {
+  token = ngtcp2_mem_malloc(conn->mem, retry.tokenlen);
+  if (token == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
-  token->len = retry.token.len;
 
-  ngtcp2_cpymem(token->base, retry.token.base, retry.token.len);
+  ngtcp2_cpymem(token, retry.token, retry.tokenlen);
+
+  conn->local.settings.token = token;
+  conn->local.settings.tokenlen = retry.tokenlen;
 
   reset_conn_stat_recovery(&conn->cstat);
   conn_reset_congestion_state(conn, ts);
@@ -6058,9 +6058,9 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num,
  * verify_token verifies |hd| contains |token| in its token field.  It
  * returns 0 if it succeeds, or NGTCP2_ERR_PROTO.
  */
-static int verify_token(const ngtcp2_vec *token, const ngtcp2_pkt_hd *hd) {
-  if (token->len == hd->token.len &&
-      ngtcp2_cmemeq(token->base, hd->token.base, token->len)) {
+static int verify_token(const uint8_t *token, size_t tokenlen,
+                        const ngtcp2_pkt_hd *hd) {
+  if (tokenlen == hd->tokenlen && ngtcp2_cmemeq(token, hd->token, tokenlen)) {
     return 0;
   }
   return NGTCP2_ERR_PROTO;
@@ -6365,8 +6365,9 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
             NGTCP2_MAX_UDP_PAYLOAD_SIZE, dgramlen);
         return NGTCP2_ERR_DISCARD_PKT;
       }
-      if (conn->local.settings.token.len) {
-        rv = verify_token(&conn->local.settings.token, &hd);
+      if (conn->local.settings.tokenlen) {
+        rv = verify_token(conn->local.settings.token,
+                          conn->local.settings.tokenlen, &hd);
         if (rv != 0) {
           ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                           "packet was ignored because token is invalid");
@@ -6386,7 +6387,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         }
       }
     } else {
-      if (hd.token.len != 0) {
+      if (hd.tokenlen != 0) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                         "packet was ignored because token is not empty");
         return NGTCP2_ERR_DISCARD_PKT;
@@ -8056,11 +8057,11 @@ static int conn_recv_new_token(ngtcp2_conn *conn, const ngtcp2_new_token *fr) {
     return NGTCP2_ERR_PROTO;
   }
 
-  if (fr->token.len == 0) {
+  if (fr->tokenlen == 0) {
     return NGTCP2_ERR_FRAME_ENCODING;
   }
 
-  return conn_call_recv_new_token(conn, &fr->token);
+  return conn_call_recv_new_token(conn, fr->token, fr->tokenlen);
 }
 
 /*
@@ -9746,7 +9747,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
       if (conn->in_pktns->crypto.strm.rx.rob &&
           ngtcp2_rob_data_buffered(conn->in_pktns->crypto.strm.rx.rob)) {
         /* Address has been validated with token */
-        if (conn->local.settings.token.len) {
+        if (conn->local.settings.tokenlen) {
           return nread;
         }
         return NGTCP2_ERR_RETRY;
@@ -10477,7 +10478,7 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
   }
 
   if (pktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE ||
-      (p->token.len == 0 && p->dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN)) {
+      (p->tokenlen == 0 && p->dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -13025,14 +13026,13 @@ int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn, const uint8_t *token,
                                  size_t tokenlen) {
   int rv;
   ngtcp2_frame_chain *nfrc;
-  ngtcp2_vec tokenv = {(uint8_t *)token, tokenlen};
 
   assert(conn->server);
   assert(token);
   assert(tokenlen);
 
   rv = ngtcp2_frame_chain_new_token_objalloc_new(
-      &nfrc, &tokenv, &conn->frc_objalloc, conn->mem);
+      &nfrc, token, tokenlen, &conn->frc_objalloc, conn->mem);
   if (rv != 0) {
     return rv;
   }

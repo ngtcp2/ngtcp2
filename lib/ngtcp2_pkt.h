@@ -139,7 +139,8 @@
 
 typedef struct ngtcp2_pkt_retry {
   ngtcp2_cid odcid;
-  ngtcp2_vec token;
+  uint8_t *token;
+  size_t tokenlen;
   uint8_t tag[NGTCP2_RETRY_TAGLEN];
 } ngtcp2_pkt_retry;
 
@@ -313,7 +314,8 @@ typedef struct ngtcp2_crypto {
 
 typedef struct ngtcp2_new_token {
   uint8_t type;
-  ngtcp2_vec token;
+  uint8_t *token;
+  size_t tokenlen;
 } ngtcp2_new_token;
 
 typedef struct ngtcp2_retire_connection_id {

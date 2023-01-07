@@ -429,16 +429,16 @@ static void log_fr_new_token(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   uint8_t buf[128 + 1 + 1];
   uint8_t *p;
 
-  if (fr->token.len > 64) {
-    p = ngtcp2_encode_hex(buf, fr->token.base, 64);
+  if (fr->tokenlen > 64) {
+    p = ngtcp2_encode_hex(buf, fr->token, 64);
     p[128] = '*';
     p[129] = '\0';
   } else {
-    p = ngtcp2_encode_hex(buf, fr->token.base, fr->token.len);
+    p = ngtcp2_encode_hex(buf, fr->token, fr->tokenlen);
   }
   log->log_printf(
       log->user_data, (NGTCP2_LOG_PKT " NEW_TOKEN(0x%02x) token=0x%s len=%zu"),
-      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, (const char *)p, fr->token.len);
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, (const char *)p, fr->tokenlen);
 }
 
 static void log_fr_retire_connection_id(ngtcp2_log *log,

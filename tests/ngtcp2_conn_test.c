@@ -6418,7 +6418,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   ngtcp2_cid rcid;
   int rv;
   const uint8_t raw_token[] = {0xff, 0x12, 0x31, 0x04, 0xab};
-  ngtcp2_vec token;
+  uint8_t *token;
   const ngtcp2_mem *mem;
 
   rcid_init(&rcid);
@@ -6426,11 +6426,11 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   setup_handshake_server(&conn);
   mem = conn->mem;
 
-  token.base = ngtcp2_mem_malloc(mem, sizeof(raw_token));
-  memcpy(token.base, raw_token, sizeof(raw_token));
-  token.len = sizeof(raw_token);
+  token = ngtcp2_mem_malloc(mem, sizeof(raw_token));
+  memcpy(token, raw_token, sizeof(raw_token));
 
   conn->local.settings.token = token;
+  conn->local.settings.tokenlen = sizeof(raw_token);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
@@ -6454,11 +6454,11 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   setup_handshake_server(&conn);
   mem = conn->mem;
 
-  token.base = ngtcp2_mem_malloc(mem, sizeof(raw_token));
-  memcpy(token.base, raw_token, sizeof(raw_token));
-  token.len = sizeof(raw_token) - 1;
+  token = ngtcp2_mem_malloc(mem, sizeof(raw_token));
+  memcpy(token, raw_token, sizeof(raw_token));
 
   conn->local.settings.token = token;
+  conn->local.settings.tokenlen = sizeof(raw_token) - 1;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
@@ -6612,8 +6612,8 @@ void test_ngtcp2_conn_send_initial_token(void) {
   client_default_settings(&settings);
   client_default_transport_params(&params);
 
-  settings.token.base = token;
-  settings.token.len = sizeof(token);
+  settings.token = token;
+  settings.tokenlen = sizeof(token);
 
   ngtcp2_conn_client_new(&conn, &rcid, &scid, &null_path.path,
                          NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
@@ -6630,8 +6630,8 @@ void test_ngtcp2_conn_send_initial_token(void) {
   shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
 
   CU_ASSERT(shdlen > 0);
-  CU_ASSERT(sizeof(token) == hd.token.len);
-  CU_ASSERT(0 == memcmp(token, hd.token.base, sizeof(token)));
+  CU_ASSERT(sizeof(token) == hd.tokenlen);
+  CU_ASSERT(0 == memcmp(token, hd.token, sizeof(token)));
 
   ngtcp2_conn_del(conn);
 }
@@ -9058,10 +9058,8 @@ void test_ngtcp2_conn_new_failmalloc(void) {
       failmalloc_calloc,
       failmalloc_realloc,
   };
-  ngtcp2_vec token = {
-      (uint8_t *)"token",
-      sizeof("token") - 1,
-  };
+  uint8_t token[] = "token";
+  size_t tokenlen = strsize(token);
   uint32_t preferred_versions[] = {
       NGTCP2_PROTO_VER_V1,
       NGTCP2_PROTO_VER_V2_DRAFT,
@@ -9084,6 +9082,7 @@ void test_ngtcp2_conn_new_failmalloc(void) {
 
   settings.qlog.write = qlog_write;
   settings.token = token;
+  settings.tokenlen = tokenlen;
   settings.preferred_versions = preferred_versions;
   settings.preferred_versionslen = ngtcp2_arraylen(preferred_versions);
   settings.other_versions = other_versions;
@@ -9196,7 +9195,7 @@ void test_ngtcp2_accept(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &hd.dcid));
   CU_ASSERT(ngtcp2_cid_eq(&scid, &hd.scid));
-  CU_ASSERT(0 == hd.token.len);
+  CU_ASSERT(0 == hd.tokenlen);
   CU_ASSERT(hd.len > 0);
   CU_ASSERT(NGTCP2_PROTO_VER_V1 == hd.version);
   CU_ASSERT(NGTCP2_PKT_INITIAL == hd.type);
@@ -9224,7 +9223,7 @@ void test_ngtcp2_accept(void) {
   CU_ASSERT(NGTCP2_ERR_RETRY == rv);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &hd.dcid));
   CU_ASSERT(ngtcp2_cid_eq(&scid, &hd.scid));
-  CU_ASSERT(0 == hd.token.len);
+  CU_ASSERT(0 == hd.tokenlen);
   CU_ASSERT(hd.len > 0);
   CU_ASSERT(NGTCP2_PROTO_VER_V1 == hd.version);
   CU_ASSERT(NGTCP2_PKT_0RTT == hd.type);
