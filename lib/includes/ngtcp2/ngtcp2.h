@@ -1465,7 +1465,7 @@ typedef struct ngtcp2_version_info {
    * :member:`other_versions` points the wire image of other_versions
    * field.  The each version is therefore in network byte order.
    */
-  uint8_t *other_versions;
+  const uint8_t *other_versions;
   /**
    * :member:`other_versionslen` is the number of bytes pointed by
    * :member:`other_versions`, not the number of versions included.
@@ -1976,7 +1976,7 @@ typedef struct ngtcp2_settings {
    * |client_chosen_version| passed to `ngtcp2_conn_client_new` unless
    * |client_chosen_version| is a reserved version.
    */
-  uint32_t *preferred_versions;
+  const uint32_t *preferred_versions;
   /**
    * :member:`preferred_versionslen` is the number of versions that
    * are contained in the array pointed by
@@ -2002,7 +2002,7 @@ typedef struct ngtcp2_settings {
    * `ngtcp2_conn_client_new` will be set in this field internally
    * unless |client_chosen_version| is a reserved version.
    */
-  uint32_t *other_versions;
+  const uint32_t *other_versions;
   /**
    * :member:`other_versionslen` is the number of versions that are
    * contained in the array pointed by :member:`other_versions`.
@@ -5253,7 +5253,7 @@ typedef struct ngtcp2_connection_close_error {
    * received from a remote endpoint, it is truncated to at most 1024
    * bytes.
    */
-  uint8_t *reason;
+  const uint8_t *reason;
   /**
    * :member:`reasonlen` is the length of data pointed by
    * :member:`reason`.

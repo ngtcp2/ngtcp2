@@ -6823,7 +6823,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
   conn->negotiated_version = 0xff000000u;
 
-  conn->local.settings.preferred_versions[0] = 0xff000001u;
+  ((uint32_t *)conn->local.settings.preferred_versions)[0] = 0xff000001u;
   conn->local.settings.preferred_versionslen = 1;
 
   ngtcp2_put_uint32be(conn->vneg.other_versions, NGTCP2_PROTO_VER_V1);
@@ -6855,7 +6855,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
   conn->negotiated_version = 0xff000000u;
 
-  conn->local.settings.preferred_versions[0] = 0xff000000u;
+  ((uint32_t *)conn->local.settings.preferred_versions)[0] = 0xff000000u;
   conn->local.settings.preferred_versionslen = 1;
 
   ngtcp2_put_uint32be(conn->vneg.other_versions, NGTCP2_PROTO_VER_V1);
