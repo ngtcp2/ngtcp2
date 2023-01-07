@@ -1584,7 +1584,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_pmtud_del(conn->pmtud);
   ngtcp2_pv_del(conn->pv);
 
-  ngtcp2_mem_free(conn->mem, conn->rx.ccerr.reason);
+  ngtcp2_mem_free(conn->mem, (uint8_t *)conn->rx.ccerr.reason);
 
   ngtcp2_idtr_free(&conn->remote.uni.idtr);
   ngtcp2_idtr_free(&conn->remote.bidi.idtr);
@@ -5855,7 +5855,7 @@ static int conn_recv_connection_close(ngtcp2_conn *conn,
 
   ccerr->reasonlen =
       ngtcp2_min(fr->reasonlen, NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN);
-  ngtcp2_cpymem(ccerr->reason, fr->reason, ccerr->reasonlen);
+  ngtcp2_cpymem((uint8_t *)ccerr->reason, fr->reason, ccerr->reasonlen);
 
   return 0;
 }
