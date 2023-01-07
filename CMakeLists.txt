@@ -33,7 +33,7 @@ project(ngtcp2 VERSION 0.12.90)
 # See versioning rule:
 #  https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 set(LT_CURRENT  9)
-set(LT_REVISION 0)
+set(LT_REVISION 1)
 set(LT_AGE      0)
 
 set(CRYPTO_OPENSSL_LT_CURRENT 3)
