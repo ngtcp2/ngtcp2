@@ -70,6 +70,7 @@ if(ENABLE_STATIC_LIB)
     COMPILE_FLAGS "${WARNCFLAGS}"
     VERSION ${CRYPTO_OPENSSL_LT_VERSION}
     SOVERSION ${CRYPTO_OPENSSL_LT_SOVERSION}
+    ARCHIVE_OUTPUT_NAME ngtcp2_crypto_openssl${STATIC_LIB_SUFFIX}
     C_VISIBILITY_PRESET hidden
   )
   target_compile_definitions(ngtcp2_crypto_openssl_static PUBLIC
