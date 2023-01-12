@@ -422,11 +422,11 @@ By default, client sends *client_chosen_version* passed to
 `ngtcp2_conn_client_new` in other_versions field of
 version_information QUIC transport parameter.  That means there is no
 chance for server to select the other compatible version.  Meanwhile,
-ngtcp2 supports QUIC v2 draft version
-(:macro:`NGTCP2_PROTO_VER_V2_DRAFT`).  Including both
-:macro:`NGTCP2_PROTO_VER_V1` and :macro:`NGTCP2_PROTO_VER_V2_DRAFT` in
+ngtcp2 supports QUIC v2 version (:macro:`NGTCP2_PROTO_VER_V2`).
+Including both :macro:`NGTCP2_PROTO_VER_V1` and
+:macro:`NGTCP2_PROTO_VER_V2` in
 :member:`ngtcp2_settings.other_versions` field allows server to choose
-:macro:`NGTCP2_PROTO_VER_V2_DRAFT` which is compatible to
+:macro:`NGTCP2_PROTO_VER_V2` which is compatible to
 :macro:`NGTCP2_PROTO_VER_V1`.
 
 By default, server sends :macro:`NGTCP2_PROTO_VER_V1` in

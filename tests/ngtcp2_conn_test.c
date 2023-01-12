@@ -785,7 +785,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   ngtcp2_transport_params params;
   ngtcp2_cid dcid, scid;
   uint32_t preferred_versions[] = {
-      NGTCP2_PROTO_VER_V2_DRAFT,
+      NGTCP2_PROTO_VER_V2,
       NGTCP2_PROTO_VER_V1,
   };
 
@@ -815,12 +815,12 @@ static void setup_handshake_client_version(ngtcp2_conn **pconn,
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
   uint32_t preferred_versions[] = {
-      NGTCP2_PROTO_VER_V2_DRAFT,
+      NGTCP2_PROTO_VER_V2,
       NGTCP2_PROTO_VER_V1,
   };
   uint32_t other_versions[] = {
       NGTCP2_PROTO_VER_V1,
-      NGTCP2_PROTO_VER_V2_DRAFT,
+      NGTCP2_PROTO_VER_V2,
   };
 
   rcid_init(&rcid);
@@ -6563,7 +6563,7 @@ void test_ngtcp2_conn_recv_version_negotiation(void) {
      Negotiation */
   setup_handshake_client(&conn);
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -6756,7 +6756,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
      Negotiation */
   setup_handshake_client(&conn);
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
   conn->negotiated_version = conn->client_chosen_version;
 
   memset(&params, 0, sizeof(params));
@@ -6772,7 +6772,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   ngtcp2_conn_del(conn);
 
   /* client: No version_information after Version Negotiation */
-  setup_handshake_client_version(&conn, NGTCP2_PROTO_VER_V2_DRAFT);
+  setup_handshake_client_version(&conn, NGTCP2_PROTO_VER_V2);
 
   conn->local.settings.original_version = NGTCP2_PROTO_VER_V1;
   conn->negotiated_version = conn->client_chosen_version;
@@ -6793,12 +6793,11 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
      initially attempted. */
   setup_handshake_client(&conn);
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
   conn->negotiated_version = conn->client_chosen_version;
 
   ngtcp2_put_uint32be(other_versions, NGTCP2_PROTO_VER_V1);
-  ngtcp2_put_uint32be(other_versions + sizeof(uint32_t),
-                      NGTCP2_PROTO_VER_V2_DRAFT);
+  ngtcp2_put_uint32be(other_versions + sizeof(uint32_t), NGTCP2_PROTO_VER_V2);
 
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
@@ -6820,7 +6819,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
      server's other_versions and chosen version. */
   setup_handshake_client(&conn);
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
   conn->negotiated_version = 0xff000000u;
 
   ((uint32_t *)conn->local.settings.preferred_versions)[0] = 0xff000001u;
@@ -6852,7 +6851,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
      version from server's other_versions and chosen version. */
   setup_handshake_client(&conn);
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
   conn->negotiated_version = 0xff000000u;
 
   ((uint32_t *)conn->local.settings.preferred_versions)[0] = 0xff000000u;
@@ -8713,7 +8712,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
   uint32_t version;
 
   ngtcp2_put_uint32be(&other_versions[0], NGTCP2_PROTO_VER_V1);
-  ngtcp2_put_uint32be(&other_versions[4], NGTCP2_PROTO_VER_V2_DRAFT);
+  ngtcp2_put_uint32be(&other_versions[4], NGTCP2_PROTO_VER_V2);
 
   /* Client sees the change version in Initial packet which contains
      CRYPTO frame.  It generates new Initial keys and sets negotiated
@@ -8730,15 +8729,15 @@ void test_ngtcp2_conn_version_negotiation(void) {
   fr.crypto.data[0].len = 133;
   fr.crypto.data[0].base = null_data;
 
-  pktlen = write_initial_pkt(
-      buf, sizeof(buf), &conn->oscid, ngtcp2_conn_get_dcid(conn), pkt_num++,
-      NGTCP2_PROTO_VER_V2_DRAFT, NULL, 0, &fr, 1, &null_ckm);
+  pktlen = write_initial_pkt(buf, sizeof(buf), &conn->oscid,
+                             ngtcp2_conn_get_dcid(conn), pkt_num++,
+                             NGTCP2_PROTO_VER_V2, NULL, 0, &fr, 1, &null_ckm);
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT == conn->negotiated_version);
-  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT == conn->vneg.version);
+  CU_ASSERT(NGTCP2_PROTO_VER_V2 == conn->negotiated_version);
+  CU_ASSERT(NGTCP2_PROTO_VER_V2 == conn->vneg.version);
   CU_ASSERT(conn->vneg.rx.ckm != NULL);
   CU_ASSERT(conn->vneg.tx.ckm != NULL);
 
@@ -8748,7 +8747,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
 
   ngtcp2_get_uint32(&version, &buf[1]);
 
-  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT == version);
+  CU_ASSERT(NGTCP2_PROTO_VER_V2 == version);
 
   ngtcp2_conn_del(conn);
 
@@ -8810,8 +8809,8 @@ void test_ngtcp2_conn_version_negotiation(void) {
   rv = ngtcp2_conn_set_remote_transport_params(conn, &remote_params);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT == conn->negotiated_version);
-  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT == conn->vneg.version);
+  CU_ASSERT(NGTCP2_PROTO_VER_V2 == conn->negotiated_version);
+  CU_ASSERT(NGTCP2_PROTO_VER_V2 == conn->vneg.version);
   CU_ASSERT(conn->vneg.rx.ckm != NULL);
   CU_ASSERT(conn->vneg.tx.ckm != NULL);
 
@@ -8821,7 +8820,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
 
   ngtcp2_get_uint32(&version, &buf[1]);
 
-  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT == version);
+  CU_ASSERT(NGTCP2_PROTO_VER_V2 == version);
 
   ngtcp2_conn_del(conn);
 }
@@ -8856,12 +8855,12 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
   /* version_info.other_versions and preferred_versions share the
      version. */
   ngtcp2_put_uint32be(&client_other_versions[0], 0xff000001);
-  ngtcp2_put_uint32be(&client_other_versions[4], NGTCP2_PROTO_VER_V2_DRAFT);
+  ngtcp2_put_uint32be(&client_other_versions[4], NGTCP2_PROTO_VER_V2);
 
   version_info.other_versions = client_other_versions;
   version_info.other_versionslen = sizeof(uint32_t) * 2;
 
-  CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT ==
+  CU_ASSERT(NGTCP2_PROTO_VER_V2 ==
             ngtcp2_conn_server_negotiate_version(conn, &version_info));
 
   ngtcp2_conn_del(conn);
@@ -8874,7 +8873,7 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
   conn->vneg.preferred_versionslen = 0;
 
   ngtcp2_put_uint32be(&client_other_versions[0], 0xff000001);
-  ngtcp2_put_uint32be(&client_other_versions[4], NGTCP2_PROTO_VER_V2_DRAFT);
+  ngtcp2_put_uint32be(&client_other_versions[4], NGTCP2_PROTO_VER_V2);
 
   version_info.other_versions = client_other_versions;
   version_info.other_versionslen = sizeof(uint32_t) * 2;
@@ -8888,9 +8887,9 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
   setup_handshake_server(&conn);
 
   conn->vneg.preferred_versions[0] = NGTCP2_PROTO_VER_V1;
-  conn->vneg.preferred_versions[1] = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->vneg.preferred_versions[1] = NGTCP2_PROTO_VER_V2;
 
-  ngtcp2_put_uint32be(&client_other_versions[0], NGTCP2_PROTO_VER_V2_DRAFT);
+  ngtcp2_put_uint32be(&client_other_versions[0], NGTCP2_PROTO_VER_V2);
   ngtcp2_put_uint32be(&client_other_versions[4], NGTCP2_PROTO_VER_V1);
 
   version_info.other_versions = client_other_versions;
@@ -9062,10 +9061,10 @@ void test_ngtcp2_conn_new_failmalloc(void) {
   size_t tokenlen = strsize(token);
   uint32_t preferred_versions[] = {
       NGTCP2_PROTO_VER_V1,
-      NGTCP2_PROTO_VER_V2_DRAFT,
+      NGTCP2_PROTO_VER_V2,
   };
   uint32_t other_versions[] = {
-      NGTCP2_PROTO_VER_V2_DRAFT,
+      NGTCP2_PROTO_VER_V2,
       NGTCP2_PROTO_VER_V1,
       0x5a9aeaca,
   };
@@ -9301,20 +9300,17 @@ void test_ngtcp2_select_version(void) {
   CU_ASSERT(0 == ngtcp2_select_version(NULL, 0, NULL, 0));
 
   {
-    uint32_t preferred_versions[] = {NGTCP2_PROTO_VER_V1,
-                                     NGTCP2_PROTO_VER_V2_DRAFT};
-    uint32_t offered_versions[] = {0x00000004, 0x00000003,
-                                   NGTCP2_PROTO_VER_V2_DRAFT};
+    uint32_t preferred_versions[] = {NGTCP2_PROTO_VER_V1, NGTCP2_PROTO_VER_V2};
+    uint32_t offered_versions[] = {0x00000004, 0x00000003, NGTCP2_PROTO_VER_V2};
 
-    CU_ASSERT(NGTCP2_PROTO_VER_V2_DRAFT ==
+    CU_ASSERT(NGTCP2_PROTO_VER_V2 ==
               ngtcp2_select_version(
                   preferred_versions, ngtcp2_arraylen(preferred_versions),
                   offered_versions, ngtcp2_arraylen(offered_versions)));
   }
 
   {
-    uint32_t preferred_versions[] = {NGTCP2_PROTO_VER_V1,
-                                     NGTCP2_PROTO_VER_V2_DRAFT};
+    uint32_t preferred_versions[] = {NGTCP2_PROTO_VER_V1, NGTCP2_PROTO_VER_V2};
     uint32_t offered_versions[] = {0x00000004, 0x00000003};
 
     CU_ASSERT(0 == ngtcp2_select_version(
