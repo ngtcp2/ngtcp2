@@ -1973,10 +1973,13 @@ typedef struct ngtcp2_settings {
    * of preference.
    *
    * On compatible version negotiation, server will negotiate one of
-   * those versions contained in this array if a client initially
-   * chooses a less preferred version.  This version set corresponds
-   * to Offered Versions in QUIC Version Negotiation draft, and it should
-   * be sent in Version Negotiation packet.
+   * those versions contained in this array if there is some overlap
+   * between these versions and the versions offered by the client.
+   * If there is no overlap, but the client chosen version is
+   * supported by the library, the server chooses the client chosen
+   * version as the negotiated version.  This version set corresponds
+   * to Offered Versions in QUIC Version Negotiation draft, and it
+   * should be included in Version Negotiation packet.
    *
    * Client uses this field and :member:`original_version` to prevent
    * version downgrade attack if it reacted upon Version Negotiation
