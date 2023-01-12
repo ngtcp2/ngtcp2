@@ -752,9 +752,9 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     }
   }
 
-  if (!config.other_versions.empty()) {
-    settings.other_versions = config.other_versions.data();
-    settings.other_versionslen = config.other_versions.size();
+  if (!config.available_versions.empty()) {
+    settings.available_versions = config.available_versions.data();
+    settings.available_versionslen = config.available_versions.size();
   }
 
   if (!config.preferred_versions.empty()) {
@@ -2278,14 +2278,14 @@ Options:
               of  specifying hex  string,  there  are special  aliases
               available: "v1"  indicates QUIC v1, "v2"  indicates QUIC
               v2, and "v2draft" indicates QUIC v2 draft.
-  --other-versions=<HEX>[[,<HEX>]...]
+  --available-versions=<HEX>[[,<HEX>]...]
               Specify QUIC  versions in  hex string  that are  sent in
-              other_versions  field  of version_information  transport
-              parameter.  This list can include a version which is not
-              supported  by  libngtcp2.   Instead  of  specifying  hex
-              string,  there  are   special  aliases  available:  "v1"
-              indicates QUIC v1, "v2" indicates QUIC v2, and "v2draft"
-              indicates QUIC v2 draft.
+              available_versions    field    of    version_information
+              transport parameter.   This list  can include  a version
+              which  is  not  supported   by  libngtcp2.   Instead  of
+              specifying  hex   string,  there  are   special  aliases
+              available: "v1"  indicates QUIC v1, "v2"  indicates QUIC
+              v2, and "v2draft" indicates QUIC v2 draft.
   -q, --quiet Suppress debug output.
   -s, --show-secret
               Print out secrets unless --quiet is used.
@@ -2502,7 +2502,7 @@ int main(int argc, char **argv) {
         {"scid", required_argument, &flag, 34},
         {"max-udp-payload-size", required_argument, &flag, 35},
         {"handshake-timeout", required_argument, &flag, 36},
-        {"other-versions", required_argument, &flag, 37},
+        {"available-versions", required_argument, &flag, 37},
         {"no-pmtud", no_argument, &flag, 38},
         {"preferred-versions", required_argument, &flag, 39},
         {"ack-thresh", required_argument, &flag, 40},
@@ -2842,14 +2842,14 @@ int main(int argc, char **argv) {
         }
         break;
       case 37: {
-        // --other-versions
+        // --available-versions
         if (strlen(optarg) == 0) {
-          config.other_versions.resize(0);
+          config.available_versions.resize(0);
           break;
         }
         auto l = util::split_str(optarg);
-        config.other_versions.resize(l.size());
-        auto it = std::begin(config.other_versions);
+        config.available_versions.resize(l.size());
+        auto it = std::begin(config.available_versions);
         for (const auto &k : l) {
           if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
@@ -2865,8 +2865,8 @@ int main(int argc, char **argv) {
           }
           auto rv = util::parse_version(k);
           if (!rv) {
-            std::cerr << "other-versions: invalid version " << std::quoted(k)
-                      << std::endl;
+            std::cerr << "available-versions: invalid version "
+                      << std::quoted(k) << std::endl;
             exit(EXIT_FAILURE);
           }
           *it++ = *rv;
@@ -2992,12 +2992,12 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
 
-    if (!config.other_versions.empty() &&
-        std::find(std::begin(config.other_versions),
-                  std::end(config.other_versions),
-                  config.version) == std::end(config.other_versions)) {
-      std::cerr << "other-versions: must include version " << std::hex << "0x"
-                << config.version << std::dec << std::endl;
+    if (!config.available_versions.empty() &&
+        std::find(std::begin(config.available_versions),
+                  std::end(config.available_versions),
+                  config.version) == std::end(config.available_versions)) {
+      std::cerr << "available-versions: must include version " << std::hex
+                << "0x" << config.version << std::dec << std::endl;
       exit(EXIT_FAILURE);
     }
   }

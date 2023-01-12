@@ -411,36 +411,37 @@ Version negotiation is configured with the following
 
 * :member:`ngtcp2_settings.preferred_versions` and
   :member:`ngtcp2_settings.preferred_versionslen`
-* :member:`ngtcp2_settings.other_versions` and
-  :member:`ngtcp2_settings.other_versionslen`
+* :member:`ngtcp2_settings.available_versions` and
+  :member:`ngtcp2_settings.available_versionslen`
 * :member:`ngtcp2_settings.original_version`
 
 *client_chosen_version* passed to `ngtcp2_conn_client_new` also
 influence the version negotiation process.
 
 By default, client sends *client_chosen_version* passed to
-`ngtcp2_conn_client_new` in other_versions field of
+`ngtcp2_conn_client_new` in available_versions field of
 version_information QUIC transport parameter.  That means there is no
 chance for server to select the other compatible version.  Meanwhile,
 ngtcp2 supports QUIC v2 version (:macro:`NGTCP2_PROTO_VER_V2`).
 Including both :macro:`NGTCP2_PROTO_VER_V1` and
 :macro:`NGTCP2_PROTO_VER_V2` in
-:member:`ngtcp2_settings.other_versions` field allows server to choose
-:macro:`NGTCP2_PROTO_VER_V2` which is compatible to
+:member:`ngtcp2_settings.available_versions` field allows server to
+choose :macro:`NGTCP2_PROTO_VER_V2` which is compatible to
 :macro:`NGTCP2_PROTO_VER_V1`.
 
 By default, server sends :macro:`NGTCP2_PROTO_VER_V1` in
-other_versions field of version_information QUIC transport parameter.
-Because there is no particular preferred versions specified, server
-will accept any supported version.  In order to set the version
-preference, specify :member:`ngtcp2_settings.preferred_versions`
-field.  If it is specified, server sends them in other_versions field
-of version_information QUIC transport parameter unless
-:member:`ngtcp2_settings.other_versionslen` is not zero.  Specifying
-:member:`ngtcp2_settings.other_versions` overrides the above mentioned
-default behavior.  Even if there is no overlap between
-:member:`ngtcp2_settings.preferred_versions` and other_versions field
-plus *client_chosen_version* from client, as long as
+available_versions field of version_information QUIC transport
+parameter.  Because there is no particular preferred versions
+specified, server will accept any supported version.  In order to set
+the version preference, specify
+:member:`ngtcp2_settings.preferred_versions` field.  If it is
+specified, server sends them in available_versions field of
+version_information QUIC transport parameter unless
+:member:`ngtcp2_settings.available_versionslen` is not zero.
+Specifying :member:`ngtcp2_settings.available_versions` overrides the
+above mentioned default behavior.  Even if there is no overlap between
+:member:`ngtcp2_settings.preferred_versions` and available_versions
+field plus *client_chosen_version* from client, as long as
 *client_chosen_version* is supported by server, server accepts
 *client_chosen_version*.
 
@@ -457,7 +458,7 @@ in the first connection attempt must be set to
 preference that is used when selecting a version from Version
 Negotiation packet must be set to
 :member:`ngtcp2_settings.preferred_versions`.
-:member:`ngtcp2_settings.other_versions` must include the selected
+:member:`ngtcp2_settings.available_versions` must include the selected
 version.  The selected version becomes *client_chosen_version* in the
 second connection attempt, and must be passed to
 `ngtcp2_conn_client_new`.

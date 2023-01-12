@@ -703,9 +703,9 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     settings.preferred_versions = config.preferred_versions.data();
     settings.preferred_versionslen = config.preferred_versions.size();
   }
-  if (!config.other_versions.empty()) {
-    settings.other_versions = config.other_versions.data();
-    settings.other_versionslen = config.other_versions.size();
+  if (!config.available_versions.empty()) {
+    settings.available_versions = config.available_versions.data();
+    settings.available_versionslen = config.available_versions.size();
   }
 
   ngtcp2_transport_params params;
@@ -2551,14 +2551,14 @@ Options:
               of  specifying hex  string,  there  are special  aliases
               available: "v1"  indicates QUIC v1, "v2"  indicates QUIC
               v2, and "v2draft" indicates QUIC v2 draft.
-  --other-versions=<HEX>[[,<HEX>]...]
+  --available-versions=<HEX>[[,<HEX>]...]
               Specify QUIC  versions in  hex string  that are  sent in
-              other_versions  field  of version_information  transport
-              parameter.  This list can include a version which is not
-              supported  by  libngtcp2.   Instead  of  specifying  hex
-              string,  there  are   special  aliases  available:  "v1"
-              indicates QUIC v1, "v2" indicates QUIC v2, and "v2draft"
-              indicates QUIC v2 draft.
+              available_versions    field    of    version_information
+              transport parameter.   This list  can include  a version
+              which  is  not  supported   by  libngtcp2.   Instead  of
+              specifying  hex   string,  there  are   special  aliases
+              available: "v1"  indicates QUIC v1, "v2"  indicates QUIC
+              v2, and "v2draft" indicates QUIC v2 draft.
   --no-pmtud  Disables Path MTU Discovery.
   --ack-thresh=<N>
               The minimum number of the received ACK eliciting packets
@@ -2626,7 +2626,7 @@ int main(int argc, char **argv) {
         {"max-gso-dgrams", required_argument, &flag, 25},
         {"handshake-timeout", required_argument, &flag, 26},
         {"preferred-versions", required_argument, &flag, 27},
-        {"other-versions", required_argument, &flag, 28},
+        {"available-versions", required_argument, &flag, 28},
         {"no-pmtud", no_argument, &flag, 29},
         {"ack-thresh", required_argument, &flag, 30},
         {nullptr, 0, nullptr, 0}};
@@ -2921,10 +2921,10 @@ int main(int argc, char **argv) {
         break;
       }
       case 28: {
-        // --other-versions
+        // --available-versions
         auto l = util::split_str(optarg);
-        config.other_versions.resize(l.size());
-        auto it = std::begin(config.other_versions);
+        config.available_versions.resize(l.size());
+        auto it = std::begin(config.available_versions);
         for (const auto &k : l) {
           if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
@@ -2940,8 +2940,8 @@ int main(int argc, char **argv) {
           }
           auto rv = util::parse_version(k);
           if (!rv) {
-            std::cerr << "other-versions: invalid version " << std::quoted(k)
-                      << std::endl;
+            std::cerr << "available-versions: invalid version "
+                      << std::quoted(k) << std::endl;
             exit(EXIT_FAILURE);
           }
           *it++ = *rv;

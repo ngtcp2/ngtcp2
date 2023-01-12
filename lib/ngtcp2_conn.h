@@ -658,14 +658,14 @@ struct ngtcp2_conn {
        array pointed by preferred_versions.  This field is only used
        by server. */
     size_t preferred_versionslen;
-    /* other_versions is the versions that the local endpoint sends in
-       version_information transport parameter.  This is the wire
-       image of other_versions field of version_information transport
-       parameter. */
-    uint8_t *other_versions;
-    /* other_versionslen is the length of data pointed by
-       other_versions field. */
-    size_t other_versionslen;
+    /* available_versions is the versions that the local endpoint
+       sends in version_information transport parameter.  This is the
+       wire image of available_versions field of version_information
+       transport parameter. */
+    uint8_t *available_versions;
+    /* available_versionslen is the length of data pointed by
+       available_versions field. */
+    size_t available_versionslen;
   } vneg;
 
   ngtcp2_map strms;

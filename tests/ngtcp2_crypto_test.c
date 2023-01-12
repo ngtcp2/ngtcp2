@@ -44,7 +44,7 @@ void test_ngtcp2_encode_transport_params(void) {
   int rv;
   size_t i, len;
   ngtcp2_cid rcid, scid, dcid;
-  uint8_t other_versions[sizeof(uint32_t) * 3];
+  uint8_t available_versions[sizeof(uint32_t) * 3];
   ngtcp2_sockaddr_in6 *sa_in6;
 
   rcid_init(&rcid);
@@ -54,8 +54,8 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
 
-  for (i = 0; i < sizeof(other_versions); i += sizeof(uint32_t)) {
-    ngtcp2_put_uint32be(&other_versions[i], (uint32_t)(0xff000000u + i));
+  for (i = 0; i < sizeof(available_versions); i += sizeof(uint32_t)) {
+    ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xff000000u + i));
   }
 
   /* CH, required parameters only */
@@ -170,8 +170,8 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_datagram_frame_size = 65535;
   params.grease_quic_bit = 1;
   params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
-  params.version_info.other_versions = other_versions;
-  params.version_info.other_versionslen = sizeof(other_versions);
+  params.version_info.available_versions = available_versions;
+  params.version_info.available_versionslen = sizeof(available_versions);
   params.version_info_present = 1;
 
   len =
@@ -208,11 +208,11 @@ void test_ngtcp2_encode_transport_params(void) {
                       params.max_datagram_frame_size) +
       (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
        ngtcp2_put_uvarintlen(0)) +
-      (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT) +
+      (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
        ngtcp2_put_uvarintlen(sizeof(params.version_info.chosen_version) +
-                             params.version_info.other_versionslen) +
+                             params.version_info.available_versionslen) +
        sizeof(params.version_info.chosen_version) +
-       params.version_info.other_versionslen);
+       params.version_info.available_versionslen);
 
   nwrite = ngtcp2_encode_transport_params(
       NULL, 0, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
@@ -256,9 +256,9 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.version_info_present == nparams.version_info_present);
   CU_ASSERT(params.version_info.chosen_version ==
             nparams.version_info.chosen_version);
-  CU_ASSERT(0 == memcmp(params.version_info.other_versions,
-                        nparams.version_info.other_versions,
-                        params.version_info.other_versionslen));
+  CU_ASSERT(0 == memcmp(params.version_info.available_versions,
+                        nparams.version_info.available_versions,
+                        params.version_info.available_versionslen));
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
@@ -296,8 +296,9 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_datagram_frame_size = 63;
   params.grease_quic_bit = 1;
   params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
-  params.version_info.other_versions = other_versions;
-  params.version_info.other_versionslen = ngtcp2_arraylen(other_versions);
+  params.version_info.available_versions = available_versions;
+  params.version_info.available_versionslen =
+      ngtcp2_arraylen(available_versions);
   params.version_info_present = 1;
 
   len =
@@ -351,11 +352,11 @@ void test_ngtcp2_encode_transport_params(void) {
                       params.max_datagram_frame_size) +
       (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
        ngtcp2_put_uvarintlen(0)) +
-      (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT) +
+      (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
        ngtcp2_put_uvarintlen(sizeof(params.version_info.chosen_version) +
-                             params.version_info.other_versionslen) +
+                             params.version_info.available_versionslen) +
        sizeof(params.version_info.chosen_version) +
-       params.version_info.other_versionslen);
+       params.version_info.available_versionslen);
 
   nwrite = ngtcp2_encode_transport_params(
       NULL, 0, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
@@ -426,9 +427,9 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.version_info_present == nparams.version_info_present);
   CU_ASSERT(params.version_info.chosen_version ==
             nparams.version_info.chosen_version);
-  CU_ASSERT(0 == memcmp(params.version_info.other_versions,
-                        nparams.version_info.other_versions,
-                        params.version_info.other_versionslen));
+  CU_ASSERT(0 == memcmp(params.version_info.available_versions,
+                        nparams.version_info.available_versions,
+                        params.version_info.available_versionslen));
 }
 
 void test_ngtcp2_decode_transport_params_new(void) {
@@ -438,7 +439,7 @@ void test_ngtcp2_decode_transport_params_new(void) {
   int rv;
   size_t i, len;
   ngtcp2_cid rcid, scid, dcid;
-  uint8_t other_versions[sizeof(uint32_t) * 3];
+  uint8_t available_versions[sizeof(uint32_t) * 3];
   ngtcp2_sockaddr_in *sa_in;
 
   rcid_init(&rcid);
@@ -448,8 +449,8 @@ void test_ngtcp2_decode_transport_params_new(void) {
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
 
-  for (i = 0; i < sizeof(other_versions); i += sizeof(uint32_t)) {
-    ngtcp2_put_uint32be(&other_versions[i], (uint32_t)(0xff000000u + i));
+  for (i = 0; i < sizeof(available_versions); i += sizeof(uint32_t)) {
+    ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xff000000u + i));
   }
 
   /* EE, required parameters only */
@@ -537,8 +538,9 @@ void test_ngtcp2_decode_transport_params_new(void) {
   params.max_datagram_frame_size = 63;
   params.grease_quic_bit = 1;
   params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
-  params.version_info.other_versions = other_versions;
-  params.version_info.other_versionslen = ngtcp2_arraylen(other_versions);
+  params.version_info.available_versions = available_versions;
+  params.version_info.available_versionslen =
+      ngtcp2_arraylen(available_versions);
   params.version_info_present = 1;
 
   len =
@@ -592,11 +594,11 @@ void test_ngtcp2_decode_transport_params_new(void) {
                       params.max_datagram_frame_size) +
       (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
        ngtcp2_put_uvarintlen(0)) +
-      (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT) +
+      (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
        ngtcp2_put_uvarintlen(sizeof(params.version_info.chosen_version) +
-                             params.version_info.other_versionslen) +
+                             params.version_info.available_versionslen) +
        sizeof(params.version_info.chosen_version) +
-       params.version_info.other_versionslen);
+       params.version_info.available_versionslen);
 
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
@@ -657,9 +659,9 @@ void test_ngtcp2_decode_transport_params_new(void) {
   CU_ASSERT(params.version_info_present == nparams->version_info_present);
   CU_ASSERT(params.version_info.chosen_version ==
             nparams->version_info.chosen_version);
-  CU_ASSERT(0 == memcmp(params.version_info.other_versions,
-                        nparams->version_info.other_versions,
-                        params.version_info.other_versionslen));
+  CU_ASSERT(0 == memcmp(params.version_info.available_versions,
+                        nparams->version_info.available_versions,
+                        params.version_info.available_versionslen));
 
   ngtcp2_transport_params_del(nparams, NULL);
 }
