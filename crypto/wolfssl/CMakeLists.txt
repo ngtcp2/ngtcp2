@@ -68,6 +68,7 @@ if(ENABLE_STATIC_LIB)
   add_library(ngtcp2_crypto_wolfssl_static ${ngtcp2_crypto_wolfssl_SOURCES})
   set_target_properties(ngtcp2_crypto_wolfssl_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
+    ARCHIVE_OUTPUT_NAME ngtcp2_crypto_wolfssl${STATIC_LIB_SUFFIX}
     C_VISIBILITY_PRESET hidden
   )
   target_compile_definitions(ngtcp2_crypto_wolfssl_static PUBLIC

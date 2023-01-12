@@ -95,6 +95,7 @@ if(HAVE_CUNIT OR ENABLE_STATIC_LIB)
   set_target_properties(ngtcp2_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
     VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
+    ARCHIVE_OUTPUT_NAME ngtcp2${STATIC_LIB_SUFFIX}
     C_VISIBILITY_PRESET hidden
   )
   target_compile_definitions(ngtcp2_static PUBLIC "-DNGTCP2_STATICLIB")

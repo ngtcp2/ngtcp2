@@ -49,6 +49,7 @@ if(ENABLE_STATIC_LIB)
   add_library(ngtcp2_crypto_picotls_static ${ngtcp2_crypto_picotls_SOURCES})
   set_target_properties(ngtcp2_crypto_picotls_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
+    ARCHIVE_OUTPUT_NAME ngtcp2_crypto_picotls${STATIC_LIB_SUFFIX}
     C_VISIBILITY_PRESET hidden
   )
   target_compile_definitions(ngtcp2_crypto_picotls_static PUBLIC
