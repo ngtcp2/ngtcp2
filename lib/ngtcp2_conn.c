@@ -991,14 +991,14 @@ static void conn_reset_ecn_validation_state(ngtcp2_conn *conn) {
   pktns->tx.ecn.validation_pkt_lost = 0;
 }
 
-/* server_default_other_versions is the default other_versions field
-   sent by server. */
-static uint8_t server_default_other_versions[] = {0, 0, 0, 1};
+/* server_default_available_versions is the default available_versions
+   field sent by server. */
+static uint8_t server_default_available_versions[] = {0, 0, 0, 1};
 
 /*
- * other_versions_new allocates new buffer, and writes |versions| of
- * length |versionslen| in network byte order, suitable for sending in
- * other_versions field of version_information QUIC transport
+ * available_versions_new allocates new buffer, and writes |versions|
+ * of length |versionslen| in network byte order, suitable for sending
+ * in available_versions field of version_information QUIC transport
  * parameter.  The pointer to the allocated buffer is assigned to
  * |*pbuf|.
  *
@@ -1008,8 +1008,8 @@ static uint8_t server_default_other_versions[] = {0, 0, 0, 1};
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-static int other_versions_new(uint8_t **pbuf, const uint32_t *versions,
-                              size_t versionslen, const ngtcp2_mem *mem) {
+static int available_versions_new(uint8_t **pbuf, const uint32_t *versions,
+                                  size_t versionslen, const ngtcp2_mem *mem) {
   size_t i;
   uint8_t *buf = ngtcp2_mem_malloc(mem, sizeof(uint32_t) * versionslen);
 
@@ -1042,8 +1042,8 @@ conn_set_local_transport_params(ngtcp2_conn *conn,
   } else {
     p->version_info.chosen_version = conn->client_chosen_version;
   }
-  p->version_info.other_versions = conn->vneg.other_versions;
-  p->version_info.other_versionslen = conn->vneg.other_versionslen;
+  p->version_info.available_versions = conn->vneg.available_versions;
+  p->version_info.available_versionslen = conn->vneg.available_versionslen;
   p->version_info_present = 1;
 }
 
@@ -1272,54 +1272,55 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     (*pconn)->vneg.preferred_versionslen = settings->preferred_versionslen;
   }
 
-  if (settings->other_versionslen) {
+  if (settings->available_versionslen) {
     if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
-      for (i = 0; i < settings->other_versionslen; ++i) {
-        if (settings->other_versions[i] == client_chosen_version) {
+      for (i = 0; i < settings->available_versionslen; ++i) {
+        if (settings->available_versions[i] == client_chosen_version) {
           break;
         }
       }
 
-      assert(i < settings->other_versionslen);
+      assert(i < settings->available_versionslen);
     }
 
-    for (i = 0; i < settings->other_versionslen; ++i) {
-      assert(ngtcp2_is_reserved_version(settings->other_versions[i]) ||
-             ngtcp2_is_supported_version(settings->other_versions[i]));
+    for (i = 0; i < settings->available_versionslen; ++i) {
+      assert(ngtcp2_is_reserved_version(settings->available_versions[i]) ||
+             ngtcp2_is_supported_version(settings->available_versions[i]));
     }
 
-    rv = other_versions_new(&buf, settings->other_versions,
-                            settings->other_versionslen, mem);
+    rv = available_versions_new(&buf, settings->available_versions,
+                                settings->available_versionslen, mem);
     if (rv != 0) {
-      goto fail_other_versions;
+      goto fail_available_versions;
     }
 
-    (*pconn)->vneg.other_versions = buf;
-    (*pconn)->vneg.other_versionslen =
-        sizeof(uint32_t) * settings->other_versionslen;
+    (*pconn)->vneg.available_versions = buf;
+    (*pconn)->vneg.available_versionslen =
+        sizeof(uint32_t) * settings->available_versionslen;
   } else if (server) {
     if (settings->preferred_versionslen) {
-      rv = other_versions_new(&buf, settings->preferred_versions,
-                              settings->preferred_versionslen, mem);
+      rv = available_versions_new(&buf, settings->preferred_versions,
+                                  settings->preferred_versionslen, mem);
       if (rv != 0) {
-        goto fail_other_versions;
+        goto fail_available_versions;
       }
 
-      (*pconn)->vneg.other_versions = buf;
-      (*pconn)->vneg.other_versionslen =
+      (*pconn)->vneg.available_versions = buf;
+      (*pconn)->vneg.available_versionslen =
           sizeof(uint32_t) * settings->preferred_versionslen;
     } else {
-      (*pconn)->vneg.other_versions = server_default_other_versions;
-      (*pconn)->vneg.other_versionslen = sizeof(server_default_other_versions);
+      (*pconn)->vneg.available_versions = server_default_available_versions;
+      (*pconn)->vneg.available_versionslen =
+          sizeof(server_default_available_versions);
     }
   } else if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
-    rv = other_versions_new(&buf, &client_chosen_version, 1, mem);
+    rv = available_versions_new(&buf, &client_chosen_version, 1, mem);
     if (rv != 0) {
-      goto fail_other_versions;
+      goto fail_available_versions;
     }
 
-    (*pconn)->vneg.other_versions = buf;
-    (*pconn)->vneg.other_versionslen = sizeof(uint32_t);
+    (*pconn)->vneg.available_versions = buf;
+    (*pconn)->vneg.available_versionslen = sizeof(uint32_t);
   }
 
   (*pconn)->client_chosen_version = client_chosen_version;
@@ -1351,7 +1352,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   return 0;
 
-fail_other_versions:
+fail_available_versions:
   ngtcp2_mem_free(mem, (*pconn)->vneg.preferred_versions);
 fail_preferred_versions:
 fail_seqgap_push:
@@ -1559,8 +1560,8 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   conn_vneg_crypto_free(conn);
 
   ngtcp2_mem_free(conn->mem, conn->vneg.preferred_versions);
-  if (conn->vneg.other_versions != server_default_other_versions) {
-    ngtcp2_mem_free(conn->mem, conn->vneg.other_versions);
+  if (conn->vneg.available_versions != server_default_available_versions) {
+    ngtcp2_mem_free(conn->mem, conn->vneg.available_versions);
   }
 
   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_buf.base);
@@ -6082,26 +6083,26 @@ static void pktns_increase_ecn_counts(ngtcp2_pktns *pktns,
 }
 
 /*
- * vneg_other_versions_includes returns nonzero if |other_versions| of
- * length |other_versionslen| includes |version|.  |other_versions| is
- * the wire image of other_versions field of version_information
- * transport parameter, and each version is encoded in network byte
- * order.
+ * vneg_available_versions_includes returns nonzero if
+ * |available_versions| of length |available_versionslen| includes
+ * |version|.  |available_versions| is the wire image of
+ * available_versions field of version_information transport
+ * parameter, and each version is encoded in network byte order.
  */
-static int vneg_other_versions_includes(const uint8_t *other_versions,
-                                        size_t other_versionslen,
-                                        uint32_t version) {
+static int vneg_available_versions_includes(const uint8_t *available_versions,
+                                            size_t available_versionslen,
+                                            uint32_t version) {
   size_t i;
   uint32_t v;
 
-  assert(!(other_versionslen & 0x3));
+  assert(!(available_versionslen & 0x3));
 
-  if (other_versionslen == 0) {
+  if (available_versionslen == 0) {
     return 0;
   }
 
-  for (i = 0; i < other_versionslen; i += sizeof(uint32_t)) {
-    other_versions = ngtcp2_get_uint32(&v, other_versions);
+  for (i = 0; i < available_versionslen; i += sizeof(uint32_t)) {
+    available_versions = ngtcp2_get_uint32(&v, available_versions);
 
     if (version == v) {
       return 1;
@@ -6395,9 +6396,9 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
       if (hd.version != conn->client_chosen_version &&
           !conn->negotiated_version && conn->vneg.version != hd.version) {
-        if (!vneg_other_versions_includes(conn->vneg.other_versions,
-                                          conn->vneg.other_versionslen,
-                                          hd.version)) {
+        if (!vneg_available_versions_includes(conn->vneg.available_versions,
+                                              conn->vneg.available_versionslen,
+                                              hd.version)) {
           return NGTCP2_ERR_DISCARD_PKT;
         }
 
@@ -11088,21 +11089,21 @@ void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
  * select_preferred_version selects the most preferred version.
  * |fallback_version| is chosen if no preference is made, or
  * |preferred_versions| does not include any of |chosen_version| or
- * |other_versions|.  |chosen_version| is treated as an extra other
- * version.
+ * |available_versions|.  |chosen_version| is treated as an extra
+ * other version.
  */
 static uint32_t select_preferred_version(const uint32_t *preferred_versions,
                                          size_t preferred_versionslen,
                                          uint32_t chosen_version,
-                                         const uint8_t *other_versions,
-                                         size_t other_versionslen,
+                                         const uint8_t *available_versions,
+                                         size_t available_versionslen,
                                          uint32_t fallback_version) {
   size_t i, j;
   const uint8_t *p;
   uint32_t v;
 
   if (!preferred_versionslen ||
-      (!other_versionslen && chosen_version == fallback_version)) {
+      (!available_versionslen && chosen_version == fallback_version)) {
     return fallback_version;
   }
 
@@ -11110,7 +11111,7 @@ static uint32_t select_preferred_version(const uint32_t *preferred_versions,
     if (preferred_versions[i] == chosen_version) {
       return chosen_version;
     }
-    for (j = 0, p = other_versions; j < other_versionslen;
+    for (j = 0, p = available_versions; j < available_versionslen;
          j += sizeof(uint32_t)) {
       p = ngtcp2_get_uint32(&v, p);
 
@@ -11164,9 +11165,9 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
       return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
     }
 
-    assert(vneg_other_versions_includes(conn->vneg.other_versions,
-                                        conn->vneg.other_versionslen,
-                                        conn->negotiated_version));
+    assert(vneg_available_versions_includes(conn->vneg.available_versions,
+                                            conn->vneg.available_versionslen,
+                                            conn->negotiated_version));
   } else if (conn->client_chosen_version != conn->negotiated_version) {
     return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
   }
@@ -11200,7 +11201,7 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
     }
 
     /* Check version downgrade on incompatible version negotiation. */
-    if (params->version_info.other_versionslen == 0) {
+    if (params->version_info.available_versionslen == 0) {
       return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
     }
 
@@ -11208,8 +11209,8 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
         select_preferred_version(conn->vneg.preferred_versions,
                                  conn->vneg.preferred_versionslen,
                                  params->version_info.chosen_version,
-                                 params->version_info.other_versions,
-                                 params->version_info.other_versionslen,
+                                 params->version_info.available_versions,
+                                 params->version_info.available_versionslen,
                                  /* fallback_version = */ 0)) {
       return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
     }
@@ -11226,8 +11227,8 @@ ngtcp2_conn_server_negotiate_version(ngtcp2_conn *conn,
 
   return select_preferred_version(
       conn->vneg.preferred_versions, conn->vneg.preferred_versionslen,
-      version_info->chosen_version, version_info->other_versions,
-      version_info->other_versionslen, version_info->chosen_version);
+      version_info->chosen_version, version_info->available_versions,
+      version_info->available_versionslen, version_info->chosen_version);
 }
 
 int ngtcp2_conn_set_remote_transport_params(
@@ -11263,6 +11264,13 @@ int ngtcp2_conn_set_remote_transport_params(
 
   if (conn->server) {
     if (params->version_info_present) {
+      if (!vneg_available_versions_includes(
+              params->version_info.available_versions,
+              params->version_info.available_versionslen,
+              params->version_info.chosen_version)) {
+        return NGTCP2_ERR_TRANSPORT_PARAM;
+      }
+
       if (params->version_info.chosen_version != conn->client_chosen_version) {
         return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
       }

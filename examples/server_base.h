@@ -142,9 +142,10 @@ struct Config {
   // preference.  Server negotiates one of those versions if a client
   // initially selects a less preferred version.
   std::vector<uint32_t> preferred_versions;
-  // other_versions includes QUIC versions that are sent in
-  // other_versions field of version_information transport_parameter.
-  std::vector<uint32_t> other_versions;
+  // available_versions includes QUIC versions that are sent in
+  // available_versions field of version_information
+  // transport_parameter.
+  std::vector<uint32_t> available_versions;
   // no_pmtud disables Path MTU Discovery.
   bool no_pmtud;
   // ack_thresh is the minimum number of the received ACK eliciting

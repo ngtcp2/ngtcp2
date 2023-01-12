@@ -42,7 +42,7 @@ if [ "$ROLE" == "client" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --delay-stream 10ms --key-update 1ms"
     fi
     if [ "$TESTCASE" == "v2" ]; then
-	CLIENT_ARGS="$CLIENT_ARGS --other-versions v2,v1"
+	CLIENT_ARGS="$CLIENT_ARGS --available-versions v2,v1"
     fi
     if [ "$TESTCASE" == "ecn" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --no-pmtud"

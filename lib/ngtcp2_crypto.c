@@ -263,9 +263,9 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
            ngtcp2_put_uvarintlen(0);
   }
   if (params->version_info_present) {
-    version_infolen = sizeof(uint32_t) + params->version_info.other_versionslen;
-    len += ngtcp2_put_uvarintlen(
-               NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT) +
+    version_infolen =
+        sizeof(uint32_t) + params->version_info.available_versionslen;
+    len += ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
            ngtcp2_put_uvarintlen(version_infolen) + version_infolen;
   }
 
@@ -407,12 +407,12 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
   }
 
   if (params->version_info_present) {
-    p = ngtcp2_put_uvarint(p, NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT);
+    p = ngtcp2_put_uvarint(p, NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION);
     p = ngtcp2_put_uvarint(p, version_infolen);
     p = ngtcp2_put_uint32be(p, params->version_info.chosen_version);
-    if (params->version_info.other_versionslen) {
-      p = ngtcp2_cpymem(p, params->version_info.other_versions,
-                        params->version_info.other_versionslen);
+    if (params->version_info.available_versionslen) {
+      p = ngtcp2_cpymem(p, params->version_info.available_versions,
+                        params->version_info.available_versionslen);
     }
   }
 
@@ -767,7 +767,7 @@ int ngtcp2_decode_transport_params_versioned(
       }
       params->grease_quic_bit = 1;
       break;
-    case NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT:
+    case NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION:
       if (decode_varint(&valuelen, &p, end) != 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
@@ -782,8 +782,8 @@ int ngtcp2_decode_transport_params_versioned(
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       if (valuelen > sizeof(uint32_t)) {
-        params->version_info.other_versions = (uint8_t *)p;
-        params->version_info.other_versionslen =
+        params->version_info.available_versions = (uint8_t *)p;
+        params->version_info.available_versionslen =
             (size_t)valuelen - sizeof(uint32_t);
 
         for (lend = p + (valuelen - sizeof(uint32_t)); p != lend;) {
@@ -829,7 +829,7 @@ static int transport_params_copy_new(ngtcp2_transport_params **pdest,
   uint8_t *p;
 
   if (src->version_info_present) {
-    len += src->version_info.other_versionslen;
+    len += src->version_info.available_versionslen;
   }
 
   dest = ngtcp2_mem_malloc(mem, len);
@@ -839,11 +839,11 @@ static int transport_params_copy_new(ngtcp2_transport_params **pdest,
 
   *dest = *src;
 
-  if (src->version_info_present && src->version_info.other_versionslen) {
+  if (src->version_info_present && src->version_info.available_versionslen) {
     p = (uint8_t *)dest + sizeof(*dest);
-    memcpy(p, src->version_info.other_versions,
-           src->version_info.other_versionslen);
-    dest->version_info.other_versions = p;
+    memcpy(p, src->version_info.available_versions,
+           src->version_info.available_versionslen);
+    dest->version_info.available_versions = p;
   }
 
   *pdest = dest;

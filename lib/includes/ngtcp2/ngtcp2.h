@@ -1091,12 +1091,12 @@ typedef enum ngtcp2_pkt_type {
 /**
  * @macro
  *
- * :macro:`NGTCP2_VERSION_NEGOTIATION_ERROR_DRAFT` is QUIC transport
- * error code ``VERSION_NEGOTIATION_ERROR``.
+ * :macro:`NGTCP2_VERSION_NEGOTIATION_ERROR` is QUIC transport error
+ * code ``VERSION_NEGOTIATION_ERROR``.
  *
- * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
+ * https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation-14
  */
-#define NGTCP2_VERSION_NEGOTIATION_ERROR_DRAFT 0x53f8u
+#define NGTCP2_VERSION_NEGOTIATION_ERROR 0x11
 
 /**
  * @enum
@@ -1496,15 +1496,17 @@ typedef struct ngtcp2_version_info {
    */
   uint32_t chosen_version;
   /**
-   * :member:`other_versions` points the wire image of other_versions
-   * field.  The each version is therefore in network byte order.
+   * :member:`available_versions` points the wire image of
+   * available_versions field.  The each version is therefore in
+   * network byte order.
    */
-  const uint8_t *other_versions;
+  const uint8_t *available_versions;
   /**
-   * :member:`other_versionslen` is the number of bytes pointed by
-   * :member:`other_versions`, not the number of versions included.
+   * :member:`available_versionslen` is the number of bytes pointed by
+   * :member:`available_versions`, not the number of versions
+   * included.
    */
-  size_t other_versionslen;
+  size_t available_versionslen;
 } ngtcp2_version_info;
 
 #define NGTCP2_TRANSPORT_PARAMS_VERSION_V1 1
@@ -2022,9 +2024,10 @@ typedef struct ngtcp2_settings {
    */
   size_t preferred_versionslen;
   /**
-   * :member:`other_versions` is the array of versions that are set in
-   * :member:`other_versions <ngtcp2_version_info.other_versions>`
-   * field of outgoing version_information QUIC transport parameter.
+   * :member:`available_versions` is the array of versions that are
+   * going to be set in :member:`available_versions
+   * <ngtcp2_version_info.available_versions>` field of outgoing
+   * version_information QUIC transport parameter.
    *
    * For server, this corresponds to Fully-Deployed Versions in QUIC
    * Version Negotiation draft.  If this field is set not, it is set
@@ -2040,12 +2043,13 @@ typedef struct ngtcp2_settings {
    * `ngtcp2_conn_client_new` will be set in this field internally
    * unless |client_chosen_version| is a reserved version.
    */
-  const uint32_t *other_versions;
+  const uint32_t *available_versions;
   /**
-   * :member:`other_versionslen` is the number of versions that are
-   * contained in the array pointed by :member:`other_versions`.
+   * :member:`available_versionslen` is the number of versions that
+   * are contained in the array pointed by
+   * :member:`available_versions`.
    */
-  size_t other_versionslen;
+  size_t available_versionslen;
   /**
    * :member:`original_version` is the original version that client
    * initially used to make a connection attempt.  If it is set, and
@@ -2278,8 +2282,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
  * The following fields may point to somewhere inside the buffer
  * pointed by |data| of length |datalen|:
  *
- * - :member:`ngtcp2_transport_params.version_info.other_versions
- *   <ngtcp2_version_info.other_versions>`
+ * - :member:`ngtcp2_transport_params.version_info.available_versions
+ *   <ngtcp2_version_info.available_versions>`
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:

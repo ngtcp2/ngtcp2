@@ -140,7 +140,7 @@ static const char *strerrorcode(uint64_t error_code) {
     return "CRYPTO_BUFFER_EXCEEDED";
   case NGTCP2_KEY_UPDATE_ERROR:
     return "KEY_UPDATE_ERROR";
-  case NGTCP2_VERSION_NEGOTIATION_ERROR_DRAFT:
+  case NGTCP2_VERSION_NEGOTIATION_ERROR:
     return "VERSION_NEGOTIATION_ERROR";
   default:
     if (0x100u <= error_code && error_code <= 0x1ffu) {
@@ -732,15 +732,16 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
         (NGTCP2_LOG_TP " version_information.chosen_version=0x%08x"),
         NGTCP2_LOG_TP_HD_FIELDS, params->version_info.chosen_version);
 
-    assert(!(params->version_info.other_versionslen & 0x3));
+    assert(!(params->version_info.available_versionslen & 0x3));
 
-    for (i = 0, p = params->version_info.other_versions;
-         i < params->version_info.other_versionslen; i += sizeof(uint32_t)) {
+    for (i = 0, p = params->version_info.available_versions;
+         i < params->version_info.available_versionslen;
+         i += sizeof(uint32_t)) {
       p = ngtcp2_get_uint32(&version, p);
 
       log->log_printf(
           log->user_data,
-          (NGTCP2_LOG_TP " version_information.other_versions[%zu]=0x%08x"),
+          (NGTCP2_LOG_TP " version_information.available_versions[%zu]=0x%08x"),
           NGTCP2_LOG_TP_HD_FIELDS, i >> 2, version);
     }
   }
