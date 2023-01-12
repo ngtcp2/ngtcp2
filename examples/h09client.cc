@@ -2539,8 +2539,8 @@ int main(int argc, char **argv) {
         std::find(std::begin(config.preferred_versions),
                   std::end(config.preferred_versions),
                   config.version) == std::end(config.preferred_versions)) {
-      std::cerr << "preferred-version: must include version "
-                << "0x" << config.version << std::endl;
+      std::cerr << "preferred-version: must include version " << std::hex
+                << "0x" << config.version << std::dec << std::endl;
       exit(EXIT_FAILURE);
     }
 
@@ -2548,8 +2548,8 @@ int main(int argc, char **argv) {
         std::find(std::begin(config.other_versions),
                   std::end(config.other_versions),
                   config.version) == std::end(config.other_versions)) {
-      std::cerr << "other-versions: must include version "
-                << "0x" << config.version << std::endl;
+      std::cerr << "other-versions: must include version " << std::hex << "0x"
+                << config.version << std::dec << std::endl;
       exit(EXIT_FAILURE);
     }
   }
