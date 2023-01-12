@@ -95,10 +95,6 @@ int ngtcp2_crypto_derive_initial_secrets(uint32_t version, uint8_t *rx_secret,
     salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V2;
     saltlen = sizeof(NGTCP2_INITIAL_SALT_V2) - 1;
     break;
-  case NGTCP2_PROTO_VER_V2_DRAFT:
-    salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V2_DRAFT;
-    saltlen = sizeof(NGTCP2_INITIAL_SALT_V2_DRAFT) - 1;
-    break;
   default:
     salt = (const uint8_t *)NGTCP2_INITIAL_SALT_DRAFT;
     saltlen = sizeof(NGTCP2_INITIAL_SALT_DRAFT) - 1;
@@ -157,7 +153,6 @@ int ngtcp2_crypto_derive_packet_protection_key(
 
   switch (version) {
   case NGTCP2_PROTO_VER_V2:
-  case NGTCP2_PROTO_VER_V2_DRAFT:
     key_label = KEY_LABEL_V2;
     key_labellen = sizeof(KEY_LABEL_V2) - 1;
     iv_label = IV_LABEL_V2;
@@ -575,10 +570,6 @@ int ngtcp2_crypto_derive_and_install_initial_key(
     case NGTCP2_PROTO_VER_V2:
       retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_V2;
       retry_noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
-      break;
-    case NGTCP2_PROTO_VER_V2_DRAFT:
-      retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_V2_DRAFT;
-      retry_noncelen = sizeof(NGTCP2_RETRY_NONCE_V2_DRAFT) - 1;
       break;
     default:
       retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_DRAFT;
@@ -1302,10 +1293,6 @@ ngtcp2_ssize ngtcp2_crypto_write_retry(uint8_t *dest, size_t destlen,
   case NGTCP2_PROTO_VER_V2:
     key = (const uint8_t *)NGTCP2_RETRY_KEY_V2;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
-    break;
-  case NGTCP2_PROTO_VER_V2_DRAFT:
-    key = (const uint8_t *)NGTCP2_RETRY_KEY_V2_DRAFT;
-    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2_DRAFT) - 1;
     break;
   default:
     key = (const uint8_t *)NGTCP2_RETRY_KEY_DRAFT;

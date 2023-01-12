@@ -186,8 +186,7 @@ static size_t write_long_header_pkt_generic(
      later. */
   ngtcp2_pkt_hd_init(
       &hd, NGTCP2_PKT_FLAG_LONG_FORM, pkt_type, dcid, scid, pkt_num, 4,
-      version != NGTCP2_PROTO_VER_V1 && version != NGTCP2_PROTO_VER_V2 &&
-              version != NGTCP2_PROTO_VER_V2_DRAFT
+      version != NGTCP2_PROTO_VER_V1 && version != NGTCP2_PROTO_VER_V2
           ? NGTCP2_PROTO_VER_V1
           : version,
       0);
