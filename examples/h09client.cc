@@ -1833,8 +1833,7 @@ Options:
               version is  not supported by libngtcp2,  client will use
               QUIC v1  long packet  types.  Instead of  specifying hex
               string,  there  are   special  aliases  available:  "v1"
-              indicates QUIC v1, "v2" indicates QUIC v2, and "v2draft"
-              indicates QUIC v2 draft.
+              indicates QUIC v1, and "v2" indicates QUIC v2.
               Default: )"
             << std::hex << "0x" << config.version << std::dec << R"(
   --preferred-versions=<HEX>[[,<HEX>]...]
@@ -1843,16 +1842,16 @@ Options:
               client received Version  Negotiation packet from server.
               These versions must be  supported by libngtcp2.  Instead
               of  specifying hex  string,  there  are special  aliases
-              available: "v1"  indicates QUIC v1, "v2"  indicates QUIC
-              v2, and "v2draft" indicates QUIC v2 draft.
+              available: "v1"  indicates QUIC  v1, and  "v2" indicates
+              QUIC v2.
   --available-versions=<HEX>[[,<HEX>]...]
               Specify QUIC  versions in  hex string  that are  sent in
               available_versions    field    of    version_information
               transport parameter.   This list  can include  a version
               which  is  not  supported   by  libngtcp2.   Instead  of
               specifying  hex   string,  there  are   special  aliases
-              available: "v1"  indicates QUIC v1, "v2"  indicates QUIC
-              v2, and "v2draft" indicates QUIC v2 draft.
+              available: "v1"  indicates QUIC  v1, and  "v2" indicates
+              QUIC v2.
   -q, --quiet Suppress debug output.
   -s, --show-secret
               Print out secrets unless --quiet is used.
@@ -2125,10 +2124,6 @@ int main(int argc, char **argv) {
       }
       if (optarg == "v2"sv) {
         config.version = NGTCP2_PROTO_VER_V2;
-        break;
-      }
-      if (optarg == "v2draft"sv) {
-        config.version = NGTCP2_PROTO_VER_V2_DRAFT;
         break;
       }
       auto rv = util::parse_version(optarg);
@@ -2411,10 +2406,6 @@ int main(int argc, char **argv) {
             *it++ = NGTCP2_PROTO_VER_V2;
             continue;
           }
-          if (k == "v2draft"sv) {
-            *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
-            continue;
-          }
           auto rv = util::parse_version(k);
           if (!rv) {
             std::cerr << "available-versions: invalid version "
@@ -2445,10 +2436,6 @@ int main(int argc, char **argv) {
           }
           if (k == "v2"sv) {
             *it++ = NGTCP2_PROTO_VER_V2;
-            continue;
-          }
-          if (k == "v2draft"sv) {
-            *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
           auto rv = util::parse_version(k);

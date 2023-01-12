@@ -79,7 +79,6 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
     break;
   case NGTCP2_PROTO_VER_V1:
   case NGTCP2_PROTO_VER_V2:
-  case NGTCP2_PROTO_VER_V2_DRAFT:
     alpn = H3_ALPN_V1;
     alpnlen = str_size(H3_ALPN_V1);
     break;
@@ -138,7 +137,6 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
     break;
   case NGTCP2_PROTO_VER_V1:
   case NGTCP2_PROTO_VER_V2:
-  case NGTCP2_PROTO_VER_V2_DRAFT:
     alpn = HQ_ALPN_V1;
     alpnlen = str_size(HQ_ALPN_V1);
     break;

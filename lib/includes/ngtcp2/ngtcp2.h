@@ -276,16 +276,6 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_PROTO_VER_V2_DRAFT` is the provisional version
- * number for QUIC version 2 draft.
- *
- * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
- */
-#define NGTCP2_PROTO_VER_V2_DRAFT ((uint32_t)0x709a50c4u)
-
-/**
- * @macro
- *
  * :macro:`NGTCP2_PROTO_VER_DRAFT_MAX` is the maximum QUIC draft
  * version that this library supports.
  */
@@ -438,28 +428,6 @@ typedef struct ngtcp2_mem {
  * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
  */
 #define NGTCP2_RETRY_NONCE_V2 "\xd8\x69\x69\xbc\x2d\x7c\x6d\x99\x90\xef\xb0\x4a"
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_RETRY_KEY_V2_DRAFT` is an encryption key to create
- * integrity tag of Retry packet.  It is used for QUIC v2 draft.
- *
- * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
- */
-#define NGTCP2_RETRY_KEY_V2_DRAFT                                              \
-  "\xba\x85\x8d\xc7\xb4\x3d\xe5\xdb\xf8\x76\x17\xff\x4a\xb2\x53\xdb"
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_RETRY_NONCE_V2_DRAFT` is nonce used when generating
- * integrity tag of Retry packet.  It is used for QUIC v2 draft.
- *
- * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
- */
-#define NGTCP2_RETRY_NONCE_V2_DRAFT                                            \
-  "\x14\x1b\x99\xc2\x39\xb0\x3e\x78\x5d\x6a\x2e\x9f"
 
 /**
  * @macro
