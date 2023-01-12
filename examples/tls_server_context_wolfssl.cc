@@ -76,6 +76,7 @@ int alpn_select_proto_h3_cb(WOLFSSL *ssl, const unsigned char **out,
     alpnlen = str_size(H3_ALPN_DRAFT32);
     break;
   case NGTCP2_PROTO_VER_V1:
+  case NGTCP2_PROTO_VER_V2:
   case NGTCP2_PROTO_VER_V2_DRAFT:
     alpn = H3_ALPN_V1;
     alpnlen = str_size(H3_ALPN_V1);
@@ -135,6 +136,7 @@ int alpn_select_proto_hq_cb(WOLFSSL *ssl, const unsigned char **out,
     alpnlen = str_size(HQ_ALPN_DRAFT32);
     break;
   case NGTCP2_PROTO_VER_V1:
+  case NGTCP2_PROTO_VER_V2:
   case NGTCP2_PROTO_VER_V2_DRAFT:
     alpn = HQ_ALPN_V1;
     alpnlen = str_size(HQ_ALPN_V1);

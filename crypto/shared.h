@@ -61,6 +61,16 @@
   "\xa7\x07\xc2\x03\xa5\x9b\x47\x18\x4a\x1d\x62\xca\x57\x04\x06\xea\x7a\xe3"   \
   "\xe5\xd3"
 
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_INITIAL_SALT_V2` is a salt value which is used to
+ * derive initial secret.  It is used for QUIC v2.
+ */
+#define NGTCP2_INITIAL_SALT_V2                                                 \
+  "\x0d\xed\xe3\xde\xf7\x00\xa6\xdb\x81\x93\x81\xbe\x6e\x26\x9d\xcb\xf9\xbd"   \
+  "\x2e\xd9"
+
 /* Maximum key usage (encryption) limits */
 #define NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM (1ULL << 23)
 #define NGTCP2_CRYPTO_MAX_ENCRYPTION_CHACHA20_POLY1305 (1ULL << 62)

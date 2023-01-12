@@ -42,7 +42,7 @@ if [ "$ROLE" == "client" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --delay-stream 10ms --key-update 1ms"
     fi
     if [ "$TESTCASE" == "v2" ]; then
-	CLIENT_ARGS="$CLIENT_ARGS --other-versions v2draft,v1"
+	CLIENT_ARGS="$CLIENT_ARGS --other-versions v2,v1"
     fi
     if [ "$TESTCASE" == "ecn" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --no-pmtud"
@@ -77,7 +77,7 @@ elif [ "$ROLE" == "server" ]; then
     elif [ "$TESTCASE" == "multiconnect" ]; then
 	SERVER_ARGS="$SERVER_ARGS --timeout=180s --handshake-timeout=180s"
     elif [ "$TESTCASE" == "v2" ]; then
-	SERVER_ARGS="$SERVER_ARGS --preferred-versions v2draft"
+	SERVER_ARGS="$SERVER_ARGS --preferred-versions v2"
     elif [ "$TESTCASE" == "ecn" ]; then
 	SERVER_ARGS="$SERVER_ARGS --no-pmtud"
     fi
