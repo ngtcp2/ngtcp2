@@ -1241,7 +1241,8 @@ void Handler::update_timer() {
   if (expiry <= now) {
     if (!config.quiet) {
       auto t = static_cast<ev_tstamp>(now - expiry) / NGTCP2_SECONDS;
-      std::cerr << "Timer has already expired: " << t << "s" << std::endl;
+      std::cerr << "Timer has already expired: " << std::fixed << t << "s"
+                << std::defaultfloat << std::endl;
     }
 
     ev_feed_event(loop_, &timer_, EV_TIMER);
