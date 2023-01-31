@@ -6095,6 +6095,13 @@ void test_ngtcp2_conn_handshake_loss(void) {
   int64_t pkt_num = -1;
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+  ngtcp2_crypto_ctx crypto_ctx;
+  int64_t ack_pkt_num;
+  ngtcp2_transport_params params;
+  int64_t stream_id;
+  ngtcp2_ssize nwrite;
 
   rcid_init(&rcid);
   setup_handshake_server(&conn);
@@ -6374,6 +6381,158 @@ void test_ngtcp2_conn_handshake_loss(void) {
                                   ent->frc->fr.crypto.datacnt));
   CU_ASSERT(6 == ent->hd.pkt_num);
   CU_ASSERT(NULL == ent->frc->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* Allow resending Handshake CRYPTO even if it exceeds CWND */
+  setup_handshake_client(&conn);
+
+  t = 0;
+  pkt_num = -1;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 117;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_initial_pkt(
+      buf, sizeof(buf), &conn->oscid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
+      conn->client_chosen_version, NULL, 0, &fr, 1, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  init_crypto_ctx(&crypto_ctx);
+  ngtcp2_conn_set_crypto_ctx(conn, &crypto_ctx);
+  ngtcp2_conn_install_rx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+
+  pktlen = write_handshake_pkt(buf, sizeof(buf), &conn->oscid,
+                               ngtcp2_conn_get_dcid(conn), ++pkt_num,
+                               conn->client_chosen_version, &fr, 1, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
+                                      null_data, 57);
+
+  CU_ASSERT(0 == rv);
+
+  memset(&params, 0, sizeof(params));
+  ngtcp2_cid_init(&params.initial_scid, conn->dcid.current.cid.data,
+                  conn->dcid.current.cid.datalen);
+  ngtcp2_cid_init(&params.original_dcid, conn->rcid.data, conn->rcid.datalen);
+  params.max_udp_payload_size = 1200;
+  params.initial_max_stream_data_bidi_remote = 100 * 1024;
+  params.initial_max_data = 100 * 1024;
+  params.initial_max_streams_bidi = 1;
+  params.active_connection_id_limit = 2;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_install_rx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_handshake_completed(conn);
+
+  /* This will send Handshake ACK and CRYPTO */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+  CU_ASSERT(NULL == conn->in_pktns);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  /* Send 1RTT packets to consume CWND */
+  for (i = 0; i < 10; ++i) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                       &nwrite, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                       stream_id, null_data, 1024, t);
+
+    CU_ASSERT(spktlen > 0);
+  }
+
+  ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
+
+  /* 1st PTO */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  /* Send 2 ACKs with PING to declare the latest Handshake CRYPTO to
+     be lost */
+  for (i = 0; i < 4; ++i) {
+    pktlen = write_handshake_pkt(
+        buf, sizeof(buf), &conn->oscid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
+        conn->client_chosen_version, &fr, 1, &null_ckm);
+
+    rv =
+        ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+    CU_ASSERT(0 == rv);
+
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+    CU_ASSERT(spktlen > 0);
+  }
+
+  ack_pkt_num = conn->hs_pktns->tx.last_pkt_num;
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = ack_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.ack_delay_unscaled = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = write_handshake_pkt(buf, sizeof(buf), &conn->oscid,
+                               ngtcp2_conn_get_dcid(conn), ++pkt_num,
+                               conn->client_chosen_version, &fr, 1, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) != 0);
+  CU_ASSERT(conn->cstat.bytes_in_flight > conn->cstat.cwnd);
+
+  /* Resending Handshake CRYPTO is allowed even if it exceeds CWND in
+     this situation. */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) == 0);
+
+  /* Check that Handshake ACK only packet can be sent anytime */
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_handshake_pkt(buf, sizeof(buf), &conn->oscid,
+                               ngtcp2_conn_get_dcid(conn), ++pkt_num,
+                               conn->client_chosen_version, &fr, 1, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
 
   ngtcp2_conn_del(conn);
 }
