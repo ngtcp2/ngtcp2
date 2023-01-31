@@ -12000,7 +12000,15 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
 
   if (res == 0) {
     if (conn_handshake_remnants_left(conn)) {
-      if (conn_handshake_probe_left(conn)) {
+      if (conn_handshake_probe_left(conn) ||
+          /* Allow exceeding CWND if an Handshake packet needs to be
+             sent in order to avoid dead lock.  In some situation,
+             typically for client, 1 RTT packets may occupy in-flight
+             bytes (e.g., some large requests and PMTUD), and
+             Handshake packet loss shrinks CWND, and we may get in the
+             situation that we are unable to send Handshake packet. */
+          (conn->hs_pktns->rtb.num_pto_eliciting == 0 &&
+           ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq))) {
         destlen = origlen;
       }
       nwrite = conn_write_handshake_pkts(conn, pi, dest, destlen,
@@ -12012,6 +12020,11 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
         res = nwrite;
         dest += nwrite;
         destlen -= (size_t)nwrite;
+      } else if (destlen == 0) {
+        res = conn_write_handshake_ack_pkts(conn, pi, dest, origlen, ts);
+        if (res) {
+          return res;
+        }
       }
     }
   }
