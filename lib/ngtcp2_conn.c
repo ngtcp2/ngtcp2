@@ -13596,7 +13596,7 @@ void ngtcp2_settings_default_versioned(int settings_version,
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   settings->ack_thresh = 2;
   settings->max_tx_udp_payload_size = 1500 - 48;
-  settings->handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
+  settings->handshake_timeout = UINT64_MAX;
 }
 
 void ngtcp2_transport_params_default_versioned(

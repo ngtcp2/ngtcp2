@@ -3113,7 +3113,7 @@ void config_set_default(Config &config) {
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.max_gso_dgrams = 64;
-  config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
+  config.handshake_timeout = UINT64_MAX;
   config.ack_thresh = 2;
 }
 } // namespace
@@ -3248,9 +3248,8 @@ Options:
               Default: )"
             << config.max_gso_dgrams << R"(
   --handshake-timeout=<DURATION>
-              Set the QUIC handshake timeout.
-              Default: )"
-            << util::format_duration(config.handshake_timeout) << R"(
+              Set  the  QUIC handshake  timeout.   It  defaults to  no
+              timeout.
   --preferred-versions=<HEX>[[,<HEX>]...]
               Specify  QUIC versions  in hex  string in  the order  of
               preference.  Server negotiates one  of those versions if
