@@ -982,7 +982,8 @@ void test_ngtcp2_conn_stream_open_close(void) {
 
   strm = ngtcp2_conn_find_stream(conn, 2);
 
-  CU_ASSERT(NGTCP2_STRM_FLAG_SHUT_WR == strm->flags);
+  CU_ASSERT((NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_FIN_ACKED) ==
+            strm->flags);
   CU_ASSERT(fr.stream.data[0].len == strm->rx.last_offset);
   CU_ASSERT(fr.stream.data[0].len == ngtcp2_strm_rx_offset(strm));
 
@@ -8690,6 +8691,40 @@ void test_ngtcp2_conn_stream_close(void) {
             ud.stream_close.flags);
   CU_ASSERT(stream_id == ud.stream_close.stream_id);
   CU_ASSERT(NGTCP2_APP_ERR01 == ud.stream_close.app_error_code);
+
+  ngtcp2_conn_del(conn);
+
+  /* Check that the closure of remote unidirectional invokes
+     stream_close callback */
+  pkt_num = 0;
+
+  setup_default_client(&conn);
+
+  conn->callbacks.stream_close = stream_close;
+  conn->user_data = &ud;
+
+  frs[0].type = NGTCP2_FRAME_STREAM;
+  frs[0].stream.flags = 0;
+  frs[0].stream.fin = 1;
+  frs[0].stream.stream_id = 3;
+  frs[0].stream.offset = 0;
+  frs[0].stream.datacnt = 1;
+  frs[0].stream.data[0].len = 88;
+  frs[0].stream.data[0].base = null_data;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1,
+                     conn->pktns.crypto.tx.ckm);
+
+  ud.stream_close.flags = NGTCP2_STREAM_CLOSE_FLAG_NONE;
+  ud.stream_close.stream_id = -1;
+  ud.stream_close.app_error_code = 0;
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(
+      !(NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET & ud.stream_close.flags));
+  CU_ASSERT(frs[0].stream.stream_id == ud.stream_close.stream_id);
 
   ngtcp2_conn_del(conn);
 }
