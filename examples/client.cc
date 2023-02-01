@@ -2230,7 +2230,7 @@ void config_set_default(Config &config) {
   config.max_streams_uni = 100;
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
+  config.handshake_timeout = UINT64_MAX;
   config.ack_thresh = 2;
 }
 } // namespace
@@ -2420,9 +2420,8 @@ Options:
   --max-udp-payload-size=<SIZE>
               Override maximum UDP payload size that client transmits.
   --handshake-timeout=<DURATION>
-              Set the QUIC handshake timeout.
-              Default: )"
-            << util::format_duration(config.handshake_timeout) << R"(
+              Set  the  QUIC handshake  timeout.   It  defaults to  no
+              timeout.
   --no-pmtud  Disables Path MTU Discovery.
   --ack-thresh=<N>
               The minimum number of the received ACK eliciting packets

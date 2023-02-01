@@ -475,14 +475,6 @@ typedef struct ngtcp2_mem {
 #define NGTCP2_MIN_INITIAL_DCIDLEN 8
 
 /**
- * @macro
- *
- * :macro:`NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT` is the default handshake
- * timeout.
- */
-#define NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT (10 * NGTCP2_SECONDS)
-
-/**
  * @macrosection
  *
  * ECN related macros
@@ -5597,7 +5589,7 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * * :type:`max_tx_udp_payload_size
  *   <ngtcp2_settings.max_tx_udp_payload_size>` = 1452
  * * :type:`handshake_timeout <ngtcp2_settings.handshake_timeout>` =
- *   :macro:`NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT`.
+ *   ``UINT64_MAX``
  */
 NGTCP2_EXTERN void ngtcp2_settings_default_versioned(int settings_version,
                                                      ngtcp2_settings *settings);
