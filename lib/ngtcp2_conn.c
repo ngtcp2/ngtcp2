@@ -7122,13 +7122,14 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return rv;
     }
 
+    if (!bidi) {
+      ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
+      strm->flags |= NGTCP2_STRM_FLAG_FIN_ACKED;
+    }
+
     rv = conn_call_stream_open(conn, strm);
     if (rv != 0) {
       return rv;
-    }
-
-    if (!bidi) {
-      ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
     }
   }
 
