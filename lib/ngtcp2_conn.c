@@ -12942,7 +12942,7 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
         hs_pktns->rtb.probe_pkt_left = 1;
       }
     } else if (hs_pktns && hs_pktns->rtb.num_pto_eliciting) {
-      hs_pktns->rtb.probe_pkt_left = 1;
+      hs_pktns->rtb.probe_pkt_left = 2;
     } else {
       conn->pktns.rtb.probe_pkt_left = 2;
     }
