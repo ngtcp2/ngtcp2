@@ -1652,106 +1652,6 @@ typedef enum ngtcp2_pktns_id {
   NGTCP2_PKTNS_ID_MAX
 } ngtcp2_pktns_id;
 
-#define NGTCP2_CONN_STAT_VERSION_V1 1
-#define NGTCP2_CONN_STAT_VERSION NGTCP2_CONN_STAT_VERSION_V1
-
-/**
- * @struct
- *
- * :type:`ngtcp2_conn_stat` holds various connection statistics, and
- * computed data for recovery and congestion controller.
- */
-typedef struct ngtcp2_conn_stat {
-  /**
-   * :member:`latest_rtt` is the latest RTT sample which is not
-   * adjusted by acknowledgement delay.
-   */
-  ngtcp2_duration latest_rtt;
-  /**
-   * :member:`min_rtt` is the minimum RTT seen so far.  It is not
-   * adjusted by acknowledgement delay.
-   */
-  ngtcp2_duration min_rtt;
-  /**
-   * :member:`smoothed_rtt` is the smoothed RTT.
-   */
-  ngtcp2_duration smoothed_rtt;
-  /**
-   * :member:`rttvar` is a mean deviation of observed RTT.
-   */
-  ngtcp2_duration rttvar;
-  /**
-   * :member:`initial_rtt` is the initial RTT which is used when no
-   * RTT sample is available.
-   */
-  ngtcp2_duration initial_rtt;
-  /**
-   * :member:`first_rtt_sample_ts` is the timestamp when the first RTT
-   * sample is obtained.
-   */
-  ngtcp2_tstamp first_rtt_sample_ts;
-  /**
-   * :member:`pto_count` is the count of successive PTO timer
-   * expiration.
-   */
-  size_t pto_count;
-  /**
-   * :member:`loss_detection_timer` is the deadline of the current
-   * loss detection timer.
-   */
-  ngtcp2_tstamp loss_detection_timer;
-  /**
-   * :member:`last_tx_pkt_ts` corresponds to
-   * time_of_last_ack_eliciting_packet in :rfc:`9002`.
-   */
-  ngtcp2_tstamp last_tx_pkt_ts[NGTCP2_PKTNS_ID_MAX];
-  /**
-   * :member:`loss_time` corresponds to loss_time in :rfc:`9002`.
-   */
-  ngtcp2_tstamp loss_time[NGTCP2_PKTNS_ID_MAX];
-  /**
-   * :member:`cwnd` is the size of congestion window.
-   */
-  uint64_t cwnd;
-  /**
-   * :member:`ssthresh` is slow start threshold.
-   */
-  uint64_t ssthresh;
-  /**
-   * :member:`congestion_recovery_start_ts` is the timestamp when
-   * congestion recovery started.
-   */
-  ngtcp2_tstamp congestion_recovery_start_ts;
-  /**
-   * :member:`bytes_in_flight` is the number in bytes of all sent
-   * packets which have not been acknowledged.
-   */
-  uint64_t bytes_in_flight;
-  /**
-   * :member:`max_tx_udp_payload_size` is the maximum size of UDP
-   * datagram payload that this endpoint transmits.  It is used by
-   * congestion controller to compute congestion window.
-   */
-  size_t max_tx_udp_payload_size;
-  /**
-   * :member:`delivery_rate_sec` is the current sending rate measured
-   * in byte per second.
-   */
-  uint64_t delivery_rate_sec;
-  /**
-   * :member:`pacing_rate` is the current packet sending rate computed
-   * by a congestion controller.  0 if a congestion controller does
-   * not set pacing rate.  Even if this value is set to 0, the library
-   * paces packets.
-   */
-  double pacing_rate;
-  /**
-   * :member:`send_quantum` is the maximum size of a data aggregate
-   * scheduled and transmitted together.
-   */
-  size_t send_quantum;
-} ngtcp2_conn_stat;
-
 /**
  * @enum
  *
@@ -4907,16 +4807,6 @@ NGTCP2_EXTERN int ngtcp2_conn_get_early_data_rejected(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_get_conn_stat` assigns connection statistics data to
- * |*cstat|.
- */
-NGTCP2_EXTERN void ngtcp2_conn_get_conn_stat_versioned(ngtcp2_conn *conn,
-                                                       int conn_stat_version,
-                                                       ngtcp2_conn_stat *cstat);
-
-/**
- * @function
- *
  * `ngtcp2_conn_submit_crypto_data` submits crypto stream data |data|
  * of length |datalen| to the library for transmission.  The
  * encryption level is given in |crypto_level|.
@@ -5870,14 +5760,6 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
 #define ngtcp2_transport_params_default(PARAMS)                                \
   ngtcp2_transport_params_default_versioned(NGTCP2_TRANSPORT_PARAMS_VERSION,   \
                                             (PARAMS))
-
-/*
- * `ngtcp2_conn_get_conn_stat` is a wrapper around
- * `ngtcp2_conn_get_conn_stat_versioned` to set the correct struct
- * version.
- */
-#define ngtcp2_conn_get_conn_stat(CONN, CSTAT)                                 \
-  ngtcp2_conn_get_conn_stat_versioned((CONN), NGTCP2_CONN_STAT_VERSION, (CSTAT))
 
 /*
  * `ngtcp2_settings_default` is a wrapper around

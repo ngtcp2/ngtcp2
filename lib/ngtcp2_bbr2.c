@@ -31,6 +31,7 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_rst.h"
+#include "ngtcp2_conn_stat.h"
 
 #define NGTCP2_BBR_MAX_BW_FILTERLEN 2
 
