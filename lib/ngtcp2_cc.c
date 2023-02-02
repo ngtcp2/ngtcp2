@@ -34,7 +34,6 @@
 #include "ngtcp2_macro.h"
 #include "ngtcp2_mem.h"
 #include "ngtcp2_rcvry.h"
-#include "ngtcp2_conn_stat.h"
 
 uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   uint64_t n = 2 * max_udp_payload_size;
