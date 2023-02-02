@@ -31,6 +31,7 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_rst.h"
+#include "ngtcp2_conn_stat.h"
 
 static const double pacing_gain_cycle[] = {1.25, 0.75, 1, 1, 1, 1, 1, 1};
 
