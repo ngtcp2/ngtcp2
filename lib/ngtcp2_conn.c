@@ -12765,6 +12765,14 @@ int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
   return 0;
 }
 
+void ngtcp2_conn_get_conn_stat_versioned(ngtcp2_conn *conn,
+                                         int conn_stat_version,
+                                         ngtcp2_conn_stat *cstat) {
+  (void)conn_stat_version;
+
+  *cstat = conn->cstat;
+}
+
 static void conn_get_loss_time_and_pktns(ngtcp2_conn *conn,
                                          ngtcp2_tstamp *ploss_time,
                                          ngtcp2_pktns **ppktns) {

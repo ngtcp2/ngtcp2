@@ -35,7 +35,6 @@
 #include "ngtcp2_window_filter.h"
 
 typedef struct ngtcp2_rst ngtcp2_rst;
-typedef struct ngtcp2_conn_stat ngtcp2_conn_stat;
 
 typedef enum ngtcp2_bbr_state {
   NGTCP2_BBR_STATE_STARTUP,
