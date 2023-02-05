@@ -1652,6 +1652,48 @@ typedef enum ngtcp2_pktns_id {
   NGTCP2_PKTNS_ID_MAX
 } ngtcp2_pktns_id;
 
+#define NGTCP2_CONN_INFO_VERSION_V1 1
+#define NGTCP2_CONN_INFO_VERSION NGTCP2_CONN_INFO_VERSION_V1
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_conn_info` holds various connection statistics.
+ */
+typedef struct ngtcp2_conn_info {
+  /**
+   * :member:`latest_rtt` is the latest RTT sample which is not
+   * adjusted by acknowledgement delay.
+   */
+  ngtcp2_duration latest_rtt;
+  /**
+   * :member:`min_rtt` is the minimum RTT seen so far.  It is not
+   * adjusted by acknowledgement delay.
+   */
+  ngtcp2_duration min_rtt;
+  /**
+   * :member:`smoothed_rtt` is the smoothed RTT.
+   */
+  ngtcp2_duration smoothed_rtt;
+  /**
+   * :member:`rttvar` is a mean deviation of observed RTT.
+   */
+  ngtcp2_duration rttvar;
+  /**
+   * :member:`cwnd` is the size of congestion window.
+   */
+  uint64_t cwnd;
+  /**
+   * :member:`ssthresh` is slow start threshold.
+   */
+  uint64_t ssthresh;
+  /**
+   * :member:`bytes_in_flight` is the number in bytes of all sent
+   * packets which have not been acknowledged.
+   */
+  uint64_t bytes_in_flight;
+} ngtcp2_conn_info;
+
 /**
  * @enum
  *
@@ -4807,6 +4849,16 @@ NGTCP2_EXTERN int ngtcp2_conn_get_early_data_rejected(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_conn_info` assigns connection statistics data to
+ * |*cinfo|.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_get_conn_info_versioned(ngtcp2_conn *conn,
+                                                       int conn_info_version,
+                                                       ngtcp2_conn_info *cinfo);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_submit_crypto_data` submits crypto stream data |data|
  * of length |datalen| to the library for transmission.  The
  * encryption level is given in |crypto_level|.
@@ -5760,6 +5812,14 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
 #define ngtcp2_transport_params_default(PARAMS)                                \
   ngtcp2_transport_params_default_versioned(NGTCP2_TRANSPORT_PARAMS_VERSION,   \
                                             (PARAMS))
+
+/*
+ * `ngtcp2_conn_get_conn_info` is a wrapper around
+ * `ngtcp2_conn_get_conn_info_versioned` to set the correct struct
+ * version.
+ */
+#define ngtcp2_conn_get_conn_info(CONN, CINFO)                                 \
+  ngtcp2_conn_get_conn_info_versioned((CONN), NGTCP2_CONN_INFO_VERSION, (CINFO))
 
 /*
  * `ngtcp2_settings_default` is a wrapper around
