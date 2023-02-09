@@ -51,6 +51,7 @@
 #include "ngtcp2_ppe.h"
 #include "ngtcp2_qlog.h"
 #include "ngtcp2_rst.h"
+#include "ngtcp2_conn_stat.h"
 
 typedef enum {
   /* Client specific handshake states */

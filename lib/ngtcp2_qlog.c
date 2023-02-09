@@ -31,6 +31,7 @@
 #include "ngtcp2_conv.h"
 #include "ngtcp2_net.h"
 #include "ngtcp2_unreachable.h"
+#include "ngtcp2_conn_stat.h"
 
 void ngtcp2_qlog_init(ngtcp2_qlog *qlog, ngtcp2_qlog_write write,
                       ngtcp2_tstamp ts, void *user_data) {
