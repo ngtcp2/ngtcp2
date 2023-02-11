@@ -882,7 +882,7 @@ int Handler::on_stream_stop_sending(int64_t stream_id) {
 
 namespace {
 void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  auto dis = std::uniform_int_distribution<uint8_t>();
   std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
 }
 } // namespace
@@ -2632,9 +2632,7 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
   }
 
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
-      buf.wpos(), buf.left(),
-      std::uniform_int_distribution<uint8_t>(
-          0, std::numeric_limits<uint8_t>::max())(randgen),
+      buf.wpos(), buf.left(), std::uniform_int_distribution<uint8_t>()(randgen),
       dcid, dcidlen, scid, scidlen, sv.data(), p - std::begin(sv));
   if (nwrite < 0) {
     std::cerr << "ngtcp2_pkt_write_version_negotiation: "
