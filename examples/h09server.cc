@@ -1737,13 +1737,7 @@ int Server::on_read(Endpoint &ep) {
 
     auto handler_it = handlers_.find(dcid_key);
     if (handler_it == std::end(handlers_)) {
-      switch (auto rv = ngtcp2_accept(&hd, buf.data(), nread); rv) {
-      case 0:
-        break;
-      case NGTCP2_ERR_RETRY:
-        send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen, nread * 3);
-        continue;
-      default:
+      if (auto rv = ngtcp2_accept(&hd, buf.data(), nread); rv != 0) {
         if (!config.quiet) {
           std::cerr << "Unexpected packet received: length=" << nread
                     << std::endl;
