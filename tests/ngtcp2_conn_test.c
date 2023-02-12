@@ -4254,7 +4254,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_RETRY == rv);
+  CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -9491,14 +9491,7 @@ void test_ngtcp2_accept(void) {
 
   rv = ngtcp2_accept(&hd, buf, pktlen);
 
-  CU_ASSERT(NGTCP2_ERR_RETRY == rv);
-  CU_ASSERT(ngtcp2_cid_eq(&dcid, &hd.dcid));
-  CU_ASSERT(ngtcp2_cid_eq(&scid, &hd.scid));
-  CU_ASSERT(0 == hd.tokenlen);
-  CU_ASSERT(hd.len > 0);
-  CU_ASSERT(NGTCP2_PROTO_VER_V1 == hd.version);
-  CU_ASSERT(NGTCP2_PKT_0RTT == hd.type);
-  CU_ASSERT(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM);
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
 
   /* Unknown version */
   memset(&hd, 0, sizeof(hd));
