@@ -464,6 +464,9 @@ struct ngtcp2_conn {
       /* next_ts is the time to send next packet.  It is UINT64_MAX if
          packet pacing is disabled or expired.*/
       ngtcp2_tstamp next_ts;
+      /* exceeded_waiting_time is the sum of amount of time the
+         connection waited beyond next_ts. */
+      ngtcp2_duration exceeded_waiting_time;
     } pacing;
   } tx;
 
