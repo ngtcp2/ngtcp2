@@ -4898,10 +4898,6 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
     }
   }
 
-  if (pv->flags & NGTCP2_PV_FLAG_MTU_PROBE) {
-    return NGTCP2_ERR_NO_VIABLE_PATH;
-  }
-
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
     ngtcp2_dcid_copy(&conn->dcid.current, &pv->fallback_dcid);
     conn_reset_congestion_state(conn, ts);
@@ -5961,9 +5957,8 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
       /* Validate path again */
       rv = ngtcp2_pv_new(&npv, &pv->dcid, timeout,
-                         NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE |
-                             NGTCP2_PV_FLAG_MTU_PROBE,
-                         &conn->log, conn->mem);
+                         NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE, &conn->log,
+                         conn->mem);
       if (rv != 0) {
         return rv;
       }
