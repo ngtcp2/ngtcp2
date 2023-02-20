@@ -5413,7 +5413,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   ngtcp2_frame fr;
   int rv;
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
-  ngtcp2_cid cid, *new_cid;
+  ngtcp2_cid cid, *new_cid, orig_dcid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   ngtcp2_path_storage new_path1, new_path2;
   ngtcp2_ksl_it it;
@@ -5506,6 +5506,87 @@ void test_ngtcp2_conn_server_path_validation(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(ngtcp2_path_eq(&new_path2.path, &conn->dcid.current.ps.path));
   CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
+
+  ngtcp2_conn_del(conn);
+
+  /* Server falls back to the original path if it is unable to verify
+     that path is capable of minimum MTU that QUIC requires. */
+  setup_default_server(&conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  ngtcp2_cid_init(&orig_dcid, conn->dcid.current.cid.data,
+                  conn->dcid.current.cid.datalen);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ngtcp2_ksl_len(&conn->scid.set) > 1);
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
+  fr.new_connection_id.cid = cid;
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  it = ngtcp2_ksl_begin(&conn->scid.set);
+
+  assert(!ngtcp2_ksl_it_end(&it));
+
+  new_cid = &(((ngtcp2_scid *)ngtcp2_ksl_it_get(&it))->cid);
+
+  pktlen = write_pkt(buf, sizeof(buf), new_cid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != conn->pv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents.rb) > 0);
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+
+  pktlen = write_pkt(buf, sizeof(buf), new_cid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_path_eq(&new_path.path, &conn->dcid.current.ps.path));
+  CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
+
+  /* Server was unable to expand PATH_CHALLENGE due to amplification
+     limit.  Another path validation takes place. */
+  CU_ASSERT(NULL != conn->pv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents.rb) > 0);
+
+  /* path validation failed due to timeout.  Path falls back to the
+     original. */
+  t += conn->pv->timeout;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NULL == conn->pv);
+  CU_ASSERT(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  CU_ASSERT(ngtcp2_cid_eq(&orig_dcid, &conn->dcid.current.cid));
 
   ngtcp2_conn_del(conn);
 }
@@ -8046,7 +8127,6 @@ void test_ngtcp2_conn_path_validation(void) {
 
   CU_ASSERT(ent->flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED);
   CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
-  CU_ASSERT(!(conn->pv->flags & NGTCP2_PV_FLAG_MTU_PROBE));
 
   frs[0].type = NGTCP2_FRAME_PATH_RESPONSE;
   memcpy(frs[0].path_response.data, ent->data, sizeof(ent->data));
@@ -8060,7 +8140,6 @@ void test_ngtcp2_conn_path_validation(void) {
   /* Start another path validation to probe least MTU */
   CU_ASSERT(NULL != conn->pv);
   CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
-  CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_MTU_PROBE);
 
   ngtcp2_path_storage_zero(&wpath);
   spktlen =
@@ -8083,7 +8162,6 @@ void test_ngtcp2_conn_path_validation(void) {
   /* Now perform another validation to old path */
   CU_ASSERT(NULL != conn->pv);
   CU_ASSERT(!(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE));
-  CU_ASSERT(!(conn->pv->flags & NGTCP2_PV_FLAG_MTU_PROBE));
   CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
 
   ngtcp2_path_storage_zero(&wpath);
