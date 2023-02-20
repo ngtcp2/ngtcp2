@@ -5411,6 +5411,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   ngtcp2_tstamp t = 900;
   int64_t pkt_num = 0;
   ngtcp2_frame fr;
+  ngtcp2_frame frs[2];
   int rv;
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
   ngtcp2_cid cid, *new_cid, orig_dcid;
@@ -5587,6 +5588,72 @@ void test_ngtcp2_conn_server_path_validation(void) {
   CU_ASSERT(NULL == conn->pv);
   CU_ASSERT(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
   CU_ASSERT(ngtcp2_cid_eq(&orig_dcid, &conn->dcid.current.cid));
+
+  ngtcp2_conn_del(conn);
+
+  /* Server starts PMTUD after succcessful path validation. */
+  setup_default_server(&conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ngtcp2_ksl_len(&conn->scid.set) > 1);
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
+  fr.new_connection_id.cid = cid;
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  frs[0].type = NGTCP2_FRAME_PING;
+  frs[1].type = NGTCP2_FRAME_PADDING;
+  frs[1].padding.len = 1200;
+
+  it = ngtcp2_ksl_begin(&conn->scid.set);
+
+  assert(!ngtcp2_ksl_it_end(&it));
+
+  new_cid = &(((ngtcp2_scid *)ngtcp2_ksl_it_get(&it))->cid);
+
+  pktlen = write_pkt(buf, sizeof(buf), new_cid, ++pkt_num, frs, 2,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != conn->pv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents.rb) > 0);
+  CU_ASSERT(NULL == conn->pmtud);
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+
+  pktlen = write_pkt(buf, sizeof(buf), new_cid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_path_eq(&new_path.path, &conn->dcid.current.ps.path));
+  CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
+
+  /* Server starts path validation against old path. */
+  CU_ASSERT(NULL != conn->pv);
+  CU_ASSERT(!(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE));
+  CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
+  CU_ASSERT(NULL != conn->pmtud);
 
   ngtcp2_conn_del(conn);
 }

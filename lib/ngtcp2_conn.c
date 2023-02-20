@@ -5932,7 +5932,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
       if (!conn->local.settings.no_pmtud) {
         ngtcp2_conn_stop_pmtud(conn);
 
-        if (!(pv->flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED)) {
+        if (!(ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED)) {
           rv = conn_start_pmtud(conn);
           if (rv != 0) {
             return rv;
