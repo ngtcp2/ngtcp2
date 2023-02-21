@@ -5941,10 +5941,12 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
       }
     }
 
-    rv = conn_call_path_validation(conn, pv,
-                                   NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
-    if (rv != 0) {
-      return rv;
+    if (!(ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED)) {
+      rv = conn_call_path_validation(conn, pv,
+                                     NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
+      if (rv != 0) {
+        return rv;
+      }
     }
   }
 
