@@ -378,7 +378,6 @@ jobs:
             SVPID="$!"
             ./examples/$client localhost 4433 https://localhost/ --exit-on-first-stream-close
             kill -INT "$SVPID"
-            sleep 5
             if wait "$SVPID"; then
               cat sv.log
             else
