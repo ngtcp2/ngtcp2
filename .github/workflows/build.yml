@@ -2,8 +2,132 @@ name: build
 
 on: [push, pull_request]
 
+env:
+  OPENSSL1_VERSION: 1_1_1t+quic
+  OPENSSL3_VERSION: 3.0.8+quic
+  BORINGSSL_VERSION: 80a243e07ef77156af66efa7d22ac35aba44c1b3
+  PICOTLS_VERSION: 9398c491cf5b21e123ce409f2d32a1d235d93b7e
+  WOLFSSL_VERSION: v5.5.4-stable
+
 jobs:
+  build-cache:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-11]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Restore OpenSSL v1.1.1 cache
+      id: cache-openssl1
+      uses: actions/cache@v3
+      with:
+        path: openssl1/build
+        key: ${{ runner.os }}-openssl-${{ env.OPENSSL1_VERSION }}
+    - name: Restore OpenSSL v3.0.x cache
+      id: cache-openssl3
+      uses: actions/cache@v3
+      with:
+        path: openssl3/build
+        key: ${{ runner.os }}-openssl-${{ env.OPENSSL3_VERSION }}
+    - name: Restore BoringSSL cache
+      id: cache-boringssl
+      uses: actions/cache@v3
+      with:
+        path: |
+          boringssl/build/crypto/libcrypto.a
+          boringssl/build/ssl/libssl.a
+          boringssl/include
+        key: ${{ runner.os }}-boringssl-${{ env.BORINGSSL_VERSION }}
+    - name: Restore Picotls + OpenSSL v1.1.1 cache
+      id: cache-picotls-openssl1
+      uses: actions/cache@v3
+      with:
+        path: |
+          picotls-openssl1/build/libpicotls-core.a
+          picotls-openssl1/build/libpicotls-openssl.a
+          picotls-openssl1/include
+        key: ${{ runner.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL1_VERSION }}
+    - name: Restore Picotls + OpenSSL v3.0.x cache
+      id: cache-picotls-openssl3
+      uses: actions/cache@v3
+      with:
+        path: |
+          picotls-openssl3/build/libpicotls-core.a
+          picotls-openssl3/build/libpicotls-openssl.a
+          picotls-openssl3/include
+        key: ${{ runner.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
+    - name: Restore wolfSSL cache
+      id: cache-wolfssl
+      uses: actions/cache@v3
+      with:
+        path: wolfssl/build
+        key: ${{ runner.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
+    - id: settings
+      if: |
+        steps.cache-openssl1.outputs.cache-hit != 'true' ||
+        steps.cache-openssl3.outputs.cache-hit != 'true' ||
+        steps.cache-boringssl.outputs.cache-hit != 'true' ||
+        steps.cache-picotls-openssl1.outputs.cache-hit != 'true' ||
+        steps.cache-picotls-openssl3.outputs.cache-hit != 'true' ||
+        steps.cache-wolfssl.outputs.cache-hit != 'true'
+      run: |
+        echo 'needs-build=true' >> $GITHUB_OUTPUT
+    - name: Linux setup
+      if: runner.os == 'Linux' && steps.settings.outputs.needs-build == 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install \
+          g++-12 \
+          autoconf \
+          automake \
+          autotools-dev \
+          libtool \
+          pkg-config \
+          cmake \
+          cmake-data
+
+        echo 'NPROC='"$(nproc)" >> $GITHUB_ENV
+    - name: MacOS setup
+      if: runner.os == 'macOS' && steps.settings.outputs.needs-build == 'true'
+      run: |
+        brew install autoconf automake pkg-config libtool
+
+        echo 'NPROC='"$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
+    - name: Build OpenSSL v1.1.1
+      if: steps.cache-openssl1.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_openssl1.sh
+    - name: Build OpenSSL v3.0.x
+      if: steps.cache-openssl3.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_openssl3.sh
+    - name: Build BoringSSL
+      if: steps.cache-boringssl.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_boringssl.sh
+    - name: Build Picotls + OpenSSL v1.1.1
+      if: steps.cache-picotls-openssl1.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_picotls.sh
+      env:
+        OPENSSL: openssl1
+    - name: Build Picotls + OpenSSL v3.0.x
+      if: steps.cache-picotls-openssl3.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_picotls.sh
+      env:
+        OPENSSL: openssl3
+    - name: Build wolfSSL
+      if: steps.cache-wolfssl.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_wolfssl.sh
+
   build:
+    needs:
+    - build-cache
+
     strategy:
       matrix:
         os: [ubuntu-22.04, macos-11]
@@ -80,34 +204,73 @@ jobs:
       run: |
         echo 'CC=gcc-12' >> $GITHUB_ENV
         echo 'CXX=g++-12' >> $GITHUB_ENV
-    - name: Build OpenSSL v1.1.1
+    - name: Restore OpenSSL v1.1.1 cache
+      uses: actions/cache/restore@v3
       if: matrix.openssl == 'openssl1'
-      run: |
-        ./ci/build_openssl1.sh
-    - name: Build OpenSSL v3.0.x
+      with:
+        path: openssl1/build
+        key: ${{ runner.os }}-openssl-${{ env.OPENSSL1_VERSION }}
+        fail-on-cache-miss: true
+    - name: Restore OpenSSL v3.0.x cache
+      uses: actions/cache/restore@v3
       if: matrix.openssl == 'openssl3'
-      run: |
-        ./ci/build_openssl3.sh
-    - name: Build BoringSSL
-      run: |
-        ./ci/build_boringssl.sh
-    - name: Build Picotls
-      run: |
-        ./ci/build_picotls.sh
-    - name: Build wolfSSL
-      run: |
-        ./ci/build_wolfssl.sh
+      with:
+        path: openssl3/build
+        key: ${{ runner.os }}-openssl-${{ env.OPENSSL3_VERSION }}
+        fail-on-cache-miss: true
+    - name: Restore BoringSSL cache
+      uses: actions/cache/restore@v3
+      with:
+        path: |
+          boringssl/build/crypto/libcrypto.a
+          boringssl/build/ssl/libssl.a
+          boringssl/include
+        key: ${{ runner.os }}-boringssl-${{ env.BORINGSSL_VERSION }}
+        fail-on-cache-miss: true
+    - name: Restore Picotls + OpenSSL v1.1.1 cache
+      uses: actions/cache/restore@v3
+      if: matrix.openssl == 'openssl1'
+      with:
+        path: |
+          picotls-openssl1/build/libpicotls-core.a
+          picotls-openssl1/build/libpicotls-openssl.a
+          picotls-openssl1/include
+        key: ${{ runner.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL1_VERSION }}
+        fail-on-cache-miss: true
+    - name: Restore Picotls + OpenSSL v3.0.x cache
+      uses: actions/cache/restore@v3
+      if: matrix.openssl == 'openssl3'
+      with:
+        path: |
+          picotls-openssl3/build/libpicotls-core.a
+          picotls-openssl3/build/libpicotls-openssl.a
+          picotls-openssl3/include
+        key: ${{ runner.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
+        fail-on-cache-miss: true
+    - name: Restore wolfSSL cache
+      uses: actions/cache/restore@v3
+      with:
+        path: wolfssl/build
+        key: ${{ runner.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
+        fail-on-cache-miss: true
     - name: Build nghttp3
       run: |
         ./ci/build_nghttp3.sh
     - name: Setup environment variables
       run: |
-        PKG_CONFIG_PATH="$PWD/openssl/build/lib/pkgconfig:$PWD/openssl/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig"
-        LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/openssl/build/lib -Wl,-rpath,$PWD/openssl/build/lib64"
+        PKG_CONFIG_PATH="$PWD/openssl1/build/lib/pkgconfig:$PWD/openssl3/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig"
+        LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/openssl1/build/lib -Wl,-rpath,$PWD/openssl3/build/lib64"
         BORINGSSL_CFLAGS="-I$PWD/boringssl/include/"
         BORINGSSL_LIBS="-L$PWD/boringssl/build/ssl -lssl -L$PWD/boringssl/build/crypto -lcrypto"
-        PICOTLS_CFLAGS="-I$PWD/picotls/include/"
-        PICOTLS_LIBS="-L$PWD/picotls/build -lpicotls-openssl -lpicotls-core"
+
+        if [ "${{ matrix.openssl }}" = "openssl1" ]; then
+          PICOTLS_PREFIX="$PWD/picotls-openssl1"
+        else
+          PICOTLS_PREFIX="$PWD/picotls-openssl3"
+        fi
+
+        PICOTLS_CFLAGS="-I$PICOTLS_PREFIX/include/"
+        PICOTLS_LIBS="-L$PICOTLS_PREFIX/build -lpicotls-openssl -lpicotls-core"
 
         echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
         echo 'LDFLAGS='"$LDFLAGS" >> $GITHUB_ENV
@@ -115,6 +278,7 @@ jobs:
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
         echo 'PICOTLS_CFLAGS='"$PICOTLS_CFLAGS" >> $GITHUB_ENV
         echo 'PICOTLS_LIBS='"$PICOTLS_LIBS" >> $GITHUB_ENV
+        echo 'PICOTLS_PREFIX='"$PICOTLS_PREFIX" >> $GITHUB_ENV
     - name: Enable ASAN
       if: runner.os == 'Linux'
       run: |
@@ -174,7 +338,7 @@ jobs:
           -DBORINGSSL_INCLUDE_DIR="$NGTCP2_SOURCE_DIR/boringssl/include/" \
           -DENABLE_PICOTLS=ON \
           -DPICOTLS_LIBRARIES="$PICOTLS_LIBS" \
-          -DPICOTLS_INCLUDE_DIR="$NGTCP2_SOURCE_DIR/picotls/include/" \
+          -DPICOTLS_INCLUDE_DIR="$PICOTLS_PREFIX/include/" \
           -DENABLE_WOLFSSL=ON ..
     - name: Build ngtcp2
       if: matrix.buildtool != 'distcheck'
