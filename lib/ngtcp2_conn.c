@@ -2483,6 +2483,21 @@ void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
  */
 #define NGTCP2_PKT_PACING_OVERHEAD NGTCP2_MILLISECONDS
 
+static void conn_update_pacing_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  if (conn->tx.pacing.next_ts == UINT64_MAX) {
+    return;
+  }
+
+  /* If we waited too long, accumulate the amount of time we exceeded
+     and adjust future pacing timeout. */
+  if (conn->local.settings.adjust_pacing_timeout &&
+      conn->tx.pacing.next_ts < ts) {
+    conn->tx.pacing.exceeded_waiting_time += ts - conn->tx.pacing.next_ts;
+  }
+
+  conn->tx.pacing.next_ts = UINT64_MAX;
+}
+
 static void conn_cancel_expired_pkt_tx_timer(ngtcp2_conn *conn,
                                              ngtcp2_tstamp ts) {
   if (conn->tx.pacing.next_ts == UINT64_MAX) {
@@ -2493,7 +2508,7 @@ static void conn_cancel_expired_pkt_tx_timer(ngtcp2_conn *conn,
     return;
   }
 
-  conn->tx.pacing.next_ts = UINT64_MAX;
+  conn_update_pacing_state(conn, ts);
 }
 
 static int conn_pacing_pkt_tx_allowed(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
@@ -4491,15 +4506,11 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     conn_update_keep_alive_last_ts(conn, ts);
   }
 
-  if (!padded) {
-    switch (fr->type) {
-    case NGTCP2_FRAME_ACK:
-    case NGTCP2_FRAME_ACK_ECN:
-      break;
-    default:
-      conn->tx.pacing.pktlen += (size_t)nwrite;
-    }
-  } else {
+  switch (fr->type) {
+  case NGTCP2_FRAME_ACK:
+  case NGTCP2_FRAME_ACK_ECN:
+    break;
+  default:
     conn->tx.pacing.pktlen += (size_t)nwrite;
   }
 
@@ -5891,6 +5902,7 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_rst_init(&conn->rst);
 
   conn->tx.pacing.next_ts = UINT64_MAX;
+  conn->tx.pacing.exceeded_waiting_time = 0;
 }
 
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
@@ -11614,6 +11626,8 @@ static ngtcp2_ssize conn_write_vmsg_wrapper(ngtcp2_conn *conn,
       if (conn->rst.app_limited == 0) {
         conn->rst.app_limited = cstat->max_tx_udp_payload_size;
       }
+
+      conn->tx.pacing.exceeded_waiting_time = 0;
     }
   }
 
@@ -11755,6 +11769,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
       return conn_write_handshake_ack_pkts(conn, pi, dest, origlen, ts);
     }
 
+    conn_update_pacing_state(conn, ts);
+
     nwrite = conn_client_write_handshake(conn, pi, dest, destlen, vmsg, ts);
     /* We might be unable to write a packet because of depletion of
        congestion window budget, perhaps due to packet loss that
@@ -11799,6 +11815,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
 
       return conn_write_handshake_ack_pkts(conn, pi, dest, origlen, ts);
     }
+
+    conn_update_pacing_state(conn, ts);
 
     if (!ppe_pending) {
       if (!(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
@@ -11893,6 +11911,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
 
       return conn_write_ack_pkt(conn, pi, dest, origlen, NGTCP2_PKT_1RTT, ts);
     }
+
+    conn_update_pacing_state(conn, ts);
 
     break;
   case NGTCP2_CS_CLOSING:
@@ -13524,6 +13544,16 @@ void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   }
 
   interval = (ngtcp2_duration)((double)conn->tx.pacing.pktlen / pacing_rate);
+
+  if (conn->tx.pacing.exceeded_waiting_time) {
+    if (conn->tx.pacing.exceeded_waiting_time < interval) {
+      interval -= conn->tx.pacing.exceeded_waiting_time;
+      conn->tx.pacing.exceeded_waiting_time = 0;
+    } else {
+      interval = 0;
+      conn->tx.pacing.exceeded_waiting_time -= interval;
+    }
+  }
 
   conn->tx.pacing.next_ts = ts + interval;
   conn->tx.pacing.pktlen = 0;
