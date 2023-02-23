@@ -181,7 +181,7 @@ typedef void *(*ngtcp2_realloc)(void *ptr, size_t size, void *user_data);
  *
  *     void conn_new() {
  *       ngtcp2_mem mem = {NULL, my_malloc_cb, my_free_cb, my_calloc_cb,
- *                          my_realloc_cb};
+ *                         my_realloc_cb};
  *
  *       ...
  *     }
@@ -1575,8 +1575,7 @@ typedef struct ngtcp2_transport_params {
   /**
    * :member:`max_datagram_frame_size` is the maximum size of DATAGRAM
    * frame that this endpoint willingly receives.  Specifying 0
-   * disables DATAGRAM support.  See
-   * https://datatracker.ietf.org/doc/html/rfc9221
+   * disables DATAGRAM support.  See :rfc:`9221`.
    */
   uint64_t max_datagram_frame_size;
   /**
