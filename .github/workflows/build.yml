@@ -17,6 +17,9 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    outputs:
+      nghttp3-sha: ${{ steps.nghttp3-sha.outputs.result }}
+
     steps:
     - uses: actions/checkout@v3
     - name: Restore OpenSSL v1.1.1 cache
@@ -64,6 +67,23 @@ jobs:
       with:
         path: wolfssl/build
         key: ${{ runner.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
+    - id: nghttp3-sha
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          let { data: commits } = await github.rest.repos.listCommits({
+              owner: 'ngtcp2',
+              repo: 'nghttp3',
+          })
+
+          return commits[0].sha
+    - name: Restore nghttp3 cache
+      id: cache-nghttp3
+      uses: actions/cache@v3
+      with:
+        path: nghttp3/build
+        key: ${{ runner.os }}-nghttp3-${{ steps.nghttp3-sha.outputs.result }}
     - id: settings
       if: |
         steps.cache-openssl1.outputs.cache-hit != 'true' ||
@@ -71,7 +91,8 @@ jobs:
         steps.cache-boringssl.outputs.cache-hit != 'true' ||
         steps.cache-picotls-openssl1.outputs.cache-hit != 'true' ||
         steps.cache-picotls-openssl3.outputs.cache-hit != 'true' ||
-        steps.cache-wolfssl.outputs.cache-hit != 'true'
+        steps.cache-wolfssl.outputs.cache-hit != 'true' ||
+        steps.cache-nghttp3.outputs.cache-hit != 'true'
       run: |
         echo 'needs-build=true' >> $GITHUB_OUTPUT
     - name: Linux setup
@@ -123,6 +144,10 @@ jobs:
       if: steps.cache-wolfssl.outputs.cache-hit != 'true'
       run: |
         ./ci/build_wolfssl.sh
+    - name: Build nghttp3
+      if: steps.cache-nghttp3.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_nghttp3.sh
 
   build:
     needs:
@@ -253,9 +278,11 @@ jobs:
         path: wolfssl/build
         key: ${{ runner.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
         fail-on-cache-miss: true
-    - name: Build nghttp3
-      run: |
-        ./ci/build_nghttp3.sh
+    - name: Restore nghttp3 cache
+      uses: actions/cache/restore@v3
+      with:
+        path: nghttp3/build
+        key: ${{ runner.os }}-nghttp3-${{ needs.build-cache.outputs.nghttp3-sha }}
     - name: Setup environment variables
       run: |
         PKG_CONFIG_PATH="$PWD/openssl1/build/lib/pkgconfig:$PWD/openssl3/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig"
