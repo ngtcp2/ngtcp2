@@ -191,11 +191,24 @@ int ngtcp2_crypto_derive_packet_protection_key(
 int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
                                         const ngtcp2_crypto_md *md,
                                         const uint8_t *secret,
-                                        size_t secretlen) {
+                                        size_t secretlen, uint32_t version) {
   static const uint8_t LABEL[] = "quic ku";
+  static const uint8_t LABEL_V2[] = "quicv2 ku";
+  const uint8_t *label;
+  size_t labellen;
+
+  switch (version) {
+  case NGTCP2_PROTO_VER_V2:
+    label = LABEL_V2;
+    labellen = sizeof(LABEL_V2) - 1;
+    break;
+  default:
+    label = LABEL;
+    labellen = sizeof(LABEL) - 1;
+  }
 
   if (ngtcp2_crypto_hkdf_expand_label(dest, secretlen, md, secret, secretlen,
-                                      LABEL, sizeof(LABEL) - 1) != 0) {
+                                      label, labellen) != 0) {
     return -1;
   }
 
@@ -726,7 +739,7 @@ int ngtcp2_crypto_update_key(
   uint32_t version = ngtcp2_conn_get_negotiated_version(conn);
 
   if (ngtcp2_crypto_update_traffic_secret(rx_secret, md, current_rx_secret,
-                                          secretlen) != 0) {
+                                          secretlen, version) != 0) {
     return -1;
   }
 
@@ -736,7 +749,7 @@ int ngtcp2_crypto_update_key(
   }
 
   if (ngtcp2_crypto_update_traffic_secret(tx_secret, md, current_tx_secret,
-                                          secretlen) != 0) {
+                                          secretlen, version) != 0) {
     return -1;
   }
 

@@ -171,7 +171,7 @@ int ngtcp2_crypto_derive_packet_protection_key(uint8_t *key, uint8_t *iv,
 int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
                                         const ngtcp2_crypto_md *md,
                                         const uint8_t *secret,
-                                        size_t secretlen);
+                                        size_t secretlen, uint32_t version);
 
 /**
  * @function
