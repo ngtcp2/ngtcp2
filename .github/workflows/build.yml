@@ -308,6 +308,8 @@ jobs:
         PICOTLS_CFLAGS="-I$PICOTLS_PREFIX/include/"
         PICOTLS_LIBS="-L$PICOTLS_PREFIX/build -lpicotls-openssl -lpicotls-core"
 
+        AUTOTOOLS_OPTS="--enable-werror --with-libnghttp3 --with-openssl --with-gnutls --with-boringssl --with-wolfssl --with-picotls"
+
         echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
         echo 'LDFLAGS='"$LDFLAGS" >> $GITHUB_ENV
         echo 'BORINGSSL_CFLAGS='"$BORINGSSL_CFLAGS" >> $GITHUB_ENV
@@ -315,6 +317,7 @@ jobs:
         echo 'PICOTLS_CFLAGS='"$PICOTLS_CFLAGS" >> $GITHUB_ENV
         echo 'PICOTLS_LIBS='"$PICOTLS_LIBS" >> $GITHUB_ENV
         echo 'PICOTLS_PREFIX='"$PICOTLS_PREFIX" >> $GITHUB_ENV
+        echo 'AUTOTOOLS_OPTS='"$AUTOTOOLS_OPTS" >> $GITHUB_ENV
     - name: Enable ASAN
       if: runner.os == 'Linux'
       run: |
@@ -337,18 +340,14 @@ jobs:
       if: matrix.sockaddr == 'generic-sockaddr'
       run: |
         CFLAGS="$CFLAGS -DNGTCP2_USE_GENERIC_SOCKADDR"
-        EXTRA_AUTOTOOLS_OPTS="$EXTRA_AUTOTOOLS_OPTS --enable-lib-only"
+        AUTOTOOLS_OPTS="$AUTOTOOLS_OPTS --enable-lib-only"
 
         echo 'CFLAGS='"$CFLAGS" >> $GITHUB_ENV
-        echo 'EXTRA_AUTOTOOLS_OPTS='"$EXTRA_AUTOTOOLS_OPTS" >> $GITHUB_ENV
+        echo 'AUTOTOOLS_OPTS='"$AUTOTOOLS_OPTS" >> $GITHUB_ENV
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
-        autoreconf -i && \
-        ./configure --enable-werror --with-libnghttp3 \
-          --with-openssl --with-gnutls --with-boringssl --with-wolfssl \
-          --with-picotls \
-          $EXTRA_AUTOTOOLS_OPTS
+        autoreconf -i && ./configure $AUTOTOOLS_OPTS
     - name: Configure autotools for distcheck
       if: matrix.buildtool == 'distcheck'
       run: |
@@ -385,8 +384,7 @@ jobs:
     - name: Build ngtcp2 with distcheck
       if: matrix.buildtool == 'distcheck'
       run: |
-        make -j"$NPROC" distcheck \
-          DISTCHECK_CONFIGURE_FLAGS="--enable-werror --with-libnghttp3 --with-openssl --with-gnutls --with-boringssl $EXTRA_AUTOTOOLS_OPTS"
+        make -j"$NPROC" distcheck DISTCHECK_CONFIGURE_FLAGS="$AUTOTOOLS_OPTS"
     - name: examples/tests
       if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr' && runner.os == 'Linux'
       run: |
