@@ -10,15 +10,34 @@ env:
   WOLFSSL_VERSION: v5.5.4-stable
 
 jobs:
+  setup:
+    runs-on: ubuntu-22.04
+
+    outputs:
+      nghttp3-sha: ${{ steps.nghttp3-sha.outputs.result }}
+
+    steps:
+    - id: nghttp3-sha
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          let { data: commits } = await github.rest.repos.listCommits({
+              owner: 'ngtcp2',
+              repo: 'nghttp3',
+          })
+
+          return commits[0].sha
+
   build-cache:
+    needs:
+    - setup
+
     strategy:
       matrix:
         os: [ubuntu-22.04, macos-11]
 
     runs-on: ${{ matrix.os }}
-
-    outputs:
-      nghttp3-sha: ${{ steps.nghttp3-sha.outputs.result }}
 
     steps:
     - uses: actions/checkout@v3
@@ -67,23 +86,12 @@ jobs:
       with:
         path: wolfssl/build
         key: ${{ runner.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
-    - id: nghttp3-sha
-      uses: actions/github-script@v6
-      with:
-        result-encoding: string
-        script: |
-          let { data: commits } = await github.rest.repos.listCommits({
-              owner: 'ngtcp2',
-              repo: 'nghttp3',
-          })
-
-          return commits[0].sha
     - name: Restore nghttp3 cache
       id: cache-nghttp3
       uses: actions/cache@v3
       with:
         path: nghttp3/build
-        key: ${{ runner.os }}-nghttp3-${{ steps.nghttp3-sha.outputs.result }}
+        key: ${{ runner.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-sha }}
     - id: settings
       if: |
         steps.cache-openssl1.outputs.cache-hit != 'true' ||
@@ -282,7 +290,8 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         path: nghttp3/build
-        key: ${{ runner.os }}-nghttp3-${{ needs.build-cache.outputs.nghttp3-sha }}
+        key: ${{ runner.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-sha }}
+        fail-on-cache-miss: true
     - name: Setup environment variables
       run: |
         PKG_CONFIG_PATH="$PWD/openssl1/build/lib/pkgconfig:$PWD/openssl3/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig"
@@ -336,7 +345,7 @@ jobs:
       if: matrix.buildtool == 'autotools'
       run: |
         autoreconf -i && \
-        ./configure --enable-werror \
+        ./configure --enable-werror --with-libnghttp3 \
           --with-openssl --with-gnutls --with-boringssl --with-wolfssl \
           --with-picotls \
           $EXTRA_AUTOTOOLS_OPTS
@@ -377,7 +386,7 @@ jobs:
       if: matrix.buildtool == 'distcheck'
       run: |
         make -j"$NPROC" distcheck \
-          DISTCHECK_CONFIGURE_FLAGS="--enable-werror --with-openssl --with-gnutls --with-boringssl $EXTRA_AUTOTOOLS_OPTS"
+          DISTCHECK_CONFIGURE_FLAGS="--enable-werror --with-libnghttp3 --with-openssl --with-gnutls --with-boringssl $EXTRA_AUTOTOOLS_OPTS"
     - name: examples/tests
       if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr' && runner.os == 'Linux'
       run: |
