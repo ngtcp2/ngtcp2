@@ -122,9 +122,9 @@ ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead);
  *
  * This function returns 0 if it succeeds, or -1.
  */
-int ngtcp2_crypto_derive_initial_secrets(uint32_t version, uint8_t *rx_secret,
-                                         uint8_t *tx_secret,
+int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
                                          uint8_t *initial_secret,
+                                         uint32_t version,
                                          const ngtcp2_cid *client_dcid,
                                          ngtcp2_crypto_side side);
 
@@ -168,10 +168,10 @@ int ngtcp2_crypto_derive_packet_protection_key(uint8_t *key, uint8_t *iv,
  *
  * This function returns 0 if it succeeds, or -1.
  */
-int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
+int ngtcp2_crypto_update_traffic_secret(uint8_t *dest, uint32_t version,
                                         const ngtcp2_crypto_md *md,
-                                        const uint8_t *secret, size_t secretlen,
-                                        uint32_t version);
+                                        const uint8_t *secret,
+                                        size_t secretlen);
 
 /**
  * @function
