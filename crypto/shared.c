@@ -190,8 +190,8 @@ int ngtcp2_crypto_derive_packet_protection_key(
 
 int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
                                         const ngtcp2_crypto_md *md,
-                                        const uint8_t *secret,
-                                        size_t secretlen, uint32_t version) {
+                                        const uint8_t *secret, size_t secretlen,
+                                        uint32_t version) {
   static const uint8_t LABEL[] = "quic ku";
   static const uint8_t LABEL_V2[] = "quicv2 ku";
   const uint8_t *label;
