@@ -892,6 +892,8 @@ int Client::on_write() {
     if (tx_.send_blocked) {
       return 0;
     }
+
+    ev_io_stop(loop_, &wev_);
   }
 
   if (auto rv = write_streams(); rv != 0) {
@@ -973,7 +975,6 @@ int Client::write_streams() {
     if (nwrite == 0) {
       // We are congestion limited.
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
-      ev_io_stop(loop_, &wev_);
       return 0;
     }
 
@@ -998,7 +999,6 @@ int Client::write_streams() {
 
     if (++pktcnt == max_pktcnt) {
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
-      start_wev_endpoint(ep);
       return 0;
     }
   }
