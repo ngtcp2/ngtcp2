@@ -320,7 +320,6 @@ def arg_repl(matchobj):
 def transform_content(content):
     content = re.sub(r'^\s+\* ?', '', content)
     content = re.sub(r'\|([^\s|]+)\|', arg_repl, content)
-    content = re.sub(r':enum:', ':macro:', content)
     return content
 
 if __name__ == '__main__':
