@@ -9,6 +9,8 @@ permissions: read-all
 
 jobs:
   build:
+    permissions:
+      packages: write
 
     runs-on: ubuntu-22.04
 
