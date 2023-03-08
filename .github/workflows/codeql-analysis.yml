@@ -6,8 +6,12 @@ on:
   schedule:
     - cron: '0 6 * * *'
 
+permissions: read-all
+
 jobs:
   CodeQL-Build:
+    permissions:
+      security-events: write
 
     # CodeQL runs on ubuntu-latest and windows-latest
     runs-on: ubuntu-latest
