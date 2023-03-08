@@ -6726,6 +6726,71 @@ void test_ngtcp2_conn_handshake_loss(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_probe(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_ssize spktlen;
+  size_t pktlen;
+  uint8_t buf[1200];
+  ngtcp2_frame fr;
+  int rv;
+  ngtcp2_vec datav;
+  int accepted;
+
+  /* Probe packet after DATAGRAM */
+  setup_default_client(&conn);
+
+  conn->remote.transport_params->max_datagram_frame_size = 65535;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1 == conn->pktns.rtb.num_ack_eliciting);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t++);
+
+  CU_ASSERT(0 == rv);
+
+  datav.base = null_data;
+  datav.len = 44;
+
+  spktlen = ngtcp2_conn_writev_datagram(
+      conn, NULL, NULL, buf, sizeof(buf), &accepted,
+      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 1, &datav, 1, t++);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(accepted);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+
+  ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  CU_ASSERT(2 == conn->pktns.rtb.probe_pkt_left);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t++);
+
+  CU_ASSERT(spktlen > 0);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t++);
+
+  CU_ASSERT(spktlen > 0);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t++);
+
+  CU_ASSERT(0 == spktlen);
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_conn_recv_client_initial_retry(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];

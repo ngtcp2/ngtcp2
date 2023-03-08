@@ -264,6 +264,7 @@ int main(void) {
                    test_ngtcp2_conn_handshake_probe) ||
       !CU_add_test(pSuite, "conn_handshake_loss",
                    test_ngtcp2_conn_handshake_loss) ||
+      !CU_add_test(pSuite, "conn_probe", test_ngtcp2_conn_probe) ||
       !CU_add_test(pSuite, "conn_recv_client_initial_retry",
                    test_ngtcp2_conn_recv_client_initial_retry) ||
       !CU_add_test(pSuite, "conn_recv_client_initial_token",
