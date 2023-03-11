@@ -1528,8 +1528,6 @@ int Client::send_blocked_packet() {
     if (rv == NETWORK_ERR_SEND_BLOCKED) {
       assert(wev_.fd == tx_.blocked.endpoint->fd);
 
-      ev_io_start(loop_, &wev_);
-
       return 0;
     }
 
