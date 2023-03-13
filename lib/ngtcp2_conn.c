@@ -5444,7 +5444,6 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
                          ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts) {
   int rv;
-  ngtcp2_frame_chain *frc = NULL;
   ngtcp2_ssize num_acked;
   ngtcp2_conn_stat *cstat = &conn->cstat;
 
@@ -5464,7 +5463,6 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
   if (num_acked < 0) {
     /* TODO assert this */
     assert(ngtcp2_err_is_fatal((int)num_acked));
-    ngtcp2_frame_chain_list_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
     return (int)num_acked;
   }
 
