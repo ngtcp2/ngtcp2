@@ -1967,12 +1967,6 @@ typedef struct ngtcp2_settings {
    * Discovery.
    */
   int no_pmtud;
-  /**
-   * :member:`adjust_pacing_timeout`, if set to nonzero, reduces the
-   * next pacing timeout if the endpoint waited too long in the
-   * previous round.
-   */
-  int adjust_pacing_timeout;
 } ngtcp2_settings;
 
 /**
