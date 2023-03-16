@@ -65,7 +65,7 @@ directory require at least one of the following TLS backends:
 Build from git
 --------------
 
-.. code-block:: text
+.. code-block:: shell
 
    $ git clone --depth 1 -b OpenSSL_1_1_1t+quic https://github.com/quictls/openssl
    $ cd openssl
@@ -101,7 +101,7 @@ found under examples directory.  They talk HTTP/3.
 Client
 ~~~~~~
 
-.. code-block:: text
+.. code-block:: shell
 
    $ examples/client [OPTIONS] <HOST> <PORT> [<URI>...]
 
@@ -113,7 +113,7 @@ The notable options are:
 Server
 ~~~~~~
 
-.. code-block:: text
+.. code-block:: shell
 
    $ examples/server [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> <CERTIFICATE_FILE>
 
@@ -220,7 +220,7 @@ analyze QUIC traffic using the following steps:
 
 1. Set *SSLKEYLOGFILE* environment variable:
 
-   .. code-block:: text
+   .. code-block:: shell
 
       $ export SSLKEYLOGFILE=quic_keylog_file
 
