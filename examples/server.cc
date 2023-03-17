@@ -61,10 +61,6 @@ constexpr size_t NGTCP2_SV_SCIDLEN = 18;
 } // namespace
 
 namespace {
-constexpr size_t MAX_DYNBUFLEN = 10_m;
-} // namespace
-
-namespace {
 constexpr size_t max_preferred_versionslen = 4;
 } // namespace
 
@@ -307,7 +303,11 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
                             void *user_data, void *stream_user_data) {
   auto stream = static_cast<Stream *>(stream_user_data);
 
-  if (stream->dynbuflen > MAX_DYNBUFLEN) {
+  ngtcp2_conn_info ci;
+
+  ngtcp2_conn_get_conn_info(stream->handler->conn(), &ci);
+
+  if (stream->dynbuflen > ci.cwnd) {
     return NGHTTP3_ERR_WOULDBLOCK;
   }
 
@@ -1107,7 +1107,11 @@ int http_acked_stream_data(nghttp3_conn *conn, int64_t stream_id,
 void Handler::http_acked_stream_data(Stream *stream, uint64_t datalen) {
   stream->http_acked_stream_data(datalen);
 
-  if (stream->dynresp && stream->dynbuflen < MAX_DYNBUFLEN - 16_k) {
+  ngtcp2_conn_info ci;
+
+  ngtcp2_conn_get_conn_info(stream->handler->conn(), &ci);
+
+  if (stream->dynresp && stream->dynbuflen < ci.cwnd) {
     if (auto rv = nghttp3_conn_resume_stream(httpconn_, stream->stream_id);
         rv != 0) {
       // TODO Handle error
