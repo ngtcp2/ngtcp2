@@ -13518,8 +13518,11 @@ void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   } else {
     /* 1.25 is the under-utilization avoidance factor described in
        https://datatracker.ietf.org/doc/html/rfc9002#section-7.7 */
-    pacing_rate =
-        (double)conn->cstat.cwnd / (double)conn->cstat.smoothed_rtt * 1.25;
+    pacing_rate = (double)conn->cstat.cwnd /
+                  (double)(conn->cstat.first_rtt_sample_ts == UINT64_MAX
+                               ? NGTCP2_MILLISECONDS
+                               : conn->cstat.smoothed_rtt) *
+                  1.25;
   }
 
   interval = (ngtcp2_duration)((double)conn->tx.pacing.pktlen / pacing_rate);
