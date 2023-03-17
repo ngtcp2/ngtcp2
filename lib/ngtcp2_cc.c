@@ -179,7 +179,8 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
       ngtcp2_max(cc->max_delivery_rate_sec, cstat->delivery_rate_sec);
 
   if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate_sec) {
-    target_cwnd = cc->max_delivery_rate_sec * cstat->min_rtt / NGTCP2_SECONDS;
+    target_cwnd =
+        cc->max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
     initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
     cc->target_cwnd = ngtcp2_max(initcwnd, target_cwnd) * 289 / 100;
 
@@ -547,7 +548,8 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
       ngtcp2_max(cc->max_delivery_rate_sec, cstat->delivery_rate_sec);
 
   if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate_sec) {
-    target_cwnd = cc->max_delivery_rate_sec * cstat->min_rtt / NGTCP2_SECONDS;
+    target_cwnd =
+        cc->max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
     initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
     cc->target_cwnd = ngtcp2_max(initcwnd, target_cwnd) * 289 / 100;
 
