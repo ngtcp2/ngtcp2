@@ -179,7 +179,8 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
       ngtcp2_max(cc->max_delivery_rate_sec, cstat->delivery_rate_sec);
 
   if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate_sec) {
-    target_cwnd = cc->max_delivery_rate_sec * cstat->min_rtt / NGTCP2_SECONDS;
+    target_cwnd =
+        cc->max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
     initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
     cc->target_cwnd = ngtcp2_max(initcwnd, target_cwnd) * 289 / 100;
 
@@ -323,13 +324,11 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     return;
   }
 
-  if (cc->target_cwnd && cc->target_cwnd < cstat->cwnd) {
-    return;
-  }
-
   if (cstat->cwnd < cstat->ssthresh) {
     /* slow-start */
-    cstat->cwnd += pkt->pktlen;
+    if (cc->target_cwnd == 0 || cc->target_cwnd > cstat->cwnd) {
+      cstat->cwnd += pkt->pktlen;
+    }
 
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                     "pkn=%" PRId64 " acked, slow start cwnd=%" PRIu64,
@@ -439,7 +438,9 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     }
   }
 
-  cstat->cwnd += add;
+  if (cc->target_cwnd == 0 || cc->target_cwnd > cstat->cwnd) {
+    cstat->cwnd += add;
+  }
 
   ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                   "pkn=%" PRId64 " acked, cubic-ca cwnd=%" PRIu64 " t=%" PRIu64
@@ -547,7 +548,8 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
       ngtcp2_max(cc->max_delivery_rate_sec, cstat->delivery_rate_sec);
 
   if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate_sec) {
-    target_cwnd = cc->max_delivery_rate_sec * cstat->min_rtt / NGTCP2_SECONDS;
+    target_cwnd =
+        cc->max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
     initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
     cc->target_cwnd = ngtcp2_max(initcwnd, target_cwnd) * 289 / 100;
 
