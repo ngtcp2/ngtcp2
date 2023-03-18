@@ -936,10 +936,43 @@ int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
 
 namespace {
 int path_validation(ngtcp2_conn *conn, uint32_t flags, const ngtcp2_path *path,
+                    const ngtcp2_path *old_path,
                     ngtcp2_path_validation_result res, void *user_data) {
   if (!config.quiet) {
     debug::path_validation(path, res);
   }
+
+  if (res != NGTCP2_PATH_VALIDATION_RESULT_SUCCESS ||
+      ngtcp2_addr_eq(&path->remote, &old_path->remote)) {
+    return 0;
+  }
+
+  std::array<uint8_t, NGTCP2_CRYPTO_MAX_REGULAR_TOKENLEN> token;
+  auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+               .count();
+
+  auto tokenlen = ngtcp2_crypto_generate_regular_token(
+      token.data(), config.static_secret.data(), config.static_secret.size(),
+      path->remote.addr, path->remote.addrlen, t);
+  if (tokenlen < 0) {
+    if (!config.quiet) {
+      std::cerr << "Unable to generate token" << std::endl;
+    }
+
+    return 0;
+  }
+
+  if (auto rv = ngtcp2_conn_submit_new_token(conn, token.data(), tokenlen);
+      rv != 0) {
+    if (!config.quiet) {
+      std::cerr << "ngtcp2_conn_submit_new_token: " << ngtcp2_strerror(rv)
+                << std::endl;
+    }
+
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
   return 0;
 }
 } // namespace
