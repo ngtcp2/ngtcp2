@@ -253,11 +253,9 @@ tables by Destination Connection ID (refer to the next section to know
 how to associate Connection ID to a :type:`ngtcp2_conn`).  If it
 belongs to an existing connection, pass the UDP datagram to
 `ngtcp2_conn_read_pkt()`.  If it does not belong to any existing
-connection, it should be passed to `ngtcp2_accept()`.  If it returns
-:macro:`NGTCP2_ERR_RETRY`, the server should send Retry packet (use
-`ngtcp2_crypto_write_retry()` to create Retry packet).  If it returns
-an other negative error code, just drop the packet to the floor and
-take no action, or send Stateless Reset packet (use
+connection, it should be passed to `ngtcp2_accept()`.  If it returns a
+negative error code, just drop the packet to the floor and take no
+action, or send Stateless Reset packet (use
 `ngtcp2_pkt_write_stateless_reset()` to create Stateless Reset
 packet).  Otherwise, the UDP datagram is acceptable as a new
 connection.  Create :type:`ngtcp2_conn` object and pass the UDP
