@@ -3628,9 +3628,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_retry(
  * whether packet |pkt| of length |pktlen| from client is acceptable
  * for the very initial packet to a connection.
  *
- * If |dest| is not ``NULL`` and the function returns 0, or
- * :macro:`NGTCP2_ERR_RETRY`, the decoded packet header is stored to
- * the object pointed by |dest|.
+ * If |dest| is not ``NULL`` and the function returns 0, the decoded
+ * packet header is stored to the object pointed by |dest|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
