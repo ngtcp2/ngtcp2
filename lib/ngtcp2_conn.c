@@ -278,8 +278,12 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_pv *pv,
     flags |= NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR;
   }
 
-  rv = conn->callbacks.path_validation(conn, flags, &pv->dcid.ps.path, res,
-                                       conn->user_data);
+  rv = conn->callbacks.path_validation(
+      conn, flags, &pv->dcid.ps.path,
+      (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)
+          ? &pv->fallback_dcid.ps.path
+          : NULL,
+      res, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
