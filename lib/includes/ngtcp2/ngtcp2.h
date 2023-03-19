@@ -2174,11 +2174,41 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
     int transport_params_version, const ngtcp2_transport_params *params);
 
 /**
+ * @macrosection
+ *
+ * QUIC transport parameters decoding flags
+ */
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE` indicates no flag
+ * set.
+ */
+#define NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE 0x00u
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS`
+ * instructs decoder to ignore missing required fields.
+ */
+#define NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS 0x01u
+
+/**
  * @function
  *
  * `ngtcp2_decode_transport_params` decodes transport parameters in
  * |data| of length |datalen|, and stores the result in the object
  * pointed by |params|.
+ *
+ * |flags| is bitwise OR of zero or more of
+ * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_*
+ * <NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE>`.  If
+ * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS`
+ * is set, this function does not check the missing required fields,
+ * and :macro:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM` will not be
+ * returned.
  *
  * If the optional parameters are missing, the default value is
  * assigned.
@@ -2199,7 +2229,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
  */
 NGTCP2_EXTERN int ngtcp2_decode_transport_params_versioned(
     int transport_params_version, ngtcp2_transport_params *params,
-    ngtcp2_transport_params_type exttype, const uint8_t *data, size_t datalen);
+    uint32_t flags, ngtcp2_transport_params_type exttype, const uint8_t *data,
+    size_t datalen);
 
 /**
  * @function
@@ -2210,6 +2241,14 @@ NGTCP2_EXTERN int ngtcp2_decode_transport_params_versioned(
  * assigned to |*pparams|.  Unlike `ngtcp2_decode_transport_params`,
  * all direct and indirect fields are also allocated dynamically if
  * needed.
+ *
+ * |flags| is bitwise OR of zero or more of
+ * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_*
+ * <NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE>`.  If
+ * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS`
+ * is set, this function does not check the missing required fields,
+ * and :macro:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM` will not be
+ * returned.
  *
  * |mem| is a memory allocator to allocate memory.  If |mem| is
  * ``NULL``, the memory allocator returned by `ngtcp2_mem_default()`
@@ -2232,8 +2271,9 @@ NGTCP2_EXTERN int ngtcp2_decode_transport_params_versioned(
  *     Out of memory.
  */
 NGTCP2_EXTERN int ngtcp2_decode_transport_params_new(
-    ngtcp2_transport_params **pparams, ngtcp2_transport_params_type exttype,
-    const uint8_t *data, size_t datalen, const ngtcp2_mem *mem);
+    ngtcp2_transport_params **pparams, uint32_t flags,
+    ngtcp2_transport_params_type exttype, const uint8_t *data, size_t datalen,
+    const ngtcp2_mem *mem);
 
 /**
  * @function
@@ -5805,9 +5845,10 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  * `ngtcp2_decode_transport_params_versioned` to set the correct
  * struct version.
  */
-#define ngtcp2_decode_transport_params(PARAMS, EXTTYPE, DATA, DATALEN)         \
-  ngtcp2_decode_transport_params_versioned(                                    \
-      NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS), (EXTTYPE), (DATA), (DATALEN))
+#define ngtcp2_decode_transport_params(PARAMS, FLAGS, EXTTYPE, DATA, DATALEN)  \
+  ngtcp2_decode_transport_params_versioned(NGTCP2_TRANSPORT_PARAMS_VERSION,    \
+                                           (PARAMS), (FLAGS), (EXTTYPE),       \
+                                           (DATA), (DATALEN))
 
 /*
  * `ngtcp2_conn_client_new` is a wrapper around

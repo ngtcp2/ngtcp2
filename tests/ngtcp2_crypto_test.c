@@ -75,7 +75,8 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT((ngtcp2_ssize)len == nwrite);
 
   rv = ngtcp2_decode_transport_params(
-      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
+      &nparams, NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE,
+      NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_stream_data_bidi_local ==
@@ -124,8 +125,8 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT((ngtcp2_ssize)len == nwrite);
 
   rv = ngtcp2_decode_transport_params(
-      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
-      (size_t)nwrite);
+      &nparams, NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE,
+      NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf, (size_t)nwrite);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_stream_data_bidi_local ==
@@ -230,7 +231,8 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT((ngtcp2_ssize)i == nwrite);
 
   rv = ngtcp2_decode_transport_params(
-      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
+      &nparams, NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE,
+      NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_stream_data_bidi_local ==
@@ -375,8 +377,8 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT((ngtcp2_ssize)i == nwrite);
 
   rv = ngtcp2_decode_transport_params(
-      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
-      (size_t)nwrite);
+      &nparams, NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE,
+      NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf, (size_t)nwrite);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_stream_data_bidi_local ==
@@ -476,8 +478,9 @@ void test_ngtcp2_decode_transport_params_new(void) {
   CU_ASSERT((ngtcp2_ssize)len == nwrite);
 
   rv = ngtcp2_decode_transport_params_new(
-      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
-      (size_t)nwrite, NULL);
+      &nparams, NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE,
+      NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf, (size_t)nwrite,
+      NULL);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_stream_data_bidi_local ==
@@ -607,8 +610,9 @@ void test_ngtcp2_decode_transport_params_new(void) {
   CU_ASSERT((ngtcp2_ssize)len == nwrite);
 
   rv = ngtcp2_decode_transport_params_new(
-      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
-      (size_t)nwrite, NULL);
+      &nparams, NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE,
+      NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf, (size_t)nwrite,
+      NULL);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_stream_data_bidi_local ==
