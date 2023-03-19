@@ -4176,7 +4176,7 @@ ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_encode_early_remote_transport_params` encodes the QUIC
+ * `ngtcp2_conn_encode_early_transport_params` encodes the QUIC
  * transport parameters that are used for early data in the buffer
  * pointed by |dest| of length |destlen|.  The subset includes at
  * least the following fields:
@@ -4983,7 +4983,8 @@ NGTCP2_EXTERN int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_set_local_addr` sets local endpoint address |addr| to
- * the current path of |conn|.
+ * the current path of |conn|.  This function is provided for testing
+ * purpose only.
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_local_addr(ngtcp2_conn *conn,
                                               const ngtcp2_addr *addr);
