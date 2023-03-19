@@ -76,43 +76,49 @@ int generate_secret(uint8_t *secret, size_t secretlen) {
   return 0;
 }
 
-std::optional<std::string> read_token(const std::string_view &filename) {
+std::optional<std::string> read_pem(const std::string_view &filename,
+                                    const std::string_view &name,
+                                    const std::string_view &type) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "r");
   if (f == nullptr) {
-    std::cerr << "Could not open token file " << filename << std::endl;
+    std::cerr << "Could not open " << name << " file " << filename << std::endl;
     return {};
   }
 
-  char *name, *header;
+  auto f_d = defer(wolfSSL_BIO_free, f);
+
+  char *pem_type, *header;
   unsigned char *data;
   long datalen;
-  std::string token;
-  if (wolfSSL_PEM_read_bio(f, &name, &header, &data, &datalen) != 1) {
-    std::cerr << "Could not read token file " << filename << std::endl;
-    wolfSSL_BIO_free(f);
+
+  if (wolfSSL_PEM_read_bio(f, &pem_type, &header, &data, &datalen) != 1) {
+    std::cerr << "Could not read " << name << " file " << filename << std::endl;
     return {};
   }
-  wolfSSL_BIO_free(f);
 
-  wolfSSL_OPENSSL_free(name);
-  wolfSSL_OPENSSL_free(header);
+  auto pem_type_d = defer(wolfSSL_OPENSSL_free, pem_type);
+  auto header_d = defer(wolfSSL_OPENSSL_free, header);
+  auto data_d = defer(wolfSSL_OPENSSL_free, data);
 
-  auto res = std::string{data, data + datalen};
+  if (type != pem_type) {
+    std::cerr << name << " file " << filename << " contains unexpected type"
+              << std::endl;
+    return {};
+  }
 
-  wolfSSL_OPENSSL_free(data);
-
-  return res;
+  return std::string{data, data + datalen};
 }
 
-int write_token(const std::string_view &filename, const uint8_t *token,
-                size_t tokenlen) {
+int write_pem(const std::string_view &filename, const std::string_view &name,
+              const std::string_view &type, const uint8_t *data,
+              size_t datalen) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "w");
   if (f == nullptr) {
-    std::cerr << "Could not write token in " << filename << std::endl;
+    std::cerr << "Could not write " << name << " in " << filename << std::endl;
     return -1;
   }
 
-  wolfSSL_PEM_write_bio(f, "QUIC TOKEN", "", token, tokenlen);
+  wolfSSL_PEM_write_bio(f, type.data(), "", data, datalen);
   wolfSSL_BIO_free(f);
 
   return 0;

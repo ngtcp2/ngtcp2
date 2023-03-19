@@ -145,4 +145,30 @@ int ngtcp2_transport_params_copy_new(ngtcp2_transport_params **pdest,
                                      const ngtcp2_transport_params *src,
                                      const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_transport_params_required_fields is used to detect missing
+ * required fields.
+ */
+typedef struct ngtcp2_transport_params_required_fields {
+  int original_dcid_present;
+  int initial_scid_present;
+} ngtcp2_transport_params_required_fields;
+
+/*
+ * ngtcp2_decode_transport_params_raw behaves like
+ * ngtcp2_decode_transport_params, but it does not return error when a
+ * required field is missing.  Instead, it records those fields in
+ * |rf| if it is not NULL.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
+ *     The input is malformed.
+ */
+int ngtcp2_decode_transport_params_raw(
+    ngtcp2_transport_params *params,
+    ngtcp2_transport_params_required_fields *rf,
+    ngtcp2_transport_params_type exttype, const uint8_t *data, size_t datalen);
+
 #endif /* NGTCP2_CRYPTO_H */

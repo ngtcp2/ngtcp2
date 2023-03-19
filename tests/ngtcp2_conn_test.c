@@ -9485,6 +9485,113 @@ void test_ngtcp2_conn_amplification(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_encode_early_transport_params(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[256];
+  ngtcp2_ssize slen;
+  ngtcp2_transport_params params, early_params;
+  ngtcp2_callbacks cb;
+  ngtcp2_settings settings;
+  ngtcp2_cid rcid, scid;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+  ngtcp2_crypto_ctx crypto_ctx;
+  int rv;
+
+  /* client side */
+  setup_default_client(&conn);
+
+  slen = ngtcp2_conn_encode_early_transport_params(conn, buf, sizeof(buf));
+
+  CU_ASSERT(slen > 0);
+
+  rv = ngtcp2_decode_transport_params_raw(
+      &early_params, NULL, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
+      buf, (size_t)slen);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == early_params.initial_max_streams_bidi);
+  CU_ASSERT(1 == early_params.initial_max_streams_uni);
+  CU_ASSERT(64 * 1024 == early_params.initial_max_stream_data_bidi_local);
+  CU_ASSERT(64 * 1024 == early_params.initial_max_stream_data_bidi_remote);
+  CU_ASSERT(64 * 1024 == early_params.initial_max_stream_data_uni);
+  CU_ASSERT(64 * 1024 == early_params.initial_max_data);
+  CU_ASSERT(8 == early_params.active_connection_id_limit);
+
+  ngtcp2_conn_del(conn);
+
+  rcid_init(&rcid);
+  scid_init(&scid);
+
+  init_initial_crypto_ctx(&crypto_ctx);
+
+  client_early_callbacks(&cb);
+  client_default_settings(&settings);
+  client_default_transport_params(&params);
+
+  ngtcp2_conn_client_new(&conn, &rcid, &scid, &null_path.path,
+                         NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
+                         /* mem = */ NULL, NULL);
+  ngtcp2_conn_set_initial_crypto_ctx(conn, &crypto_ctx);
+  ngtcp2_conn_install_initial_key(conn, &aead_ctx, null_iv, &hp_ctx, &aead_ctx,
+                                  null_iv, &hp_ctx, sizeof(null_iv));
+
+  rv = ngtcp2_conn_decode_early_transport_params(conn, buf, (size_t)slen);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(early_params.initial_max_streams_bidi ==
+            conn->remote.transport_params->initial_max_streams_bidi);
+  CU_ASSERT(early_params.initial_max_streams_uni ==
+            conn->remote.transport_params->initial_max_streams_uni);
+  CU_ASSERT(early_params.initial_max_stream_data_bidi_local ==
+            conn->remote.transport_params->initial_max_stream_data_bidi_local);
+  CU_ASSERT(early_params.initial_max_stream_data_bidi_remote ==
+            conn->remote.transport_params->initial_max_stream_data_bidi_remote);
+  CU_ASSERT(early_params.initial_max_stream_data_uni ==
+            conn->remote.transport_params->initial_max_stream_data_uni);
+  CU_ASSERT(early_params.initial_max_data ==
+            conn->remote.transport_params->initial_max_data);
+  CU_ASSERT(early_params.active_connection_id_limit ==
+            conn->remote.transport_params->active_connection_id_limit);
+
+  ngtcp2_conn_del(conn);
+
+  /* server side */
+  server_default_settings(&settings);
+  server_default_transport_params(&params);
+  params.disable_active_migration = 1;
+  setup_default_server_settings(&conn, &null_path.path, &settings, &params);
+
+  slen = ngtcp2_conn_encode_early_transport_params(conn, buf, sizeof(buf));
+
+  CU_ASSERT(slen > 0);
+
+  rv = ngtcp2_decode_transport_params_raw(
+      &early_params, NULL, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
+      buf, (size_t)slen);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(params.initial_max_streams_bidi ==
+            early_params.initial_max_streams_bidi);
+  CU_ASSERT(params.initial_max_streams_uni ==
+            early_params.initial_max_streams_uni);
+  CU_ASSERT(params.initial_max_stream_data_bidi_local ==
+            early_params.initial_max_stream_data_bidi_local);
+  CU_ASSERT(params.initial_max_stream_data_bidi_remote ==
+            early_params.initial_max_stream_data_bidi_remote);
+  CU_ASSERT(params.initial_max_stream_data_uni ==
+            early_params.initial_max_stream_data_uni);
+  CU_ASSERT(params.initial_max_data == early_params.initial_max_data);
+  CU_ASSERT(params.active_connection_id_limit ==
+            early_params.active_connection_id_limit);
+  CU_ASSERT(params.max_idle_timeout == early_params.max_idle_timeout);
+  CU_ASSERT(params.max_udp_payload_size == early_params.max_udp_payload_size);
+  CU_ASSERT(params.disable_active_migration ==
+            early_params.disable_active_migration);
+
+  ngtcp2_conn_del(conn);
+}
+
 typedef struct failmalloc {
   size_t nmalloc;
   size_t fail_start;

@@ -68,13 +68,16 @@ int generate_secret(uint8_t *secret, size_t secretlen) {
   return 0;
 }
 
-std::optional<std::string> read_token(const std::string_view &filename) {
+std::optional<std::string> read_pem(const std::string_view &filename,
+                                    const std::string_view &name,
+                                    const std::string_view &type) {
   auto f = std::ifstream(filename.data());
   if (!f) {
-    std::cerr << "Could not read token file " << filename << std::endl;
+    std::cerr << "Could not read " << name << " file " << filename << std::endl;
     return {};
   }
 
+  f.seekg(0, std::ios::end);
   auto pos = f.tellg();
   std::vector<char> content(pos);
   f.seekg(0, std::ios::beg);
@@ -85,8 +88,8 @@ std::optional<std::string> read_token(const std::string_view &filename) {
   s.size = content.size();
 
   gnutls_datum_t d;
-  if (auto rv = gnutls_pem_base64_decode2("QUIC TOKEN", &s, &d); rv < 0) {
-    std::cerr << "Could not read token in " << filename << std::endl;
+  if (auto rv = gnutls_pem_base64_decode2(type.data(), &s, &d); rv < 0) {
+    std::cerr << "Could not read " << name << " file " << filename << std::endl;
     return {};
   }
 
@@ -97,21 +100,22 @@ std::optional<std::string> read_token(const std::string_view &filename) {
   return res;
 }
 
-int write_token(const std::string_view &filename, const uint8_t *token,
-                size_t tokenlen) {
+int write_pem(const std::string_view &filename, const std::string_view &name,
+              const std::string_view &type, const uint8_t *data,
+              size_t datalen) {
   auto f = std::ofstream(filename.data());
   if (!f) {
-    std::cerr << "Could not write token in " << filename << std::endl;
+    std::cerr << "Could not write " << name << " in " << filename << std::endl;
     return -1;
   }
 
   gnutls_datum_t s;
-  s.data = const_cast<uint8_t *>(token);
-  s.size = tokenlen;
+  s.data = const_cast<uint8_t *>(data);
+  s.size = datalen;
 
   gnutls_datum_t d;
-  if (auto rv = gnutls_pem_base64_encode2("QUIC TOKEN", &s, &d); rv < 0) {
-    std::cerr << "Could not encode token in " << filename << std::endl;
+  if (auto rv = gnutls_pem_base64_encode2(type.data(), &s, &d); rv < 0) {
+    std::cerr << "Could not encode " << name << " in " << filename << std::endl;
     return -1;
   }
 
