@@ -11418,11 +11418,9 @@ int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
   return ngtcp2_conn_set_early_remote_transport_params(conn, &params);
 }
 
-int ngtcp2_conn_set_early_remote_transport_params_versioned(
-    ngtcp2_conn *conn, int transport_params_version,
-    const ngtcp2_transport_params *params) {
+int ngtcp2_conn_set_early_remote_transport_params(
+    ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
   ngtcp2_transport_params *p;
-  (void)transport_params_version;
 
   assert(!conn->server);
   assert(!conn->remote.transport_params);

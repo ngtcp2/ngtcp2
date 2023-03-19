@@ -4201,46 +4201,6 @@ NGTCP2_EXTERN int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_set_early_remote_transport_params` sets |params| as
- * transport parameters previously received from a server.  The
- * parameters are used to send early data.  QUIC requires that client
- * application should remember transport parameters along with a
- * session ticket.
- *
- * At least following fields should be set:
- *
- * - initial_max_stream_id_bidi
- * - initial_max_stream_id_uni
- * - initial_max_stream_data_bidi_local
- * - initial_max_stream_data_bidi_remote
- * - initial_max_stream_data_uni
- * - initial_max_data
- * - active_connection_id_limit
- * - max_datagram_frame_size (if DATAGRAM extension was negotiated)
- *
- * The following fields are ignored:
- *
- * - ack_delay_exponent
- * - max_ack_delay
- * - initial_scid
- * - original_dcid
- * - preferred_address and preferred_address_present
- * - retry_scid and retry_scid_present
- * - stateless_reset_token and stateless_reset_token_present
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :macro:`NGTCP2_ERR_NOMEM`
- *     Out of memory.
- */
-NGTCP2_EXTERN int ngtcp2_conn_set_early_remote_transport_params_versioned(
-    ngtcp2_conn *conn, int transport_params_version,
-    const ngtcp2_transport_params *params);
-
-/**
- * @function
- *
  * `ngtcp2_conn_set_local_transport_params` sets the local transport
  * parameters |params|.  This function can only be called by server.
  * Although the local transport parameters are passed to
@@ -5872,15 +5832,6 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
       (PCONN), (DCID), (SCID), (PATH), (VERSION), NGTCP2_CALLBACKS_VERSION,    \
       (CALLBACKS), NGTCP2_SETTINGS_VERSION, (SETTINGS),                        \
       NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS), (MEM), (USER_DATA))
-
-/*
- * `ngtcp2_conn_set_early_remote_transport_params` is a wrapper around
- * `ngtcp2_conn_set_early_remote_transport_params_versioned` to set
- * the correct struct version.
- */
-#define ngtcp2_conn_set_early_remote_transport_params(CONN, PARAMS)            \
-  ngtcp2_conn_set_early_remote_transport_params_versioned(                     \
-      (CONN), NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS))
 
 /*
  * `ngtcp2_conn_set_local_transport_params` is a wrapper around

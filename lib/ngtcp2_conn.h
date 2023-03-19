@@ -1113,4 +1113,43 @@ void ngtcp2_conn_stop_pmtud(ngtcp2_conn *conn);
 int ngtcp2_conn_set_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params);
 
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_early_remote_transport_params` sets |params| as
+ * transport parameters previously received from a server.  The
+ * parameters are used to send early data.  QUIC requires that client
+ * application should remember transport parameters along with a
+ * session ticket.
+ *
+ * At least following fields should be set:
+ *
+ * - initial_max_stream_id_bidi
+ * - initial_max_stream_id_uni
+ * - initial_max_stream_data_bidi_local
+ * - initial_max_stream_data_bidi_remote
+ * - initial_max_stream_data_uni
+ * - initial_max_data
+ * - active_connection_id_limit
+ * - max_datagram_frame_size (if DATAGRAM extension was negotiated)
+ *
+ * The following fields are ignored:
+ *
+ * - ack_delay_exponent
+ * - max_ack_delay
+ * - initial_scid
+ * - original_dcid
+ * - preferred_address and preferred_address_present
+ * - retry_scid and retry_scid_present
+ * - stateless_reset_token and stateless_reset_token_present
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
+int ngtcp2_conn_set_early_remote_transport_params(
+    ngtcp2_conn *conn, const ngtcp2_transport_params *params);
+
 #endif /* NGTCP2_CONN_H */
