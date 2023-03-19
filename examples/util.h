@@ -338,6 +338,11 @@ std::optional<std::string> read_token(const std::string_view &filename);
 int write_token(const std::string_view &filename, const uint8_t *token,
                 size_t tokenlen);
 
+std::optional<std::string>
+read_transport_params(const std::string_view &filename);
+int write_transport_params(const std::string_view &filename,
+                           const uint8_t *data, size_t datalen);
+
 const char *crypto_default_ciphers();
 
 const char *crypto_default_groups();

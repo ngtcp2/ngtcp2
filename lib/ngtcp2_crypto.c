@@ -514,25 +514,18 @@ static int decode_cid_param(ngtcp2_cid *pdest, const uint8_t **pp,
   return 0;
 }
 
-int ngtcp2_decode_transport_params_versioned(
-    int transport_params_version, ngtcp2_transport_params *params,
+int ngtcp2_decode_transport_params_raw(
+    ngtcp2_transport_params *params,
+    ngtcp2_transport_params_required_fields *rf,
     ngtcp2_transport_params_type exttype, const uint8_t *data, size_t datalen) {
   const uint8_t *p, *end, *lend;
   size_t len;
   uint64_t param_type;
   uint64_t valuelen;
   int rv;
-  int initial_scid_present = 0;
-  int original_dcid_present = 0;
   ngtcp2_sockaddr_in *sa_in;
   ngtcp2_sockaddr_in6 *sa_in6;
   uint32_t version;
-
-  (void)transport_params_version;
-
-  if (datalen == 0) {
-    return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
-  }
 
   /* Set default values */
   memset(params, 0, sizeof(*params));
@@ -719,7 +712,9 @@ int ngtcp2_decode_transport_params_versioned(
       if (rv != 0) {
         return rv;
       }
-      original_dcid_present = 1;
+      if (rf) {
+        rf->original_dcid_present = 1;
+      }
       break;
     case NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID:
       if (exttype != NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
@@ -736,7 +731,9 @@ int ngtcp2_decode_transport_params_versioned(
       if (rv != 0) {
         return rv;
       }
-      initial_scid_present = 1;
+      if (rf) {
+        rf->initial_scid_present = 1;
+      }
       break;
     case NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY:
       if (decode_varint_param(&params->max_ack_delay, &p, end) != 0) {
@@ -812,9 +809,28 @@ int ngtcp2_decode_transport_params_versioned(
     return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
   }
 
-  if (!initial_scid_present ||
+  return 0;
+}
+
+int ngtcp2_decode_transport_params_versioned(
+    int transport_params_version, ngtcp2_transport_params *params,
+    ngtcp2_transport_params_type exttype, const uint8_t *data, size_t datalen) {
+  int rv;
+  ngtcp2_transport_params_required_fields rf = {0};
+  (void)transport_params_version;
+
+  if (datalen == 0) {
+    return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+  }
+
+  rv = ngtcp2_decode_transport_params_raw(params, &rf, exttype, data, datalen);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (!rf.initial_scid_present ||
       (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS &&
-       !original_dcid_present)) {
+       !rf.original_dcid_present)) {
     return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
   }
 

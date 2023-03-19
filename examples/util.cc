@@ -54,6 +54,14 @@ namespace ngtcp2 {
 
 namespace util {
 
+std::optional<std::string> read_pem(const std::string_view &filename,
+                                    const std::string_view &name,
+                                    const std::string_view &type);
+
+int write_pem(const std::string_view &filename, const std::string_view &name,
+              const std::string_view &type, const uint8_t *data,
+              size_t datalen);
+
 namespace {
 constexpr char LOWER_XDIGITS[] = "0123456789abcdef";
 } // namespace
@@ -635,6 +643,27 @@ std::optional<uint32_t> parse_version(const std::string_view &s) {
   }
 
   return v;
+}
+
+std::optional<std::string> read_token(const std::string_view &filename) {
+  return read_pem(filename, "token", "QUIC TOKEN");
+}
+
+int write_token(const std::string_view &filename, const uint8_t *token,
+                size_t tokenlen) {
+  return write_pem(filename, "token", "QUIC TOKEN", token, tokenlen);
+}
+
+std::optional<std::string>
+read_transport_params(const std::string_view &filename) {
+  return read_pem(filename, "transport parameters",
+                  "QUIC TRANSPORT PARAMETERS");
+}
+
+int write_transport_params(const std::string_view &filename,
+                           const uint8_t *data, size_t datalen) {
+  return write_pem(filename, "transport parameters",
+                   "QUIC TRANSPORT PARAMETERS", data, datalen);
 }
 
 } // namespace util

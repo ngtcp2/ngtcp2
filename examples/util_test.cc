@@ -32,6 +32,22 @@
 
 namespace ngtcp2 {
 
+namespace util {
+std::optional<std::string> read_pem(const std::string_view &filename,
+                                    const std::string_view &name,
+                                    const std::string_view &type) {
+  return {};
+}
+} // namespace util
+
+namespace util {
+int write_pem(const std::string_view &filename, const std::string_view &name,
+              const std::string_view &type, const uint8_t *data,
+              size_t datalen) {
+  return -1;
+}
+} // namespace util
+
 void test_util_format_durationf() {
   CU_ASSERT("0ns" == util::format_durationf(0));
   CU_ASSERT("999ns" == util::format_durationf(999));

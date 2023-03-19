@@ -315,9 +315,14 @@ int Client::handshake_completed() {
   }
 
   if (config.tp_file) {
-    auto params = ngtcp2_conn_get_remote_transport_params(conn_);
-
-    if (write_transport_params(config.tp_file, params) != 0) {
+    std::array<uint8_t, 256> data;
+    auto datalen = ngtcp2_conn_encode_early_transport_params(conn_, data.data(),
+                                                             data.size());
+    if (datalen < 0) {
+      std::cerr << "Could not encode early transport parameters: "
+                << ngtcp2_strerror(datalen) << std::endl;
+    } else if (util::write_transport_params(config.tp_file, data.data(),
+                                            datalen) != 0) {
       std::cerr << "Could not write transport parameters in " << config.tp_file
                 << std::endl;
     }
@@ -750,14 +755,18 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   ngtcp2_conn_set_tls_native_handle(conn_, tls_session_.get_native_handle());
 
   if (early_data_ && config.tp_file) {
-    ngtcp2_transport_params params;
-    if (read_transport_params(config.tp_file, &params) != 0) {
-      std::cerr << "Could not read transport parameters from " << config.tp_file
-                << std::endl;
+    auto params = util::read_transport_params(config.tp_file);
+    if (!params) {
       early_data_ = false;
     } else {
-      ngtcp2_conn_set_early_remote_transport_params(conn_, &params);
-      if (make_stream_early() != 0) {
+      auto rv = ngtcp2_conn_decode_early_transport_params(
+          conn_, reinterpret_cast<const uint8_t *>(params->data()),
+          params->size());
+      if (rv != 0) {
+        std::cerr << "ngtcp2_conn_decode_early_transport_params: "
+                  << ngtcp2_strerror(rv) << std::endl;
+        early_data_ = false;
+      } else if (make_stream_early() != 0) {
         return -1;
       }
     }

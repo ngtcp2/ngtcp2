@@ -292,9 +292,12 @@ ID which can be obtained by calling
 Dealing with early data
 -----------------------
 
-Client application has to load resumed TLS session.  It also has to
-set the remembered transport parameters using
-`ngtcp2_conn_set_early_remote_transport_params()` function.
+Client application has to remember the subset of the QUIC transport
+parameters received from a server in the previous connection.
+`ngtcp2_conn_encode_early_transport_params` returns the encoded QUIC
+transport parameters that include these values.  When sending early
+data, the remembered transport parameters should be set via
+`ngtcp2_conn_decode_early_transport_params`.
 
 Other than that, there is no difference between early data and 1RTT
 data in terms of API usage.

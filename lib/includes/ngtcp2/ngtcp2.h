@@ -4126,6 +4126,81 @@ ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_encode_early_remote_transport_params` encodes the QUIC
+ * transport parameters that are used for early data in the buffer
+ * pointed by |dest| of length |destlen|.  The subset includes at
+ * least the following fields:
+ *
+ * - initial_max_stream_id_bidi
+ * - initial_max_stream_id_uni
+ * - initial_max_stream_data_bidi_local
+ * - initial_max_stream_data_bidi_remote
+ * - initial_max_stream_data_uni
+ * - initial_max_data
+ * - active_connection_id_limit
+ * - max_datagram_frame_size
+ *
+ * If |conn| is initialized as server, the following additional fields
+ * are also included:
+ *
+ * - max_idle_timeout
+ * - max_udp_payload_size
+ * - disable_active_migration
+ *
+ * If |conn| is initialized as client, these parameters are
+ * synthesized from the remote transport parameters received from
+ * server.  Otherwise, it is the local transport parameters that are
+ * set by the local endpoint.
+ *
+ * This function returns the number of bytes written, or one of the
+ * following negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ */
+NGTCP2_EXTERN
+ngtcp2_ssize ngtcp2_conn_encode_early_transport_params(ngtcp2_conn *conn,
+                                                       uint8_t *dest,
+                                                       size_t destlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_decode_early_transport_params` decodes QUIC transport
+ * parameters from |data| of length |datalen|, which is assumed to be
+ * the parameters received from the server in the previous connection,
+ * and sets it to |conn|.  These parameters are used to send early
+ * data.  QUIC requires that client application should remember
+ * transport parameters along with a session ticket.
+ *
+ * At least following fields should be set:
+ *
+ * - initial_max_stream_id_bidi
+ * - initial_max_stream_id_uni
+ * - initial_max_stream_data_bidi_local
+ * - initial_max_stream_data_bidi_remote
+ * - initial_max_stream_data_uni
+ * - initial_max_data
+ * - active_connection_id_limit
+ * - max_datagram_frame_size (if DATAGRAM extension was negotiated)
+ *
+ * This function must only be used by client.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
+ *     The input is malformed.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
+                                                            const uint8_t *data,
+                                                            size_t datalen);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_set_early_remote_transport_params` sets |params| as
  * transport parameters previously received from a server.  The
  * parameters are used to send early data.  QUIC requires that client
@@ -4152,8 +4227,14 @@ ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn);
  * - preferred_address and preferred_address_present
  * - retry_scid and retry_scid_present
  * - stateless_reset_token and stateless_reset_token_present
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
  */
-NGTCP2_EXTERN void ngtcp2_conn_set_early_remote_transport_params_versioned(
+NGTCP2_EXTERN int ngtcp2_conn_set_early_remote_transport_params_versioned(
     ngtcp2_conn *conn, int transport_params_version,
     const ngtcp2_transport_params *params);
 
@@ -4213,7 +4294,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(
  *
  * Application can call this function before handshake completes.  For
  * 0RTT packet, application can call this function after calling
- * `ngtcp2_conn_set_early_remote_transport_params`.  For 1RTT packet,
+ * `ngtcp2_conn_decode_early_transport_params`.  For 1RTT packet,
  * application can call this function after calling
  * `ngtcp2_conn_decode_remote_transport_params` and
  * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
@@ -4241,7 +4322,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
  *
  * Application can call this function before handshake completes.  For
  * 0RTT packet, application can call this function after calling
- * `ngtcp2_conn_set_early_remote_transport_params`.  For 1RTT packet,
+ * `ngtcp2_conn_decode_early_transport_params`.  For 1RTT packet,
  * application can call this function after calling
  * `ngtcp2_conn_decode_remote_transport_params` and
  * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
