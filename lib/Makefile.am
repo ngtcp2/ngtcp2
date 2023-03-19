@@ -72,7 +72,8 @@ OBJECTS = \
 	ngtcp2_opl.c \
 	ngtcp2_balloc.c \
 	ngtcp2_objalloc.c \
-	ngtcp2_unreachable.c
+	ngtcp2_unreachable.c \
+	ngtcp2_conversion.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -115,6 +116,7 @@ HFILES = \
 	ngtcp2_rcvry.h \
 	ngtcp2_net.h \
 	ngtcp2_unreachable.h \
+	ngtcp2_conversion.h \
 	ngtcp2_conn_stat.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)

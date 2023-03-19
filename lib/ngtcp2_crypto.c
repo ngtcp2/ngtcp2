@@ -31,6 +31,7 @@
 #include "ngtcp2_conv.h"
 #include "ngtcp2_conn.h"
 #include "ngtcp2_net.h"
+#include "ngtcp2_conversion.h"
 
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *secret,
                          size_t secretlen,
@@ -161,7 +162,10 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
   size_t version_infolen = 0;
   const ngtcp2_sockaddr_in *sa_in;
   const ngtcp2_sockaddr_in6 *sa_in6;
-  (void)transport_params_version;
+  ngtcp2_transport_params paramsbuf;
+
+  params = ngtcp2_transport_params_convert_to_latest(
+      &paramsbuf, transport_params_version, params);
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
@@ -515,9 +519,8 @@ static int decode_cid_param(ngtcp2_cid *pdest, const uint8_t **pp,
 }
 
 int ngtcp2_decode_transport_params_versioned(
-    int transport_params_version, ngtcp2_transport_params *params,
-    uint32_t flags, ngtcp2_transport_params_type exttype, const uint8_t *data,
-    size_t datalen) {
+    int transport_params_version, ngtcp2_transport_params *dest, uint32_t flags,
+    ngtcp2_transport_params_type exttype, const uint8_t *data, size_t datalen) {
   const uint8_t *p, *end, *lend;
   size_t len;
   uint64_t param_type;
@@ -531,11 +534,16 @@ int ngtcp2_decode_transport_params_versioned(
   int ignore_missing_required_fields =
       flags &
       NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS;
-
-  (void)transport_params_version;
+  ngtcp2_transport_params *params, paramsbuf;
 
   if (!ignore_missing_required_fields && datalen == 0) {
     return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+  }
+
+  if (transport_params_version == NGTCP2_TRANSPORT_PARAMS_VERSION) {
+    params = dest;
+  } else {
+    params = &paramsbuf;
   }
 
   /* Set default values */
@@ -821,6 +829,11 @@ int ngtcp2_decode_transport_params_versioned(
        (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS &&
         !original_dcid_present))) {
     return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+  }
+
+  if (transport_params_version != NGTCP2_TRANSPORT_PARAMS_VERSION) {
+    ngtcp2_transport_params_convert_to_old(transport_params_version, dest,
+                                           params);
   }
 
   return 0;
