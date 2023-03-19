@@ -4272,9 +4272,7 @@ ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_encode_local_transport_params` encodes the local QUIC
- * transport parameters in |dest| of length |destlen|.  This is
- * equivalent to calling `ngtcp2_conn_get_local_transport_params` and
- * then `ngtcp2_encode_transport_params`.
+ * transport parameters in |dest| of length |destlen|.
  *
  * This function returns the number of written, or one of the
  * following negative error codes:
