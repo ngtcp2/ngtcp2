@@ -42,7 +42,7 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   scid_init(&scid);
   dcid_init(&dcid);
 
-  ngtcp2_transport_params_default_versioned(NGTCP2_TRANSPORT_PARAMS_VERSION_V1,
+  ngtcp2_transport_params_default_versioned(NGTCP2_TRANSPORT_PARAMS_V1,
                                             &srcbuf);
 
   srcbuf.initial_max_stream_data_bidi_local = 1000000007;
@@ -89,7 +89,7 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   memcpy(src, &srcbuf, v1len);
 
   dest = ngtcp2_transport_params_convert_to_latest(
-      &paramsbuf, NGTCP2_TRANSPORT_PARAMS_VERSION_V1, src);
+      &paramsbuf, NGTCP2_TRANSPORT_PARAMS_V1, src);
 
   free(src);
 
@@ -198,8 +198,8 @@ void test_ngtcp2_transport_params_convert_to_old(void) {
   src.version_info.available_versionslen = ngtcp2_arraylen(available_versions);
   src.version_info_present = 1;
 
-  ngtcp2_transport_params_convert_to_old(NGTCP2_TRANSPORT_PARAMS_VERSION_V1,
-                                         dest, &src);
+  ngtcp2_transport_params_convert_to_old(NGTCP2_TRANSPORT_PARAMS_V1, dest,
+                                         &src);
 
   memset(&destbuf, 0, sizeof(destbuf));
   memcpy(&destbuf, dest, v1len);

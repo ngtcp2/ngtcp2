@@ -515,8 +515,8 @@ typedef struct ngtcp2_mem {
  */
 #define NGTCP2_ECN_MASK 0x3
 
-#define NGTCP2_PKT_INFO_VERSION_V1 1
-#define NGTCP2_PKT_INFO_VERSION NGTCP2_PKT_INFO_VERSION_V1
+#define NGTCP2_PKT_INFO_V1 1
+#define NGTCP2_PKT_INFO_VERSION NGTCP2_PKT_INFO_V1
 
 /**
  * @struct
@@ -1469,10 +1469,10 @@ typedef struct ngtcp2_version_info {
   size_t available_versionslen;
 } ngtcp2_version_info;
 
-/* TODO Reset to NGTCP2_TRANSPORT_PARAMS_VERSION_V1 on ngtcp2 v1 */
-#define NGTCP2_TRANSPORT_PARAMS_VERSION_V1 1
-#define NGTCP2_TRANSPORT_PARAMS_VERSION_V2 2
-#define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_VERSION_V2
+/* TODO Reset to NGTCP2_TRANSPORT_PARAMS_V1 on ngtcp2 v1 */
+#define NGTCP2_TRANSPORT_PARAMS_V1 1
+#define NGTCP2_TRANSPORT_PARAMS_V2 2
+#define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_V2
 
 /**
  * @struct
@@ -1625,7 +1625,7 @@ typedef struct ngtcp2_transport_params {
   uint8_t version_info_present;
 
   /* The following fields are available since
-     NGTCP2_TRANSPORT_PARAMS_VERSION_V2 */
+     NGTCP2_TRANSPORT_PARAMS_V2 */
   /* TODO The following 2 fields are added to test
      ngtcp2_transport_params version conversion.  These fields are
      removed on ngtcp2 v1. */
@@ -1661,8 +1661,8 @@ typedef enum ngtcp2_pktns_id {
   NGTCP2_PKTNS_ID_MAX
 } ngtcp2_pktns_id;
 
-#define NGTCP2_CONN_INFO_VERSION_V1 1
-#define NGTCP2_CONN_INFO_VERSION NGTCP2_CONN_INFO_VERSION_V1
+#define NGTCP2_CONN_INFO_V1 1
+#define NGTCP2_CONN_INFO_VERSION NGTCP2_CONN_INFO_V1
 
 /**
  * @struct
@@ -1804,8 +1804,8 @@ typedef struct ngtcp2_qlog_settings {
   ngtcp2_qlog_write write;
 } ngtcp2_qlog_settings;
 
-#define NGTCP2_SETTINGS_VERSION_V1 1
-#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_VERSION_V1
+#define NGTCP2_SETTINGS_V1 1
+#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V1
 
 /**
  * @struct
@@ -3348,8 +3348,8 @@ typedef int (*ngtcp2_recv_key)(ngtcp2_conn *conn, ngtcp2_crypto_level level,
  */
 typedef int (*ngtcp2_early_data_rejected)(ngtcp2_conn *conn, void *user_data);
 
-#define NGTCP2_CALLBACKS_VERSION_V1 1
-#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_VERSION_V1
+#define NGTCP2_CALLBACKS_V1 1
+#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V1
 
 /**
  * @struct

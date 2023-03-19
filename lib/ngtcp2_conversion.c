@@ -33,7 +33,7 @@ static void transport_params_copy(int transport_params_version,
   assert(transport_params_version != NGTCP2_TRANSPORT_PARAMS_VERSION);
 
   switch (transport_params_version) {
-  case NGTCP2_TRANSPORT_PARAMS_VERSION_V1:
+  case NGTCP2_TRANSPORT_PARAMS_V1:
     memcpy(dest, src,
            offsetof(ngtcp2_transport_params, version_info_present) +
                sizeof(src->version_info_present));
