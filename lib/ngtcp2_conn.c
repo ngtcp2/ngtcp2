@@ -11345,7 +11345,7 @@ int ngtcp2_conn_decode_remote_transport_params(ngtcp2_conn *conn,
   int rv;
 
   rv = ngtcp2_decode_transport_params(
-      &params,
+      &params, NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE,
       conn->server ? NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO
                    : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
       data, datalen);
@@ -11408,9 +11408,10 @@ int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
   ngtcp2_transport_params params;
   int rv;
 
-  rv = ngtcp2_decode_transport_params_raw(
-      &params, NULL, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, data,
-      datalen);
+  rv = ngtcp2_decode_transport_params(
+      &params,
+      NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS,
+      NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, data, datalen);
   if (rv != 0) {
     return rv;
   }
