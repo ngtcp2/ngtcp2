@@ -13680,7 +13680,7 @@ void ngtcp2_transport_params_default_versioned(
     len = sizeof(*params);
 
     break;
-  case NGTCP2_TRANSPORT_PARAMS_VERSION_V1:
+  case NGTCP2_TRANSPORT_PARAMS_V1:
     len = offsetof(ngtcp2_transport_params, version_info_present) +
           sizeof(params->version_info_present);
 
@@ -13697,7 +13697,7 @@ void ngtcp2_transport_params_default_versioned(
     params->placeholder_field2 = 1000000009;
 
     /* fall through */
-  case NGTCP2_TRANSPORT_PARAMS_VERSION_V1:
+  case NGTCP2_TRANSPORT_PARAMS_V1:
     params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
     params->active_connection_id_limit =
         NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
