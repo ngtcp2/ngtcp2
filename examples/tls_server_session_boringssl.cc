@@ -56,7 +56,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
 
   std::array<uint8_t, 128> quic_early_data_ctx;
   ngtcp2_transport_params params;
-  memset(&params, 0, sizeof(params));
+  ngtcp2_transport_params_default(&params);
   params.initial_max_streams_bidi = config.max_streams_bidi;
   params.initial_max_streams_uni = config.max_streams_uni;
   params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
