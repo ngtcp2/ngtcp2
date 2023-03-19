@@ -37,6 +37,7 @@
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_unreachable.h"
 #include "ngtcp2_net.h"
+#include "ngtcp2_conversion.h"
 
 /* NGTCP2_FLOW_WINDOW_RTT_FACTOR is the factor of RTT when flow
    control window auto-tuning is triggered. */
@@ -1065,9 +1066,12 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   uint8_t fixed_bit_byte;
   size_t i;
   uint32_t *preferred_versions;
+  ngtcp2_transport_params paramsbuf;
   (void)callbacks_version;
   (void)settings_version;
-  (void)transport_params_version;
+
+  params = ngtcp2_transport_params_convert_to_latest(
+      &paramsbuf, transport_params_version, params);
 
   assert(settings->max_window <= NGTCP2_MAX_VARINT);
   assert(settings->max_stream_window <= NGTCP2_MAX_VARINT);
@@ -11488,7 +11492,10 @@ int ngtcp2_conn_set_early_remote_transport_params(
 int ngtcp2_conn_set_local_transport_params_versioned(
     ngtcp2_conn *conn, int transport_params_version,
     const ngtcp2_transport_params *params) {
-  (void)transport_params_version;
+  ngtcp2_transport_params paramsbuf;
+
+  params = ngtcp2_transport_params_convert_to_latest(
+      &paramsbuf, transport_params_version, params);
 
   assert(conn->server);
   assert(params->active_connection_id_limit >=
@@ -13666,14 +13673,39 @@ void ngtcp2_settings_default_versioned(int settings_version,
 
 void ngtcp2_transport_params_default_versioned(
     int transport_params_version, ngtcp2_transport_params *params) {
-  (void)transport_params_version;
+  size_t len;
 
-  memset(params, 0, sizeof(*params));
-  params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
-  params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
-  params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
-  params->active_connection_id_limit =
-      NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  switch (transport_params_version) {
+  case NGTCP2_TRANSPORT_PARAMS_VERSION:
+    len = sizeof(*params);
+
+    break;
+  case NGTCP2_TRANSPORT_PARAMS_VERSION_V1:
+    len = offsetof(ngtcp2_transport_params, version_info_present) +
+          sizeof(params->version_info_present);
+
+    break;
+  default:
+    ngtcp2_unreachable();
+  }
+
+  memset(params, 0, len);
+
+  switch (transport_params_version) {
+  case NGTCP2_TRANSPORT_PARAMS_VERSION:
+    params->placeholder_field1 = 1000000007;
+    params->placeholder_field2 = 1000000009;
+
+    /* fall through */
+  case NGTCP2_TRANSPORT_PARAMS_VERSION_V1:
+    params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
+    params->active_connection_id_limit =
+        NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+    params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
+    params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+
+    break;
+  }
 }
 
 /* The functions prefixed with ngtcp2_pkt_ are usually put inside
