@@ -129,11 +129,15 @@ jobs:
     - name: Build OpenSSL v1.1.1
       if: steps.cache-openssl1.outputs.cache-hit != 'true'
       run: |
-        ./ci/build_openssl1.sh
+        ./ci/build_openssl.sh
+      env:
+        OPENSSL: openssl1
     - name: Build OpenSSL v3.0.x
       if: steps.cache-openssl3.outputs.cache-hit != 'true'
       run: |
-        ./ci/build_openssl3.sh
+        ./ci/build_openssl.sh
+      env:
+        OPENSSL: openssl3
     - name: Build BoringSSL
       if: steps.cache-boringssl.outputs.cache-hit != 'true'
       run: |
