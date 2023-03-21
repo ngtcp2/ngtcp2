@@ -1225,25 +1225,6 @@ typedef struct ngtcp2_pkt_stateless_reset {
 } ngtcp2_pkt_stateless_reset;
 
 /**
- * @enum
- *
- * :type:`ngtcp2_transport_params_type` defines TLS message type which
- * carries transport parameters.
- */
-typedef enum ngtcp2_transport_params_type {
-  /**
-   * :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO` is Client Hello
-   * TLS message.
-   */
-  NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
-  /**
-   * :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS` is
-   * Encrypted Extensions TLS message.
-   */
-  NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
-} ngtcp2_transport_params_type;
-
-/**
  * @macrosection
  *
  * QUIC transport parameters related macros
@@ -1489,16 +1470,18 @@ typedef struct ngtcp2_transport_params {
   /**
    * :member:`original_dcid` is the Destination Connection ID field
    * from the first Initial packet from client.  Server must specify
-   * this field.  It is expected that application knows the original
-   * Destination Connection ID even if it sends Retry packet, for
-   * example, by including it in retry token.  Otherwise, application
-   * should not specify this field.
+   * this field and set :member:`original_dcid_present` to nonzero.
+   * It is expected that application knows the original Destination
+   * Connection ID even if it sends Retry packet, for example, by
+   * including it in retry token.  Otherwise, application should not
+   * specify this field.
    */
   ngtcp2_cid original_dcid;
   /**
    * :member:`initial_scid` is the Source Connection ID field from the
    * first Initial packet the endpoint sends.  Application should not
-   * specify this field.
+   * specify this field.  If :member:`initial_scid_present` is set to
+   * nonzero, it indicates this field is set.
    */
   ngtcp2_cid initial_scid;
   /**
@@ -1590,6 +1573,16 @@ typedef struct ngtcp2_transport_params {
    * does not support active connection migration.
    */
   uint8_t disable_active_migration;
+  /**
+   * :member:`original_dcid_present` is nonzero if
+   * :member:`original_dcid` field is set.
+   */
+  uint8_t original_dcid_present;
+  /**
+   * :member:`initial_scid_present` is nonzero if
+   * :member:`initial_scid` field is set.
+   */
+  uint8_t initial_scid_present;
   /**
    * :member:`retry_scid_present` is nonzero if :member:`retry_scid`
    * field is set.
@@ -2176,34 +2169,10 @@ typedef struct ngtcp2_crypto_ctx {
  *
  * :macro:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
- * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |exttype| is invalid.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
-    uint8_t *dest, size_t destlen, ngtcp2_transport_params_type exttype,
-    int transport_params_version, const ngtcp2_transport_params *params);
-
-/**
- * @macrosection
- *
- * QUIC transport parameters decoding flags
- */
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE` indicates no flag
- * set.
- */
-#define NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE 0x00u
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS`
- * instructs decoder to ignore missing required fields.
- */
-#define NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS 0x01u
+    uint8_t *dest, size_t destlen, int transport_params_version,
+    const ngtcp2_transport_params *params);
 
 /**
  * @function
@@ -2211,14 +2180,6 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
  * `ngtcp2_decode_transport_params` decodes transport parameters in
  * |data| of length |datalen|, and stores the result in the object
  * pointed by |params|.
- *
- * |flags| is bitwise OR of zero or more of
- * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_*
- * <NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE>`.  If
- * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS`
- * is set, this function does not check the missing required fields,
- * and :macro:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM` will not be
- * returned.
  *
  * If the optional parameters are missing, the default value is
  * assigned.
@@ -2232,15 +2193,13 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :macro:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM`
- *     The required parameter is missing.
  * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
  *     The input is malformed.
  */
-NGTCP2_EXTERN int ngtcp2_decode_transport_params_versioned(
-    int transport_params_version, ngtcp2_transport_params *params,
-    uint32_t flags, ngtcp2_transport_params_type exttype, const uint8_t *data,
-    size_t datalen);
+NGTCP2_EXTERN int
+ngtcp2_decode_transport_params_versioned(int transport_params_version,
+                                         ngtcp2_transport_params *params,
+                                         const uint8_t *data, size_t datalen);
 
 /**
  * @function
@@ -2251,14 +2210,6 @@ NGTCP2_EXTERN int ngtcp2_decode_transport_params_versioned(
  * assigned to |*pparams|.  Unlike `ngtcp2_decode_transport_params`,
  * all direct and indirect fields are also allocated dynamically if
  * needed.
- *
- * |flags| is bitwise OR of zero or more of
- * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_*
- * <NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE>`.  If
- * :macro:`NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS`
- * is set, this function does not check the missing required fields,
- * and :macro:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM` will not be
- * returned.
  *
  * |mem| is a memory allocator to allocate memory.  If |mem| is
  * ``NULL``, the memory allocator returned by `ngtcp2_mem_default()`
@@ -2273,17 +2224,15 @@ NGTCP2_EXTERN int ngtcp2_decode_transport_params_versioned(
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :macro:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM`
- *     The required parameter is missing.
  * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
  *     The input is malformed.
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_decode_transport_params_new(
-    ngtcp2_transport_params **pparams, uint32_t flags,
-    ngtcp2_transport_params_type exttype, const uint8_t *data, size_t datalen,
-    const ngtcp2_mem *mem);
+NGTCP2_EXTERN int
+ngtcp2_decode_transport_params_new(ngtcp2_transport_params **pparams,
+                                   const uint8_t *data, size_t datalen,
+                                   const ngtcp2_mem *mem);
 
 /**
  * @function
@@ -5845,19 +5794,18 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  * `ngtcp2_encode_transport_params_versioned` to set the correct
  * struct version.
  */
-#define ngtcp2_encode_transport_params(DEST, DESTLEN, EXTTYPE, PARAMS)         \
+#define ngtcp2_encode_transport_params(DEST, DESTLEN, PARAMS)                  \
   ngtcp2_encode_transport_params_versioned(                                    \
-      (DEST), (DESTLEN), (EXTTYPE), NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS))
+      (DEST), (DESTLEN), NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS))
 
 /*
  * `ngtcp2_decode_transport_params` is a wrapper around
  * `ngtcp2_decode_transport_params_versioned` to set the correct
  * struct version.
  */
-#define ngtcp2_decode_transport_params(PARAMS, FLAGS, EXTTYPE, DATA, DATALEN)  \
+#define ngtcp2_decode_transport_params(PARAMS, DATA, DATALEN)                  \
   ngtcp2_decode_transport_params_versioned(NGTCP2_TRANSPORT_PARAMS_VERSION,    \
-                                           (PARAMS), (FLAGS), (EXTTYPE),       \
-                                           (DATA), (DATALEN))
+                                           (PARAMS), (DATA), (DATALEN))
 
 /*
  * `ngtcp2_conn_client_new` is a wrapper around

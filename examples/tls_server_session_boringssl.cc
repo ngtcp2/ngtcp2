@@ -66,8 +66,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   params.initial_max_data = config.max_data;
 
   auto quic_early_data_ctxlen = ngtcp2_encode_transport_params(
-      quic_early_data_ctx.data(), quic_early_data_ctx.size(),
-      NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
+      quic_early_data_ctx.data(), quic_early_data_ctx.size(), &params);
   if (quic_early_data_ctxlen < 0) {
     std::cerr << "ngtcp2_encode_transport_params: "
               << ngtcp2_strerror(quic_early_data_ctxlen) << std::endl;

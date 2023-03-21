@@ -594,7 +594,7 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset *sr) {
       sr->randlen);
 }
 
-void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
+void ngtcp2_log_remote_tp(ngtcp2_log *log,
                           const ngtcp2_transport_params *params) {
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN * 2 + 1];
   uint8_t addr[16 * 2 + 7 + 1];
@@ -609,79 +609,79 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
     return;
   }
 
-  if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
-    if (params->stateless_reset_token_present) {
-      log->log_printf(log->user_data,
-                      (NGTCP2_LOG_TP " stateless_reset_token=0x%s"),
-                      NGTCP2_LOG_TP_HD_FIELDS,
-                      (const char *)ngtcp2_encode_hex(
-                          token, params->stateless_reset_token,
-                          sizeof(params->stateless_reset_token)));
-    }
+  if (params->stateless_reset_token_present) {
+    log->log_printf(
+        log->user_data, (NGTCP2_LOG_TP " stateless_reset_token=0x%s"),
+        NGTCP2_LOG_TP_HD_FIELDS,
+        (const char *)ngtcp2_encode_hex(token, params->stateless_reset_token,
+                                        sizeof(params->stateless_reset_token)));
+  }
 
-    if (params->preferred_address_present) {
-      if (params->preferred_address.ipv4_present) {
-        sa_in = &params->preferred_address.ipv4;
-
-        log->log_printf(log->user_data,
-                        (NGTCP2_LOG_TP " preferred_address.ipv4_addr=%s"),
-                        NGTCP2_LOG_TP_HD_FIELDS,
-                        (const char *)ngtcp2_encode_ipv4(
-                            addr, (const uint8_t *)&sa_in->sin_addr));
-        log->log_printf(log->user_data,
-                        (NGTCP2_LOG_TP " preferred_address.ipv4_port=%u"),
-                        NGTCP2_LOG_TP_HD_FIELDS, ngtcp2_ntohs(sa_in->sin_port));
-      }
-
-      if (params->preferred_address.ipv6_present) {
-        sa_in6 = &params->preferred_address.ipv6;
-
-        log->log_printf(log->user_data,
-                        (NGTCP2_LOG_TP " preferred_address.ipv6_addr=%s"),
-                        NGTCP2_LOG_TP_HD_FIELDS,
-                        (const char *)ngtcp2_encode_ipv6(
-                            addr, (const uint8_t *)&sa_in6->sin6_addr));
-        log->log_printf(
-            log->user_data, (NGTCP2_LOG_TP " preferred_address.ipv6_port=%u"),
-            NGTCP2_LOG_TP_HD_FIELDS, ngtcp2_ntohs(sa_in6->sin6_port));
-      }
+  if (params->preferred_address_present) {
+    if (params->preferred_address.ipv4_present) {
+      sa_in = &params->preferred_address.ipv4;
 
       log->log_printf(log->user_data,
-                      (NGTCP2_LOG_TP " preferred_address.cid=0x%s"),
+                      (NGTCP2_LOG_TP " preferred_address.ipv4_addr=%s"),
                       NGTCP2_LOG_TP_HD_FIELDS,
-                      (const char *)ngtcp2_encode_hex(
-                          cid, params->preferred_address.cid.data,
-                          params->preferred_address.cid.datalen));
-      log->log_printf(
-          log->user_data,
-          (NGTCP2_LOG_TP " preferred_address.stateless_reset_token=0x%s"),
-          NGTCP2_LOG_TP_HD_FIELDS,
-          (const char *)ngtcp2_encode_hex(
-              token, params->preferred_address.stateless_reset_token,
-              sizeof(params->preferred_address.stateless_reset_token)));
+                      (const char *)ngtcp2_encode_ipv4(
+                          addr, (const uint8_t *)&sa_in->sin_addr));
+      log->log_printf(log->user_data,
+                      (NGTCP2_LOG_TP " preferred_address.ipv4_port=%u"),
+                      NGTCP2_LOG_TP_HD_FIELDS, ngtcp2_ntohs(sa_in->sin_port));
     }
 
+    if (params->preferred_address.ipv6_present) {
+      sa_in6 = &params->preferred_address.ipv6;
+
+      log->log_printf(log->user_data,
+                      (NGTCP2_LOG_TP " preferred_address.ipv6_addr=%s"),
+                      NGTCP2_LOG_TP_HD_FIELDS,
+                      (const char *)ngtcp2_encode_ipv6(
+                          addr, (const uint8_t *)&sa_in6->sin6_addr));
+      log->log_printf(log->user_data,
+                      (NGTCP2_LOG_TP " preferred_address.ipv6_port=%u"),
+                      NGTCP2_LOG_TP_HD_FIELDS, ngtcp2_ntohs(sa_in6->sin6_port));
+    }
+
+    log->log_printf(
+        log->user_data, (NGTCP2_LOG_TP " preferred_address.cid=0x%s"),
+        NGTCP2_LOG_TP_HD_FIELDS,
+        (const char *)ngtcp2_encode_hex(cid, params->preferred_address.cid.data,
+                                        params->preferred_address.cid.datalen));
+    log->log_printf(
+        log->user_data,
+        (NGTCP2_LOG_TP " preferred_address.stateless_reset_token=0x%s"),
+        NGTCP2_LOG_TP_HD_FIELDS,
+        (const char *)ngtcp2_encode_hex(
+            token, params->preferred_address.stateless_reset_token,
+            sizeof(params->preferred_address.stateless_reset_token)));
+  }
+
+  if (params->original_dcid_present) {
     log->log_printf(
         log->user_data,
         (NGTCP2_LOG_TP " original_destination_connection_id=0x%s"),
         NGTCP2_LOG_TP_HD_FIELDS,
         (const char *)ngtcp2_encode_hex(cid, params->original_dcid.data,
                                         params->original_dcid.datalen));
-
-    if (params->retry_scid_present) {
-      log->log_printf(
-          log->user_data, (NGTCP2_LOG_TP " retry_source_connection_id=0x%s"),
-          NGTCP2_LOG_TP_HD_FIELDS,
-          (const char *)ngtcp2_encode_hex(cid, params->retry_scid.data,
-                                          params->retry_scid.datalen));
-    }
   }
 
-  log->log_printf(
-      log->user_data, (NGTCP2_LOG_TP " initial_source_connection_id=0x%s"),
-      NGTCP2_LOG_TP_HD_FIELDS,
-      (const char *)ngtcp2_encode_hex(cid, params->initial_scid.data,
-                                      params->initial_scid.datalen));
+  if (params->retry_scid_present) {
+    log->log_printf(
+        log->user_data, (NGTCP2_LOG_TP " retry_source_connection_id=0x%s"),
+        NGTCP2_LOG_TP_HD_FIELDS,
+        (const char *)ngtcp2_encode_hex(cid, params->retry_scid.data,
+                                        params->retry_scid.datalen));
+  }
+
+  if (params->initial_scid_present) {
+    log->log_printf(
+        log->user_data, (NGTCP2_LOG_TP " initial_source_connection_id=0x%s"),
+        NGTCP2_LOG_TP_HD_FIELDS,
+        (const char *)ngtcp2_encode_hex(cid, params->initial_scid.data,
+                                        params->initial_scid.datalen));
+  }
 
   log->log_printf(
       log->user_data,
