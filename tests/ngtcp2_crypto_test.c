@@ -37,7 +37,7 @@ static size_t varint_paramlen(ngtcp2_transport_param_id id, uint64_t value) {
   return ngtcp2_put_uvarintlen(id) + ngtcp2_put_uvarintlen(valuelen) + valuelen;
 }
 
-void test_ngtcp2_encode_transport_params(void) {
+void test_ngtcp2_transport_params_encode(void) {
   ngtcp2_transport_params params, nparams;
   uint8_t buf[512];
   ngtcp2_ssize nwrite;
@@ -154,20 +154,20 @@ void test_ngtcp2_encode_transport_params(void) {
        sizeof(params.version_info.chosen_version) +
        params.version_info.available_versionslen);
 
-  nwrite = ngtcp2_encode_transport_params(NULL, 0, &params);
+  nwrite = ngtcp2_transport_params_encode(NULL, 0, &params);
 
   CU_ASSERT((ngtcp2_ssize)len == nwrite);
 
   for (i = 0; i < len; ++i) {
-    nwrite = ngtcp2_encode_transport_params(buf, i, &params);
+    nwrite = ngtcp2_transport_params_encode(buf, i, &params);
 
     CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
   }
-  nwrite = ngtcp2_encode_transport_params(buf, i, &params);
+  nwrite = ngtcp2_transport_params_encode(buf, i, &params);
 
   CU_ASSERT((ngtcp2_ssize)i == nwrite);
 
-  rv = ngtcp2_decode_transport_params(&nparams, buf, (size_t)nwrite);
+  rv = ngtcp2_transport_params_decode(&nparams, buf, (size_t)nwrite);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_stream_data_bidi_local ==
@@ -225,7 +225,7 @@ void test_ngtcp2_encode_transport_params(void) {
                         params.version_info.available_versionslen));
 }
 
-void test_ngtcp2_decode_transport_params_new(void) {
+void test_ngtcp2_transport_params_decode_new(void) {
   ngtcp2_transport_params params, *nparams;
   uint8_t buf[512];
   ngtcp2_ssize nwrite;
@@ -342,11 +342,11 @@ void test_ngtcp2_decode_transport_params_new(void) {
        sizeof(params.version_info.chosen_version) +
        params.version_info.available_versionslen);
 
-  nwrite = ngtcp2_encode_transport_params(buf, sizeof(buf), &params);
+  nwrite = ngtcp2_transport_params_encode(buf, sizeof(buf), &params);
 
   CU_ASSERT((ngtcp2_ssize)len == nwrite);
 
-  rv = ngtcp2_decode_transport_params_new(&nparams, buf, (size_t)nwrite, NULL);
+  rv = ngtcp2_transport_params_decode_new(&nparams, buf, (size_t)nwrite, NULL);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_stream_data_bidi_local ==

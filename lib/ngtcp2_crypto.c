@@ -152,7 +152,7 @@ static uint8_t *write_cid_param(uint8_t *p, ngtcp2_transport_param_id id,
 
 static const uint8_t empty_address[16];
 
-ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
+ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
     uint8_t *dest, size_t destlen, int transport_params_version,
     const ngtcp2_transport_params *params) {
   uint8_t *p;
@@ -516,7 +516,7 @@ static int decode_cid_param(ngtcp2_cid *pdest, const uint8_t **pp,
   return 0;
 }
 
-int ngtcp2_decode_transport_params_versioned(int transport_params_version,
+int ngtcp2_transport_params_decode_versioned(int transport_params_version,
                                              ngtcp2_transport_params *dest,
                                              const uint8_t *data,
                                              size_t datalen) {
@@ -842,13 +842,13 @@ static int transport_params_copy_new(ngtcp2_transport_params **pdest,
   return 0;
 }
 
-int ngtcp2_decode_transport_params_new(ngtcp2_transport_params **pparams,
+int ngtcp2_transport_params_decode_new(ngtcp2_transport_params **pparams,
                                        const uint8_t *data, size_t datalen,
                                        const ngtcp2_mem *mem) {
   int rv;
   ngtcp2_transport_params params;
 
-  rv = ngtcp2_decode_transport_params(&params, data, datalen);
+  rv = ngtcp2_transport_params_decode(&params, data, datalen);
   if (rv < 0) {
     return rv;
   }
