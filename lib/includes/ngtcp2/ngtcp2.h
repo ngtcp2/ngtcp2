@@ -2157,7 +2157,7 @@ typedef struct ngtcp2_crypto_ctx {
 /**
  * @function
  *
- * `ngtcp2_encode_transport_params` encodes |params| in |dest| of
+ * `ngtcp2_transport_params_encode` encodes |params| in |dest| of
  * length |destlen|.
  *
  * If |dest| is NULL, and |destlen| is zero, this function just
@@ -2170,14 +2170,14 @@ typedef struct ngtcp2_crypto_ctx {
  * :macro:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
  */
-NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
     uint8_t *dest, size_t destlen, int transport_params_version,
     const ngtcp2_transport_params *params);
 
 /**
  * @function
  *
- * `ngtcp2_decode_transport_params` decodes transport parameters in
+ * `ngtcp2_transport_params_decode` decodes transport parameters in
  * |data| of length |datalen|, and stores the result in the object
  * pointed by |params|.
  *
@@ -2197,17 +2197,17 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
  *     The input is malformed.
  */
 NGTCP2_EXTERN int
-ngtcp2_decode_transport_params_versioned(int transport_params_version,
+ngtcp2_transport_params_decode_versioned(int transport_params_version,
                                          ngtcp2_transport_params *params,
                                          const uint8_t *data, size_t datalen);
 
 /**
  * @function
  *
- * `ngtcp2_decode_transport_params_new` decodes transport parameters
+ * `ngtcp2_transport_params_decode_new` decodes transport parameters
  * in |data| of length |datalen|, and stores the result in the object
  * allocated dynamically.  The pointer to the allocated object is
- * assigned to |*pparams|.  Unlike `ngtcp2_decode_transport_params`,
+ * assigned to |*pparams|.  Unlike `ngtcp2_transport_params_decode`,
  * all direct and indirect fields are also allocated dynamically if
  * needed.
  *
@@ -2230,7 +2230,7 @@ ngtcp2_decode_transport_params_versioned(int transport_params_version,
  *     Out of memory.
  */
 NGTCP2_EXTERN int
-ngtcp2_decode_transport_params_new(ngtcp2_transport_params **pparams,
+ngtcp2_transport_params_decode_new(ngtcp2_transport_params **pparams,
                                    const uint8_t *data, size_t datalen,
                                    const ngtcp2_mem *mem);
 
@@ -2238,7 +2238,7 @@ ngtcp2_decode_transport_params_new(ngtcp2_transport_params **pparams,
  * @function
  *
  * `ngtcp2_transport_params_del` frees the |params| which must be
- * dynamically allocated by `ngtcp2_decode_transport_params_new`.
+ * dynamically allocated by `ngtcp2_transport_params_decode_new`.
  *
  * |mem| is a memory allocator that allocated |params|.  If |mem| is
  * ``NULL``, the memory allocator returned by `ngtcp2_mem_default()`
@@ -5790,21 +5790,21 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
       (CCERR), (TS))
 
 /*
- * `ngtcp2_encode_transport_params` is a wrapper around
- * `ngtcp2_encode_transport_params_versioned` to set the correct
+ * `ngtcp2_transport_params_encode` is a wrapper around
+ * `ngtcp2_transport_params_encode_versioned` to set the correct
  * struct version.
  */
-#define ngtcp2_encode_transport_params(DEST, DESTLEN, PARAMS)                  \
-  ngtcp2_encode_transport_params_versioned(                                    \
+#define ngtcp2_transport_params_encode(DEST, DESTLEN, PARAMS)                  \
+  ngtcp2_transport_params_encode_versioned(                                    \
       (DEST), (DESTLEN), NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS))
 
 /*
- * `ngtcp2_decode_transport_params` is a wrapper around
- * `ngtcp2_decode_transport_params_versioned` to set the correct
+ * `ngtcp2_transport_params_decode` is a wrapper around
+ * `ngtcp2_transport_params_decode_versioned` to set the correct
  * struct version.
  */
-#define ngtcp2_decode_transport_params(PARAMS, DATA, DATALEN)                  \
-  ngtcp2_decode_transport_params_versioned(NGTCP2_TRANSPORT_PARAMS_VERSION,    \
+#define ngtcp2_transport_params_decode(PARAMS, DATA, DATALEN)                  \
+  ngtcp2_transport_params_decode_versioned(NGTCP2_TRANSPORT_PARAMS_VERSION,    \
                                            (PARAMS), (DATA), (DATALEN))
 
 /*

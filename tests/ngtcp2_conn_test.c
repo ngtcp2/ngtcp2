@@ -9540,7 +9540,7 @@ void test_ngtcp2_conn_encode_early_transport_params(void) {
 
   CU_ASSERT(slen > 0);
 
-  rv = ngtcp2_decode_transport_params(&early_params, buf, (size_t)slen);
+  rv = ngtcp2_transport_params_decode(&early_params, buf, (size_t)slen);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == early_params.initial_max_streams_bidi);
@@ -9599,7 +9599,7 @@ void test_ngtcp2_conn_encode_early_transport_params(void) {
 
   CU_ASSERT(slen > 0);
 
-  rv = ngtcp2_decode_transport_params(&early_params, buf, (size_t)slen);
+  rv = ngtcp2_transport_params_decode(&early_params, buf, (size_t)slen);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_streams_bidi ==

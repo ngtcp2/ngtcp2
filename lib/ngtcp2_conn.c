@@ -11264,7 +11264,7 @@ int ngtcp2_conn_set_remote_transport_params(
     return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
   }
 
-  /* Assume that ngtcp2_decode_transport_params sets default value if
+  /* Assume that ngtcp2_transport_params_decode sets default value if
      active_connection_id_limit is omitted. */
   if (params->active_connection_id_limit <
       NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT) {
@@ -11365,7 +11365,7 @@ int ngtcp2_conn_decode_remote_transport_params(ngtcp2_conn *conn,
   ngtcp2_transport_params params;
   int rv;
 
-  rv = ngtcp2_decode_transport_params(&params, data, datalen);
+  rv = ngtcp2_transport_params_decode(&params, data, datalen);
   if (rv != 0) {
     return rv;
   }
@@ -11414,7 +11414,7 @@ ngtcp2_ssize ngtcp2_conn_encode_early_transport_params(ngtcp2_conn *conn,
     params.disable_active_migration = src->disable_active_migration;
   }
 
-  return ngtcp2_encode_transport_params(dest, destlen, &params);
+  return ngtcp2_transport_params_encode(dest, destlen, &params);
 }
 
 int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
@@ -11423,7 +11423,7 @@ int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
   ngtcp2_transport_params params;
   int rv;
 
-  rv = ngtcp2_decode_transport_params(&params, data, datalen);
+  rv = ngtcp2_transport_params_decode(&params, data, datalen);
   if (rv != 0) {
     return rv;
   }
@@ -11574,7 +11574,7 @@ ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn) {
 ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(ngtcp2_conn *conn,
                                                        uint8_t *dest,
                                                        size_t destlen) {
-  return ngtcp2_encode_transport_params(dest, destlen,
+  return ngtcp2_transport_params_encode(dest, destlen,
                                         &conn->local.transport_params);
 }
 

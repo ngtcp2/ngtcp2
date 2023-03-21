@@ -175,10 +175,10 @@ int main(void) {
       !CU_add_test(pSuite, "acktr_eviction", test_ngtcp2_acktr_eviction) ||
       !CU_add_test(pSuite, "acktr_forget", test_ngtcp2_acktr_forget) ||
       !CU_add_test(pSuite, "acktr_recv_ack", test_ngtcp2_acktr_recv_ack) ||
-      !CU_add_test(pSuite, "encode_transport_params",
-                   test_ngtcp2_encode_transport_params) ||
-      !CU_add_test(pSuite, "decode_transport_params_new",
-                   test_ngtcp2_decode_transport_params_new) ||
+      !CU_add_test(pSuite, "transport_params_encode",
+                   test_ngtcp2_transport_params_encode) ||
+      !CU_add_test(pSuite, "transport_params_decode_new",
+                   test_ngtcp2_transport_params_decode_new) ||
       !CU_add_test(pSuite, "rtb_add", test_ngtcp2_rtb_add) ||
       !CU_add_test(pSuite, "rtb_recv_ack", test_ngtcp2_rtb_recv_ack) ||
       !CU_add_test(pSuite, "rtb_lost_pkt_ts", test_ngtcp2_rtb_lost_pkt_ts) ||

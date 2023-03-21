@@ -29,7 +29,7 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_encode_transport_params(void);
-void test_ngtcp2_decode_transport_params_new(void);
+void test_ngtcp2_transport_params_encode(void);
+void test_ngtcp2_transport_params_decode_new(void);
 
 #endif /* NGTCP2_CRYPTO_TEST_H */
