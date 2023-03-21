@@ -269,13 +269,17 @@ static int recv_client_initial_no_remote_transport_params(
 static int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
                                void *user_data) {
   ngtcp2_transport_params params;
+  int rv;
 
   recv_client_initial_no_remote_transport_params(conn, dcid, user_data);
 
   ngtcp2_transport_params_default(&params);
   params.initial_scid = conn->dcid.current.cid;
-  params.original_dcid = conn->rcid;
-  ngtcp2_conn_set_remote_transport_params(conn, &params);
+  params.initial_scid_present = 1;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(0 == rv);
 
   return 0;
 }
@@ -553,6 +557,7 @@ static void server_default_transport_params(ngtcp2_transport_params *params) {
   size_t i;
 
   memset(params, 0, sizeof(*params));
+  params->original_dcid_present = 1;
   params->initial_max_stream_data_bidi_local = 65535;
   params->initial_max_stream_data_bidi_remote = 65535;
   params->initial_max_stream_data_uni = 65535;
@@ -6614,7 +6619,9 @@ void test_ngtcp2_conn_handshake_loss(void) {
   memset(&params, 0, sizeof(params));
   ngtcp2_cid_init(&params.initial_scid, conn->dcid.current.cid.data,
                   conn->dcid.current.cid.datalen);
+  params.initial_scid_present = 1;
   ngtcp2_cid_init(&params.original_dcid, conn->rcid.data, conn->rcid.datalen);
+  params.original_dcid_present = 1;
   params.max_udp_payload_size = 1200;
   params.initial_max_stream_data_bidi_remote = 100 * 1024;
   params.initial_max_data = 100 * 1024;
@@ -7067,7 +7074,9 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
+  params.initial_scid_present = 1;
   params.original_dcid = conn->rcid;
+  params.original_dcid_present = 1;
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
@@ -7084,6 +7093,8 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
+  params.initial_scid_present = 1;
+  params.original_dcid_present = 1;
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
@@ -7099,7 +7110,9 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
+  params.initial_scid_present = 1;
   params.original_dcid = conn->rcid;
+  params.original_dcid_present = 1;
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
@@ -7116,7 +7129,9 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
+  params.initial_scid_present = 1;
   params.original_dcid = conn->rcid;
+  params.original_dcid_present = 1;
   params.retry_scid_present = 1;
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
@@ -7136,7 +7151,9 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
+  params.initial_scid_present = 1;
   params.original_dcid = conn->rcid;
+  params.original_dcid_present = 1;
   params.retry_scid_present = 1;
   params.retry_scid = dcid;
 
@@ -7157,7 +7174,9 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
+  params.initial_scid_present = 1;
   params.original_dcid = conn->rcid;
+  params.original_dcid_present = 1;
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
@@ -7176,7 +7195,9 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
+  params.initial_scid_present = 1;
   params.original_dcid = conn->rcid;
+  params.original_dcid_present = 1;
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
@@ -7194,7 +7215,9 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
+  params.initial_scid_present = 1;
   params.original_dcid = conn->rcid;
+  params.original_dcid_present = 1;
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
@@ -7217,7 +7240,9 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
+  params.initial_scid_present = 1;
   params.original_dcid = conn->rcid;
+  params.original_dcid_present = 1;
   params.version_info_present = 1;
   params.version_info.chosen_version = conn->negotiated_version;
   params.version_info.available_versions = available_versions;
@@ -7249,7 +7274,9 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
+  params.initial_scid_present = 1;
   params.original_dcid = conn->rcid;
+  params.original_dcid_present = 1;
   params.version_info_present = 1;
   params.version_info.chosen_version = conn->negotiated_version;
   params.version_info.available_versions = available_versions;
@@ -7281,7 +7308,9 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
+  params.initial_scid_present = 1;
   params.original_dcid = conn->rcid;
+  params.original_dcid_present = 1;
   params.version_info_present = 1;
   params.version_info.chosen_version = conn->negotiated_version;
   params.version_info.available_versions = available_versions;
@@ -8378,7 +8407,9 @@ void test_ngtcp2_conn_early_data_sync_stream_data_limit(void) {
   memset(&params, 0, sizeof(params));
   ngtcp2_cid_init(&params.initial_scid, conn->dcid.current.cid.data,
                   conn->dcid.current.cid.datalen);
+  params.initial_scid_present = 1;
   ngtcp2_cid_init(&params.original_dcid, conn->rcid.data, conn->rcid.datalen);
+  params.original_dcid_present = 1;
   params.max_udp_payload_size = 1200;
   params.initial_max_stream_data_bidi_local =
       conn->early.transport_params.initial_max_stream_data_bidi_local;
@@ -8503,7 +8534,9 @@ void test_ngtcp2_conn_early_data_rejected(void) {
   memset(&params, 0, sizeof(params));
   ngtcp2_cid_init(&params.initial_scid, conn->dcid.current.cid.data,
                   conn->dcid.current.cid.datalen);
+  params.initial_scid_present = 1;
   ngtcp2_cid_init(&params.original_dcid, conn->rcid.data, conn->rcid.datalen);
+  params.original_dcid_present = 1;
   params.max_udp_payload_size = 1200;
   params.initial_max_stream_data_bidi_local =
       conn->early.transport_params.initial_max_stream_data_bidi_local;
@@ -9246,6 +9279,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
   ngtcp2_transport_params_default(&remote_params);
   ngtcp2_cid_init(&remote_params.initial_scid, conn->dcid.current.cid.data,
                   conn->dcid.current.cid.datalen);
+  remote_params.initial_scid_present = 1;
   remote_params.version_info_present = 1;
   remote_params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
   remote_params.version_info.available_versions = available_versions;
@@ -9293,6 +9327,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
   ngtcp2_transport_params_default(&remote_params);
   ngtcp2_cid_init(&remote_params.initial_scid, conn->dcid.current.cid.data,
                   conn->dcid.current.cid.datalen);
+  remote_params.initial_scid_present = 1;
   remote_params.version_info_present = 1;
   remote_params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
   remote_params.version_info.available_versions =
@@ -9505,10 +9540,7 @@ void test_ngtcp2_conn_encode_early_transport_params(void) {
 
   CU_ASSERT(slen > 0);
 
-  rv = ngtcp2_decode_transport_params(
-      &early_params,
-      NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS,
-      NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf, (size_t)slen);
+  rv = ngtcp2_decode_transport_params(&early_params, buf, (size_t)slen);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == early_params.initial_max_streams_bidi);
@@ -9567,10 +9599,7 @@ void test_ngtcp2_conn_encode_early_transport_params(void) {
 
   CU_ASSERT(slen > 0);
 
-  rv = ngtcp2_decode_transport_params(
-      &early_params,
-      NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS,
-      NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf, (size_t)slen);
+  rv = ngtcp2_decode_transport_params(&early_params, buf, (size_t)slen);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_streams_bidi ==
@@ -9678,6 +9707,9 @@ void test_ngtcp2_conn_new_failmalloc(void) {
   settings.available_versions = available_versions;
   settings.available_versionslen = ngtcp2_arraylen(available_versions);
 
+  params.original_dcid = dcid;
+  params.original_dcid_present = 1;
+
   /* server */
   server_default_callbacks(&cb);
 
@@ -9717,6 +9749,8 @@ void test_ngtcp2_conn_new_failmalloc(void) {
   ngtcp2_conn_del(conn);
 
   /* client */
+  ngtcp2_transport_params_default(&params);
+
   client_default_callbacks(&cb);
 
   mc.nmalloc = 0;

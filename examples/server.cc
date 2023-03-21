@@ -1493,6 +1493,8 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     params.original_dcid = *scid;
   }
 
+  params.original_dcid_present = 1;
+
   if (util::generate_secure_random(params.stateless_reset_token,
                                    sizeof(params.stateless_reset_token)) != 0) {
     std::cerr << "Could not generate stateless reset token" << std::endl;

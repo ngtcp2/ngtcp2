@@ -121,9 +121,11 @@ value.  It could be any timestamp which increases monotonically, and
 actual value does not matter.
 
 :type:`ngtcp2_transport_params` contains QUIC transport parameters
-which is sent to a remote endpoint during handshake.  All fields must
-be set.  Application should call `ngtcp2_transport_params_default()`
-to set the default values.
+which is sent to a remote endpoint during handshake.  Application
+should call `ngtcp2_transport_params_default()` to set the default
+values.  Server must set
+:member:`ngtcp2_transport_params.original_dcid` and set
+:member:`ngtcp2_transport_params.original_dcid_present` to nonzero.
 
 Client application has to supply Connection IDs to
 `ngtcp2_conn_client_new()`.  The *dcid* parameter is the destination

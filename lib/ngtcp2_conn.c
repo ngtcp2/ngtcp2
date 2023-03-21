@@ -1084,6 +1084,12 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(params->initial_max_stream_data_bidi_local <= NGTCP2_MAX_VARINT);
   assert(params->initial_max_stream_data_bidi_remote <= NGTCP2_MAX_VARINT);
   assert(params->initial_max_stream_data_uni <= NGTCP2_MAX_VARINT);
+  assert((server && params->original_dcid_present) ||
+         (!server && !params->original_dcid_present));
+  assert(!params->initial_scid_present);
+  assert(server || !params->stateless_reset_token_present);
+  assert(server || !params->preferred_address_present);
+  assert(server || !params->retry_scid_present);
   assert(server || callbacks->client_initial);
   assert(!server || callbacks->recv_client_initial);
   assert(callbacks->recv_crypto_data);
@@ -1108,6 +1114,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     rv = NGTCP2_ERR_NOMEM;
     goto fail_conn;
   }
+
+  (*pconn)->server = server;
 
   ngtcp2_objalloc_frame_chain_init(&(*pconn)->frc_objalloc, 64, mem);
   ngtcp2_objalloc_rtb_entry_init(&(*pconn)->rtb_entry_objalloc, 64, mem);
@@ -1344,7 +1352,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   (*pconn)->keep_alive.last_ts = UINT64_MAX;
 
-  (*pconn)->server = server;
   (*pconn)->oscid = *scid;
   (*pconn)->callbacks = *callbacks;
   (*pconn)->mem = mem;
@@ -11145,6 +11152,10 @@ static uint32_t select_preferred_version(const uint32_t *preferred_versions,
 static int
 conn_client_validate_transport_params(ngtcp2_conn *conn,
                                       const ngtcp2_transport_params *params) {
+  if (!params->original_dcid_present) {
+    return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+  }
+
   if (!ngtcp2_cid_eq(&conn->rcid, &params->original_dcid)) {
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
@@ -11249,6 +11260,10 @@ int ngtcp2_conn_set_remote_transport_params(
     return 0;
   }
 
+  if (!params->initial_scid_present) {
+    return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+  }
+
   /* Assume that ngtcp2_decode_transport_params sets default value if
      active_connection_id_limit is omitted. */
   if (params->active_connection_id_limit <
@@ -11268,6 +11283,12 @@ int ngtcp2_conn_set_remote_transport_params(
   }
 
   if (conn->server) {
+    if (params->original_dcid_present ||
+        params->stateless_reset_token_present ||
+        params->preferred_address_present || params->retry_scid_present) {
+      return NGTCP2_ERR_TRANSPORT_PARAM;
+    }
+
     if (params->version_info_present) {
       if (!vneg_available_versions_includes(
               params->version_info.available_versions,
@@ -11306,11 +11327,7 @@ int ngtcp2_conn_set_remote_transport_params(
     }
   }
 
-  ngtcp2_log_remote_tp(&conn->log,
-                       conn->server
-                           ? NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO
-                           : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
-                       params);
+  ngtcp2_log_remote_tp(&conn->log, params);
 
   ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params, conn->server,
                                               NGTCP2_QLOG_SIDE_REMOTE);
@@ -11348,11 +11365,7 @@ int ngtcp2_conn_decode_remote_transport_params(ngtcp2_conn *conn,
   ngtcp2_transport_params params;
   int rv;
 
-  rv = ngtcp2_decode_transport_params(
-      &params, NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_NONE,
-      conn->server ? NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO
-                   : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
-      data, datalen);
+  rv = ngtcp2_decode_transport_params(&params, data, datalen);
   if (rv != 0) {
     return rv;
   }
@@ -11401,9 +11414,7 @@ ngtcp2_ssize ngtcp2_conn_encode_early_transport_params(ngtcp2_conn *conn,
     params.disable_active_migration = src->disable_active_migration;
   }
 
-  return ngtcp2_encode_transport_params(
-      dest, destlen, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
-      &params);
+  return ngtcp2_encode_transport_params(dest, destlen, &params);
 }
 
 int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
@@ -11412,10 +11423,7 @@ int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
   ngtcp2_transport_params params;
   int rv;
 
-  rv = ngtcp2_decode_transport_params(
-      &params,
-      NGTCP2_TRANSPORT_PARAMS_DECODE_FLAG_IGNORE_MISSING_REQUIRED_FIELDS,
-      NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, data, datalen);
+  rv = ngtcp2_decode_transport_params(&params, data, datalen);
   if (rv != 0) {
     return rv;
   }
@@ -11520,6 +11528,7 @@ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
   assert(1 == ngtcp2_ksl_len(&conn->scid.set));
 
   params->initial_scid = conn->oscid;
+  params->initial_scid_present = 1;
 
   if (conn->oscid.datalen == 0) {
     params->preferred_address_present = 0;
@@ -11565,11 +11574,8 @@ ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn) {
 ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(ngtcp2_conn *conn,
                                                        uint8_t *dest,
                                                        size_t destlen) {
-  return ngtcp2_encode_transport_params(
-      dest, destlen,
-      conn->server ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
-                   : NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
-      &conn->local.transport_params);
+  return ngtcp2_encode_transport_params(dest, destlen,
+                                        &conn->local.transport_params);
 }
 
 int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,
