@@ -39,6 +39,12 @@ extern Config config;
 
 namespace {
 int save_ticket_cb(ptls_save_ticket_t *self, ptls_t *ptls, ptls_iovec_t input) {
+  auto conn_ref =
+      static_cast<ngtcp2_crypto_conn_ref *>(*ptls_get_data_ptr(ptls));
+  auto c = static_cast<ClientBase *>(conn_ref->user_data);
+
+  c->ticket_received();
+
   auto f = BIO_new_file(config.session_file, "w");
   if (f == nullptr) {
     std::cerr << "Could not write TLS session in " << config.session_file

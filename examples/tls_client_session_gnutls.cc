@@ -49,6 +49,12 @@ namespace {
 int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
               unsigned int incoming, const gnutls_datum_t *msg) {
   if (config.session_file && htype == GNUTLS_HANDSHAKE_NEW_SESSION_TICKET) {
+    auto conn_ref =
+        static_cast<ngtcp2_crypto_conn_ref *>(gnutls_session_get_ptr(session));
+    auto c = static_cast<ClientBase *>(conn_ref->user_data);
+
+    c->ticket_received();
+
     gnutls_datum_t data;
     if (auto rv = gnutls_session_get_data2(session, &data); rv != 0) {
       std::cerr << "gnutls_session_get_data2 failed: " << gnutls_strerror(rv)

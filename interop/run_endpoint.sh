@@ -50,7 +50,7 @@ if [ "$ROLE" == "client" ]; then
             ;;
     esac
     if [ "$TESTCASE" == "resumption" ] || [ "$TESTCASE" == "zerortt" ]; then
-        CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt"
+        CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt --wait-for-ticket"
         if [ "$TESTCASE" == "resumption" ]; then
             CLIENT_ARGS="$CLIENT_ARGS --disable-early-data"
         fi

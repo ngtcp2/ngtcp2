@@ -48,6 +48,11 @@ SSL_CTX *TLSClientContext::get_native_handle() const { return ssl_ctx_; }
 
 namespace {
 int new_session_cb(SSL *ssl, SSL_SESSION *session) {
+  auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
+  auto c = static_cast<ClientBase *>(conn_ref->user_data);
+
+  c->ticket_received();
+
   auto f = BIO_new_file(config.session_file, "w");
   if (f == nullptr) {
     std::cerr << "Could not write TLS session in " << config.session_file

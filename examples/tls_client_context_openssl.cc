@@ -49,6 +49,11 @@ SSL_CTX *TLSClientContext::get_native_handle() const { return ssl_ctx_; }
 
 namespace {
 int new_session_cb(SSL *ssl, SSL_SESSION *session) {
+  auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
+  auto c = static_cast<ClientBase *>(conn_ref->user_data);
+
+  c->ticket_received();
+
   if (SSL_SESSION_get_max_early_data(session) !=
       std::numeric_limits<uint32_t>::max()) {
     std::cerr << "max_early_data_size is not 0xffffffff" << std::endl;

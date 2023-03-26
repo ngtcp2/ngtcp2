@@ -51,6 +51,13 @@ WOLFSSL_CTX *TLSClientContext::get_native_handle() const { return ssl_ctx_; }
 namespace {
 int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
   std::cerr << "new_session_cb called" << std::endl;
+
+  auto conn_ref =
+      static_cast<ngtcp2_crypto_conn_ref *>(wolfSSL_get_app_data(ssl));
+  auto c = static_cast<ClientBase *>(conn_ref->user_data);
+
+  c->ticket_received();
+
 #ifdef HAVE_SESSION_TICKET
   if (wolfSSL_SESSION_get_max_early_data(session) !=
       std::numeric_limits<uint32_t>::max()) {
