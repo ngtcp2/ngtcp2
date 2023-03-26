@@ -311,10 +311,10 @@ int Client::handshake_completed() {
                 << std::endl;
       return -1;
     }
+  }
 
-    if (setup_httpconn() != 0) {
-      return -1;
-    }
+  if (setup_httpconn() != 0) {
+    return -1;
   }
 
   if (!config.quiet) {
@@ -603,8 +603,7 @@ int recv_rx_key(ngtcp2_conn *conn, ngtcp2_crypto_level level, void *user_data) {
   }
 
   auto c = static_cast<Client *>(user_data);
-  if ((!c->get_early_data() || ngtcp2_conn_get_early_data_rejected(conn)) &&
-      c->setup_httpconn() != 0) {
+  if (c->setup_httpconn() != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
