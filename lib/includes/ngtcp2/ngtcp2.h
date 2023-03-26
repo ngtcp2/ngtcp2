@@ -5541,6 +5541,54 @@ NGTCP2_EXTERN void ngtcp2_addr_copy_byte(ngtcp2_addr *dest,
 NGTCP2_EXTERN int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b);
 
 /**
+ * @macrosection
+ *
+ * ngtcp2_addr_compare flags
+ */
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_ADDR_COMPARE_FLAG_NONE` indicates that no flag set.
+ */
+#define NGTCP2_ADDR_COMPARE_FLAG_NONE 0x0u
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_ADDR_COMPARE_FLAG_ADDR` indicates IP addresses do
+ * not match.
+ */
+#define NGTCP2_ADDR_COMPARE_FLAG_ADDR 0x1u
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_ADDR_COMPARE_FLAG_PORT` indicates ports do not
+ * match.
+ */
+#define NGTCP2_ADDR_COMPARE_FLAG_PORT 0x2u
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_ADDR_COMPARE_FLAG_FAMILY` indicates address families
+ * do not match.
+ */
+#define NGTCP2_ADDR_COMPARE_FLAG_FAMILY 0x4u
+
+/**
+ * @function
+ *
+ * `ngtcp2_addr_compare` compares address and port between |a| and
+ * |b|, and returns zero or more of :macro:`NGTCP2_ADDR_COMPARE_FLAG_*
+ * <NGTCP2_ADDR_COMPARE_FLAG_NONE>`.  In particular, if |a| equals
+ * |b|, this function returns 0.
+ */
+NGTCP2_EXTERN uint32_t ngtcp2_addr_compare(const ngtcp2_addr *a,
+                                           const ngtcp2_addr *b);
+
+/**
  * @function
  *
  * `ngtcp2_path_storage_init` initializes |ps| with the given
