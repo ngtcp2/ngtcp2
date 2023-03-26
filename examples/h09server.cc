@@ -576,8 +576,9 @@ int path_validation(ngtcp2_conn *conn, uint32_t flags, const ngtcp2_path *path,
     debug::path_validation(path, res);
   }
 
-  if (res != NGTCP2_PATH_VALIDATION_RESULT_SUCCESS ||
-      ngtcp2_addr_eq(&path->remote, &old_path->remote)) {
+  if (res != NGTCP2_PATH_VALIDATION_RESULT_SUCCESS || !old_path ||
+      !(ngtcp2_addr_compare(&path->remote, &old_path->remote) &
+        (NGTCP2_ADDR_COMPARE_FLAG_ADDR | NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
     return 0;
   }
 
