@@ -182,6 +182,10 @@ struct Config {
   // ack_thresh is the minimum number of the received ACK eliciting
   // packets that triggers immediate acknowledgement.
   size_t ack_thresh;
+  // wait_for_ticket, if true, waits for a ticket to be received
+  // before exiting on exit_on_first_stream_close or
+  // exit_on_all_streams_close.
+  bool wait_for_ticket;
 };
 
 class ClientBase {
@@ -199,12 +203,15 @@ public:
 
   ngtcp2_crypto_conn_ref *conn_ref();
 
+  void ticket_received();
+
 protected:
   ngtcp2_crypto_conn_ref conn_ref_;
   TLSClientSession tls_session_;
   FILE *qlog_;
   ngtcp2_conn *conn_;
   ngtcp2_connection_close_error last_error_;
+  bool ticket_received_;
 };
 
 void qlog_write_cb(void *user_data, uint32_t flags, const void *data,

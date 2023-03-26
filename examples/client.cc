@@ -183,7 +183,6 @@ Client::Client(struct ev_loop *loop, uint32_t client_chosen_version,
       client_chosen_version_(client_chosen_version),
       original_version_(original_version),
       early_data_(false),
-      should_exit_(false),
       handshake_confirmed_(false),
       tx_{} {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
@@ -356,13 +355,14 @@ int handshake_confirmed(ngtcp2_conn *conn, void *user_data) {
 }
 } // namespace
 
-void Client::check_exit() {
-  should_exit_ =
-      handshake_confirmed_ &&
-      ((config.exit_on_first_stream_close &&
-        (config.nstreams == 0 || nstreams_closed_)) ||
-       (config.exit_on_all_streams_close && config.nstreams == nstreams_done_ &&
-        nstreams_closed_ == nstreams_done_));
+bool Client::should_exit() const {
+  return handshake_confirmed_ &&
+         (!config.wait_for_ticket || ticket_received_) &&
+         ((config.exit_on_first_stream_close &&
+           (config.nstreams == 0 || nstreams_closed_)) ||
+          (config.exit_on_all_streams_close &&
+           config.nstreams == nstreams_done_ &&
+           nstreams_closed_ == nstreams_done_));
 }
 
 int Client::handshake_confirmed() {
@@ -377,8 +377,6 @@ int Client::handshake_confirmed() {
   if (config.delay_stream) {
     start_delay_stream_timer();
   }
-
-  check_exit();
 
   return 0;
 }
@@ -929,7 +927,7 @@ int Client::on_read(const Endpoint &ep) {
     }
   }
 
-  if (should_exit_) {
+  if (should_exit()) {
     ngtcp2_connection_close_error_set_application_error(
         &last_error_, nghttp3_err_infer_quic_app_error_code(0), nullptr, 0);
     disconnect();
@@ -972,7 +970,7 @@ int Client::on_write() {
     return rv;
   }
 
-  if (should_exit_) {
+  if (should_exit()) {
     ngtcp2_connection_close_error_set_application_error(
         &last_error_, nghttp3_err_infer_quic_app_error_code(0), nullptr, 0);
     disconnect();
@@ -1975,8 +1973,6 @@ int Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
     assert(ngtcp2_conn_is_local_stream(conn_, stream_id));
 
     ++nstreams_closed_;
-
-    check_exit();
   } else {
     assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
     ngtcp2_conn_extend_max_streams_uni(conn_, 1);
@@ -2393,6 +2389,11 @@ Options:
               closed.
   --exit-on-all-streams-close
               Exit when all client initiated HTTP streams are closed.
+  --wait-for-ticket
+              Wait  for a  ticket  to be  received  before exiting  on
+              --exit-on-first-stream-close                          or
+              --exit-on-all-streams-close.   --session-file   must  be
+              specified.
   --disable-early-data
               Disable early data.
   --cc=(cubic|reno|bbr|bbr2)
@@ -2509,6 +2510,7 @@ int main(int argc, char **argv) {
         {"no-pmtud", no_argument, &flag, 38},
         {"preferred-versions", required_argument, &flag, 39},
         {"ack-thresh", required_argument, &flag, 40},
+        {"wait-for-ticket", no_argument, &flag, 41},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2917,6 +2919,10 @@ int main(int argc, char **argv) {
           config.ack_thresh = *n;
         }
         break;
+      case 41:
+        // --wait-for-ticket
+        config.wait_for_ticket = true;
+        break;
       }
       break;
     default:
@@ -2939,6 +2945,11 @@ int main(int argc, char **argv) {
     std::cerr << "exit-on-first-stream-close and exit-on-all-streams-close are "
                  "mutually exclusive"
               << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if (config.wait_for_ticket && !config.session_file) {
+    std::cerr << "wait-for-ticket: session-file must be specified" << std::endl;
     exit(EXIT_FAILURE);
   }
 
