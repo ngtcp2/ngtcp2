@@ -270,6 +270,7 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_pv *pv,
                                      ngtcp2_path_validation_result res) {
   int rv;
   uint32_t flags = NGTCP2_PATH_VALIDATION_FLAG_NONE;
+  const ngtcp2_path *old_path = NULL;
 
   if (!conn->callbacks.path_validation) {
     return 0;
@@ -279,12 +280,18 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_pv *pv,
     flags |= NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR;
   }
 
-  rv = conn->callbacks.path_validation(
-      conn, flags, &pv->dcid.ps.path,
-      (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)
-          ? &pv->fallback_dcid.ps.path
-          : NULL,
-      res, conn->user_data);
+  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
+    old_path = &pv->fallback_dcid.ps.path;
+  }
+
+  if (conn->server && old_path &&
+      (ngtcp2_addr_compare(&pv->dcid.ps.path.remote, &old_path->remote) &
+       (NGTCP2_ADDR_COMPARE_FLAG_ADDR | NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
+    flags |= NGTCP2_PATH_VALIDATION_FLAG_NEW_TOKEN;
+  }
+
+  rv = conn->callbacks.path_validation(conn, flags, &pv->dcid.ps.path, old_path,
+                                       res, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
