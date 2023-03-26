@@ -2392,7 +2392,7 @@ Options:
               Default: )"
             << config.max_streams_uni << R"(
   --exit-on-first-stream-close
-              Exit  when  a first  client  initialted  HTTP stream  is
+              Exit  when  a  first  client initiated  HTTP  stream  is
               closed.
   --exit-on-all-streams-close
               Exit when all client initiated HTTP streams are closed.
