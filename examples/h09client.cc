@@ -1956,9 +1956,10 @@ Options:
               Default: )"
             << config.max_streams_uni << R"(
   --exit-on-first-stream-close
-              Exit when a first HTTP stream is closed.
+              Exit  when  a  first  client initiated  HTTP  stream  is
+              closed.
   --exit-on-all-streams-close
-              Exit when all HTTP streams are closed.
+              Exit when all client initiated HTTP streams are closed.
   --disable-early-data
               Disable early data.
   --cc=(cubic|reno|bbr|bbr2)
