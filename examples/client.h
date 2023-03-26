@@ -139,6 +139,8 @@ public:
   bool get_early_data() const;
   void early_data_rejected();
 
+  void check_exit();
+
 private:
   std::vector<Endpoint> endpoints_;
   Address remote_addr_;
@@ -169,9 +171,6 @@ private:
   // should_exit_ is true if client should exit rather than waiting
   // for timeout.
   bool should_exit_;
-  // should_exit_on_handshake_confirmed_ is true if client should exit
-  // when handshake confirmed.
-  bool should_exit_on_handshake_confirmed_;
   // handshake_confirmed_ gets true after handshake has been
   // confirmed.
   bool handshake_confirmed_;
