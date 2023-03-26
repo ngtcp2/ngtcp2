@@ -3011,6 +3011,15 @@ typedef int (*ngtcp2_update_key)(
 #define NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR 0x01u
 
 /**
+ * @macro
+ *
+ * :macro:`NGTCP2_PATH_VALIDATION_FLAG_NEW_TOKEN` indicates that
+ * server should send NEW_TOKEN for the new remote address.  This flag
+ * is only set for server.
+ */
+#define NGTCP2_PATH_VALIDATION_FLAG_NEW_TOKEN 0x02u
+
+/**
  * @functypedef
  *
  * :type:`ngtcp2_path_validation` is a callback function which tells

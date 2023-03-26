@@ -577,7 +577,7 @@ int path_validation(ngtcp2_conn *conn, uint32_t flags, const ngtcp2_path *path,
   }
 
   if (res != NGTCP2_PATH_VALIDATION_RESULT_SUCCESS ||
-      ngtcp2_addr_eq(&path->remote, &old_path->remote)) {
+      !(flags & NGTCP2_PATH_VALIDATION_FLAG_NEW_TOKEN)) {
     return 0;
   }
 
