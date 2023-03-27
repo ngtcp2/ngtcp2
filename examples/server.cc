@@ -504,7 +504,8 @@ int Stream::start_response(nghttp3_conn *httpconn) {
       pri.inc = req.pri.inc;
     }
 
-    if (auto rv = nghttp3_conn_set_stream_priority(httpconn, stream_id, &pri);
+    if (auto rv =
+            nghttp3_conn_set_server_stream_priority(httpconn, stream_id, &pri);
         rv != 0) {
       std::cerr << "nghttp3_conn_set_stream_priority: " << nghttp3_strerror(rv)
                 << std::endl;
