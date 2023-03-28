@@ -45,7 +45,7 @@ if [ "$ROLE" == "client" ]; then
         "v2")
             CLIENT_ARGS="$CLIENT_ARGS --available-versions v2,v1"
             ;;
-        "ecn")
+        "ecn"|"zerortt")
             CLIENT_ARGS="$CLIENT_ARGS --no-pmtud"
             ;;
     esac
