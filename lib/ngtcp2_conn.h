@@ -167,9 +167,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    they write off Server Finished and before deriving application rx
    secret. */
 #define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED 0x01u
-/* NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED is set if connection ID is
-   negotiated.  This is only used for client. */
-#define NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED 0x02u
+/* NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED is set when the first
+   Initial packet has successfully been processed. */
+#define NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED 0x02u
 /* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
    parameters are received. */
 #define NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED 0x04u

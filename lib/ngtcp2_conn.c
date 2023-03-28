@@ -6245,7 +6245,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     /* Receiving Version Negotiation packet after getting Handshake
        packet from server is invalid. */
-    if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
+    if (conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) {
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
@@ -6281,7 +6281,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     /* Receiving Retry packet after getting Initial packet from server
        is invalid. */
-    if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
+    if (conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) {
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
@@ -6322,7 +6322,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   /* Quoted from spec: if subsequent packets of those types include a
      different Source Connection ID, they MUST be discarded. */
-  if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) &&
+  if ((conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) &&
       !ngtcp2_cid_eq(&conn->dcid.current.cid, &hd.scid)) {
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
@@ -6340,7 +6340,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
+    if (conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) {
       if (conn->early.ckm) {
         ngtcp2_ssize nread2;
         /* TODO Avoid to parse header twice. */
@@ -6395,7 +6395,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
           return NGTCP2_ERR_DISCARD_PKT;
         }
       }
-      if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
+      if ((conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) == 0) {
         /* Set rcid here so that it is available to callback.  If this
            packet is discarded later in this function and no packet is
            processed in this connection attempt so far, connection
@@ -6579,8 +6579,9 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   switch (hd.type) {
   case NGTCP2_PKT_INITIAL:
-    if (!conn->server || ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) &&
-                          !ngtcp2_cid_eq(&conn->rcid, &hd.dcid))) {
+    if (!conn->server ||
+        ((conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) &&
+         !ngtcp2_cid_eq(&conn->rcid, &hd.dcid))) {
       rv = conn_verify_dcid(conn, NULL, &hd);
       if (rv != 0) {
         if (ngtcp2_err_is_fatal(rv)) {
@@ -6616,8 +6617,8 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   if (hd.type == NGTCP2_PKT_INITIAL &&
-      !(conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
-    conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
+      !(conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED)) {
+    conn->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED;
     if (!conn->server) {
       conn->dcid.current.cid = hd.scid;
     }
