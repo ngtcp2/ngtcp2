@@ -4476,7 +4476,8 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
 
   if (((rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) || padded) &&
       (!path || ngtcp2_path_eq(&conn->dcid.current.ps.path, path))) {
-    if (pi && !(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE)) {
+    if (pi && (conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE ||
+               !(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE))) {
       conn_handle_tx_ecn(conn, pi, &rtb_entry_flags, pktns, &hd, ts);
     }
 
@@ -4507,8 +4508,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
                         nwrite);
       }
     }
-  } else if (pi && !(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE) &&
-             conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
+  } else if (pi && conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
     conn_handle_tx_ecn(conn, pi, NULL, pktns, &hd, ts);
   }
 
