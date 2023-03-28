@@ -693,7 +693,7 @@ setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
   ngtcp2_conn_install_tx_key(*pconn, null_secret, sizeof(null_secret),
                              &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
-  (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
+  (*pconn)->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
@@ -758,7 +758,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   ngtcp2_conn_install_tx_key(*pconn, null_secret, sizeof(null_secret),
                              &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
-  (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
+  (*pconn)->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
