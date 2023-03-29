@@ -370,24 +370,19 @@ static void bbr_set_pacing_rate(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
 }
 
 static void bbr_set_send_quantum(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
-  uint64_t send_quantum;
+  size_t floor, send_quantum;
   (void)cc;
 
   if (cstat->pacing_rate < 1.2 * 1024 * 1024 / 8 / NGTCP2_SECONDS) {
-    cstat->send_quantum = cstat->max_tx_udp_payload_size;
-  } else if (cstat->pacing_rate < 24.0 * 1024 * 1024 / 8 / NGTCP2_SECONDS) {
-    cstat->send_quantum = cstat->max_tx_udp_payload_size * 2;
+    floor = cstat->max_tx_udp_payload_size;
   } else {
-    send_quantum = (uint64_t)(cstat->pacing_rate *
-                              (double)((cstat->min_rtt == UINT64_MAX ||
-                                        cstat->min_rtt < NGTCP2_MILLISECONDS)
-                                           ? NGTCP2_MILLISECONDS
-                                           : cstat->min_rtt));
-    cstat->send_quantum = (size_t)ngtcp2_min(send_quantum, 64 * 1024);
+    floor = 2 * cstat->max_tx_udp_payload_size;
   }
 
-  cstat->send_quantum =
-      ngtcp2_max(cstat->send_quantum, cstat->max_tx_udp_payload_size * 10);
+  send_quantum = (size_t)(cstat->pacing_rate * NGTCP2_MILLISECONDS);
+
+  send_quantum = ngtcp2_min(send_quantum, 64 * 1024);
+  cstat->send_quantum = ngtcp2_max(send_quantum, floor);
 }
 
 static uint64_t bbr_inflight(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,

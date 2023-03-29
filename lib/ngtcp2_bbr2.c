@@ -1287,16 +1287,19 @@ static void bbr_bound_cwnd_for_model(ngtcp2_bbr2_cc *bbr,
 }
 
 static void bbr_set_send_quantum(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat) {
-  size_t send_quantum = (size_t)(cstat->pacing_rate *
-                                 (double)((bbr->min_rtt == UINT64_MAX ||
-                                           bbr->min_rtt < NGTCP2_MILLISECONDS)
-                                              ? NGTCP2_MILLISECONDS
-                                              : bbr->min_rtt));
+  size_t floor, send_quantum;
   (void)bbr;
 
-  cstat->send_quantum = ngtcp2_min(send_quantum, 64 * 1024);
-  cstat->send_quantum =
-      ngtcp2_max(cstat->send_quantum, cstat->max_tx_udp_payload_size * 10);
+  if (cstat->pacing_rate < 1.2 * 1024 * 1024 / 8 / NGTCP2_SECONDS) {
+    floor = cstat->max_tx_udp_payload_size;
+  } else {
+    floor = 2 * cstat->max_tx_udp_payload_size;
+  }
+
+  send_quantum = (size_t)(cstat->pacing_rate * NGTCP2_MILLISECONDS);
+
+  send_quantum = ngtcp2_min(send_quantum, 64 * 1024);
+  cstat->send_quantum = ngtcp2_max(send_quantum, floor);
 }
 
 static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
