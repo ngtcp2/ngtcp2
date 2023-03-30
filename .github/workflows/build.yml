@@ -10,20 +10,27 @@ env:
   BORINGSSL_VERSION: 74646566e93de7551bfdfc5f49de7462f13d1d05
   PICOTLS_VERSION: 61228171836561b5f6feee5bf0ad81414d47e748
   WOLFSSL_VERSION: v5.5.4-stable
+  NGHTTP3_VERSION: head
 
 jobs:
   setup:
     runs-on: ubuntu-22.04
 
     outputs:
-      nghttp3-sha: ${{ steps.nghttp3-sha.outputs.result }}
+      nghttp3-version: ${{ steps.nghttp3-version.outputs.result }}
 
     steps:
-    - id: nghttp3-sha
+    - id: nghttp3-version
       uses: actions/github-script@v6
       with:
         result-encoding: string
         script: |
+          let version = '${{ env.NGHTTP3_VERSION }}'
+
+          if (version != 'head') {
+              return version
+          }
+
           let { data: commits } = await github.rest.repos.listCommits({
               owner: 'ngtcp2',
               repo: 'nghttp3',
@@ -93,7 +100,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: nghttp3/build
-        key: ${{ runner.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-sha }}
+        key: ${{ runner.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-version }}
     - id: settings
       if: |
         steps.cache-openssl1.outputs.cache-hit != 'true' ||
@@ -162,6 +169,8 @@ jobs:
       if: steps.cache-nghttp3.outputs.cache-hit != 'true'
       run: |
         ./ci/build_nghttp3.sh
+      env:
+        NGHTTP3_VERSION: ${{ needs.setup.outputs.nghttp3-version }}
 
   build:
     needs:
@@ -296,7 +305,7 @@ jobs:
       uses: actions/cache/restore@v3
       with:
         path: nghttp3/build
-        key: ${{ runner.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-sha }}
+        key: ${{ runner.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-version }}
         fail-on-cache-miss: true
     - name: Setup environment variables
       run: |
