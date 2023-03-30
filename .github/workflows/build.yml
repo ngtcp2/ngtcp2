@@ -24,12 +24,7 @@ jobs:
       with:
         result-encoding: string
         script: |
-          let { data: commits } = await github.rest.repos.listCommits({
-              owner: 'ngtcp2',
-              repo: 'nghttp3',
-          })
-
-          return commits[0].sha
+          return '2eda009319eceec3544d7a164b52be873a928ac0'
 
   build-cache:
     needs:
