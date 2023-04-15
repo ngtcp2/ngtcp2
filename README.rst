@@ -180,8 +180,7 @@ available crypto helper libraries are:
 Because BoringSSL and Picotls are an unversioned product, we only
 tested their particular revision.  See Requirements section above.
 
-We use Picotls with OpenSSL as crypto backend.  It does not work with
-OpenSSL >= 3.0.0.
+We use Picotls with OpenSSL as crypto backend.
 
 The examples directory contains client and server that are linked to
 those crypto helper libraries and TLS backends.  They are only built
