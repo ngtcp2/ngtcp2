@@ -6,7 +6,7 @@ permissions: read-all
 
 env:
   OPENSSL1_VERSION: 1_1_1t+quic
-  OPENSSL3_VERSION: 3.0.8+quic
+  OPENSSL3_VERSION: 3.1.0+quic
   BORINGSSL_VERSION: 74646566e93de7551bfdfc5f49de7462f13d1d05
   PICOTLS_VERSION: 61228171836561b5f6feee5bf0ad81414d47e748
   WOLFSSL_VERSION: v5.5.4-stable
@@ -56,7 +56,7 @@ jobs:
       with:
         path: openssl1/build
         key: ${{ runner.os }}-openssl-${{ env.OPENSSL1_VERSION }}
-    - name: Restore OpenSSL v3.0.x cache
+    - name: Restore OpenSSL v3.x cache
       id: cache-openssl3
       uses: actions/cache@v3
       with:
@@ -80,7 +80,7 @@ jobs:
           picotls-openssl1/build/libpicotls-openssl.a
           picotls-openssl1/include
         key: ${{ runner.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL1_VERSION }}
-    - name: Restore Picotls + OpenSSL v3.0.x cache
+    - name: Restore Picotls + OpenSSL v3.x cache
       id: cache-picotls-openssl3
       uses: actions/cache@v3
       with:
@@ -139,7 +139,7 @@ jobs:
         ./ci/build_openssl.sh
       env:
         OPENSSL: openssl1
-    - name: Build OpenSSL v3.0.x
+    - name: Build OpenSSL v3.x
       if: steps.cache-openssl3.outputs.cache-hit != 'true'
       run: |
         ./ci/build_openssl.sh
@@ -155,7 +155,7 @@ jobs:
         ./ci/build_picotls.sh
       env:
         OPENSSL: openssl1
-    - name: Build Picotls + OpenSSL v3.0.x
+    - name: Build Picotls + OpenSSL v3.x
       if: steps.cache-picotls-openssl3.outputs.cache-hit != 'true'
       run: |
         ./ci/build_picotls.sh
@@ -259,7 +259,7 @@ jobs:
         path: openssl1/build
         key: ${{ runner.os }}-openssl-${{ env.OPENSSL1_VERSION }}
         fail-on-cache-miss: true
-    - name: Restore OpenSSL v3.0.x cache
+    - name: Restore OpenSSL v3.x cache
       uses: actions/cache/restore@v3
       if: matrix.openssl == 'openssl3'
       with:
@@ -285,7 +285,7 @@ jobs:
           picotls-openssl1/include
         key: ${{ runner.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL1_VERSION }}
         fail-on-cache-miss: true
-    - name: Restore Picotls + OpenSSL v3.0.x cache
+    - name: Restore Picotls + OpenSSL v3.x cache
       uses: actions/cache/restore@v3
       if: matrix.openssl == 'openssl3'
       with:
