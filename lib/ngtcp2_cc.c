@@ -186,8 +186,9 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                     "target_cwnd=%" PRIu64 " max_delivery_rate_sec=%" PRIu64
-                    " min_rtt=%" PRIu64,
-                    cc->target_cwnd, cc->max_delivery_rate_sec, cstat->min_rtt);
+                    " smoothed_rtt=%" PRIu64,
+                    cc->target_cwnd, cc->max_delivery_rate_sec,
+                    cstat->smoothed_rtt);
   }
 }
 
@@ -555,8 +556,9 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                     "target_cwnd=%" PRIu64 " max_delivery_rate_sec=%" PRIu64
-                    " min_rtt=%" PRIu64,
-                    cc->target_cwnd, cc->max_delivery_rate_sec, cstat->min_rtt);
+                    " smoothed_rtt=%" PRIu64,
+                    cc->target_cwnd, cc->max_delivery_rate_sec,
+                    cstat->smoothed_rtt);
   }
 }
 
