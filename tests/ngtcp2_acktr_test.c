@@ -24,6 +24,8 @@
  */
 #include "ngtcp2_acktr_test.h"
 
+#include <stdio.h>
+
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_acktr.h"

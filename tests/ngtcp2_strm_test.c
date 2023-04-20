@@ -24,6 +24,8 @@
  */
 #include "ngtcp2_strm_test.h"
 
+#include <stdio.h>
+
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_strm.h"

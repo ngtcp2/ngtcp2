@@ -24,6 +24,8 @@
  */
 #include "ngtcp2_rob_test.h"
 
+#include <stdio.h>
+
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_rob.h"

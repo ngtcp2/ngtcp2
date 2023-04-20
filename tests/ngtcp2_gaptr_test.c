@@ -24,6 +24,8 @@
  */
 #include "ngtcp2_gaptr_test.h"
 
+#include <stdio.h>
+
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_gaptr.h"

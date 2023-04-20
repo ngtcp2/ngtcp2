@@ -24,6 +24,7 @@
  */
 #include "ngtcp2_cc_test.h"
 
+#include <stdio.h>
 #include <assert.h>
 
 #include <CUnit/CUnit.h>
