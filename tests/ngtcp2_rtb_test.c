@@ -24,6 +24,7 @@
  */
 #include "ngtcp2_rtb_test.h"
 
+#include <stdio.h>
 #include <assert.h>
 
 #include <CUnit/CUnit.h>

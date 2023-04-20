@@ -24,6 +24,8 @@
  */
 #include "ngtcp2_str_test.h"
 
+#include <stdio.h>
+
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_str.h"

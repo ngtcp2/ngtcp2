@@ -24,6 +24,8 @@
  */
 #include "ngtcp2_ringbuf_test.h"
 
+#include <stdio.h>
+
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_ringbuf.h"

@@ -24,6 +24,8 @@
  */
 #include "ngtcp2_pmtud_test.h"
 
+#include <stdio.h>
+
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_pmtud.h"
