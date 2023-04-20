@@ -263,7 +263,7 @@ void ngtcp2_cc_cubic_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, cubic_cc);
 }
 
-static uint64_t ngtcp2_cbrt(uint64_t n) {
+uint64_t ngtcp2_cbrt(uint64_t n) {
   int d;
   uint64_t a;
 
@@ -272,26 +272,23 @@ static uint64_t ngtcp2_cbrt(uint64_t n) {
   }
 
 #if defined(_MSC_VER)
-#  if defined(_M_X64)
-  d = (int)__lzcnt64(n);
-#  elif defined(_M_ARM64)
   {
     unsigned long index;
-    d = sizeof(uint64_t) * CHAR_BIT;
+#  if defined(_WIN64)
     if (_BitScanReverse64(&index, n)) {
-      d = d - 1 - index;
+      d = 61 - index;
     }
+#  else  /* !defined(_WIN64) */
+    if (_BitScanReverse(&index, (unsigned int)(n >> 32))) {
+      d = 31 - index;
+    } else {
+      d = 32 + 31 - _BitScanReverse(&index, (unsigned int)n);
+    }
+#  endif /* !defined(_WIN64) */
   }
-#  else
-  if ((n >> 32) != 0) {
-    d = __lzcnt((unsigned int)(n >> 32));
-  } else {
-    d = 32 + __lzcnt((unsigned int)n);
-  }
-#  endif
-#else
+#else  /* !defined(_MSC_VER) */
   d = __builtin_clzll(n);
-#endif
+#endif /* !defined(_MSC_VER) */
   a = 1ULL << ((64 - d) / 3 + 1);
 
   for (; a * a * a > n;) {

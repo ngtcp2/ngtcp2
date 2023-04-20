@@ -419,4 +419,6 @@ void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_cubic_cc_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                               ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
 
+uint64_t ngtcp2_cbrt(uint64_t n);
+
 #endif /* NGTCP2_CC_H */
