@@ -3112,10 +3112,9 @@ typedef enum ngtcp2_connection_id_status_type {
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_connection_id_status)(ngtcp2_conn *conn, int type,
-                                           uint64_t seq, const ngtcp2_cid *cid,
-                                           const uint8_t *token,
-                                           void *user_data);
+typedef int (*ngtcp2_connection_id_status)(
+    ngtcp2_conn *conn, ngtcp2_connection_id_status_type type, uint64_t seq,
+    const ngtcp2_cid *cid, const uint8_t *token, void *user_data);
 
 /**
  * @functypedef
