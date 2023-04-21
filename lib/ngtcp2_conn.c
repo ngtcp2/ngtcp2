@@ -383,7 +383,7 @@ static int conn_call_dcid_status(ngtcp2_conn *conn,
   }
 
   rv = conn->callbacks.dcid_status(
-      conn, (int)type, dcid->seq, &dcid->cid,
+      conn, type, dcid->seq, &dcid->cid,
       (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) ? dcid->token : NULL,
       conn->user_data);
   if (rv != 0) {
