@@ -64,10 +64,10 @@ static int conn_local_stream(ngtcp2_conn *conn, int64_t stream_id) {
 static int bidi_stream(int64_t stream_id) { return (stream_id & 0x2) == 0; }
 
 /*
- * conn_is_handshake_completed returns nonzero if QUIC handshake has
- * completed.
+ * conn_is_tls_handshake_completed returns nonzero if TLS handshake
+ * has completed and 1 RTT keys are available.
  */
-static int conn_is_handshake_completed(ngtcp2_conn *conn) {
+static int conn_is_tls_handshake_completed(ngtcp2_conn *conn) {
   return (conn->flags & NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED) &&
          conn->pktns.crypto.rx.ckm && conn->pktns.crypto.tx.ckm;
 }
@@ -571,7 +571,7 @@ static int conn_call_recv_datagram(ngtcp2_conn *conn,
     datalen = 0;
   }
 
-  if (!conn_is_handshake_completed(conn)) {
+  if (!conn_is_tls_handshake_completed(conn)) {
     flags |= NGTCP2_DATAGRAM_FLAG_EARLY;
   }
 
@@ -3576,7 +3576,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       /* transport parameter is only valid after handshake completion
          which means we don't know how many connection ID that remote
          peer can accept before handshake completion. */
-      if (conn->oscid.datalen && conn_is_handshake_completed(conn)) {
+      if (conn->oscid.datalen && conn_is_tls_handshake_completed(conn)) {
         rv = conn_enqueue_new_connection_id(conn);
         if (rv != 0) {
           return rv;
@@ -4567,7 +4567,7 @@ static int conn_handshake_remnants_left(ngtcp2_conn *conn) {
   ngtcp2_pktns *in_pktns = conn->in_pktns;
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
 
-  return !conn_is_handshake_completed(conn) ||
+  return !conn_is_tls_handshake_completed(conn) ||
          (in_pktns && (in_pktns->rtb.num_pto_eliciting ||
                        ngtcp2_ksl_len(&in_pktns->crypto.tx.frq))) ||
          (hs_pktns && (hs_pktns->rtb.num_pto_eliciting ||
@@ -4722,7 +4722,7 @@ static int conn_start_pmtud(ngtcp2_conn *conn) {
 
   assert(!conn->local.settings.no_pmtud);
   assert(!conn->pmtud);
-  assert(conn_is_handshake_completed(conn));
+  assert(conn_is_tls_handshake_completed(conn));
   assert(conn->remote.transport_params);
   assert(conn->remote.transport_params->max_udp_payload_size >=
          NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6900,7 +6900,7 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   int rv;
   uint64_t offset;
   uint32_t sdflags;
-  int handshake_completed = conn_is_handshake_completed(conn);
+  int handshake_completed = conn_is_tls_handshake_completed(conn);
 
   if (!strm->rx.rob) {
     return 0;
@@ -7244,7 +7244,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       if (fin) {
         sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
       }
-      if (!conn_is_handshake_completed(conn)) {
+      if (!conn_is_tls_handshake_completed(conn)) {
         sdflags |= NGTCP2_STREAM_DATA_FLAG_EARLY;
       }
       rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data,
@@ -9739,7 +9739,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
       }
     }
 
-    if (conn_is_handshake_completed(conn) &&
+    if (conn_is_tls_handshake_completed(conn) &&
         !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
       rv = conn_handshake_completed(conn);
       if (rv != 0) {
@@ -9808,7 +9808,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
       conn_discard_initial_state(conn, ts);
     }
 
-    if (!conn_is_handshake_completed(conn)) {
+    if (!conn_is_tls_handshake_completed(conn)) {
       /* If server hits amplification limit, it cancels loss detection
          timer.  If server receives a packet from client, the limit is
          increased and server can send more.  If server has
@@ -10170,7 +10170,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       destlen -= (size_t)nwrite;
     }
 
-    if (!conn_is_handshake_completed(conn)) {
+    if (!conn_is_tls_handshake_completed(conn)) {
       if (!(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
         nwrite = conn_retransmit_retry_early(conn, pi, dest, destlen,
                                              NGTCP2_WRITE_PKT_FLAG_NONE, ts);
@@ -10446,7 +10446,7 @@ void ngtcp2_conn_tls_handshake_completed(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn) {
-  return conn_is_handshake_completed(conn) &&
+  return conn_is_tls_handshake_completed(conn) &&
          (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED);
 }
 
@@ -10947,7 +10947,7 @@ ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
 }
 
 static ngtcp2_tstamp conn_handshake_expiry(ngtcp2_conn *conn) {
-  if (conn_is_handshake_completed(conn) ||
+  if (conn_is_tls_handshake_completed(conn) ||
       conn->local.settings.handshake_timeout == UINT64_MAX) {
     return UINT64_MAX;
   }
@@ -11028,7 +11028,7 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     }
   }
 
-  if (!conn_is_handshake_completed(conn) &&
+  if (!conn_is_tls_handshake_completed(conn) &&
       conn->local.settings.handshake_timeout != UINT64_MAX &&
       conn->local.settings.initial_ts +
               conn->local.settings.handshake_timeout <=
@@ -13008,7 +13008,7 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return 0;
   }
 
-  if (!conn->server && !conn_is_handshake_completed(conn)) {
+  if (!conn->server && !conn_is_tls_handshake_completed(conn)) {
     if (hs_pktns->crypto.tx.ckm) {
       hs_pktns->rtb.probe_pkt_left = 1;
     } else {
@@ -13468,7 +13468,7 @@ ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
   /* TODO Remote max_idle_timeout becomes effective after handshake
      completion. */
 
-  if (!conn_is_handshake_completed(conn) ||
+  if (!conn_is_tls_handshake_completed(conn) ||
       conn->remote.transport_params->max_idle_timeout == 0 ||
       (conn->local.transport_params.max_idle_timeout &&
        conn->local.transport_params.max_idle_timeout <
@@ -13482,7 +13482,7 @@ ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
     return UINT64_MAX;
   }
 
-  trpto = 3 * conn_compute_pto(conn, conn_is_handshake_completed(conn)
+  trpto = 3 * conn_compute_pto(conn, conn_is_tls_handshake_completed(conn)
                                          ? &conn->pktns
                                          : conn->hs_pktns);
 
@@ -13490,8 +13490,9 @@ ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
 }
 
 ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn) {
-  return conn_compute_pto(
-      conn, conn_is_handshake_completed(conn) ? &conn->pktns : conn->hs_pktns);
+  return conn_compute_pto(conn, conn_is_tls_handshake_completed(conn)
+                                    ? &conn->pktns
+                                    : conn->hs_pktns);
 }
 
 void ngtcp2_conn_set_initial_crypto_ctx(ngtcp2_conn *conn,
