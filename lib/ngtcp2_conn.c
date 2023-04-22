@@ -68,7 +68,7 @@ static int bidi_stream(int64_t stream_id) { return (stream_id & 0x2) == 0; }
  * completed.
  */
 static int conn_is_handshake_completed(ngtcp2_conn *conn) {
-  return (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) &&
+  return (conn->flags & NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED) &&
          conn->pktns.crypto.rx.ckm && conn->pktns.crypto.tx.ckm;
 }
 
@@ -10438,8 +10438,8 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
   return spktlen + early_spktlen;
 }
 
-void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
-  conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED;
+void ngtcp2_conn_tls_handshake_completed(ngtcp2_conn *conn) {
+  conn->flags |= NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED;
   if (conn->server) {
     conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   }

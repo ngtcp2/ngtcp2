@@ -695,7 +695,7 @@ setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
                              &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED |
-                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
+                     NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
@@ -760,7 +760,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
                              &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED |
-                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
+                     NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
@@ -6637,7 +6637,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
                              null_iv, sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
                              null_iv, sizeof(null_iv), &hp_ctx);
-  ngtcp2_conn_handshake_completed(conn);
+  ngtcp2_conn_tls_handshake_completed(conn);
 
   /* This will send Handshake ACK and CRYPTO */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -8433,7 +8433,7 @@ void test_ngtcp2_conn_early_data_sync_stream_data_limit(void) {
 
   CU_ASSERT(0 == rv);
 
-  ngtcp2_conn_handshake_completed(conn);
+  ngtcp2_conn_tls_handshake_completed(conn);
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(0 < spktlen);
@@ -8561,7 +8561,7 @@ void test_ngtcp2_conn_early_data_rejected(void) {
 
   CU_ASSERT(0 == rv);
 
-  ngtcp2_conn_handshake_completed(conn);
+  ngtcp2_conn_tls_handshake_completed(conn);
   ngtcp2_conn_early_data_rejected(conn);
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
