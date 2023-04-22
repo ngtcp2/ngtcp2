@@ -159,14 +159,14 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 
 /* NGTCP2_CONN_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_CONN_FLAG_NONE 0x00u
-/* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED is set when TLS stack declares
-   that TLS handshake has completed.  The condition of this
+/* NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED is set when TLS stack
+   declares that TLS handshake has completed.  The condition of this
    declaration varies between TLS implementations and this flag does
    not indicate the completion of QUIC handshake.  Some
    implementations declare TLS handshake completion as server when
    they write off Server Finished and before deriving application rx
    secret. */
-#define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED 0x01u
+#define NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED 0x01u
 /* NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED is set when the first
    Initial packet has successfully been processed. */
 #define NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED 0x02u
