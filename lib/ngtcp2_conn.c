@@ -9570,7 +9570,7 @@ static int conn_sync_stream_data_limit(ngtcp2_conn *conn) {
 static int conn_handshake_completed(ngtcp2_conn *conn) {
   int rv;
 
-  conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED;
+  conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED;
 
   rv = conn_call_handshake_completed(conn);
   if (rv != 0) {
@@ -9740,7 +9740,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
     }
 
     if (conn_is_handshake_completed(conn) &&
-        !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED)) {
+        !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
       rv = conn_handshake_completed(conn);
       if (rv != 0) {
         return rv;
@@ -10152,7 +10152,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     if (!conn_handshake_probe_left(conn) && conn_cwnd_is_zero(conn)) {
       destlen = 0;
     } else {
-      if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED)) {
+      if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
         pending_early_datalen = conn_retry_early_payloadlen(conn);
         if (pending_early_datalen) {
           write_datalen = pending_early_datalen;
@@ -10447,7 +10447,7 @@ void ngtcp2_conn_tls_handshake_completed(ngtcp2_conn *conn) {
 
 int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn) {
   return conn_is_handshake_completed(conn) &&
-         (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED);
+         (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED);
 }
 
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
@@ -13198,7 +13198,7 @@ size_t ngtcp2_conn_get_num_active_dcid(ngtcp2_conn *conn) {
   size_t n = 1; /* for conn->dcid.current */
   ngtcp2_pv *pv = conn->pv;
 
-  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED)) {
+  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
     return 0;
   }
 
@@ -13235,7 +13235,7 @@ size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn, ngtcp2_cid_token *dest) {
   ngtcp2_dcid *dcid;
   size_t len, i;
 
-  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED)) {
+  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
     return 0;
   }
 

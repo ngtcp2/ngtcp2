@@ -696,7 +696,7 @@ setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED |
                      NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED |
-                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
+                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   conn_set_scid_used(*pconn);
@@ -761,7 +761,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED |
                      NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED |
-                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
+                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   conn_set_scid_used(*pconn);
