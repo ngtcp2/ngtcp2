@@ -1891,7 +1891,7 @@ typedef struct ngtcp2_settings {
    * given buffer size, :member:`max_tx_udp_payload_size`, and the
    * received max_udp_payload QUIC transport parameter.
    */
-  int no_tx_udp_payload_size_shaping;
+  uint8_t no_tx_udp_payload_size_shaping;
   /**
    * :member:`handshake_timeout` is the period of time before giving
    * up QUIC connection establishment.  If QUIC handshake is not
@@ -1969,7 +1969,7 @@ typedef struct ngtcp2_settings {
    * :member:`no_pmtud`, if set to nonzero, disables Path MTU
    * Discovery.
    */
-  int no_pmtud;
+  uint8_t no_pmtud;
 } ngtcp2_settings;
 
 /**
