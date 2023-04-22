@@ -188,9 +188,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED is set when an endpoint
    confirmed completion of handshake. */
 #define NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED 0x80u
-/* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
-   library transitions its state to "post handshake". */
-#define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED 0x0100u
+/* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED is set when the library
+   transitions its state to "post handshake". */
+#define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED 0x0100u
 /* NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT is set when the early
    handshake retransmission has done when server receives overlapping
    Initial crypto data. */
