@@ -779,26 +779,6 @@ static void pktns_del(ngtcp2_pktns *pktns, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, pktns);
 }
 
-static void cc_del(ngtcp2_cc *cc, ngtcp2_cc_algo cc_algo,
-                   const ngtcp2_mem *mem) {
-  switch (cc_algo) {
-  case NGTCP2_CC_ALGO_RENO:
-    ngtcp2_cc_reno_cc_free(cc, mem);
-    break;
-  case NGTCP2_CC_ALGO_CUBIC:
-    ngtcp2_cc_cubic_cc_free(cc, mem);
-    break;
-  case NGTCP2_CC_ALGO_BBR:
-    ngtcp2_cc_bbr_cc_free(cc, mem);
-    break;
-  case NGTCP2_CC_ALGO_BBR2:
-    ngtcp2_cc_bbr2_cc_free(cc, mem);
-    break;
-  default:
-    break;
-  }
-}
-
 static int cid_less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
   return ngtcp2_cid_less(lhs, rhs);
 }
@@ -1192,32 +1172,24 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   switch (settings->cc_algo) {
   case NGTCP2_CC_ALGO_RENO:
-    rv = ngtcp2_cc_reno_cc_init(&(*pconn)->cc, &(*pconn)->log, mem);
-    if (rv != 0) {
-      goto fail_cc_init;
-    }
+    ngtcp2_reno_cc_init(&(*pconn)->reno, &(*pconn)->log);
+
     break;
   case NGTCP2_CC_ALGO_CUBIC:
-    rv = ngtcp2_cc_cubic_cc_init(&(*pconn)->cc, &(*pconn)->log, mem);
-    if (rv != 0) {
-      goto fail_cc_init;
-    }
+    ngtcp2_cubic_cc_init(&(*pconn)->cubic, &(*pconn)->log);
+
     break;
   case NGTCP2_CC_ALGO_BBR:
-    rv = ngtcp2_cc_bbr_cc_init(&(*pconn)->cc, &(*pconn)->log, &(*pconn)->cstat,
-                               &(*pconn)->rst, settings->initial_ts,
-                               callbacks->rand, &settings->rand_ctx, mem);
-    if (rv != 0) {
-      goto fail_cc_init;
-    }
+    ngtcp2_bbr_cc_init(&(*pconn)->bbr, &(*pconn)->log, &(*pconn)->cstat,
+                       &(*pconn)->rst, settings->initial_ts, callbacks->rand,
+                       &settings->rand_ctx);
+
     break;
   case NGTCP2_CC_ALGO_BBR2:
-    rv = ngtcp2_cc_bbr2_cc_init(&(*pconn)->cc, &(*pconn)->log, &(*pconn)->cstat,
-                                &(*pconn)->rst, settings->initial_ts,
-                                callbacks->rand, &settings->rand_ctx, mem);
-    if (rv != 0) {
-      goto fail_cc_init;
-    }
+    ngtcp2_bbr2_cc_init(&(*pconn)->bbr2, &(*pconn)->log, &(*pconn)->cstat,
+                        &(*pconn)->rst, settings->initial_ts, callbacks->rand,
+                        &settings->rand_ctx);
+
     break;
   default:
     ngtcp2_unreachable();
@@ -1389,8 +1361,6 @@ fail_pktns_init:
 fail_hs_pktns_init:
   pktns_del((*pconn)->in_pktns, mem);
 fail_in_pktns_init:
-  cc_del(&(*pconn)->cc, settings->cc_algo, mem);
-fail_cc_init:
   ngtcp2_mem_free(mem, (uint8_t *)(*pconn)->local.settings.token);
 fail_token:
   ngtcp2_mem_free(mem, (*pconn)->qlog.buf.begin);
@@ -1600,8 +1570,6 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   pktns_free(&conn->pktns, conn->mem);
   pktns_del(conn->hs_pktns, conn->mem);
   pktns_del(conn->in_pktns, conn->mem);
-
-  cc_del(&conn->cc, conn->cc_algo, conn->mem);
 
   ngtcp2_mem_free(conn->mem, conn->qlog.buf.begin);
 

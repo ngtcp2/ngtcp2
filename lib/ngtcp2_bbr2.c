@@ -25,6 +25,7 @@
 #include "ngtcp2_bbr2.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "ngtcp2_log.h"
 #include "ngtcp2_macro.h"
@@ -382,7 +383,7 @@ static void bbr_check_startup_full_bandwidth(ngtcp2_bbr2_cc *bbr) {
   if (bbr->full_bw_count >= 3) {
     bbr->filled_pipe = 1;
 
-    ngtcp2_log_info(bbr->ccb.log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "bbr2 filled pipe, full_bw=%" PRIu64, bbr->full_bw);
   }
 }
@@ -428,7 +429,7 @@ static void bbr_set_pacing_rate(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat) {
 }
 
 static void bbr_enter_startup(ngtcp2_bbr2_cc *bbr) {
-  ngtcp2_log_info(bbr->ccb.log, NGTCP2_LOG_EVENT_RCV, "bbr2 enter Startup");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_RCV, "bbr2 enter Startup");
 
   bbr->state = NGTCP2_BBR2_STATE_STARTUP;
   bbr->pacing_gain = NGTCP2_BBR_STARTUP_PACING_GAIN;
@@ -639,7 +640,7 @@ static void bbr_update_ack_aggregation(ngtcp2_bbr2_cc *bbr,
 }
 
 static void bbr_enter_drain(ngtcp2_bbr2_cc *bbr) {
-  ngtcp2_log_info(bbr->ccb.log, NGTCP2_LOG_EVENT_RCV, "bbr2 enter Drain");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_RCV, "bbr2 enter Drain");
 
   bbr->state = NGTCP2_BBR2_STATE_DRAIN;
   bbr->pacing_gain = 1. / NGTCP2_BBR_STARTUP_CWND_GAIN;
@@ -659,8 +660,7 @@ static void bbr_enter_probe_bw(ngtcp2_bbr2_cc *bbr, ngtcp2_tstamp ts) {
 }
 
 static void bbr_start_probe_bw_down(ngtcp2_bbr2_cc *bbr, ngtcp2_tstamp ts) {
-  ngtcp2_log_info(bbr->ccb.log, NGTCP2_LOG_EVENT_RCV,
-                  "bbr2 start ProbeBW_DOWN");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_RCV, "bbr2 start ProbeBW_DOWN");
 
   bbr_reset_congestion_signals(bbr);
 
@@ -679,7 +679,7 @@ static void bbr_start_probe_bw_down(ngtcp2_bbr2_cc *bbr, ngtcp2_tstamp ts) {
 }
 
 static void bbr_start_probe_bw_cruise(ngtcp2_bbr2_cc *bbr) {
-  ngtcp2_log_info(bbr->ccb.log, NGTCP2_LOG_EVENT_RCV,
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_RCV,
                   "bbr2 start ProbeBW_CRUISE");
 
   bbr->state = NGTCP2_BBR2_STATE_PROBE_BW_CRUISE;
@@ -688,7 +688,7 @@ static void bbr_start_probe_bw_cruise(ngtcp2_bbr2_cc *bbr) {
 }
 
 static void bbr_start_probe_bw_refill(ngtcp2_bbr2_cc *bbr) {
-  ngtcp2_log_info(bbr->ccb.log, NGTCP2_LOG_EVENT_RCV,
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_RCV,
                   "bbr2 start ProbeBW_REFILL");
 
   bbr_reset_lower_bounds(bbr);
@@ -706,7 +706,7 @@ static void bbr_start_probe_bw_refill(ngtcp2_bbr2_cc *bbr) {
 
 static void bbr_start_probe_bw_up(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat,
                                   ngtcp2_tstamp ts) {
-  ngtcp2_log_info(bbr->ccb.log, NGTCP2_LOG_EVENT_RCV, "bbr2 start ProbeBW_UP");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_RCV, "bbr2 start ProbeBW_UP");
 
   bbr->ack_phase = NGTCP2_BBR2_ACK_PHASE_ACKS_PROBE_STARTING;
 
@@ -1021,7 +1021,7 @@ static void bbr_update_min_rtt(ngtcp2_bbr2_cc *bbr, const ngtcp2_cc_ack *ack,
     bbr->min_rtt = bbr->probe_rtt_min_delay;
     bbr->min_rtt_stamp = bbr->probe_rtt_min_stamp;
 
-    ngtcp2_log_info(bbr->ccb.log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "bbr2 update min_rtt=%" PRIu64, bbr->min_rtt);
   }
 }
@@ -1049,7 +1049,7 @@ static void bbr_check_probe_rtt(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat,
 }
 
 static void bbr_enter_probe_rtt(ngtcp2_bbr2_cc *bbr) {
-  ngtcp2_log_info(bbr->ccb.log, NGTCP2_LOG_EVENT_RCV, "bbr2 enter ProbeRTT");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_RCV, "bbr2 enter ProbeRTT");
 
   bbr->state = NGTCP2_BBR2_STATE_PROBE_RTT;
   bbr->pacing_gain = 1;
@@ -1118,7 +1118,7 @@ static void bbr_handle_restart_from_idle(ngtcp2_bbr2_cc *bbr,
                                          ngtcp2_conn_stat *cstat,
                                          ngtcp2_tstamp ts) {
   if (cstat->bytes_in_flight == 0 && bbr->rst->app_limited) {
-    ngtcp2_log_info(bbr->ccb.log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "bbr2 restart from idle");
 
     bbr->idle_restart = 1;
@@ -1340,21 +1340,6 @@ static void bbr_handle_recovery(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat,
   }
 }
 
-static void bbr2_cc_init(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat,
-                         ngtcp2_rst *rst, ngtcp2_tstamp initial_ts,
-                         ngtcp2_rand rand, const ngtcp2_rand_ctx *rand_ctx,
-                         ngtcp2_log *log) {
-  bbr->ccb.log = log;
-  bbr->rst = rst;
-  bbr->rand = rand;
-  bbr->rand_ctx = *rand_ctx;
-  bbr->initial_cwnd = cstat->cwnd;
-
-  bbr_on_init(bbr, cstat, initial_ts);
-}
-
-static void bbr2_cc_free(ngtcp2_bbr2_cc *bbr) { (void)bbr; }
-
 static void bbr2_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                  const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
   (void)ccx;
@@ -1365,14 +1350,14 @@ static void bbr2_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 static void bbr2_cc_on_pkt_lost(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                 const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
-  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr2_cc, ccb);
+  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx, ngtcp2_bbr2_cc, cc);
 
   bbr_update_on_loss(bbr, cstat, pkt, ts);
 }
 
 static void bbr2_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                      ngtcp2_tstamp sent_ts, ngtcp2_tstamp ts) {
-  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr2_cc, ccb);
+  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx, ngtcp2_bbr2_cc, cc);
 
   if (!bbr->filled_pipe || bbr->in_loss_recovery ||
       bbr->congestion_recovery_start_ts != UINT64_MAX ||
@@ -1386,7 +1371,7 @@ static void bbr2_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 static void bbr2_cc_on_spurious_congestion(ngtcp2_cc *ccx,
                                            ngtcp2_conn_stat *cstat,
                                            ngtcp2_tstamp ts) {
-  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr2_cc, ccb);
+  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx, ngtcp2_bbr2_cc, cc);
   (void)ts;
 
   bbr->congestion_recovery_start_ts = UINT64_MAX;
@@ -1407,7 +1392,7 @@ static void bbr2_cc_on_spurious_congestion(ngtcp2_cc *ccx,
 static void bbr2_cc_on_persistent_congestion(ngtcp2_cc *ccx,
                                              ngtcp2_conn_stat *cstat,
                                              ngtcp2_tstamp ts) {
-  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr2_cc, ccb);
+  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx, ngtcp2_bbr2_cc, cc);
   (void)ts;
 
   cstat->congestion_recovery_start_ts = UINT64_MAX;
@@ -1423,14 +1408,14 @@ static void bbr2_cc_on_persistent_congestion(ngtcp2_cc *ccx,
 
 static void bbr2_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                 const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
-  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr2_cc, ccb);
+  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx, ngtcp2_bbr2_cc, cc);
 
   bbr_update_on_ack(bbr, cstat, ack, ts);
 }
 
 static void bbr2_cc_on_pkt_sent(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                 const ngtcp2_cc_pkt *pkt) {
-  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr2_cc, ccb);
+  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx, ngtcp2_bbr2_cc, cc);
 
   bbr_on_transmit(bbr, cstat, pkt->sent_ts);
 }
@@ -1444,7 +1429,7 @@ static void bbr2_cc_new_rtt_sample(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 static void bbr2_cc_reset(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                           ngtcp2_tstamp ts) {
-  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr2_cc, ccb);
+  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx, ngtcp2_bbr2_cc, cc);
 
   bbr_on_init(bbr, cstat, ts);
 }
@@ -1457,38 +1442,30 @@ static void bbr2_cc_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   (void)ts;
 }
 
-int ngtcp2_cc_bbr2_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
-                           ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
-                           ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
-                           const ngtcp2_rand_ctx *rand_ctx,
-                           const ngtcp2_mem *mem) {
-  ngtcp2_bbr2_cc *bbr;
+void ngtcp2_bbr2_cc_init(ngtcp2_bbr2_cc *bbr, ngtcp2_log *log,
+                         ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
+                         ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
+                         const ngtcp2_rand_ctx *rand_ctx) {
+  memset(bbr, 0, sizeof(*bbr));
 
-  bbr = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_bbr2_cc));
-  if (bbr == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
+  bbr->cc.log = log;
+  bbr->cc.on_pkt_acked = bbr2_cc_on_pkt_acked;
+  bbr->cc.on_pkt_lost = bbr2_cc_on_pkt_lost;
+  bbr->cc.congestion_event = bbr2_cc_congestion_event;
+  bbr->cc.on_spurious_congestion = bbr2_cc_on_spurious_congestion;
+  bbr->cc.on_persistent_congestion = bbr2_cc_on_persistent_congestion;
+  bbr->cc.on_ack_recv = bbr2_cc_on_ack_recv;
+  bbr->cc.on_pkt_sent = bbr2_cc_on_pkt_sent;
+  bbr->cc.new_rtt_sample = bbr2_cc_new_rtt_sample;
+  bbr->cc.reset = bbr2_cc_reset;
+  bbr->cc.event = bbr2_cc_event;
 
-  bbr2_cc_init(bbr, cstat, rst, initial_ts, rand, rand_ctx, log);
+  bbr->rst = rst;
+  bbr->rand = rand;
+  bbr->rand_ctx = *rand_ctx;
+  bbr->initial_cwnd = cstat->cwnd;
 
-  cc->ccb = &bbr->ccb;
-  cc->on_pkt_acked = bbr2_cc_on_pkt_acked;
-  cc->on_pkt_lost = bbr2_cc_on_pkt_lost;
-  cc->congestion_event = bbr2_cc_congestion_event;
-  cc->on_spurious_congestion = bbr2_cc_on_spurious_congestion;
-  cc->on_persistent_congestion = bbr2_cc_on_persistent_congestion;
-  cc->on_ack_recv = bbr2_cc_on_ack_recv;
-  cc->on_pkt_sent = bbr2_cc_on_pkt_sent;
-  cc->new_rtt_sample = bbr2_cc_new_rtt_sample;
-  cc->reset = bbr2_cc_reset;
-  cc->event = bbr2_cc_event;
-
-  return 0;
+  bbr_on_init(bbr, cstat, initial_ts);
 }
 
-void ngtcp2_cc_bbr2_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem) {
-  ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(cc->ccb, ngtcp2_bbr2_cc, ccb);
-
-  bbr2_cc_free(bbr);
-  ngtcp2_mem_free(mem, bbr);
-}
+void ngtcp2_bbr2_cc_free(ngtcp2_bbr2_cc *bbr) { (void)bbr; }

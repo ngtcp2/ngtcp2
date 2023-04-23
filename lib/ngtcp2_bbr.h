@@ -49,7 +49,7 @@ typedef enum ngtcp2_bbr_state {
  * https://tools.ietf.org/html/draft-cardwell-iccrg-bbr-congestion-control-00
  */
 typedef struct ngtcp2_bbr_cc {
-  ngtcp2_cc_base ccb;
+  ngtcp2_cc cc;
 
   /* The max filter used to estimate BBR.BtlBw. */
   ngtcp2_window_filter btl_bw_filter;
@@ -110,18 +110,10 @@ typedef struct ngtcp2_bbr_cc {
   int in_loss_recovery;
 } ngtcp2_bbr_cc;
 
-int ngtcp2_cc_bbr_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
-                          ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
-                          ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
-                          const ngtcp2_rand_ctx *rand_ctx,
-                          const ngtcp2_mem *mem);
-
-void ngtcp2_cc_bbr_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem);
-
-void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *bbr_cc, ngtcp2_conn_stat *cstat,
-                        ngtcp2_rst *rst, ngtcp2_tstamp initial_ts,
-                        ngtcp2_rand rand, const ngtcp2_rand_ctx *rand_ctx,
-                        ngtcp2_log *log);
+void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *cc, ngtcp2_log *log,
+                        ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
+                        ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
+                        const ngtcp2_rand_ctx *rand_ctx);
 
 void ngtcp2_bbr_cc_free(ngtcp2_bbr_cc *cc);
 

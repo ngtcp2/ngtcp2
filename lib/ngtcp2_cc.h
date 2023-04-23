@@ -40,20 +40,6 @@ typedef struct ngtcp2_conn_stat ngtcp2_conn_stat;
 /**
  * @struct
  *
- * :type:`ngtcp2_cc_base` is the base structure of custom congestion
- * control algorithm.  It must be the first field of custom congestion
- * controller.
- */
-typedef struct ngtcp2_cc_base {
-  /**
-   * :member:`log` is ngtcp2 library internal logger.
-   */
-  ngtcp2_log *log;
-} ngtcp2_cc_base;
-
-/**
- * @struct
- *
  * :type:`ngtcp2_cc_pkt` is a convenient structure to include
  * acked/lost/sent packet.
  */
@@ -243,15 +229,14 @@ typedef void (*ngtcp2_cc_event)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 /**
  * @struct
  *
- * :type:`ngtcp2_cc` is congestion control algorithm interface to
- * allow custom implementation.
+ * :type:`ngtcp2_cc` is congestion control algorithm interface shared
+ * by implementations.
  */
 typedef struct ngtcp2_cc {
   /**
-   * :member:`ccb` is a pointer to :type:`ngtcp2_cc_base` which
-   * usually contains a state.
+   * :member:`log` is ngtcp2 library internal logger.
    */
-  ngtcp2_cc_base *ccb;
+  ngtcp2_log *log;
   /**
    * :member:`on_pkt_acked` is a callback function which is called
    * when a packet is acknowledged.
@@ -316,16 +301,11 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 
 /* ngtcp2_reno_cc is the RENO congestion controller. */
 typedef struct ngtcp2_reno_cc {
-  ngtcp2_cc_base ccb;
+  ngtcp2_cc cc;
   uint64_t max_delivery_rate_sec;
   uint64_t target_cwnd;
   uint64_t pending_add;
 } ngtcp2_reno_cc;
-
-int ngtcp2_cc_reno_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
-                           const ngtcp2_mem *mem);
-
-void ngtcp2_cc_reno_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem);
 
 void ngtcp2_reno_cc_init(ngtcp2_reno_cc *cc, ngtcp2_log *log);
 
@@ -350,7 +330,7 @@ void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
 /* ngtcp2_cubic_cc is CUBIC congestion controller. */
 typedef struct ngtcp2_cubic_cc {
-  ngtcp2_cc_base ccb;
+  ngtcp2_cc cc;
   uint64_t max_delivery_rate_sec;
   uint64_t target_cwnd;
   uint64_t w_last_max;
@@ -378,11 +358,6 @@ typedef struct ngtcp2_cubic_cc {
   uint64_t pending_add;
   uint64_t pending_w_add;
 } ngtcp2_cubic_cc;
-
-int ngtcp2_cc_cubic_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
-                            const ngtcp2_mem *mem);
-
-void ngtcp2_cc_cubic_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem);
 
 void ngtcp2_cubic_cc_init(ngtcp2_cubic_cc *cc, ngtcp2_log *log);
 

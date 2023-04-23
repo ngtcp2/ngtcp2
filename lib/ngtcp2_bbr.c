@@ -25,6 +25,7 @@
 #include "ngtcp2_bbr.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "ngtcp2_log.h"
 #include "ngtcp2_macro.h"
@@ -97,11 +98,23 @@ static void bbr_handle_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
                                  ngtcp2_tstamp ts);
 static void bbr_exit_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts);
 
-void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
-                        ngtcp2_rst *rst, ngtcp2_tstamp initial_ts,
-                        ngtcp2_rand rand, const ngtcp2_rand_ctx *rand_ctx,
-                        ngtcp2_log *log) {
-  cc->ccb.log = log;
+void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *cc, ngtcp2_log *log,
+                        ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
+                        ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
+                        const ngtcp2_rand_ctx *rand_ctx) {
+  memset(cc, 0, sizeof(*cc));
+
+  cc->cc.log = log;
+  cc->cc.on_pkt_acked = ngtcp2_cc_bbr_cc_on_pkt_acked;
+  cc->cc.congestion_event = ngtcp2_cc_bbr_cc_congestion_event;
+  cc->cc.on_spurious_congestion = ngtcp2_cc_bbr_cc_on_spurious_congestion;
+  cc->cc.on_persistent_congestion = ngtcp2_cc_bbr_cc_on_persistent_congestion;
+  cc->cc.on_ack_recv = ngtcp2_cc_bbr_cc_on_ack_recv;
+  cc->cc.on_pkt_sent = ngtcp2_cc_bbr_cc_on_pkt_sent;
+  cc->cc.new_rtt_sample = ngtcp2_cc_bbr_cc_new_rtt_sample;
+  cc->cc.reset = ngtcp2_cc_bbr_cc_reset;
+  cc->cc.event = ngtcp2_cc_bbr_cc_event;
+
   cc->rst = rst;
   cc->rand = rand;
   cc->rand_ctx = *rand_ctx;
@@ -110,41 +123,6 @@ void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
 }
 
 void ngtcp2_bbr_cc_free(ngtcp2_bbr_cc *cc) { (void)cc; }
-
-int ngtcp2_cc_bbr_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
-                          ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
-                          ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
-                          const ngtcp2_rand_ctx *rand_ctx,
-                          const ngtcp2_mem *mem) {
-  ngtcp2_bbr_cc *bbr_cc;
-
-  bbr_cc = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_bbr_cc));
-  if (bbr_cc == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
-  ngtcp2_bbr_cc_init(bbr_cc, cstat, rst, initial_ts, rand, rand_ctx, log);
-
-  cc->ccb = &bbr_cc->ccb;
-  cc->on_pkt_acked = ngtcp2_cc_bbr_cc_on_pkt_acked;
-  cc->congestion_event = ngtcp2_cc_bbr_cc_congestion_event;
-  cc->on_spurious_congestion = ngtcp2_cc_bbr_cc_on_spurious_congestion;
-  cc->on_persistent_congestion = ngtcp2_cc_bbr_cc_on_persistent_congestion;
-  cc->on_ack_recv = ngtcp2_cc_bbr_cc_on_ack_recv;
-  cc->on_pkt_sent = ngtcp2_cc_bbr_cc_on_pkt_sent;
-  cc->new_rtt_sample = ngtcp2_cc_bbr_cc_new_rtt_sample;
-  cc->reset = ngtcp2_cc_bbr_cc_reset;
-  cc->event = ngtcp2_cc_bbr_cc_event;
-
-  return 0;
-}
-
-void ngtcp2_cc_bbr_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem) {
-  ngtcp2_bbr_cc *bbr_cc = ngtcp2_struct_of(cc->ccb, ngtcp2_bbr_cc, ccb);
-
-  ngtcp2_bbr_cc_free(bbr_cc);
-  ngtcp2_mem_free(mem, bbr_cc);
-}
 
 void ngtcp2_cc_bbr_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
@@ -163,7 +141,7 @@ static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_bbr_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                        ngtcp2_tstamp sent_ts,
                                        ngtcp2_tstamp ts) {
-  ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr_cc, ccb);
+  ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
 
   if (cc->in_loss_recovery || cc->congestion_recovery_start_ts != UINT64_MAX ||
       in_congestion_recovery(cstat, sent_ts)) {
@@ -176,7 +154,7 @@ void ngtcp2_cc_bbr_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_bbr_cc_on_spurious_congestion(ngtcp2_cc *ccx,
                                              ngtcp2_conn_stat *cstat,
                                              ngtcp2_tstamp ts) {
-  ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr_cc, ccb);
+  ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
   (void)ts;
 
   cc->congestion_recovery_start_ts = UINT64_MAX;
@@ -192,7 +170,7 @@ void ngtcp2_cc_bbr_cc_on_spurious_congestion(ngtcp2_cc *ccx,
 void ngtcp2_cc_bbr_cc_on_persistent_congestion(ngtcp2_cc *ccx,
                                                ngtcp2_conn_stat *cstat,
                                                ngtcp2_tstamp ts) {
-  ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr_cc, ccb);
+  ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
   (void)ts;
 
   cstat->congestion_recovery_start_ts = UINT64_MAX;
@@ -206,14 +184,14 @@ void ngtcp2_cc_bbr_cc_on_persistent_congestion(ngtcp2_cc *ccx,
 
 void ngtcp2_cc_bbr_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                   const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
-  ngtcp2_bbr_cc *bbr_cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr_cc, ccb);
+  ngtcp2_bbr_cc *bbr_cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
 
   bbr_update_on_ack(bbr_cc, cstat, ack, ts);
 }
 
 void ngtcp2_cc_bbr_cc_on_pkt_sent(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                   const ngtcp2_cc_pkt *pkt) {
-  ngtcp2_bbr_cc *bbr_cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr_cc, ccb);
+  ngtcp2_bbr_cc *bbr_cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
   (void)pkt;
 
   bbr_on_transmit(bbr_cc, cstat);
@@ -228,7 +206,7 @@ void ngtcp2_cc_bbr_cc_new_rtt_sample(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_bbr_cc_reset(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                             ngtcp2_tstamp ts) {
-  ngtcp2_bbr_cc *bbr_cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr_cc, ccb);
+  ngtcp2_bbr_cc *bbr_cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
   bbr_init(bbr_cc, cstat, ts);
 }
 
@@ -343,7 +321,7 @@ static void bbr_update_rtprop(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
     cc->rt_prop = cstat->latest_rtt;
     cc->rtprop_stamp = ts;
 
-    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "bbr update RTprop=%" PRIu64, cc->rt_prop);
   }
 }
@@ -527,7 +505,7 @@ static void bbr_check_full_pipe(ngtcp2_bbr_cc *cc) {
   ++cc->full_bw_count;
   if (cc->full_bw_count >= 3) {
     cc->filled_pipe = 1;
-    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "bbr filled pipe, btl_bw=%" PRIu64, cc->btl_bw);
   }
 }
@@ -543,7 +521,7 @@ static void bbr_enter_drain(ngtcp2_bbr_cc *cc) {
 static void bbr_check_drain(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
                             ngtcp2_tstamp ts) {
   if (cc->state == NGTCP2_BBR_STATE_STARTUP && cc->filled_pipe) {
-    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "bbr exit Startup and enter Drain");
 
     bbr_enter_drain(cc);
@@ -551,7 +529,7 @@ static void bbr_check_drain(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
 
   if (cc->state == NGTCP2_BBR_STATE_DRAIN &&
       cstat->bytes_in_flight <= bbr_inflight(cc, cstat, 1.0)) {
-    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "bbr exit Drain and enter ProbeBW");
 
     /* we estimate queue is drained */
@@ -609,7 +587,7 @@ static int bbr_is_next_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
 static void bbr_handle_restart_from_idle(ngtcp2_bbr_cc *cc,
                                          ngtcp2_conn_stat *cstat) {
   if (cstat->bytes_in_flight == 0 && cc->rst->app_limited) {
-    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV, "bbr restart from idle");
+    ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV, "bbr restart from idle");
 
     cc->idle_restart = 1;
 
@@ -623,7 +601,7 @@ static void bbr_check_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
                                 ngtcp2_tstamp ts) {
   if (cc->state != NGTCP2_BBR_STATE_PROBE_RTT && cc->rtprop_expired &&
       !cc->idle_restart) {
-    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV, "bbr enter ProbeRTT");
+    ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV, "bbr enter ProbeRTT");
 
     bbr_enter_probe_rtt(cc);
     bbr_save_cwnd(cc, cstat);
@@ -674,7 +652,7 @@ static void bbr_handle_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
 
 static void bbr_exit_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts) {
   if (cc->filled_pipe) {
-    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "bbr exit ProbeRTT and enter ProbeBW");
 
     bbr_enter_probe_bw(cc, ts);
@@ -682,7 +660,7 @@ static void bbr_exit_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts) {
     return;
   }
 
-  ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+  ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV,
                   "bbr exit ProbeRTT and enter Startup");
 
   bbr_enter_startup(cc);
