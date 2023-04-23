@@ -5400,11 +5400,10 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
 /**
  * @function
  *
- * `ngtcp2_conn_get_ccerr` stores the received connection close error
- * in |ccerr|.
+ * `ngtcp2_conn_get_ccerr` returns the received connection close
+ * error.
  */
-NGTCP2_EXTERN void ngtcp2_conn_get_ccerr(ngtcp2_conn *conn,
-                                         ngtcp2_ccerr *ccerr);
+NGTCP2_EXTERN const ngtcp2_ccerr *ngtcp2_conn_get_ccerr(ngtcp2_conn *conn);
 
 /**
  * @function

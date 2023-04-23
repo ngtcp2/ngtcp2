@@ -9137,7 +9137,7 @@ void test_ngtcp2_conn_get_ccerr(void) {
   ngtcp2_tstamp t = 0;
   int64_t pkt_num = 0;
   int rv;
-  ngtcp2_ccerr ccerr;
+  const ngtcp2_ccerr *ccerr;
 
   memset(reason, 'a', sizeof(reason));
 
@@ -9163,13 +9163,13 @@ void test_ngtcp2_conn_get_ccerr(void) {
 
   CU_ASSERT(NGTCP2_ERR_DRAINING == rv);
 
-  ngtcp2_conn_get_ccerr(conn, &ccerr);
+  ccerr = ngtcp2_conn_get_ccerr(conn);
 
-  CU_ASSERT(NGTCP2_PROTOCOL_VIOLATION == ccerr.error_code);
-  CU_ASSERT(NGTCP2_CCERR_TYPE_TRANSPORT == ccerr.type);
-  CU_ASSERT(1000000007 == ccerr.frame_type);
-  CU_ASSERT(0 == memcmp(reason, ccerr.reason, ccerr.reasonlen));
-  CU_ASSERT(NGTCP2_CCERR_MAX_REASONLEN == ccerr.reasonlen);
+  CU_ASSERT(NGTCP2_PROTOCOL_VIOLATION == ccerr->error_code);
+  CU_ASSERT(NGTCP2_CCERR_TYPE_TRANSPORT == ccerr->type);
+  CU_ASSERT(1000000007 == ccerr->frame_type);
+  CU_ASSERT(0 == memcmp(reason, ccerr->reason, ccerr->reasonlen));
+  CU_ASSERT(NGTCP2_CCERR_MAX_REASONLEN == ccerr->reasonlen);
 
   ngtcp2_conn_del(conn);
 }
