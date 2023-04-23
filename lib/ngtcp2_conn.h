@@ -345,6 +345,19 @@ typedef enum ngtcp2_ecn_state {
   NGTCP2_ECN_STATE_CAPABLE,
 } ngtcp2_ecn_state;
 
+/* ngtcp2_early_transport_params is the values remembered by client
+   from the previous session. */
+typedef struct ngtcp2_early_transport_params {
+  uint64_t initial_max_streams_bidi;
+  uint64_t initial_max_streams_uni;
+  uint64_t initial_max_stream_data_bidi_local;
+  uint64_t initial_max_stream_data_bidi_remote;
+  uint64_t initial_max_stream_data_uni;
+  uint64_t initial_max_data;
+  uint64_t active_connection_id_limit;
+  uint64_t max_datagram_frame_size;
+} ngtcp2_early_transport_params;
+
 ngtcp2_static_ringbuf_def(dcid_bound, NGTCP2_MAX_BOUND_DCID_POOL_SIZE,
                           sizeof(ngtcp2_dcid));
 ngtcp2_static_ringbuf_def(dcid_unused, NGTCP2_MAX_DCID_POOL_SIZE,
@@ -498,16 +511,7 @@ struct ngtcp2_conn {
        ngtcp2_conn_set_early_remote_transport_params().  Server does
        not use this field.  Server must not set values for these
        parameters that are smaller than the remembered values. */
-    struct {
-      uint64_t initial_max_streams_bidi;
-      uint64_t initial_max_streams_uni;
-      uint64_t initial_max_stream_data_bidi_local;
-      uint64_t initial_max_stream_data_bidi_remote;
-      uint64_t initial_max_stream_data_uni;
-      uint64_t initial_max_data;
-      uint64_t active_connection_id_limit;
-      uint64_t max_datagram_frame_size;
-    } transport_params;
+    ngtcp2_early_transport_params transport_params;
   } early;
 
   struct {
