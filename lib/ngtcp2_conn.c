@@ -10192,6 +10192,10 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       return res;
     }
 
+    if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+      return res;
+    }
+
     if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
       return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
     }
