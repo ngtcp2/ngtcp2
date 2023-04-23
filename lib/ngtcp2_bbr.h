@@ -117,9 +117,6 @@ void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *cc, ngtcp2_log *log,
 
 void ngtcp2_cc_bbr_free(ngtcp2_cc_bbr *cc);
 
-void ngtcp2_cc_bbr_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                   const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
-
 void ngtcp2_cc_bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                        ngtcp2_tstamp sent_ts, ngtcp2_tstamp ts);
 
@@ -137,13 +134,7 @@ void ngtcp2_cc_bbr_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_bbr_cc_on_pkt_sent(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                   const ngtcp2_cc_pkt *pkt);
 
-void ngtcp2_cc_bbr_cc_new_rtt_sample(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                     ngtcp2_tstamp ts);
-
 void ngtcp2_cc_bbr_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                             ngtcp2_tstamp ts);
-
-void ngtcp2_cc_bbr_cc_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                            ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_BBR_H */

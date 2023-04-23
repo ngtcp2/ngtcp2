@@ -1340,14 +1340,6 @@ static void bbr_handle_recovery(ngtcp2_cc_bbr2 *bbr, ngtcp2_conn_stat *cstat,
   }
 }
 
-static void bbr2_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                 const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
-  (void)cc;
-  (void)cstat;
-  (void)pkt;
-  (void)ts;
-}
-
 static void bbr2_cc_on_pkt_lost(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                 const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
   ngtcp2_cc_bbr2 *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr2, cc);
@@ -1420,26 +1412,11 @@ static void bbr2_cc_on_pkt_sent(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   bbr_on_transmit(bbr, cstat, pkt->sent_ts);
 }
 
-static void bbr2_cc_new_rtt_sample(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                   ngtcp2_tstamp ts) {
-  (void)cc;
-  (void)cstat;
-  (void)ts;
-}
-
 static void bbr2_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                           ngtcp2_tstamp ts) {
   ngtcp2_cc_bbr2 *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr2, cc);
 
   bbr_on_init(bbr, cstat, ts);
-}
-
-static void bbr2_cc_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                          ngtcp2_cc_event_type event, ngtcp2_tstamp ts) {
-  (void)cc;
-  (void)cstat;
-  (void)event;
-  (void)ts;
 }
 
 void ngtcp2_cc_bbr2_init(ngtcp2_cc_bbr2 *bbr, ngtcp2_log *log,
@@ -1449,16 +1426,13 @@ void ngtcp2_cc_bbr2_init(ngtcp2_cc_bbr2 *bbr, ngtcp2_log *log,
   memset(bbr, 0, sizeof(*bbr));
 
   bbr->cc.log = log;
-  bbr->cc.on_pkt_acked = bbr2_cc_on_pkt_acked;
   bbr->cc.on_pkt_lost = bbr2_cc_on_pkt_lost;
   bbr->cc.congestion_event = bbr2_cc_congestion_event;
   bbr->cc.on_spurious_congestion = bbr2_cc_on_spurious_congestion;
   bbr->cc.on_persistent_congestion = bbr2_cc_on_persistent_congestion;
   bbr->cc.on_ack_recv = bbr2_cc_on_ack_recv;
   bbr->cc.on_pkt_sent = bbr2_cc_on_pkt_sent;
-  bbr->cc.new_rtt_sample = bbr2_cc_new_rtt_sample;
   bbr->cc.reset = bbr2_cc_reset;
-  bbr->cc.event = bbr2_cc_event;
 
   bbr->rst = rst;
   bbr->rand = rand;

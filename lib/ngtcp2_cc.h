@@ -230,7 +230,7 @@ typedef void (*ngtcp2_cc_event)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
  * @struct
  *
  * :type:`ngtcp2_cc` is congestion control algorithm interface shared
- * by implementations.
+ * by implementations.  All callback functions are optional.
  */
 typedef struct ngtcp2_cc {
   /**

@@ -5870,7 +5870,9 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
 static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn_reset_conn_stat_cc(conn, &conn->cstat);
 
-  conn->cc.reset(&conn->cc, &conn->cstat, ts);
+  if (conn->cc.reset) {
+    conn->cc.reset(&conn->cc, &conn->cstat, ts);
+  }
 
   if (conn->hs_pktns) {
     ngtcp2_rtb_reset_cc_state(&conn->hs_pktns->rtb,
