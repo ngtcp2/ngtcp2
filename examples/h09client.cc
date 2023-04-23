@@ -803,11 +803,10 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
     if (!last_error_.error_code) {
       if (rv == NGTCP2_ERR_CRYPTO) {
-        ngtcp2_connection_close_error_set_transport_error_tls_alert(
+        ngtcp2_ccerr_set_tls_alert(
             &last_error_, ngtcp2_conn_get_tls_alert(conn_), nullptr, 0);
       } else {
-        ngtcp2_connection_close_error_set_transport_error_liberr(
-            &last_error_, rv, nullptr, 0);
+        ngtcp2_ccerr_set_liberr(&last_error_, rv, nullptr, 0);
       }
     }
     disconnect();
@@ -888,8 +887,7 @@ int Client::handle_expiry() {
   if (auto rv = ngtcp2_conn_handle_expiry(conn_, now); rv != 0) {
     std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
               << std::endl;
-    ngtcp2_connection_close_error_set_transport_error_liberr(&last_error_, rv,
-                                                             nullptr, 0);
+    ngtcp2_ccerr_set_liberr(&last_error_, rv, nullptr, 0);
     disconnect();
     return -1;
   }
@@ -975,8 +973,7 @@ int Client::write_streams() {
 
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
                 << std::endl;
-      ngtcp2_connection_close_error_set_transport_error_liberr(
-          &last_error_, nwrite, nullptr, 0);
+      ngtcp2_ccerr_set_liberr(&last_error_, nwrite, nullptr, 0);
       disconnect();
       return -1;
     } else if (ndatalen >= 0) {
@@ -998,8 +995,7 @@ int Client::write_streams() {
             send_packet(ep, ps.path.remote, pi.ecn, tx_.data.data(), nwrite);
         rv != NETWORK_ERR_OK) {
       if (rv != NETWORK_ERR_SEND_BLOCKED) {
-        ngtcp2_connection_close_error_set_transport_error_liberr(
-            &last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
+        ngtcp2_ccerr_set_liberr(&last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
         disconnect();
 
         return rv;
@@ -1458,8 +1454,7 @@ int Client::send_blocked_packet() {
       return 0;
     }
 
-    ngtcp2_connection_close_error_set_transport_error_liberr(
-        &last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
+    ngtcp2_ccerr_set_liberr(&last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
     disconnect();
 
     return rv;

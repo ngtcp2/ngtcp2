@@ -91,7 +91,7 @@ void test_ngtcp2_conn_get_scid(void);
 void test_ngtcp2_conn_stream_close(void);
 void test_ngtcp2_conn_buffer_pkt(void);
 void test_ngtcp2_conn_handshake_timeout(void);
-void test_ngtcp2_conn_get_connection_close_error(void);
+void test_ngtcp2_conn_get_ccerr(void);
 void test_ngtcp2_conn_version_negotiation(void);
 void test_ngtcp2_conn_server_negotiate_version(void);
 void test_ngtcp2_conn_pmtud_loss(void);

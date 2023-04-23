@@ -5191,47 +5191,47 @@ ngtcp2_conn_get_early_crypto_ctx(ngtcp2_conn *conn);
 /**
  * @enum
  *
- * :type:`ngtcp2_connection_close_error_code_type` defines connection
- * error code type.
+ * :type:`ngtcp2_ccerr_type` defines connection error type.
  */
-typedef enum ngtcp2_connection_close_error_code_type {
+typedef enum ngtcp2_ccerr_type {
   /**
-   * :enum:`NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`
-   * indicates the error code is QUIC transport error code.
+   * :enum:`NGTCP2_CCERR_TYPE_TRANSPORT` indicates the QUIC transport
+   * error, and the error code is QUIC transport error code.
    */
-  NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT,
+  NGTCP2_CCERR_TYPE_TRANSPORT,
   /**
-   * :enum:`NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION`
-   * indicates the error code is application error code.
+   * :enum:`NGTCP2_CCERR_TYPE_APPLICATION` indicates an application
+   * error, and the error code is application error code.
    */
-  NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION,
+  NGTCP2_CCERR_TYPE_APPLICATION,
   /**
-   * :enum:`NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION`
-   * is a special case of QUIC transport error, and it indicates that
-   * client receives Version Negotiation packet.
+   * :enum:`NGTCP2_CCERR_TYPE_VERSION_NEGOTIATION` is a special case
+   * of QUIC transport error, and it indicates that client receives
+   * Version Negotiation packet.
    */
-  NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION,
+  NGTCP2_CCERR_TYPE_VERSION_NEGOTIATION,
   /**
-   * :enum:`NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE`
-   * is a special case of QUIC transport error, and it indicates that
-   * connection is closed because of idle timeout.
+   * :enum:`NGTCP2_CCERR_TYPE_IDLE_CLOSE` is a special case of QUIC
+   * transport error, and it indicates that connection is closed
+   * because of idle timeout.
    */
-  NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE
-} ngtcp2_connection_close_error_code_type;
+  NGTCP2_CCERR_TYPE_IDLE_CLOSE
+} ngtcp2_ccerr_type;
 
 /**
  * @struct
  *
- * :type:`ngtcp2_connection_close_error` contains connection
- * error code, its type, and the optional reason phrase.
+ * :type:`ngtcp2_ccerr` contains connection error code, its type, and
+ * the optional reason phrase.
  */
-typedef struct ngtcp2_connection_close_error {
+typedef struct ngtcp2_ccerr {
   /**
-   * :member:`type` is the type of :member:`error_code`.
+   * :member:`type` is the type of this error.
    */
-  ngtcp2_connection_close_error_code_type type;
+  ngtcp2_ccerr_type type;
   /**
    * :member:`error_code` is the error code for connection closure.
+   * Its interpretation depends on :member:`type`.
    */
   uint64_t error_code;
   /**
@@ -5252,103 +5252,97 @@ typedef struct ngtcp2_connection_close_error {
    * :member:`reason`.
    */
   size_t reasonlen;
-} ngtcp2_connection_close_error;
+} ngtcp2_ccerr;
 
 /**
  * @function
  *
- * `ngtcp2_connection_close_error_default` initializes |ccerr| with
- * the default values.  It sets the following fields:
+ * `ngtcp2_ccerr_default` initializes |ccerr| with the default values.
+ * It sets the following fields:
  *
- * - :member:`type <ngtcp2_connection_close_error.type>` =
- *   :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`
- * - :member:`error_code <ngtcp2_connection_close_error.error_code>` =
+ * - :member:`type <ngtcp2_ccerr.type>` =
+ *   :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_TRANSPORT`
+ * - :member:`error_code <ngtcp2_ccerr.error_code>` =
  *   :macro:`NGTCP2_NO_ERROR`.
- * - :member:`frame_type <ngtcp2_connection_close_error.frame_type>` =
- *   0
- * - :member:`reason <ngtcp2_connection_close_error.reason>` = NULL
- * - :member:`reasonlen <ngtcp2_connection_close_error.reasonlen>` = 0
+ * - :member:`frame_type <ngtcp2_ccerr.frame_type>` = 0
+ * - :member:`reason <ngtcp2_ccerr.reason>` = NULL
+ * - :member:`reasonlen <ngtcp2_ccerr.reasonlen>` = 0
  */
-NGTCP2_EXTERN void
-ngtcp2_connection_close_error_default(ngtcp2_connection_close_error *ccerr);
+NGTCP2_EXTERN void ngtcp2_ccerr_default(ngtcp2_ccerr *ccerr);
 
 /**
  * @function
  *
- * `ngtcp2_connection_close_error_set_transport_error` sets
- * :member:`ccerr->type <ngtcp2_connection_close_error.type>` to
- * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`,
- * and :member:`ccerr->error_code
- * <ngtcp2_connection_close_error.error_code>` to |error_code|.
- * |reason| is the reason phrase of length |reasonlen|.  This function
- * does not make a copy of the reason phrase.
+ * `ngtcp2_ccerr_set_transport_error` sets :member:`ccerr->type
+ * <ngtcp2_ccerr.type>` to
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_TRANSPORT`, and
+ * :member:`ccerr->error_code <ngtcp2_ccerr.error_code>` to
+ * |error_code|.  |reason| is the reason phrase of length |reasonlen|.
+ * This function does not make a copy of the reason phrase.
  */
-NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error(
-    ngtcp2_connection_close_error *ccerr, uint64_t error_code,
-    const uint8_t *reason, size_t reasonlen);
+NGTCP2_EXTERN void ngtcp2_ccerr_set_transport_error(ngtcp2_ccerr *ccerr,
+                                                    uint64_t error_code,
+                                                    const uint8_t *reason,
+                                                    size_t reasonlen);
 
 /**
  * @function
  *
- * `ngtcp2_connection_close_error_set_transport_error_liberr` sets
- * type and error_code based on |liberr|.
+ * `ngtcp2_ccerr_set_liberr` sets type and error_code based on
+ * |liberr|.
  *
  * If |liberr| is :macro:`NGTCP2_ERR_RECV_VERSION_NEGOTIATION`,
- * :member:`ccerr->type <ngtcp2_connection_close_error.type>` is set
- * to
- * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION`,
- * and :member:`ccerr->error_code
- * <ngtcp2_connection_close_error.error_code>` to
+ * :member:`ccerr->type <ngtcp2_ccerr.type>` is set to
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_VERSION_NEGOTIATION`,
+ * and :member:`ccerr->error_code <ngtcp2_ccerr.error_code>` to
  * :macro:`NGTCP2_NO_ERROR`.  If |liberr| is
  * :macro:`NGTCP2_ERR_IDLE_CLOSE`, :member:`ccerr->type
- * <ngtcp2_connection_close_error.type>` is set to
- * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE`,
- * and :member:`ccerr->error_code
- * <ngtcp2_connection_close_error.error_code>` to
+ * <ngtcp2_ccerr.type>` is set to
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_IDLE_CLOSE`, and
+ * :member:`ccerr->error_code <ngtcp2_ccerr.error_code>` to
  * :macro:`NGTCP2_NO_ERROR`.  Otherwise, :member:`ccerr->type
- * <ngtcp2_connection_close_error.type>` is set to
- * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`,
- * and :member:`ccerr->error_code
- * <ngtcp2_connection_close_error.error_code>` is set to an error code
- * inferred by |liberr| (see
+ * <ngtcp2_ccerr.type>` is set to
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_TRANSPORT`, and
+ * :member:`ccerr->error_code <ngtcp2_ccerr.error_code>` is set to an
+ * error code inferred by |liberr| (see
  * `ngtcp2_err_infer_quic_transport_error_code`).  |reason| is the
  * reason phrase of length |reasonlen|.  This function does not make a
  * copy of the reason phrase.
  */
-NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error_liberr(
-    ngtcp2_connection_close_error *ccerr, int liberr, const uint8_t *reason,
-    size_t reasonlen);
+NGTCP2_EXTERN void ngtcp2_ccerr_set_liberr(ngtcp2_ccerr *ccerr, int liberr,
+                                           const uint8_t *reason,
+                                           size_t reasonlen);
 
 /**
  * @function
  *
- * `ngtcp2_connection_close_error_set_transport_error_tls_alert` sets
- * :member:`ccerr->type <ngtcp2_connection_close_error.type>` to
- * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`,
- * and :member:`ccerr->error_code
- * <ngtcp2_connection_close_error.error_code>` to bitwise-OR of
- * :macro:`NGTCP2_CRYPTO_ERROR` and |tls_alert|.  |reason| is the
+ * `ngtcp2_ccerr_set_tls_alert` sets :member:`ccerr->type
+ * <ngtcp2_ccerr.type>` to
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_TRANSPORT`, and
+ * :member:`ccerr->error_code <ngtcp2_ccerr.error_code>` to bitwise-OR
+ * of :macro:`NGTCP2_CRYPTO_ERROR` and |tls_alert|.  |reason| is the
  * reason phrase of length |reasonlen|.  This function does not make a
  * copy of the reason phrase.
  */
-NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error_tls_alert(
-    ngtcp2_connection_close_error *ccerr, uint8_t tls_alert,
-    const uint8_t *reason, size_t reasonlen);
+NGTCP2_EXTERN void ngtcp2_ccerr_set_tls_alert(ngtcp2_ccerr *ccerr,
+                                              uint8_t tls_alert,
+                                              const uint8_t *reason,
+                                              size_t reasonlen);
 
 /**
  * @function
  *
- * `ngtcp2_connection_close_error_set_application_error` sets
- * :member:`ccerr->type <ngtcp2_connection_close_error.type>` to
- * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION`,
- * and :member:`ccerr->error_code
- * <ngtcp2_connection_close_error.error_code>` to |error_code|.
- * |reason| is the reason phrase of length |reasonlen|.  This function
- * does not make a copy of the reason phrase.
+ * `ngtcp2_ccerr_set_application_error` sets :member:`ccerr->type
+ * <ngtcp2_ccerr.type>` to
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_APPLICATION`, and
+ * :member:`ccerr->error_code <ngtcp2_ccerr.error_code>` to
+ * |error_code|.  |reason| is the reason phrase of length |reasonlen|.
+ * This function does not make a copy of the reason phrase.
  */
-NGTCP2_EXTERN void ngtcp2_connection_close_error_set_application_error(
-    ngtcp2_connection_close_error *ccerr, uint64_t error_code,
-    const uint8_t *reason, size_t reasonlen);
+NGTCP2_EXTERN void ngtcp2_ccerr_set_application_error(ngtcp2_ccerr *ccerr,
+                                                      uint64_t error_code,
+                                                      const uint8_t *reason,
+                                                      size_t reasonlen);
 
 /**
  * @function
@@ -5369,13 +5363,13 @@ NGTCP2_EXTERN void ngtcp2_connection_close_error_set_application_error(
  * If |pi| is not ``NULL``, this function stores packet metadata in it
  * if it succeeds.  The metadata includes ECN markings.
  *
- * If :member:`ccerr->type <ngtcp2_connection_close_error.type>` ==
- * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`,
- * this function sends CONNECTION_CLOSE (type 0x1c) frame.  If
- * :member:`ccerr->type <ngtcp2_connection_close_error.type>` ==
- * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION`,
- * it sends CONNECTION_CLOSE (type 0x1d) frame.  Otherwise, it does
- * not produce any data, and returns 0.
+ * If :member:`ccerr->type <ngtcp2_ccerr.type>` ==
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_TRANSPORT`, this
+ * function sends CONNECTION_CLOSE (type 0x1c) frame.  If
+ * :member:`ccerr->type <ngtcp2_ccerr.type>` ==
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_APPLICATION`, it sends
+ * CONNECTION_CLOSE (type 0x1d) frame.  Otherwise, it does not produce
+ * any data, and returns 0.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -5401,17 +5395,16 @@ NGTCP2_EXTERN void ngtcp2_connection_close_error_set_application_error(
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
     ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
-    const ngtcp2_connection_close_error *ccerr, ngtcp2_tstamp ts);
+    const ngtcp2_ccerr *ccerr, ngtcp2_tstamp ts);
 
 /**
  * @function
  *
- * `ngtcp2_conn_get_connection_close_error` stores the received
- * connection close error in |ccerr|.
+ * `ngtcp2_conn_get_ccerr` stores the received connection close error
+ * in |ccerr|.
  */
-NGTCP2_EXTERN void
-ngtcp2_conn_get_connection_close_error(ngtcp2_conn *conn,
-                                       ngtcp2_connection_close_error *ccerr);
+NGTCP2_EXTERN void ngtcp2_conn_get_ccerr(ngtcp2_conn *conn,
+                                         ngtcp2_ccerr *ccerr);
 
 /**
  * @function

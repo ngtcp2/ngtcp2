@@ -48,7 +48,7 @@ ClientBase::ClientBase()
       qlog_(nullptr),
       conn_(nullptr),
       ticket_received_(false) {
-  ngtcp2_connection_close_error_default(&last_error_);
+  ngtcp2_ccerr_default(&last_error_);
 }
 
 ClientBase::~ClientBase() {
