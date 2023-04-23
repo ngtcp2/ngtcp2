@@ -54,10 +54,10 @@ typedef enum ngtcp2_bbr2_ack_phase {
 } ngtcp2_bbr2_ack_phase;
 
 /*
- * ngtcp2_bbr2_cc is BBR v2 congestion controller, described in
+ * ngtcp2_cc_bbr2 is BBR v2 congestion controller, described in
  * https://datatracker.ietf.org/doc/html/draft-cardwell-iccrg-bbr-congestion-control-01
  */
-typedef struct ngtcp2_bbr2_cc {
+typedef struct ngtcp2_cc_bbr2 {
   ngtcp2_cc cc;
 
   uint64_t initial_cwnd;
@@ -136,13 +136,13 @@ typedef struct ngtcp2_bbr2_cc {
   uint64_t prior_inflight_lo;
   uint64_t prior_inflight_hi;
   uint64_t prior_bw_lo;
-} ngtcp2_bbr2_cc;
+} ngtcp2_cc_bbr2;
 
-void ngtcp2_bbr2_cc_init(ngtcp2_bbr2_cc *bbr, ngtcp2_log *log,
+void ngtcp2_cc_bbr2_init(ngtcp2_cc_bbr2 *bbr, ngtcp2_log *log,
                          ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
                          ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
                          const ngtcp2_rand_ctx *rand_ctx);
 
-void ngtcp2_bbr2_cc_free(ngtcp2_bbr2_cc *bbr);
+void ngtcp2_cc_bbr2_free(ngtcp2_cc_bbr2 *bbr);
 
 #endif /* NGTCP2_BBR2_H */

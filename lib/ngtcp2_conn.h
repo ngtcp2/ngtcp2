@@ -683,10 +683,10 @@ struct ngtcp2_conn {
   ngtcp2_cc_algo cc_algo;
   union {
     ngtcp2_cc cc;
-    ngtcp2_reno_cc reno;
-    ngtcp2_cubic_cc cubic;
-    ngtcp2_bbr_cc bbr;
-    ngtcp2_bbr2_cc bbr2;
+    ngtcp2_cc_reno reno;
+    ngtcp2_cc_cubic cubic;
+    ngtcp2_cc_bbr bbr;
+    ngtcp2_cc_bbr2 bbr2;
   };
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */

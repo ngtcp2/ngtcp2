@@ -299,17 +299,17 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   ngtcp2_tstamp sent_ts, uint64_t lost,
                                   uint64_t tx_in_flight, int is_app_limited);
 
-/* ngtcp2_reno_cc is the RENO congestion controller. */
-typedef struct ngtcp2_reno_cc {
+/* ngtcp2_cc_reno is the RENO congestion controller. */
+typedef struct ngtcp2_cc_reno {
   ngtcp2_cc cc;
   uint64_t max_delivery_rate_sec;
   uint64_t target_cwnd;
   uint64_t pending_add;
-} ngtcp2_reno_cc;
+} ngtcp2_cc_reno;
 
-void ngtcp2_reno_cc_init(ngtcp2_reno_cc *cc, ngtcp2_log *log);
+void ngtcp2_cc_reno_init(ngtcp2_cc_reno *cc, ngtcp2_log *log);
 
-void ngtcp2_reno_cc_free(ngtcp2_reno_cc *cc);
+void ngtcp2_cc_reno_free(ngtcp2_cc_reno *cc);
 
 void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
@@ -328,8 +328,8 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                              ngtcp2_tstamp ts);
 
-/* ngtcp2_cubic_cc is CUBIC congestion controller. */
-typedef struct ngtcp2_cubic_cc {
+/* ngtcp2_cc_cubic is CUBIC congestion controller. */
+typedef struct ngtcp2_cc_cubic {
   ngtcp2_cc cc;
   uint64_t max_delivery_rate_sec;
   uint64_t target_cwnd;
@@ -357,11 +357,11 @@ typedef struct ngtcp2_cubic_cc {
   int64_t window_end;
   uint64_t pending_add;
   uint64_t pending_w_add;
-} ngtcp2_cubic_cc;
+} ngtcp2_cc_cubic;
 
-void ngtcp2_cubic_cc_init(ngtcp2_cubic_cc *cc, ngtcp2_log *log);
+void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cc, ngtcp2_log *log);
 
-void ngtcp2_cubic_cc_free(ngtcp2_cubic_cc *cc);
+void ngtcp2_cc_cubic_free(ngtcp2_cc_cubic *cc);
 
 void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                      const ngtcp2_cc_pkt *pkt,

@@ -45,10 +45,10 @@ typedef enum ngtcp2_bbr_state {
 } ngtcp2_bbr_state;
 
 /*
- * ngtcp2_bbr_cc is BBR congestion controller, described in
+ * ngtcp2_cc_bbr is BBR congestion controller, described in
  * https://tools.ietf.org/html/draft-cardwell-iccrg-bbr-congestion-control-00
  */
-typedef struct ngtcp2_bbr_cc {
+typedef struct ngtcp2_cc_bbr {
   ngtcp2_cc cc;
 
   /* The max filter used to estimate BBR.BtlBw. */
@@ -108,14 +108,14 @@ typedef struct ngtcp2_bbr_cc {
   /* in_loss_recovery becomes nonzero when BBR enters loss recovery
      period. */
   int in_loss_recovery;
-} ngtcp2_bbr_cc;
+} ngtcp2_cc_bbr;
 
-void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *cc, ngtcp2_log *log,
+void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *cc, ngtcp2_log *log,
                         ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
                         ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
                         const ngtcp2_rand_ctx *rand_ctx);
 
-void ngtcp2_bbr_cc_free(ngtcp2_bbr_cc *cc);
+void ngtcp2_cc_bbr_free(ngtcp2_cc_bbr *cc);
 
 void ngtcp2_cc_bbr_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);

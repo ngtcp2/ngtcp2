@@ -1172,21 +1172,21 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   switch (settings->cc_algo) {
   case NGTCP2_CC_ALGO_RENO:
-    ngtcp2_reno_cc_init(&(*pconn)->reno, &(*pconn)->log);
+    ngtcp2_cc_reno_init(&(*pconn)->reno, &(*pconn)->log);
 
     break;
   case NGTCP2_CC_ALGO_CUBIC:
-    ngtcp2_cubic_cc_init(&(*pconn)->cubic, &(*pconn)->log);
+    ngtcp2_cc_cubic_init(&(*pconn)->cubic, &(*pconn)->log);
 
     break;
   case NGTCP2_CC_ALGO_BBR:
-    ngtcp2_bbr_cc_init(&(*pconn)->bbr, &(*pconn)->log, &(*pconn)->cstat,
+    ngtcp2_cc_bbr_init(&(*pconn)->bbr, &(*pconn)->log, &(*pconn)->cstat,
                        &(*pconn)->rst, settings->initial_ts, callbacks->rand,
                        &settings->rand_ctx);
 
     break;
   case NGTCP2_CC_ALGO_BBR2:
-    ngtcp2_bbr2_cc_init(&(*pconn)->bbr2, &(*pconn)->log, &(*pconn)->cstat,
+    ngtcp2_cc_bbr2_init(&(*pconn)->bbr2, &(*pconn)->log, &(*pconn)->cstat,
                         &(*pconn)->rst, settings->initial_ts, callbacks->rand,
                         &settings->rand_ctx);
 

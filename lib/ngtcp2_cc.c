@@ -58,15 +58,15 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
   return pkt;
 }
 
-static void reno_cc_reset(ngtcp2_reno_cc *cc) {
+static void reno_cc_reset(ngtcp2_cc_reno *cc) {
   cc->max_delivery_rate_sec = 0;
   cc->target_cwnd = 0;
   cc->pending_add = 0;
 }
 
-void ngtcp2_reno_cc_free(ngtcp2_reno_cc *cc) { (void)cc; }
+void ngtcp2_cc_reno_free(ngtcp2_cc_reno *cc) { (void)cc; }
 
-void ngtcp2_reno_cc_init(ngtcp2_reno_cc *cc, ngtcp2_log *log) {
+void ngtcp2_cc_reno_init(ngtcp2_cc_reno *cc, ngtcp2_log *log) {
   memset(cc, 0, sizeof(*cc));
 
   cc->cc.log = log;
@@ -88,7 +88,7 @@ static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt,
                                     ngtcp2_tstamp ts) {
-  ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_reno_cc, cc);
+  ngtcp2_cc_reno *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_reno, cc);
   uint64_t m;
   (void)ts;
 
@@ -117,7 +117,7 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                         ngtcp2_tstamp sent_ts,
                                         ngtcp2_tstamp ts) {
-  ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_reno_cc, cc);
+  ngtcp2_cc_reno *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_reno, cc);
   uint64_t min_cwnd;
 
   if (in_congestion_recovery(cstat, sent_ts)) {
@@ -149,7 +149,7 @@ void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *ccx,
 
 void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
-  ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_reno_cc, cc);
+  ngtcp2_cc_reno *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_reno, cc);
   uint64_t target_cwnd, initcwnd;
   (void)ack;
   (void)ts;
@@ -175,14 +175,14 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                              ngtcp2_tstamp ts) {
-  ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_reno_cc, cc);
+  ngtcp2_cc_reno *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_reno, cc);
   (void)cstat;
   (void)ts;
 
   reno_cc_reset(cc);
 }
 
-static void cubic_cc_reset(ngtcp2_cubic_cc *cc) {
+static void cubic_cc_reset(ngtcp2_cc_cubic *cc) {
   cc->max_delivery_rate_sec = 0;
   cc->target_cwnd = 0;
   cc->w_last_max = 0;
@@ -205,7 +205,7 @@ static void cubic_cc_reset(ngtcp2_cubic_cc *cc) {
   cc->window_end = -1;
 }
 
-void ngtcp2_cubic_cc_init(ngtcp2_cubic_cc *cc, ngtcp2_log *log) {
+void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cc, ngtcp2_log *log) {
   memset(cc, 0, sizeof(*cc));
 
   cc->cc.log = log;
@@ -222,7 +222,7 @@ void ngtcp2_cubic_cc_init(ngtcp2_cubic_cc *cc, ngtcp2_log *log) {
   cubic_cc_reset(cc);
 }
 
-void ngtcp2_cubic_cc_free(ngtcp2_cubic_cc *cc) { (void)cc; }
+void ngtcp2_cc_cubic_free(ngtcp2_cc_cubic *cc) { (void)cc; }
 
 uint64_t ngtcp2_cbrt(uint64_t n) {
   int d;
@@ -267,7 +267,7 @@ uint64_t ngtcp2_cbrt(uint64_t n) {
 void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                      const ngtcp2_cc_pkt *pkt,
                                      ngtcp2_tstamp ts) {
-  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_cubic_cc, cc);
+  ngtcp2_cc_cubic *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_cubic, cc);
   ngtcp2_duration t, eta;
   uint64_t target, cwnd_thres;
   uint64_t tx, kx, time_delta, delta;
@@ -413,7 +413,7 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
                                          ngtcp2_conn_stat *cstat,
                                          ngtcp2_tstamp sent_ts,
                                          ngtcp2_tstamp ts) {
-  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_cubic_cc, cc);
+  ngtcp2_cc_cubic *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_cubic, cc);
   uint64_t min_cwnd;
 
   if (in_congestion_recovery(cstat, sent_ts)) {
@@ -452,7 +452,7 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
 void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *ccx,
                                                ngtcp2_conn_stat *cstat,
                                                ngtcp2_tstamp ts) {
-  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_cubic_cc, cc);
+  ngtcp2_cc_cubic *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_cubic, cc);
   (void)ts;
 
   if (cstat->cwnd >= cc->prior.cwnd) {
@@ -496,7 +496,7 @@ void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *ccx,
 void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_ack *ack,
                                     ngtcp2_tstamp ts) {
-  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_cubic_cc, cc);
+  ngtcp2_cc_cubic *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_cubic, cc);
   uint64_t target_cwnd, initcwnd;
   (void)ack;
   (void)ts;
@@ -522,7 +522,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_cubic_cc_on_pkt_sent(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt) {
-  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_cubic_cc, cc);
+  ngtcp2_cc_cubic *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_cubic, cc);
   (void)cstat;
 
   if (pkt->pktns_id != NGTCP2_PKTNS_ID_APPLICATION || cc->window_end != -1) {
@@ -537,7 +537,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_sent(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_cubic_cc_new_rtt_sample(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                        ngtcp2_tstamp ts) {
-  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_cubic_cc, cc);
+  ngtcp2_cc_cubic *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_cubic, cc);
   (void)ts;
 
   if (cc->window_end == -1) {
@@ -551,7 +551,7 @@ void ngtcp2_cc_cubic_cc_new_rtt_sample(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                               ngtcp2_tstamp ts) {
-  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_cubic_cc, cc);
+  ngtcp2_cc_cubic *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_cubic, cc);
   (void)cstat;
   (void)ts;
 
@@ -560,7 +560,7 @@ void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_cubic_cc_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                               ngtcp2_cc_event_type event, ngtcp2_tstamp ts) {
-  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_cubic_cc, cc);
+  ngtcp2_cc_cubic *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_cubic, cc);
   ngtcp2_tstamp last_ts;
 
   if (event != NGTCP2_CC_EVENT_TYPE_TX_START || cc->epoch_start == UINT64_MAX) {

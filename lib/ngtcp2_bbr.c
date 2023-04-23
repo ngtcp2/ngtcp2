@@ -43,62 +43,62 @@ static const double pacing_gain_cycle[] = {1.25, 0.75, 1, 1, 1, 1, 1, 1};
 #define NGTCP2_RTPROP_FILTERLEN (10 * NGTCP2_SECONDS)
 #define NGTCP2_BBR_BTL_BW_FILTERLEN 10
 
-static void bbr_update_on_ack(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_update_on_ack(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
-static void bbr_update_model_and_state(ngtcp2_bbr_cc *cc,
+static void bbr_update_model_and_state(ngtcp2_cc_bbr *cc,
                                        ngtcp2_conn_stat *cstat,
                                        const ngtcp2_cc_ack *ack,
                                        ngtcp2_tstamp ts);
-static void bbr_update_control_parameters(ngtcp2_bbr_cc *cc,
+static void bbr_update_control_parameters(ngtcp2_cc_bbr *cc,
                                           ngtcp2_conn_stat *cstat,
                                           const ngtcp2_cc_ack *ack);
-static void bbr_on_transmit(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
-static void bbr_init_round_counting(ngtcp2_bbr_cc *cc);
-static void bbr_update_round(ngtcp2_bbr_cc *cc, const ngtcp2_cc_ack *ack);
-static void bbr_update_btl_bw(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_on_transmit(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat);
+static void bbr_init_round_counting(ngtcp2_cc_bbr *cc);
+static void bbr_update_round(ngtcp2_cc_bbr *cc, const ngtcp2_cc_ack *ack);
+static void bbr_update_btl_bw(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack);
-static void bbr_update_rtprop(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_update_rtprop(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                               ngtcp2_tstamp ts);
-static void bbr_init_pacing_rate(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
-static void bbr_set_pacing_rate_with_gain(ngtcp2_bbr_cc *cc,
+static void bbr_init_pacing_rate(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat);
+static void bbr_set_pacing_rate_with_gain(ngtcp2_cc_bbr *cc,
                                           ngtcp2_conn_stat *cstat,
                                           double pacing_gain);
-static void bbr_set_pacing_rate(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
-static void bbr_set_send_quantum(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
-static void bbr_update_target_cwnd(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
-static void bbr_modulate_cwnd_for_recovery(ngtcp2_bbr_cc *cc,
+static void bbr_set_pacing_rate(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat);
+static void bbr_set_send_quantum(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat);
+static void bbr_update_target_cwnd(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat);
+static void bbr_modulate_cwnd_for_recovery(ngtcp2_cc_bbr *cc,
                                            ngtcp2_conn_stat *cstat,
                                            const ngtcp2_cc_ack *ack);
-static void bbr_save_cwnd(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
-static void bbr_restore_cwnd(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
-static void bbr_modulate_cwnd_for_probe_rtt(ngtcp2_bbr_cc *cc,
+static void bbr_save_cwnd(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat);
+static void bbr_restore_cwnd(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat);
+static void bbr_modulate_cwnd_for_probe_rtt(ngtcp2_cc_bbr *cc,
                                             ngtcp2_conn_stat *cstat);
-static void bbr_set_cwnd(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_set_cwnd(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                          const ngtcp2_cc_ack *ack);
-static void bbr_init(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_init(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                      ngtcp2_tstamp initial_ts);
-static void bbr_enter_startup(ngtcp2_bbr_cc *cc);
-static void bbr_init_full_pipe(ngtcp2_bbr_cc *cc);
-static void bbr_check_full_pipe(ngtcp2_bbr_cc *cc);
-static void bbr_enter_drain(ngtcp2_bbr_cc *cc);
-static void bbr_check_drain(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_enter_startup(ngtcp2_cc_bbr *cc);
+static void bbr_init_full_pipe(ngtcp2_cc_bbr *cc);
+static void bbr_check_full_pipe(ngtcp2_cc_bbr *cc);
+static void bbr_enter_drain(ngtcp2_cc_bbr *cc);
+static void bbr_check_drain(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                             ngtcp2_tstamp ts);
-static void bbr_enter_probe_bw(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts);
-static void bbr_check_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_enter_probe_bw(ngtcp2_cc_bbr *cc, ngtcp2_tstamp ts);
+static void bbr_check_cycle_phase(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                                   const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
-static void bbr_advance_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts);
-static int bbr_is_next_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_advance_cycle_phase(ngtcp2_cc_bbr *cc, ngtcp2_tstamp ts);
+static int bbr_is_next_cycle_phase(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
-static void bbr_handle_restart_from_idle(ngtcp2_bbr_cc *cc,
+static void bbr_handle_restart_from_idle(ngtcp2_cc_bbr *cc,
                                          ngtcp2_conn_stat *cstat);
-static void bbr_check_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_check_probe_rtt(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                                 ngtcp2_tstamp ts);
-static void bbr_enter_probe_rtt(ngtcp2_bbr_cc *cc);
-static void bbr_handle_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_enter_probe_rtt(ngtcp2_cc_bbr *cc);
+static void bbr_handle_probe_rtt(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                                  ngtcp2_tstamp ts);
-static void bbr_exit_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts);
+static void bbr_exit_probe_rtt(ngtcp2_cc_bbr *cc, ngtcp2_tstamp ts);
 
-void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *cc, ngtcp2_log *log,
+void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *cc, ngtcp2_log *log,
                         ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
                         ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
                         const ngtcp2_rand_ctx *rand_ctx) {
@@ -122,7 +122,7 @@ void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *cc, ngtcp2_log *log,
   bbr_init(cc, cstat, initial_ts);
 }
 
-void ngtcp2_bbr_cc_free(ngtcp2_bbr_cc *cc) { (void)cc; }
+void ngtcp2_cc_bbr_free(ngtcp2_cc_bbr *cc) { (void)cc; }
 
 void ngtcp2_cc_bbr_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
@@ -141,7 +141,7 @@ static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_bbr_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                        ngtcp2_tstamp sent_ts,
                                        ngtcp2_tstamp ts) {
-  ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
+  ngtcp2_cc_bbr *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_bbr, cc);
 
   if (cc->in_loss_recovery || cc->congestion_recovery_start_ts != UINT64_MAX ||
       in_congestion_recovery(cstat, sent_ts)) {
@@ -154,7 +154,7 @@ void ngtcp2_cc_bbr_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_bbr_cc_on_spurious_congestion(ngtcp2_cc *ccx,
                                              ngtcp2_conn_stat *cstat,
                                              ngtcp2_tstamp ts) {
-  ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
+  ngtcp2_cc_bbr *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_bbr, cc);
   (void)ts;
 
   cc->congestion_recovery_start_ts = UINT64_MAX;
@@ -170,7 +170,7 @@ void ngtcp2_cc_bbr_cc_on_spurious_congestion(ngtcp2_cc *ccx,
 void ngtcp2_cc_bbr_cc_on_persistent_congestion(ngtcp2_cc *ccx,
                                                ngtcp2_conn_stat *cstat,
                                                ngtcp2_tstamp ts) {
-  ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
+  ngtcp2_cc_bbr *cc = ngtcp2_struct_of(ccx, ngtcp2_cc_bbr, cc);
   (void)ts;
 
   cstat->congestion_recovery_start_ts = UINT64_MAX;
@@ -184,14 +184,14 @@ void ngtcp2_cc_bbr_cc_on_persistent_congestion(ngtcp2_cc *ccx,
 
 void ngtcp2_cc_bbr_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                   const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
-  ngtcp2_bbr_cc *bbr_cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
+  ngtcp2_cc_bbr *bbr_cc = ngtcp2_struct_of(ccx, ngtcp2_cc_bbr, cc);
 
   bbr_update_on_ack(bbr_cc, cstat, ack, ts);
 }
 
 void ngtcp2_cc_bbr_cc_on_pkt_sent(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                   const ngtcp2_cc_pkt *pkt) {
-  ngtcp2_bbr_cc *bbr_cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
+  ngtcp2_cc_bbr *bbr_cc = ngtcp2_struct_of(ccx, ngtcp2_cc_bbr, cc);
   (void)pkt;
 
   bbr_on_transmit(bbr_cc, cstat);
@@ -206,7 +206,7 @@ void ngtcp2_cc_bbr_cc_new_rtt_sample(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_bbr_cc_reset(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                             ngtcp2_tstamp ts) {
-  ngtcp2_bbr_cc *bbr_cc = ngtcp2_struct_of(ccx, ngtcp2_bbr_cc, cc);
+  ngtcp2_cc_bbr *bbr_cc = ngtcp2_struct_of(ccx, ngtcp2_cc_bbr, cc);
   bbr_init(bbr_cc, cstat, ts);
 }
 
@@ -218,13 +218,13 @@ void ngtcp2_cc_bbr_cc_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   (void)ts;
 }
 
-static void bbr_update_on_ack(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_update_on_ack(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   bbr_update_model_and_state(cc, cstat, ack, ts);
   bbr_update_control_parameters(cc, cstat, ack);
 }
 
-static void bbr_update_model_and_state(ngtcp2_bbr_cc *cc,
+static void bbr_update_model_and_state(ngtcp2_cc_bbr *cc,
                                        ngtcp2_conn_stat *cstat,
                                        const ngtcp2_cc_ack *ack,
                                        ngtcp2_tstamp ts) {
@@ -236,7 +236,7 @@ static void bbr_update_model_and_state(ngtcp2_bbr_cc *cc,
   bbr_check_probe_rtt(cc, cstat, ts);
 }
 
-static void bbr_update_control_parameters(ngtcp2_bbr_cc *cc,
+static void bbr_update_control_parameters(ngtcp2_cc_bbr *cc,
                                           ngtcp2_conn_stat *cstat,
                                           const ngtcp2_cc_ack *ack) {
   bbr_set_pacing_rate(cc, cstat);
@@ -244,17 +244,17 @@ static void bbr_update_control_parameters(ngtcp2_bbr_cc *cc,
   bbr_set_cwnd(cc, cstat, ack);
 }
 
-static void bbr_on_transmit(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
+static void bbr_on_transmit(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat) {
   bbr_handle_restart_from_idle(cc, cstat);
 }
 
-static void bbr_init_round_counting(ngtcp2_bbr_cc *cc) {
+static void bbr_init_round_counting(ngtcp2_cc_bbr *cc) {
   cc->next_round_delivered = 0;
   cc->round_start = 0;
   cc->round_count = 0;
 }
 
-static void bbr_update_round(ngtcp2_bbr_cc *cc, const ngtcp2_cc_ack *ack) {
+static void bbr_update_round(ngtcp2_cc_bbr *cc, const ngtcp2_cc_ack *ack) {
   if (ack->pkt_delivered >= cc->next_round_delivered) {
     cc->next_round_delivered = cc->rst->delivered;
     ++cc->round_count;
@@ -266,7 +266,7 @@ static void bbr_update_round(ngtcp2_bbr_cc *cc, const ngtcp2_cc_ack *ack) {
   cc->round_start = 0;
 }
 
-static void bbr_handle_recovery(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_handle_recovery(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                                 const ngtcp2_cc_ack *ack) {
   if (cc->in_loss_recovery) {
     if (ack->pkt_delivered >= cc->congestion_recovery_next_round_delivered) {
@@ -296,7 +296,7 @@ static void bbr_handle_recovery(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   }
 }
 
-static void bbr_update_btl_bw(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_update_btl_bw(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack) {
   bbr_update_round(cc, ack);
   bbr_handle_recovery(cc, cstat, ack);
@@ -311,7 +311,7 @@ static void bbr_update_btl_bw(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   cc->btl_bw = ngtcp2_window_filter_get_best(&cc->btl_bw_filter);
 }
 
-static void bbr_update_rtprop(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_update_rtprop(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                               ngtcp2_tstamp ts) {
   cc->rtprop_expired = ts > cc->rtprop_stamp + NGTCP2_RTPROP_FILTERLEN;
 
@@ -326,14 +326,14 @@ static void bbr_update_rtprop(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   }
 }
 
-static void bbr_init_pacing_rate(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
+static void bbr_init_pacing_rate(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat) {
   double nominal_bandwidth =
       (double)cc->initial_cwnd / (double)NGTCP2_MILLISECONDS;
 
   cstat->pacing_rate = cc->pacing_gain * nominal_bandwidth;
 }
 
-static void bbr_set_pacing_rate_with_gain(ngtcp2_bbr_cc *cc,
+static void bbr_set_pacing_rate_with_gain(ngtcp2_cc_bbr *cc,
                                           ngtcp2_conn_stat *cstat,
                                           double pacing_gain) {
   double rate = pacing_gain * (double)cc->btl_bw / NGTCP2_SECONDS;
@@ -343,11 +343,11 @@ static void bbr_set_pacing_rate_with_gain(ngtcp2_bbr_cc *cc,
   }
 }
 
-static void bbr_set_pacing_rate(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
+static void bbr_set_pacing_rate(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat) {
   bbr_set_pacing_rate_with_gain(cc, cstat, cc->pacing_gain);
 }
 
-static void bbr_set_send_quantum(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
+static void bbr_set_send_quantum(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat) {
   size_t floor, send_quantum;
   (void)cc;
 
@@ -363,7 +363,7 @@ static void bbr_set_send_quantum(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
   cstat->send_quantum = ngtcp2_max(send_quantum, floor);
 }
 
-static uint64_t bbr_inflight(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static uint64_t bbr_inflight(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                              double gain) {
   uint64_t quanta = 3 * cstat->send_quantum;
   double estimated_bdp;
@@ -378,11 +378,11 @@ static uint64_t bbr_inflight(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   return (uint64_t)(gain * estimated_bdp) + quanta;
 }
 
-static void bbr_update_target_cwnd(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
+static void bbr_update_target_cwnd(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat) {
   cc->target_cwnd = bbr_inflight(cc, cstat, cc->cwnd_gain);
 }
 
-static void bbr_modulate_cwnd_for_recovery(ngtcp2_bbr_cc *cc,
+static void bbr_modulate_cwnd_for_recovery(ngtcp2_cc_bbr *cc,
                                            ngtcp2_conn_stat *cstat,
                                            const ngtcp2_cc_ack *ack) {
   if (ack->bytes_lost > 0) {
@@ -400,7 +400,7 @@ static void bbr_modulate_cwnd_for_recovery(ngtcp2_bbr_cc *cc,
   }
 }
 
-static void bbr_save_cwnd(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
+static void bbr_save_cwnd(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat) {
   if (!cc->in_loss_recovery && cc->state != NGTCP2_BBR_STATE_PROBE_RTT) {
     cc->prior_cwnd = cstat->cwnd;
     return;
@@ -409,7 +409,7 @@ static void bbr_save_cwnd(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
   cc->prior_cwnd = ngtcp2_max(cc->prior_cwnd, cstat->cwnd);
 }
 
-static void bbr_restore_cwnd(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat) {
+static void bbr_restore_cwnd(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat) {
   cstat->cwnd = ngtcp2_max(cstat->cwnd, cc->prior_cwnd);
 }
 
@@ -417,7 +417,7 @@ static uint64_t min_pipe_cwnd(size_t max_udp_payload_size) {
   return max_udp_payload_size * 4;
 }
 
-static void bbr_modulate_cwnd_for_probe_rtt(ngtcp2_bbr_cc *cc,
+static void bbr_modulate_cwnd_for_probe_rtt(ngtcp2_cc_bbr *cc,
                                             ngtcp2_conn_stat *cstat) {
   if (cc->state == NGTCP2_BBR_STATE_PROBE_RTT) {
     cstat->cwnd =
@@ -425,7 +425,7 @@ static void bbr_modulate_cwnd_for_probe_rtt(ngtcp2_bbr_cc *cc,
   }
 }
 
-static void bbr_set_cwnd(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_set_cwnd(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                          const ngtcp2_cc_ack *ack) {
   bbr_update_target_cwnd(cc, cstat);
   bbr_modulate_cwnd_for_recovery(cc, cstat, ack);
@@ -446,7 +446,7 @@ static void bbr_set_cwnd(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   bbr_modulate_cwnd_for_probe_rtt(cc, cstat);
 }
 
-static void bbr_init(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_init(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                      ngtcp2_tstamp initial_ts) {
   cc->pacing_gain = NGTCP2_BBR_HIGH_GAIN;
   cc->prior_cwnd = 0;
@@ -476,19 +476,19 @@ static void bbr_init(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   bbr_enter_startup(cc);
 }
 
-static void bbr_enter_startup(ngtcp2_bbr_cc *cc) {
+static void bbr_enter_startup(ngtcp2_cc_bbr *cc) {
   cc->state = NGTCP2_BBR_STATE_STARTUP;
   cc->pacing_gain = NGTCP2_BBR_HIGH_GAIN;
   cc->cwnd_gain = NGTCP2_BBR_HIGH_GAIN;
 }
 
-static void bbr_init_full_pipe(ngtcp2_bbr_cc *cc) {
+static void bbr_init_full_pipe(ngtcp2_cc_bbr *cc) {
   cc->filled_pipe = 0;
   cc->full_bw = 0;
   cc->full_bw_count = 0;
 }
 
-static void bbr_check_full_pipe(ngtcp2_bbr_cc *cc) {
+static void bbr_check_full_pipe(ngtcp2_cc_bbr *cc) {
   if (cc->filled_pipe || !cc->round_start || cc->rst->rs.is_app_limited) {
     /* no need to check for a full pipe now. */
     return;
@@ -510,7 +510,7 @@ static void bbr_check_full_pipe(ngtcp2_bbr_cc *cc) {
   }
 }
 
-static void bbr_enter_drain(ngtcp2_bbr_cc *cc) {
+static void bbr_enter_drain(ngtcp2_cc_bbr *cc) {
   cc->state = NGTCP2_BBR_STATE_DRAIN;
   /* pace slowly */
   cc->pacing_gain = 1.0 / NGTCP2_BBR_HIGH_GAIN;
@@ -518,7 +518,7 @@ static void bbr_enter_drain(ngtcp2_bbr_cc *cc) {
   cc->cwnd_gain = NGTCP2_BBR_HIGH_GAIN;
 }
 
-static void bbr_check_drain(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_check_drain(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                             ngtcp2_tstamp ts) {
   if (cc->state == NGTCP2_BBR_STATE_STARTUP && cc->filled_pipe) {
     ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV,
@@ -537,7 +537,7 @@ static void bbr_check_drain(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   }
 }
 
-static void bbr_enter_probe_bw(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts) {
+static void bbr_enter_probe_bw(ngtcp2_cc_bbr *cc, ngtcp2_tstamp ts) {
   uint8_t rand;
 
   cc->state = NGTCP2_BBR_STATE_PROBE_BW;
@@ -552,7 +552,7 @@ static void bbr_enter_probe_bw(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts) {
   bbr_advance_cycle_phase(cc, ts);
 }
 
-static void bbr_check_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_check_cycle_phase(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                                   const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   if (cc->state == NGTCP2_BBR_STATE_PROBE_BW &&
       bbr_is_next_cycle_phase(cc, cstat, ack, ts)) {
@@ -560,13 +560,13 @@ static void bbr_check_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   }
 }
 
-static void bbr_advance_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts) {
+static void bbr_advance_cycle_phase(ngtcp2_cc_bbr *cc, ngtcp2_tstamp ts) {
   cc->cycle_stamp = ts;
   cc->cycle_index = (cc->cycle_index + 1) & (NGTCP2_BBR_GAIN_CYCLELEN - 1);
   cc->pacing_gain = pacing_gain_cycle[cc->cycle_index];
 }
 
-static int bbr_is_next_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static int bbr_is_next_cycle_phase(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   int is_full_length = (ts - cc->cycle_stamp) > cc->rt_prop;
 
@@ -584,7 +584,7 @@ static int bbr_is_next_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   return is_full_length;
 }
 
-static void bbr_handle_restart_from_idle(ngtcp2_bbr_cc *cc,
+static void bbr_handle_restart_from_idle(ngtcp2_cc_bbr *cc,
                                          ngtcp2_conn_stat *cstat) {
   if (cstat->bytes_in_flight == 0 && cc->rst->app_limited) {
     ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV, "bbr restart from idle");
@@ -597,7 +597,7 @@ static void bbr_handle_restart_from_idle(ngtcp2_bbr_cc *cc,
   }
 }
 
-static void bbr_check_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_check_probe_rtt(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                                 ngtcp2_tstamp ts) {
   if (cc->state != NGTCP2_BBR_STATE_PROBE_RTT && cc->rtprop_expired &&
       !cc->idle_restart) {
@@ -615,13 +615,13 @@ static void bbr_check_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   cc->idle_restart = 0;
 }
 
-static void bbr_enter_probe_rtt(ngtcp2_bbr_cc *cc) {
+static void bbr_enter_probe_rtt(ngtcp2_cc_bbr *cc) {
   cc->state = NGTCP2_BBR_STATE_PROBE_RTT;
   cc->pacing_gain = 1;
   cc->cwnd_gain = 1;
 }
 
-static void bbr_handle_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
+static void bbr_handle_probe_rtt(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
                                  ngtcp2_tstamp ts) {
   uint64_t app_limited = cc->rst->delivered + cstat->bytes_in_flight;
 
@@ -650,7 +650,7 @@ static void bbr_handle_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   }
 }
 
-static void bbr_exit_probe_rtt(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts) {
+static void bbr_exit_probe_rtt(ngtcp2_cc_bbr *cc, ngtcp2_tstamp ts) {
   if (cc->filled_pipe) {
     ngtcp2_log_info(cc->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "bbr exit ProbeRTT and enter ProbeBW");
