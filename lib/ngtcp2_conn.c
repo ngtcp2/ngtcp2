@@ -13533,8 +13533,8 @@ void ngtcp2_conn_set_tls_native_handle(ngtcp2_conn *conn,
   conn->crypto.tls_native_handle = tls_native_handle;
 }
 
-void ngtcp2_conn_get_ccerr(ngtcp2_conn *conn, ngtcp2_ccerr *ccerr) {
-  *ccerr = conn->rx.ccerr;
+const ngtcp2_ccerr *ngtcp2_conn_get_ccerr(ngtcp2_conn *conn) {
+  return &conn->rx.ccerr;
 }
 
 void ngtcp2_conn_set_tls_error(ngtcp2_conn *conn, int liberr) {
