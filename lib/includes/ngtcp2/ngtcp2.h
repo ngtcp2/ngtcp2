@@ -5536,13 +5536,6 @@ NGTCP2_EXTERN void ngtcp2_addr_copy_byte(ngtcp2_addr *dest,
 /**
  * @function
  *
- * `ngtcp2_addr_eq` returns nonzero if |a| equals |b|.
- */
-NGTCP2_EXTERN int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b);
-
-/**
- * @function
- *
  * `ngtcp2_path_storage_init` initializes |ps| with the given
  * arguments.  This function copies |local_addr| and |remote_addr|.
  */
