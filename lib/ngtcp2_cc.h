@@ -307,9 +307,9 @@ typedef struct ngtcp2_cc_reno {
   uint64_t pending_add;
 } ngtcp2_cc_reno;
 
-void ngtcp2_cc_reno_init(ngtcp2_cc_reno *cc, ngtcp2_log *log);
+void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log);
 
-void ngtcp2_cc_reno_free(ngtcp2_cc_reno *cc);
+void ngtcp2_cc_reno_free(ngtcp2_cc_reno *reno);
 
 void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
