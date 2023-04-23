@@ -189,7 +189,7 @@ protected:
   ngtcp2_crypto_conn_ref conn_ref_;
   TLSServerSession tls_session_;
   ngtcp2_conn *conn_;
-  ngtcp2_connection_close_error last_error_;
+  ngtcp2_ccerr last_error_;
 };
 
 #endif // SERVER_BASE_H

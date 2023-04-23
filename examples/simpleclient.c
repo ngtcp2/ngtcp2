@@ -147,7 +147,7 @@ struct client {
     size_t nwrite;
   } stream;
 
-  ngtcp2_connection_close_error last_error;
+  ngtcp2_ccerr last_error;
 
   ev_io rev;
   ev_timer timer;
@@ -404,11 +404,10 @@ static int client_read(struct client *c) {
       fprintf(stderr, "ngtcp2_conn_read_pkt: %s\n", ngtcp2_strerror(rv));
       if (!c->last_error.error_code) {
         if (rv == NGTCP2_ERR_CRYPTO) {
-          ngtcp2_connection_close_error_set_transport_error_tls_alert(
+          ngtcp2_ccerr_set_tls_alert(
               &c->last_error, ngtcp2_conn_get_tls_alert(c->conn), NULL, 0);
         } else {
-          ngtcp2_connection_close_error_set_transport_error_liberr(
-              &c->last_error, rv, NULL, 0);
+          ngtcp2_ccerr_set_liberr(&c->last_error, rv, NULL, 0);
         }
       }
       return -1;
@@ -497,8 +496,7 @@ static int client_write_streams(struct client *c) {
       default:
         fprintf(stderr, "ngtcp2_conn_writev_stream: %s\n",
                 ngtcp2_strerror((int)nwrite));
-        ngtcp2_connection_close_error_set_transport_error_liberr(
-            &c->last_error, (int)nwrite, NULL, 0);
+        ngtcp2_ccerr_set_liberr(&c->last_error, (int)nwrite, NULL, 0);
         return -1;
       }
     }
@@ -616,7 +614,7 @@ static int client_init(struct client *c) {
 
   memset(c, 0, sizeof(*c));
 
-  ngtcp2_connection_close_error_default(&c->last_error);
+  ngtcp2_ccerr_default(&c->last_error);
 
   c->fd = create_sock((struct sockaddr *)&remote_addr, &remote_addrlen,
                       REMOTE_HOST, REMOTE_PORT);

@@ -210,7 +210,7 @@ protected:
   TLSClientSession tls_session_;
   FILE *qlog_;
   ngtcp2_conn *conn_;
-  ngtcp2_connection_close_error last_error_;
+  ngtcp2_ccerr last_error_;
   bool ticket_received_;
 };
 

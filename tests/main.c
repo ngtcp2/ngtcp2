@@ -303,8 +303,7 @@ int main(void) {
       !CU_add_test(pSuite, "conn_buffer_pkt", test_ngtcp2_conn_buffer_pkt) ||
       !CU_add_test(pSuite, "conn_handshake_timeout",
                    test_ngtcp2_conn_handshake_timeout) ||
-      !CU_add_test(pSuite, "conn_get_connection_close_error",
-                   test_ngtcp2_conn_get_connection_close_error) ||
+      !CU_add_test(pSuite, "conn_get_ccerr", test_ngtcp2_conn_get_ccerr) ||
       !CU_add_test(pSuite, "conn_version_negotiation",
                    test_ngtcp2_conn_version_negotiation) ||
       !CU_add_test(pSuite, "conn_server_negotiate_version",

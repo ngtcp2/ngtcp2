@@ -120,10 +120,10 @@ typedef enum {
    packets sent in NGTCP2_ECN_STATE_TESTING period. */
 #define NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS 10
 
-/* NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN is the maximum length
-   of reason phrase to remember.  If the received reason phrase is
-   longer than this value, it is truncated. */
-#define NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN 1024
+/* NGTCP2_CCERR_MAX_REASONLEN is the maximum length of reason phrase
+   to remember.  If the received reason phrase is longer than this
+   value, it is truncated. */
+#define NGTCP2_CCERR_MAX_REASONLEN 1024
 
 /* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_WRITE_PKT_FLAG_NONE 0x00u
@@ -496,7 +496,7 @@ struct ngtcp2_conn {
     /* path_challenge stores received PATH_CHALLENGE data. */
     ngtcp2_static_ringbuf_path_challenge path_challenge;
     /* ccerr is the received connection close error. */
-    ngtcp2_connection_close_error ccerr;
+    ngtcp2_ccerr ccerr;
   } rx;
 
   struct {
