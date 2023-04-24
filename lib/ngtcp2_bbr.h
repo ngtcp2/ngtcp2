@@ -115,8 +115,6 @@ void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *cc, ngtcp2_log *log,
                         ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
                         const ngtcp2_rand_ctx *rand_ctx);
 
-void ngtcp2_cc_bbr_free(ngtcp2_cc_bbr *cc);
-
 void ngtcp2_cc_bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                        ngtcp2_tstamp sent_ts, ngtcp2_tstamp ts);
 

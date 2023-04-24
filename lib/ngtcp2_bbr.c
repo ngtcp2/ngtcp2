@@ -119,8 +119,6 @@ void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *bbr, ngtcp2_log *log,
   bbr_init(bbr, cstat, initial_ts);
 }
 
-void ngtcp2_cc_bbr_free(ngtcp2_cc_bbr *bbr) { (void)bbr; }
-
 static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
                                   ngtcp2_tstamp sent_time) {
   return cstat->congestion_recovery_start_ts != UINT64_MAX &&
