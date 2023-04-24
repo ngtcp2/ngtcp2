@@ -143,6 +143,4 @@ void ngtcp2_cc_bbr2_init(ngtcp2_cc_bbr2 *bbr, ngtcp2_log *log,
                          ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
                          const ngtcp2_rand_ctx *rand_ctx);
 
-void ngtcp2_cc_bbr2_free(ngtcp2_cc_bbr2 *bbr);
-
 #endif /* NGTCP2_BBR2_H */

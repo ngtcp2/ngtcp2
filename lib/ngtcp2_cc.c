@@ -64,8 +64,6 @@ static void reno_cc_reset(ngtcp2_cc_reno *reno) {
   reno->pending_add = 0;
 }
 
-void ngtcp2_cc_reno_free(ngtcp2_cc_reno *reno) { (void)reno; }
-
 void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log) {
   memset(reno, 0, sizeof(*reno));
 
@@ -223,8 +221,6 @@ void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log) {
 
   cubic_cc_reset(cubic);
 }
-
-void ngtcp2_cc_cubic_free(ngtcp2_cc_cubic *cubic) { (void)cubic; }
 
 uint64_t ngtcp2_cbrt(uint64_t n) {
   int d;

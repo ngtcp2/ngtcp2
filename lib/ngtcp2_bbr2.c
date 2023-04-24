@@ -1441,5 +1441,3 @@ void ngtcp2_cc_bbr2_init(ngtcp2_cc_bbr2 *bbr, ngtcp2_log *log,
 
   bbr_on_init(bbr, cstat, initial_ts);
 }
-
-void ngtcp2_cc_bbr2_free(ngtcp2_cc_bbr2 *bbr) { (void)bbr; }
