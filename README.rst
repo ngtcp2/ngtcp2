@@ -58,7 +58,7 @@ directory require at least one of the following TLS backends:
 - `OpenSSL with QUIC support
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1t+quic>`_
 - GnuTLS >= 3.7.2
-- BoringSSL (commit 74646566e93de7551bfdfc5f49de7462f13d1d05)
+- BoringSSL (commit b0b1f9dfc583c96d5f91b7f8cdb7efabcf22793b)
 - Picotls (commit 61228171836561b5f6feee5bf0ad81414d47e748)
 - wolfSSL >= 5.5.0
 
