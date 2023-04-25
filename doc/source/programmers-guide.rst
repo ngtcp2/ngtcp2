@@ -318,7 +318,10 @@ transport parameters that include these values.  When sending early
 data, the remembered transport parameters should be set via
 `ngtcp2_conn_decode_early_transport_params`.  Then client can open
 streams with `ngtcp2_conn_open_bidi_streams` or
-`ngtcp2_conn_open_uni_stream`.
+`ngtcp2_conn_open_uni_stream`.  Note that
+`ngtcp2_conn_decode_early_transport_params` does not invoke neither
+:member:`ngtcp2_callbacks.extend_max_local_streams_bidi` nor
+:member:`ngtcp2_callbacks.extend_max_local_streams_uni`.
 
 Other than that, there is no difference between early data and 1RTT
 data in terms of API usage.
@@ -329,6 +332,22 @@ during early data transmission are undone.  The library does not
 retransmit early data to server as 1RTT data.  If an application
 wishes to resend data, it has to reopen streams and writes data again.
 See `ngtcp2_conn_early_data_rejected`.
+
+Closing streams
+---------------
+
+The send-side stream is closed when you call
+`ngtcp2_conn_writev_stream` with :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN`
+flag set, and all data are acknowledged.  The receive-side stream is
+closed when a local endpoint receives fin from a remote endpoint, and
+all data are received.  And then
+:member:`ngtcp2_callbacks.stream_close` is invoked.
+
+Application can close stream abruptly by calling
+`ngtcp2_conn_shutdown_stream`.  It has
+`ngtcp2_conn_shutdown_stream_write` and
+`ngtcp2_conn_shutdown_stream_read` variants that close the individual
+side of a stream.
 
 Stream data ownership
 --------------------------------
