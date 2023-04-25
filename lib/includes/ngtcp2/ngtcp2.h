@@ -5039,14 +5039,6 @@ NGTCP2_EXTERN int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_max_local_streams_uni` returns the cumulative
- * number of streams which local endpoint can open.
- */
-NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_local_streams_uni(ngtcp2_conn *conn);
-
-/**
- * @function
- *
  * `ngtcp2_conn_get_max_data_left` returns the number of bytes that
  * this local endpoint can send in this connection.
  */
