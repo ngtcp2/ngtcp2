@@ -350,7 +350,7 @@ Application can close stream abruptly by calling
 side of a stream.
 
 Stream data ownership
---------------------------------
+---------------------
 
 Stream data passed to :type:`ngtcp2_conn` must be held by application
 until :member:`ngtcp2_callbacks.acked_stream_data_offset` callbacks is
