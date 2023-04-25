@@ -309,10 +309,10 @@ int Client::handshake_completed() {
                 << std::endl;
       return -1;
     }
-  }
 
-  if (setup_httpconn() != 0) {
-    return -1;
+    if (setup_httpconn() != 0) {
+      return -1;
+    }
   }
 
   if (!config.quiet) {
