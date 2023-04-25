@@ -226,7 +226,24 @@ order to write QUIC packets, call `ngtcp2_conn_writev_stream()` or
 the value returned from `ngtcp2_conn_get_max_tx_udp_payload_size()`.
 
 In order to send stream data, the application has to first open a
-stream.  Use `ngtcp2_conn_open_bidi_stream()` to open bidirectional
+stream.  In earliest, clients can open streams after installing 1RTT
+RX(decryption) key, which is notified by
+:member:`ngtcp2_callbacks.recv_rx_key`.  Because the key is installed
+just before handshake completion, handshake completion (see
+:member:`ngtcp2_callbacks.handshake_completed`) is also a good signal
+to start opening streams.  For convenience,
+:member:`ngtcp2_callbacks.extend_max_local_streams_bidi` and
+:member:`ngtcp2_callbacks.extend_max_local_streams_uni` are called
+right after :member:`ngtcp2_callbacks.handshake_completed` callback if
+there are streams IDs available.
+
+For server, it can open streams after installing 1RTT TX(encryption)
+key, which is notified by :member:`ngtcp2_callbacks.recv_tx_key`.
+Note that handshake is not authenticated until handshake completes.
+Therefore, it is a good practice to send important data after
+handshake completion.
+
+Use `ngtcp2_conn_open_bidi_stream()` to open bidirectional
 stream.  For unidirectional stream, call
 `ngtcp2_conn_open_uni_stream()`.  Call `ngtcp2_conn_writev_stream()`
 to send stream data.
@@ -299,7 +316,9 @@ parameters received from a server in the previous connection.
 `ngtcp2_conn_encode_early_transport_params` returns the encoded QUIC
 transport parameters that include these values.  When sending early
 data, the remembered transport parameters should be set via
-`ngtcp2_conn_decode_early_transport_params`.
+`ngtcp2_conn_decode_early_transport_params`.  Then client can open
+streams with `ngtcp2_conn_open_bidi_streams` or
+`ngtcp2_conn_open_uni_stream`.
 
 Other than that, there is no difference between early data and 1RTT
 data in terms of API usage.
