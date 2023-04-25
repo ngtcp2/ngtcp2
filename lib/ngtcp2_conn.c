@@ -13375,10 +13375,6 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
   return conn_call_activate_dcid(conn, &pv->dcid);
 }
 
-uint64_t ngtcp2_conn_get_max_local_streams_uni(ngtcp2_conn *conn) {
-  return conn->local.uni.max_streams;
-}
-
 uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn) {
   return conn->tx.max_offset - conn->tx.offset;
 }

@@ -1989,7 +1989,7 @@ int Client::setup_httpconn() {
     return 0;
   }
 
-  if (ngtcp2_conn_get_max_local_streams_uni(conn_) < 3) {
+  if (ngtcp2_conn_get_streams_uni_left(conn_) < 3) {
     std::cerr << "peer does not allow at least 3 unidirectional streams."
               << std::endl;
     return -1;
