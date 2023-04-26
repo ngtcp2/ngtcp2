@@ -1434,7 +1434,7 @@ void test_ngtcp2_conn_tx_flow_control(void) {
 
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
                                      &nwrite, NGTCP2_WRITE_STREAM_FLAG_NONE,
-                                     stream_id, null_data, 1024, 4);
+                                     stream_id, null_data, 1024, 5);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(1024 == nwrite);
@@ -2246,6 +2246,8 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   /* Receive STOP_SENDING after receiving RESET_STREAM */
   setup_default_client(&conn);
 
+  t = 0;
+
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                            NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_data,
@@ -2386,7 +2388,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
 
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                                      NGTCP2_WRITE_STREAM_FLAG_FIN, stream_id,
-                                     null_data, 1, ++t);
+                                     null_data, 1, 1);
 
   CU_ASSERT(spktlen > 0);
 
@@ -8036,7 +8038,7 @@ void test_ngtcp2_conn_validate_ecn(void) {
 
   spktlen = ngtcp2_conn_write_stream(conn, NULL, &pi, buf, sizeof(buf), &nwrite,
                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
-                                     null_data, 1024, 2);
+                                     null_data, 1024, 3);
 
   CU_ASSERT(0 < spktlen);
   CU_ASSERT(NGTCP2_ECN_NOT_ECT == pi.ecn);
