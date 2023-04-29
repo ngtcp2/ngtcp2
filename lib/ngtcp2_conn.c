@@ -63,6 +63,14 @@ static int conn_local_stream(ngtcp2_conn *conn, int64_t stream_id) {
  */
 static int bidi_stream(int64_t stream_id) { return (stream_id & 0x2) == 0; }
 
+static void conn_update_timestamp(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  assert(conn->log.last_ts <= ts);
+  assert(conn->qlog.last_ts <= ts);
+
+  conn->log.last_ts = ts;
+  conn->qlog.last_ts = ts;
+}
+
 /*
  * conn_is_tls_handshake_completed returns nonzero if TLS handshake
  * has completed and 1 RTT keys are available.
@@ -9881,8 +9889,7 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   assert(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
 
-  conn->log.last_ts = ts;
-  conn->qlog.last_ts = ts;
+  conn_update_timestamp(conn, ts);
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "recv packet len=%zu",
                   pktlen);
@@ -11784,8 +11791,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   ngtcp2_rtb_entry *rtbent;
   (void)pkt_info_version;
 
-  conn->log.last_ts = ts;
-  conn->qlog.last_ts = ts;
+  conn_update_timestamp(conn, ts);
 
   if (path) {
     ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
@@ -12196,8 +12202,7 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_pkt(
   ngtcp2_ssize nwrite;
   uint64_t server_tx_left;
 
-  conn->log.last_ts = ts;
-  conn->qlog.last_ts = ts;
+  conn_update_timestamp(conn, ts);
 
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
@@ -12261,8 +12266,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
   ngtcp2_frame fr;
   uint64_t server_tx_left;
 
-  conn->log.last_ts = ts;
-  conn->qlog.last_ts = ts;
+  conn_update_timestamp(conn, ts);
 
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
@@ -12934,8 +12938,7 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_tstamp earliest_loss_time;
   ngtcp2_pktns *loss_pktns = NULL;
 
-  conn->log.last_ts = ts;
-  conn->qlog.last_ts = ts;
+  conn_update_timestamp(conn, ts);
 
   switch (conn->state) {
   case NGTCP2_CS_CLOSING:
@@ -13282,8 +13285,7 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
 
   assert(!conn->server);
 
-  conn->log.last_ts = ts;
-  conn->qlog.last_ts = ts;
+  conn_update_timestamp(conn, ts);
 
   rv = conn_initiate_migration_precheck(conn, &path->local);
   if (rv != 0) {
@@ -13341,8 +13343,7 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   assert(!conn->server);
 
-  conn->log.last_ts = ts;
-  conn->qlog.last_ts = ts;
+  conn_update_timestamp(conn, ts);
 
   rv = conn_initiate_migration_precheck(conn, &path->local);
   if (rv != 0) {
