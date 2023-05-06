@@ -43,7 +43,7 @@ extern Config config;
 int TLSClientSession::init(bool &early_data_enabled,
                            const TLSClientContext &tls_ctx,
                            const char *remote_addr, ClientBase *client,
-                           uint32_t quic_version, AppProtocol app_proto) {
+                           uint32_t quic_version) {
   early_data_enabled = false;
 
   auto ssl_ctx = tls_ctx.get_native_handle();
@@ -61,14 +61,6 @@ int TLSClientSession::init(bool &early_data_enabled,
   SSL_set_quic_use_legacy_codepoint(ssl_,
                                     (quic_version & 0xff000000) == 0xff000000);
 
-  switch (app_proto) {
-  case AppProtocol::H3:
-    SSL_set_alpn_protos(ssl_, H3_ALPN, str_size(H3_ALPN));
-    break;
-  case AppProtocol::HQ:
-    SSL_set_alpn_protos(ssl_, HQ_ALPN, str_size(HQ_ALPN));
-    break;
-  }
 
   if (!config.sni.empty()) {
     SSL_set_tlsext_host_name(ssl_, config.sni.data());

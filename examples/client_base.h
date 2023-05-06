@@ -98,7 +98,6 @@ struct Config {
   // no_preferred_addr is true if client do not follow preferred
   // address offered by server.
   bool no_preferred_addr;
-  std::string_view http_method;
   // download is a path to a directory where a downloaded file is
   // saved.  If it is empty, no file is saved.
   std::string_view download;
@@ -107,9 +106,6 @@ struct Config {
   // no_quic_dump is true if hexdump of QUIC STREAM and CRYPTO data
   // should be disabled.
   bool no_quic_dump;
-  // no_http_dump is true if hexdump of HTTP response body should be
-  // disabled.
-  bool no_http_dump;
   // qlog_file is the path to write qlog.
   std::string_view qlog_file;
   // qlog_dir is the path to directory where qlog is stored.  qlog_dir

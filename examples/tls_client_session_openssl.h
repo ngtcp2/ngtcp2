@@ -43,8 +43,7 @@ public:
   ~TLSClientSession();
 
   int init(bool &early_data_enabled, const TLSClientContext &tls_ctx,
-           const char *remote_addr, ClientBase *client, uint32_t quic_version,
-           AppProtocol app_proto);
+           const char *remote_addr, ClientBase *client, uint32_t quic_version);
 
   bool get_early_data_accepted() const;
 };

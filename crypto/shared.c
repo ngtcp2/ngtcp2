@@ -37,6 +37,8 @@
 #include "ngtcp2_macro.h"
 #include "ngtcp2_net.h"
 
+#include <stdio.h>
+
 ngtcp2_crypto_md *ngtcp2_crypto_md_init(ngtcp2_crypto_md *md,
                                         void *md_native_handle) {
   md->native_handle = md_native_handle;
@@ -1334,21 +1336,27 @@ int ngtcp2_crypto_client_initial_cb(ngtcp2_conn *conn, void *user_data) {
   void *tls = ngtcp2_conn_get_tls_native_handle(conn);
   (void)user_data;
 
+  printf("ngtcp2_crypto_client_initial_cb START!\n");
+
   if (ngtcp2_crypto_derive_and_install_initial_key(
           conn, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
           ngtcp2_conn_get_client_chosen_version(conn), dcid) != 0) {
+      printf("ngtcp2_crypto_derive_and_install_initial_key returns NGTCP2_ERR_CALLBACK_FAILURE\n");
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   if (crypto_set_local_transport_params(conn, tls) != 0) {
+      printf("crypto_set_local_transport_params returns NGTCP2_ERR_CALLBACK_FAILURE\n");
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   if (ngtcp2_crypto_read_write_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL,
                                            NULL, 0) != 0) {
+      printf("ngtcp2_crypto_read_write_crypto_data returns NGTCP2_ERR_CALLBACK_FAILURE\n");
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
+  printf("ngtcp2_crypto_client_initial_cb SUCCESSFUL!\n");
   return 0;
 }
 
@@ -1418,8 +1426,14 @@ int ngtcp2_crypto_recv_crypto_data_cb(ngtcp2_conn *conn,
   (void)offset;
   (void)user_data;
 
+    printf("START DATA\n");
+    for(int i = 0; i < datalen; i++){
+        printf("%c", data[i]);
+    }
+    printf("\nEND DATA\n");
   if (ngtcp2_crypto_read_write_crypto_data(conn, crypto_level, data, datalen) !=
       0) {
+      printf("Failed in ngtcp2_crypto_read_write_crypto_data with data %s with length %ld\n", data, datalen);
     rv = ngtcp2_conn_get_tls_error(conn);
     if (rv) {
       return rv;

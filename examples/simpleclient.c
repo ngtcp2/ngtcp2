@@ -46,9 +46,9 @@
 #include <ev.h>
 
 #define REMOTE_HOST "127.0.0.1"
-#define REMOTE_PORT "4433"
+#define REMOTE_PORT "2023"
 #define ALPN "\xahq-interop"
-#define MESSAGE "GET /\r\n"
+#define MESSAGE "HELLO /\r\n"
 
 /*
  * Example 1: Handshake with www.google.com
@@ -184,7 +184,9 @@ static int client_ssl_init(struct client *c) {
 
   SSL_set_app_data(c->ssl, &c->conn_ref);
   SSL_set_connect_state(c->ssl);
-  SSL_set_alpn_protos(c->ssl, (const unsigned char *)ALPN, sizeof(ALPN) - 1);
+
+  //SSL_set_alpn_protos(c->ssl, (const unsigned char *)ALPN, sizeof(ALPN) - 1);
+
   if (!numeric_host(REMOTE_HOST)) {
     SSL_set_tlsext_host_name(c->ssl, REMOTE_HOST);
   }
@@ -266,6 +268,14 @@ static void log_printf(void *user_data, const char *fmt, ...) {
 
   fprintf(stderr, "\n");
 }
+
+int handshake_completed(ngtcp2_conn *conn, void *user_data) {
+  //auto c = static_cast<Client *>(user_data);
+
+
+  printf("HANDSHAKE COMPLETED!\n");
+  return 0;
+  }
 
 static int client_quic_init(struct client *c,
                             const struct sockaddr *remote_addr,
@@ -385,6 +395,8 @@ static int client_read(struct client *c) {
 
     nread = recvmsg(c->fd, &msg, MSG_DONTWAIT);
 
+    printf("client_read %ld\n", nread);
+
     if (nread == -1) {
       if (errno != EAGAIN && errno != EWOULDBLOCK) {
         fprintf(stderr, "recvmsg: %s\n", strerror(errno));
@@ -412,6 +424,10 @@ static int client_read(struct client *c) {
       }
       return -1;
     }
+    else {
+        printf("Client_read %s\n", buf);
+    }
+
   }
 
   return 0;
@@ -466,7 +482,7 @@ static int client_write_streams(struct client *c) {
   ngtcp2_tstamp ts = timestamp();
   ngtcp2_pkt_info pi;
   ngtcp2_ssize nwrite;
-  uint8_t buf[1280];
+  uint8_t buf[16384];
   ngtcp2_path_storage ps;
   ngtcp2_vec datav;
   size_t datavcnt;
@@ -475,13 +491,20 @@ static int client_write_streams(struct client *c) {
   uint32_t flags;
   int fin;
 
+
+
+   SSL_set_msg_callback(c->ssl,SSL_trace);
+   SSL_set_msg_callback_arg(c->ssl,BIO_new_fp(stdout,0));
+
   ngtcp2_path_storage_zero(&ps);
 
   for (;;) {
     datavcnt = client_get_message(c, &stream_id, &fin, &datav, 1);
 
+    printf("Client_get_message got %ld\n", datavcnt);
     flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
     if (fin) {
+      printf("FIN is %d\n", fin);
       flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
     }
 
@@ -552,6 +575,8 @@ static void client_close(struct client *c) {
   ngtcp2_path_storage ps;
   uint8_t buf[1280];
 
+  printf("Client closing\n");
+
   if (ngtcp2_conn_is_in_closing_period(c->conn) ||
       ngtcp2_conn_is_in_draining_period(c->conn)) {
     goto fin;
@@ -619,25 +644,37 @@ static int client_init(struct client *c) {
   c->fd = create_sock((struct sockaddr *)&remote_addr, &remote_addrlen,
                       REMOTE_HOST, REMOTE_PORT);
   if (c->fd == -1) {
+    printf("Created socket\n");
     return -1;
   }
 
   if (connect_sock((struct sockaddr *)&local_addr, &local_addrlen, c->fd,
                    (struct sockaddr *)&remote_addr, remote_addrlen) != 0) {
+    printf("Failed to connect to socket\n");
     return -1;
+  }
+  else {
+    printf("Connected to socket\n");
   }
 
   memcpy(&c->local_addr, &local_addr, sizeof(c->local_addr));
   c->local_addrlen = local_addrlen;
 
   if (client_ssl_init(c) != 0) {
+    printf("Failed SSL init\n");
     return -1;
   }
 
+  printf("SSL init success!\n");
+
   if (client_quic_init(c, (struct sockaddr *)&remote_addr, remote_addrlen,
                        (struct sockaddr *)&local_addr, local_addrlen) != 0) {
+
+    printf("Failed client_quic_init");
     return -1;
   }
+
+  printf("client_quic_init SUCCESS!");
 
   c->stream.stream_id = -1;
 
@@ -650,6 +687,8 @@ static int client_init(struct client *c) {
 
   ev_timer_init(&c->timer, timer_cb, 0., 0.);
   c->timer.data = c;
+
+  printf("Client init SUCCESS!\n");
 
   return 0;
 }

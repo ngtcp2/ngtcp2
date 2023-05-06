@@ -30,26 +30,13 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/crypto/includes \
 	-I$(top_srcdir)/third-party \
 	@LIBEV_CFLAGS@ \
-	@LIBNGHTTP3_CFLAGS@ \
 	@DEFS@ \
 	@EXTRA_DEFS@
 AM_LDFLAGS = -no-install \
 	@LIBTOOL_LDFLAGS@
 LDADD = $(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/libhttp-parser.la \
-	@LIBEV_LIBS@ \
-	@LIBNGHTTP3_LIBS@
-
-SERVER_SRCS = \
-	server_base.cc server_base.h \
-	tls_server_context.h \
-	tls_server_session.h \
-	template.h \
-	debug.cc debug.h \
-	util.cc util.h \
-	shared.cc shared.h \
-	http.cc http.h \
-	network.h
+	@LIBEV_LIBS@
 
 CLIENT_SRCS = \
 	client_base.cc client_base.h \
@@ -64,7 +51,7 @@ CLIENT_SRCS = \
 noinst_PROGRAMS =
 
 if ENABLE_EXAMPLE_OPENSSL
-noinst_PROGRAMS += client server h09client h09server simpleclient
+noinst_PROGRAMS += client simpleclient
 
 simpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
 	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@ -DWITH_EXAMPLE_OPENSSL
@@ -86,67 +73,10 @@ client_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 	tls_session_base_openssl.cc tls_session_base_openssl.h \
 	util_openssl.cc
 
-server_CPPFLAGS = ${client_CPPFLAGS}
-server_LDADD = ${client_LDADD}
-server_SOURCES = server.cc server.h ${SERVER_SRCS} \
-	tls_server_context_openssl.cc tls_server_context_openssl.h \
-	tls_server_session_openssl.cc tls_server_session_openssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
-	util_openssl.cc
-
-h09client_CPPFLAGS = ${client_CPPFLAGS}
-h09client_LDADD = ${client_LDADD}
-h09client_SOURCES = h09client.cc h09client.h ${CLIENT_SRCS} \
-	tls_client_context_openssl.cc tls_client_context_openssl.h \
-	tls_client_session_openssl.cc tls_client_session_openssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
-	util_openssl.cc
-
-h09server_CPPFLAGS = ${client_CPPFLAGS}
-h09server_LDADD = ${client_LDADD}
-h09server_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
-	tls_server_context_openssl.cc tls_server_context_openssl.h \
-	tls_server_session_openssl.cc tls_server_session_openssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
-	util_openssl.cc
 endif # ENABLE_EXAMPLE_OPENSSL
 
-if ENABLE_EXAMPLE_GNUTLS
-noinst_PROGRAMS += gtlsclient gtlsserver gtlssimpleclient
-
-gtlssimpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
-	@JEMALLOC_CFLAGS@ @GNUTLS_CFLAGS@ -DWITH_EXAMPLE_OPENSSL
-gtlssimpleclient_LDADD = ${LDADD} \
-	$(top_builddir)/crypto/gnutls/libngtcp2_crypto_gnutls.la \
-	@GNUTLS_LIBS@ \
-	@JEMALLOC_LIBS@
-gtlssimpleclient_SOURCES = gtlssimpleclient.c
-
-gtlsclient_CPPFLAGS = ${AM_CPPFLAGS} \
-	@JEMALLOC_CFLAGS@ @GNUTLS_CFLAGS@ -DWITH_EXAMPLE_GNUTLS
-gtlsclient_LDADD = ${LDADD} \
-	$(top_builddir)/crypto/gnutls/libngtcp2_crypto_gnutls.la \
-	@GNUTLS_LIBS@ \
-	@JEMALLOC_LIBS@
-gtlsclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
-	tls_client_context_gnutls.cc tls_client_context_gnutls.h \
-	tls_client_session_gnutls.cc tls_client_session_gnutls.h \
-	tls_session_base_gnutls.cc tls_session_base_gnutls.h \
-	util_gnutls.cc
-
-gtlsserver_CPPFLAGS = ${gtlsclient_CPPFLAGS}
-gtlsserver_LDADD = ${gtlsclient_LDADD} \
-	$(top_builddir)/crypto/gnutls/libngtcp2_crypto_gnutls.la \
-	@GNUTLS_LIBS@
-gtlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
-	tls_server_context_gnutls.cc tls_server_context_gnutls.h \
-	tls_server_session_gnutls.cc tls_server_session_gnutls.h \
-	tls_session_base_gnutls.cc tls_session_base_gnutls.h \
-	util_gnutls.cc
-endif # ENABLE_EXAMPLE_GNUTLS
-
 if ENABLE_EXAMPLE_BORINGSSL
-noinst_PROGRAMS += bsslclient bsslserver
+noinst_PROGRAMS += bsslclient
 
 bsslclient_CPPFLAGS = ${AM_CPPFLAGS} @BORINGSSL_CFLAGS@ -DWITH_EXAMPLE_BORINGSSL
 bsslclient_LDADD = ${LDADD} \
@@ -159,63 +89,7 @@ bsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 	tls_session_base_openssl.cc tls_session_base_openssl.h \
 	util_openssl.cc
 
-bsslserver_CPPFLAGS = ${bsslclient_CPPFLAGS}
-bsslserver_LDADD = ${bsslclient_LDADD}
-bsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
-	tls_server_context_boringssl.cc tls_server_context_boringssl.h \
-	tls_server_session_boringssl.cc tls_server_session_boringssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
-	util_openssl.cc
 endif # ENABLE_EXAMPLE_BORINGSSL
-
-if ENABLE_EXAMPLE_PICOTLS
-noinst_PROGRAMS += ptlsclient ptlsserver
-
-ptlsclient_CPPFLAGS = ${AM_CPPFLAGS} @PICOTLS_CFLAGS@ @VANILLA_OPENSSL_CFLAGS@ \
-	-DWITH_EXAMPLE_PICOTLS
-ptlsclient_LDADD = ${LDADD} \
-	$(top_builddir)/crypto/picotls/libngtcp2_crypto_picotls.a \
-	@PICOTLS_LIBS@ @VANILLA_OPENSSL_LIBS@ \
-	@JEMALLOC_LIBS@
-ptlsclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
-	tls_client_context_picotls.cc tls_client_context_picotls.h \
-	tls_client_session_picotls.cc tls_client_session_picotls.h \
-	tls_session_base_picotls.cc tls_session_base_picotls.h \
-	tls_shared_picotls.cc tls_shared_picotls.h \
-	util_openssl.cc
-
-ptlsserver_CPPFLAGS = ${ptlsclient_CPPFLAGS}
-ptlsserver_LDADD = ${ptlsclient_LDADD}
-ptlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
-	tls_server_context_picotls.cc tls_server_context_picotls.h \
-	tls_server_session_picotls.cc tls_server_session_picotls.h \
-	tls_session_base_picotls.cc tls_session_base_picotls.h \
-	tls_shared_picotls.cc tls_shared_picotls.h \
-	util_openssl.cc
-endif # ENABLE_EXAMPLE_PICOTLS
-
-if ENABLE_EXAMPLE_WOLFSSL
-noinst_PROGRAMS += wsslclient wsslserver
-
-wsslclient_CPPFLAGS = ${AM_CPPFLAGS} @WOLFSSL_CFLAGS@ -DWITH_EXAMPLE_WOLFSSL
-wsslclient_LDADD = ${LDADD} \
-	$(top_builddir)/crypto/wolfssl/libngtcp2_crypto_wolfssl.la \
-	@WOLFSSL_LIBS@ \
-	@JEMALLOC_LIBS@
-wsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
-	tls_client_context_wolfssl.cc tls_client_context_wolfssl.h \
-	tls_client_session_wolfssl.cc tls_client_session_wolfssl.h \
-	tls_session_base_wolfssl.cc tls_session_base_wolfssl.h \
-	util_wolfssl.cc
-
-wsslserver_CPPFLAGS = ${wsslclient_CPPFLAGS}
-wsslserver_LDADD = ${wsslclient_LDADD}
-wsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
-	tls_server_context_wolfssl.cc tls_server_context_wolfssl.h \
-	tls_server_session_wolfssl.cc tls_server_session_wolfssl.h \
-	tls_session_base_wolfssl.cc tls_session_base_wolfssl.h \
-	util_wolfssl.cc
-endif # ENABLE_EXAMPLE_WOLFSSL
 
 if HAVE_CUNIT
 check_PROGRAMS = examplestest

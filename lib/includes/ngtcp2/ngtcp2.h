@@ -2157,7 +2157,7 @@ typedef struct ngtcp2_crypto_ctx {
 /**
  * @function
  *
- * `ngtcp2_transport_params_encode` encodes |params| in |dest| of
+ * `Bngtcp2_transport_params_encode` encodes |params| in |dest| of
  * length |destlen|.
  *
  * If |dest| is NULL, and |destlen| is zero, this function just

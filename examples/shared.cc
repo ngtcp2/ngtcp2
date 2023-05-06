@@ -24,7 +24,6 @@
  */
 #include "shared.h"
 
-#include <nghttp3/nghttp3.h>
 
 #include <cstring>
 #include <cassert>

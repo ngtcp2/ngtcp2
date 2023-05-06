@@ -201,83 +201,15 @@ void path_validation(const ngtcp2_path *path,
             << std::endl;
 }
 
-void print_http_begin_request_headers(int64_t stream_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " request headers started\n",
-          stream_id);
-}
-
-void print_http_begin_response_headers(int64_t stream_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " response headers started\n",
-          stream_id);
-}
-
 namespace {
 void print_header(const uint8_t *name, size_t namelen, const uint8_t *value,
                   size_t valuelen, uint8_t flags) {
   fprintf(outfile, "[%.*s: %.*s]%s\n", static_cast<int>(namelen), name,
           static_cast<int>(valuelen), value,
-          (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
+          flags ? "(sensitive)" : "");
 }
 } // namespace
 
-namespace {
-void print_header(const nghttp3_rcbuf *name, const nghttp3_rcbuf *value,
-                  uint8_t flags) {
-  auto namebuf = nghttp3_rcbuf_get_buf(name);
-  auto valuebuf = nghttp3_rcbuf_get_buf(value);
-  print_header(namebuf.base, namebuf.len, valuebuf.base, valuebuf.len, flags);
-}
-} // namespace
-
-namespace {
-void print_header(const nghttp3_nv &nv) {
-  print_header(nv.name, nv.namelen, nv.value, nv.valuelen, nv.flags);
-}
-} // namespace
-
-void print_http_header(int64_t stream_id, const nghttp3_rcbuf *name,
-                       const nghttp3_rcbuf *value, uint8_t flags) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " ", stream_id);
-  print_header(name, value, flags);
-}
-
-void print_http_end_headers(int64_t stream_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " headers ended\n", stream_id);
-}
-
-void print_http_data(int64_t stream_id, const uint8_t *data, size_t datalen) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " body %zu bytes\n", stream_id,
-          datalen);
-  util::hexdump(outfile, data, datalen);
-}
-
-void print_http_begin_trailers(int64_t stream_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " trailers started\n", stream_id);
-}
-
-void print_http_end_trailers(int64_t stream_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " trailers ended\n", stream_id);
-}
-
-void print_http_request_headers(int64_t stream_id, const nghttp3_nv *nva,
-                                size_t nvlen) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " submit request headers\n",
-          stream_id);
-  for (size_t i = 0; i < nvlen; ++i) {
-    auto &nv = nva[i];
-    print_header(nv);
-  }
-}
-
-void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
-                                 size_t nvlen) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " submit response headers\n",
-          stream_id);
-  for (size_t i = 0; i < nvlen; ++i) {
-    auto &nv = nva[i];
-    print_header(nv);
-  }
-}
 
 std::string_view secret_title(ngtcp2_crypto_level level) {
   switch (level) {

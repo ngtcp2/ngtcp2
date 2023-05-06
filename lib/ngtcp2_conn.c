@@ -39,6 +39,8 @@
 #include "ngtcp2_net.h"
 #include "ngtcp2_conversion.h"
 
+# include <stdio.h>
+
 /* NGTCP2_FLOW_WINDOW_RTT_FACTOR is the factor of RTT when flow
    control window auto-tuning is triggered. */
 #define NGTCP2_FLOW_WINDOW_RTT_FACTOR 2
@@ -64,6 +66,7 @@ static int conn_local_stream(ngtcp2_conn *conn, int64_t stream_id) {
 static int bidi_stream(int64_t stream_id) { return (stream_id & 0x2) == 0; }
 
 static void conn_update_timestamp(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  printf("LOG.last_ts: %ld, TS: %ld\n", conn->log.last_ts, ts);
   assert(conn->log.last_ts <= ts);
   assert(conn->qlog.last_ts <= ts);
 

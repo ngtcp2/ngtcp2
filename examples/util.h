@@ -39,7 +39,6 @@
 #include <string_view>
 
 #include <ngtcp2/ngtcp2.h>
-#include <nghttp3/nghttp3.h>
 
 #include <ev.h>
 
@@ -47,7 +46,8 @@ namespace ngtcp2 {
 
 namespace util {
 
-inline nghttp3_nv make_nv(const std::string_view &name,
+/*
+inline nghttp3_nv make_nv(const std::string_view& name,
                           const std::string_view &value, uint8_t flags) {
   return nghttp3_nv{
       reinterpret_cast<uint8_t *>(const_cast<char *>(std::data(name))),
@@ -57,6 +57,7 @@ inline nghttp3_nv make_nv(const std::string_view &name,
       flags,
   };
 }
+
 
 inline nghttp3_nv make_nv_cc(const std::string_view &name,
                              const std::string_view &value) {
@@ -74,6 +75,7 @@ inline nghttp3_nv make_nv_nn(const std::string_view &name,
                  NGHTTP3_NV_FLAG_NO_COPY_NAME | NGHTTP3_NV_FLAG_NO_COPY_VALUE);
 }
 
+*/
 std::string format_hex(uint8_t c);
 
 std::string format_hex(const uint8_t *s, size_t len);
@@ -157,10 +159,12 @@ std::string straddr(const sockaddr *sa, socklen_t salen);
 // strccalgo stringifies |cc_algo|.
 std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 
+/* 
 template <typename T, size_t N>
 bool streq_l(const T (&a)[N], const nghttp3_vec &b) {
   return N - 1 == b.len && memcmp(a, b.base, N - 1) == 0;
 }
+*/
 
 namespace {
 constexpr char B64_CHARS[] = {

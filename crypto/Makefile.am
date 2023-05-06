@@ -30,20 +30,8 @@ if HAVE_OPENSSL
 SUBDIRS += openssl
 endif
 
-if HAVE_GNUTLS
-SUBDIRS += gnutls
-endif
-
 if HAVE_BORINGSSL
 SUBDIRS += boringssl
-endif
-
-if HAVE_PICOTLS
-SUBDIRS += picotls
-endif
-
-if HAVE_WOLFSSL
-SUBDIRS += wolfssl
 endif
 
 EXTRA_DIST = CMakeLists.txt

@@ -37,7 +37,6 @@
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
-#include <nghttp3/nghttp3.h>
 
 #include <ev.h>
 
@@ -140,6 +139,11 @@ public:
   void early_data_rejected();
 
   bool should_exit() const;
+  void setup_default_client();
+  void client_default_callbacks(ngtcp2_callbacks* cb);
+  void client_default_transport_params(ngtcp2_transport_params* params);
+  void client_default_settings(ngtcp2_settings* settings);
+  int client_initial(ngtcp2_conn* conn, void* user_data);
 
 private:
   std::vector<Endpoint> endpoints_;
@@ -153,7 +157,6 @@ private:
   struct ev_loop *loop_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
   std::vector<uint32_t> offered_versions_;
-  nghttp3_conn *httpconn_;
   // addr_ is the server host address.
   const char *addr_;
   // port_ is the server port.

@@ -31,26 +31,10 @@ elseif(ENABLE_OPENSSL)
   message(WARNING "libngtcp2_crypto_openssl library is disabled due to lack of good OpenSSL")
 endif()
 
-if(HAVE_GNUTLS)
-  add_subdirectory(gnutls)
-elseif(ENABLE_GNUTLS)
-  message(WARNING "libngtcp2_crypto_gnutls library is disabled due to lack of good GnuTLS")
-endif()
-
 if(HAVE_BORINGSSL)
   add_subdirectory(boringssl)
 elseif(ENABLE_BORINGSSL)
   message(WARNING "libngtcp2_crypto_boringssl library is disabled due to lack of good BoringSSL")
 endif()
+1
 
-if(HAVE_PICOTLS)
-  add_subdirectory(picotls)
-elseif(ENABLE_PICOTLS)
-  message(WARNING "libngtcp2_crypto_picotls library is disabled due to lack of good Picotls")
-endif()
-
-if(HAVE_WOLFSSL)
-  add_subdirectory(wolfssl)
-elseif(ENABLE_WOLFSSL)
-  message(WARNING "libngtcp2_crypto_wolfssl library is disabled due to lack of good wolfSSL")
-endif()
