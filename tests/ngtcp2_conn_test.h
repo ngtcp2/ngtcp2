@@ -97,6 +97,7 @@ void test_ngtcp2_conn_server_negotiate_version(void);
 void test_ngtcp2_conn_pmtud_loss(void);
 void test_ngtcp2_conn_amplification(void);
 void test_ngtcp2_conn_encode_early_transport_params(void);
+void test_ngtcp2_conn_create_ack_frame(void);
 void test_ngtcp2_conn_new_failmalloc(void);
 void test_ngtcp2_accept(void);
 void test_ngtcp2_select_version(void);

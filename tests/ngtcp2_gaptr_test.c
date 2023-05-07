@@ -127,3 +127,55 @@ void test_ngtcp2_gaptr_drop_first_gap(void) {
 
   ngtcp2_gaptr_free(&gaptr);
 }
+
+void test_ngtcp2_gaptr_get_first_gap_after(void) {
+  ngtcp2_gaptr gaptr;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  int rv;
+  ngtcp2_range r;
+
+  ngtcp2_gaptr_init(&gaptr, mem);
+
+  rv = ngtcp2_gaptr_push(&gaptr, 100, 1);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_gaptr_push(&gaptr, 101, 1);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_gaptr_push(&gaptr, 102, 1);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_gaptr_push(&gaptr, 104, 1);
+
+  CU_ASSERT(0 == rv);
+
+  r = ngtcp2_gaptr_get_first_gap_after(&gaptr, 99);
+
+  CU_ASSERT(0 == r.begin);
+  CU_ASSERT(100 == r.end);
+
+  r = ngtcp2_gaptr_get_first_gap_after(&gaptr, 100);
+
+  CU_ASSERT(103 == r.begin);
+  CU_ASSERT(104 == r.end);
+
+  r = ngtcp2_gaptr_get_first_gap_after(&gaptr, 102);
+
+  CU_ASSERT(103 == r.begin);
+  CU_ASSERT(104 == r.end);
+
+  r = ngtcp2_gaptr_get_first_gap_after(&gaptr, 103);
+
+  CU_ASSERT(103 == r.begin);
+  CU_ASSERT(104 == r.end);
+
+  r = ngtcp2_gaptr_get_first_gap_after(&gaptr, UINT64_MAX - 1);
+
+  CU_ASSERT(105 == r.begin);
+  CU_ASSERT(UINT64_MAX == r.end);
+
+  ngtcp2_gaptr_free(&gaptr);
+}

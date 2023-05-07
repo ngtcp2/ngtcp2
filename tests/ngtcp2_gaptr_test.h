@@ -32,5 +32,6 @@
 void test_ngtcp2_gaptr_push(void);
 void test_ngtcp2_gaptr_is_pushed(void);
 void test_ngtcp2_gaptr_drop_first_gap(void);
+void test_ngtcp2_gaptr_get_first_gap_after(void);
 
 #endif /* NGTCP2_GAPTR_TEST_H */
