@@ -1162,4 +1162,26 @@ int ngtcp2_conn_set_remote_transport_params(
 int ngtcp2_conn_set_early_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params);
 
+/*
+ * ngtcp2_conn_create_ack_frame creates ACK frame, and assigns its
+ * pointer to |*pfr| if there are any received packets to acknowledge.
+ * If there are no packets to acknowledge, this function returns 0,
+ * and |*pfr| is untouched.  The caller is advised to set |*pfr| to
+ * NULL before calling this function, and check it after this function
+ * returns.
+ *
+ * Call ngtcp2_acktr_commit_ack after a created ACK frame is
+ * successfully serialized into a packet.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+int ngtcp2_conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
+                                 ngtcp2_pktns *pktns, uint8_t type,
+                                 ngtcp2_tstamp ts, ngtcp2_duration ack_delay,
+                                 uint64_t ack_delay_exponent);
+
 #endif /* NGTCP2_CONN_H */

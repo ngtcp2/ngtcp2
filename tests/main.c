@@ -313,6 +313,8 @@ int main(void) {
                    test_ngtcp2_conn_amplification) ||
       !CU_add_test(pSuite, "conn_encode_early_transport_params",
                    test_ngtcp2_conn_encode_early_transport_params) ||
+      !CU_add_test(pSuite, "conn_create_ack_frame",
+                   test_ngtcp2_conn_create_ack_frame) ||
       !CU_add_test(pSuite, "conn_new_failmalloc",
                    test_ngtcp2_conn_new_failmalloc) ||
       !CU_add_test(pSuite, "accept", test_ngtcp2_accept) ||
@@ -327,6 +329,8 @@ int main(void) {
       !CU_add_test(pSuite, "gaptr_is_pushed", test_ngtcp2_gaptr_is_pushed) ||
       !CU_add_test(pSuite, "gaptr_drop_first_gap",
                    test_ngtcp2_gaptr_drop_first_gap) ||
+      !CU_add_test(pSuite, "gaptr_get_first_gep_after",
+                   test_ngtcp2_gaptr_get_first_gap_after) ||
       !CU_add_test(pSuite, "vec_split", test_ngtcp2_vec_split) ||
       !CU_add_test(pSuite, "vec_merge", test_ngtcp2_vec_merge) ||
       !CU_add_test(pSuite, "vec_len_varint", test_ngtcp2_vec_len_varint) ||

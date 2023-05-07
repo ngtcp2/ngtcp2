@@ -624,7 +624,7 @@ static void delete_crypto_cipher_ctx(ngtcp2_conn *conn,
 }
 
 static void server_default_settings(ngtcp2_settings *settings) {
-  memset(settings, 0, sizeof(*settings));
+  ngtcp2_settings_default(settings);
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
@@ -636,7 +636,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
 static void server_default_transport_params(ngtcp2_transport_params *params) {
   size_t i;
 
-  memset(params, 0, sizeof(*params));
+  ngtcp2_transport_params_default(params);
   params->original_dcid_present = 1;
   params->initial_max_stream_data_bidi_local = 65535;
   params->initial_max_stream_data_bidi_remote = 65535;
@@ -645,7 +645,6 @@ static void server_default_transport_params(ngtcp2_transport_params *params) {
   params->initial_max_streams_bidi = 3;
   params->initial_max_streams_uni = 2;
   params->max_idle_timeout = 60 * NGTCP2_SECONDS;
-  params->max_udp_payload_size = 65535;
   params->stateless_reset_token_present = 1;
   params->active_connection_id_limit = 8;
   for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
@@ -677,7 +676,7 @@ static void server_early_callbacks(ngtcp2_callbacks *cb) {
 }
 
 static void client_default_settings(ngtcp2_settings *settings) {
-  memset(settings, 0, sizeof(*settings));
+  ngtcp2_settings_default(settings);
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
@@ -686,7 +685,7 @@ static void client_default_settings(ngtcp2_settings *settings) {
 }
 
 static void client_default_transport_params(ngtcp2_transport_params *params) {
-  memset(params, 0, sizeof(*params));
+  ngtcp2_transport_params_default(params);
   params->initial_max_stream_data_bidi_local = 65535;
   params->initial_max_stream_data_bidi_remote = 65535;
   params->initial_max_stream_data_uni = 65535;
@@ -694,7 +693,6 @@ static void client_default_transport_params(ngtcp2_transport_params *params) {
   params->initial_max_streams_bidi = 0;
   params->initial_max_streams_uni = 2;
   params->max_idle_timeout = 60 * NGTCP2_SECONDS;
-  params->max_udp_payload_size = 65535;
   params->stateless_reset_token_present = 0;
   params->active_connection_id_limit = 8;
 }
@@ -4314,7 +4312,8 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
-  CU_ASSERT(spktlen > 0);
+  /* ACK is not generated due to ack delay */
+  CU_ASSERT(0 == spktlen);
 
   strm = ngtcp2_conn_find_stream(conn, 4);
 
@@ -9619,6 +9618,384 @@ void test_ngtcp2_conn_encode_early_transport_params(void) {
   CU_ASSERT(params.max_udp_payload_size == early_params.max_udp_payload_size);
   CU_ASSERT(params.disable_active_migration ==
             early_params.disable_active_migration);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_create_ack_frame(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_frame *ackfr;
+  ngtcp2_frame fr;
+  uint8_t buf[2048];
+  size_t pktlen;
+  int rv;
+  ngtcp2_ksl_it it;
+  size_t i;
+  ngtcp2_ack_range ar;
+
+  /* Nothing to acknowledge */
+  setup_default_server(&conn);
+
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT,
+                                    0, 0, 0);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == ackfr);
+
+  ngtcp2_conn_del(conn);
+
+  /* ACK delay */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_PADDING;
+  fr.padding.len = 100;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  /* PADDING does not elicit ACK */
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT,
+                                    0, 0, 0);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == ackfr);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 1, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  /* PING elicits ACK, but ACK is not generated due to ack delay. */
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT,
+                                    0, 25 * NGTCP2_MILLISECONDS, 0);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == ackfr);
+
+  /* ACK delay passed. */
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(
+      conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+      25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == ackfr->ack.largest_ack);
+  CU_ASSERT(1 == ackfr->ack.first_ack_range);
+  CU_ASSERT(25 * NGTCP2_MILLISECONDS == ackfr->ack.ack_delay_unscaled);
+  CU_ASSERT(3125 == ackfr->ack.ack_delay);
+  CU_ASSERT(0 == ackfr->ack.rangecnt);
+
+  ngtcp2_conn_del(conn);
+
+  /* reorder (adjacent packets) */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 1, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(
+      conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+      25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == ackfr->ack.largest_ack);
+  CU_ASSERT(0 == ackfr->ack.first_ack_range);
+  CU_ASSERT(25 * NGTCP2_MILLISECONDS == ackfr->ack.ack_delay_unscaled);
+  CU_ASSERT(3125 == ackfr->ack.ack_delay);
+  CU_ASSERT(0 == ackfr->ack.rangecnt);
+
+  ngtcp2_acktr_commit_ack(&conn->pktns.acktr);
+
+  it = ngtcp2_acktr_get(&conn->pktns.acktr);
+
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
+
+  ngtcp2_acktr_forget(&conn->pktns.acktr, ngtcp2_ksl_it_get(&it));
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(
+      conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+      25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == ackfr->ack.largest_ack);
+  CU_ASSERT(1 == ackfr->ack.first_ack_range);
+  CU_ASSERT(25 * NGTCP2_MILLISECONDS == ackfr->ack.ack_delay_unscaled);
+  CU_ASSERT(3125 == ackfr->ack.ack_delay);
+  CU_ASSERT(0 == ackfr->ack.rangecnt);
+
+  ngtcp2_conn_del(conn);
+
+  /* reorder (adjacent packets) with multiple ack ranges. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 10, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(
+      conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+      25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(10 == ackfr->ack.largest_ack);
+  CU_ASSERT(0 == ackfr->ack.first_ack_range);
+  CU_ASSERT(25 * NGTCP2_MILLISECONDS == ackfr->ack.ack_delay_unscaled);
+  CU_ASSERT(3125 == ackfr->ack.ack_delay);
+  CU_ASSERT(0 == ackfr->ack.rangecnt);
+
+  ngtcp2_acktr_commit_ack(&conn->pktns.acktr);
+
+  it = ngtcp2_acktr_get(&conn->pktns.acktr);
+
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
+
+  ngtcp2_acktr_forget(&conn->pktns.acktr, ngtcp2_ksl_it_get(&it));
+
+  /* [0..1] */
+  for (i = 0; i < 2; ++i) {
+    pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, (int64_t)i, &fr, 1,
+                       conn->pktns.crypto.rx.ckm);
+
+    rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+    CU_ASSERT(0 == rv);
+  }
+
+  /* [3..6] */
+  for (i = 3; i < 7; ++i) {
+    pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, (int64_t)i, &fr, 1,
+                       conn->pktns.crypto.rx.ckm);
+
+    rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+    CU_ASSERT(0 == rv);
+  }
+
+  /* [9..9] */
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 9, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(
+      conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+      25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(10 == ackfr->ack.largest_ack);
+  CU_ASSERT(1 == ackfr->ack.first_ack_range);
+  CU_ASSERT(25 * NGTCP2_MILLISECONDS == ackfr->ack.ack_delay_unscaled);
+  CU_ASSERT(3125 == ackfr->ack.ack_delay);
+  CU_ASSERT(2 == ackfr->ack.rangecnt);
+
+  ar = ackfr->ack.ranges[0];
+
+  CU_ASSERT(1 == ar.gap);
+  CU_ASSERT(3 == ar.len);
+
+  ar = ackfr->ack.ranges[1];
+
+  CU_ASSERT(0 == ar.gap);
+  CU_ASSERT(1 == ar.len);
+
+  ngtcp2_conn_del(conn);
+
+  /* reorder (no adjacent packets) with multiple ack ranges. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 10, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(
+      conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+      25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(10 == ackfr->ack.largest_ack);
+  CU_ASSERT(0 == ackfr->ack.first_ack_range);
+  CU_ASSERT(25 * NGTCP2_MILLISECONDS == ackfr->ack.ack_delay_unscaled);
+  CU_ASSERT(3125 == ackfr->ack.ack_delay);
+  CU_ASSERT(0 == ackfr->ack.rangecnt);
+
+  ngtcp2_acktr_commit_ack(&conn->pktns.acktr);
+
+  it = ngtcp2_acktr_get(&conn->pktns.acktr);
+
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
+
+  ngtcp2_acktr_forget(&conn->pktns.acktr, ngtcp2_ksl_it_get(&it));
+
+  /* [3..7] */
+  for (i = 3; i < 8; ++i) {
+    pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, (int64_t)i, &fr, 1,
+                       conn->pktns.crypto.rx.ckm);
+
+    rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+    CU_ASSERT(0 == rv);
+  }
+
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(
+      conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+      25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(10 == ackfr->ack.largest_ack);
+  CU_ASSERT(0 == ackfr->ack.first_ack_range);
+  CU_ASSERT(25 * NGTCP2_MILLISECONDS == ackfr->ack.ack_delay_unscaled);
+  CU_ASSERT(3125 == ackfr->ack.ack_delay);
+  CU_ASSERT(1 == ackfr->ack.rangecnt);
+
+  ar = ackfr->ack.ranges[0];
+
+  CU_ASSERT(1 == ar.gap);
+  CU_ASSERT(4 == ar.len);
+
+  ngtcp2_conn_del(conn);
+
+  /* More than NGTCP2_MAX_ACK_RANGES */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  for (i = 0; i < NGTCP2_MAX_ACK_RANGES + 2; ++i) {
+    pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, (int64_t)(i * 2), &fr, 1,
+                       conn->pktns.crypto.rx.ckm);
+
+    rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+    CU_ASSERT(0 == rv);
+  }
+
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(
+      conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+      25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(66 == ackfr->ack.largest_ack);
+  CU_ASSERT(0 == ackfr->ack.first_ack_range);
+  CU_ASSERT(25 * NGTCP2_MILLISECONDS == ackfr->ack.ack_delay_unscaled);
+  CU_ASSERT(3125 == ackfr->ack.ack_delay);
+  CU_ASSERT(NGTCP2_MAX_ACK_RANGES == ackfr->ack.rangecnt);
+
+  ngtcp2_conn_del(conn);
+
+  /* Immediate acknowledgement (reorder) */
+  setup_default_server(&conn);
+
+  conn->local.settings.ack_thresh = 10;
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 1, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT,
+                                    0, 25 * NGTCP2_MILLISECONDS,
+                                    NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == ackfr->ack.largest_ack);
+  CU_ASSERT(1 == ackfr->ack.first_ack_range);
+  CU_ASSERT(0 == ackfr->ack.ack_delay_unscaled);
+  CU_ASSERT(0 == ackfr->ack.ack_delay);
+  CU_ASSERT(0 == ackfr->ack.rangecnt);
+
+  ngtcp2_conn_del(conn);
+
+  /* Immediate acknowledgement (gap) */
+  setup_default_server(&conn);
+
+  conn->local.settings.ack_thresh = 10;
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 2, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 0);
+
+  CU_ASSERT(0 == rv);
+
+  ackfr = NULL;
+  rv = ngtcp2_conn_create_ack_frame(conn, &ackfr, &conn->pktns, NGTCP2_PKT_1RTT,
+                                    0, 25 * NGTCP2_MILLISECONDS,
+                                    NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(2 == ackfr->ack.largest_ack);
+  CU_ASSERT(0 == ackfr->ack.first_ack_range);
+  CU_ASSERT(0 == ackfr->ack.ack_delay_unscaled);
+  CU_ASSERT(0 == ackfr->ack.ack_delay);
+  CU_ASSERT(1 == ackfr->ack.rangecnt);
+
+  ar = ackfr->ack.ranges[0];
+
+  CU_ASSERT(0 == ar.gap);
+  CU_ASSERT(0 == ar.len);
 
   ngtcp2_conn_del(conn);
 }

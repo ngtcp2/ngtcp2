@@ -1648,27 +1648,7 @@ static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
                     conn->cstat.smoothed_rtt / 8);
 }
 
-/*
- * conn_create_ack_frame creates ACK frame, and assigns its pointer to
- * |*pfr| if there are any received packets to acknowledge.  If there
- * are no packets to acknowledge, this function returns 0, and |*pfr|
- * is untouched.  The caller is advised to set |*pfr| to NULL before
- * calling this function, and check it after this function returns.
- * If |nodelay| is nonzero, delayed ACK timer is ignored.
- *
- * The memory for ACK frame is dynamically allocated by this function.
- * A caller is responsible to free it.
- *
- * Call ngtcp2_acktr_commit_ack after a created ACK frame is
- * successfully serialized into a packet.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
+int ngtcp2_conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_pktns *pktns, uint8_t type,
                                  ngtcp2_tstamp ts, ngtcp2_duration ack_delay,
                                  uint64_t ack_delay_exponent) {
@@ -1728,6 +1708,13 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     largest_ack_ts = rpkt->tstamp;
     ack->largest_ack = rpkt->pkt_num;
     ack->first_ack_range = rpkt->len - 1;
+
+    ngtcp2_ksl_it_next(&it);
+  } else if (rpkt->pkt_num + 1 == pktns->rx.max_pkt_num) {
+    last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
+    largest_ack_ts = pktns->rx.max_pkt_ts;
+    ack->largest_ack = pktns->rx.max_pkt_num;
+    ack->first_ack_range = rpkt->len;
 
     ngtcp2_ksl_it_next(&it);
   } else {
@@ -2623,9 +2610,9 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
     return 0;
   }
 
-  rv = conn_create_ack_frame(conn, &ackfr, pktns, type, ts,
-                             /* ack_delay = */ 0,
-                             NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+  rv = ngtcp2_conn_create_ack_frame(conn, &ackfr, pktns, type, ts,
+                                    /* ack_delay = */ 0,
+                                    NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
   if (rv != 0) {
     ngtcp2_frame_chain_list_objalloc_del(frq, &conn->frc_objalloc, conn->mem);
     return rv;
@@ -2882,8 +2869,8 @@ static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   }
 
   ackfr = NULL;
-  rv = conn_create_ack_frame(conn, &ackfr, pktns, type, ts, ack_delay,
-                             ack_delay_exponent);
+  rv = ngtcp2_conn_create_ack_frame(conn, &ackfr, pktns, type, ts, ack_delay,
+                                    ack_delay_exponent);
   if (rv != 0) {
     return rv;
   }
@@ -3659,9 +3646,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       }
     }
 
-    rv = conn_create_ack_frame(conn, &ackfr, pktns, type, ts,
-                               conn_compute_ack_delay(conn),
-                               conn->local.transport_params.ack_delay_exponent);
+    rv = ngtcp2_conn_create_ack_frame(
+        conn, &ackfr, pktns, type, ts, conn_compute_ack_delay(conn),
+        conn->local.transport_params.ack_delay_exponent);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       return rv;
@@ -6027,17 +6014,7 @@ static int pktns_pkt_num_is_duplicate(ngtcp2_pktns *pktns, int64_t pkt_num) {
 static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num,
                                      int ack_eliciting, ngtcp2_tstamp ts) {
   int rv;
-
-  if (ack_eliciting && pktns->rx.max_ack_eliciting_pkt_num + 1 != pkt_num) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
-  }
-  if (pktns->rx.max_pkt_num < pkt_num) {
-    pktns->rx.max_pkt_num = pkt_num;
-    pktns->rx.max_pkt_ts = ts;
-  }
-  if (ack_eliciting && pktns->rx.max_ack_eliciting_pkt_num < pkt_num) {
-    pktns->rx.max_ack_eliciting_pkt_num = pkt_num;
-  }
+  ngtcp2_range r;
 
   rv = ngtcp2_gaptr_push(&pktns->rx.pngap, (uint64_t)pkt_num, 1);
   if (rv != 0) {
@@ -6046,6 +6023,30 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num,
 
   if (ngtcp2_ksl_len(&pktns->rx.pngap.gap) > 256) {
     ngtcp2_gaptr_drop_first_gap(&pktns->rx.pngap);
+  }
+
+  if (ack_eliciting) {
+    if (pktns->rx.max_ack_eliciting_pkt_num != -1) {
+      if (pkt_num < pktns->rx.max_ack_eliciting_pkt_num) {
+        ngtcp2_acktr_immediate_ack(&pktns->acktr);
+      } else if (pkt_num > pktns->rx.max_ack_eliciting_pkt_num) {
+        r = ngtcp2_gaptr_get_first_gap_after(
+            &pktns->rx.pngap, (uint64_t)pktns->rx.max_ack_eliciting_pkt_num);
+
+        if (r.begin < (uint64_t)pkt_num) {
+          ngtcp2_acktr_immediate_ack(&pktns->acktr);
+        }
+      }
+    }
+
+    if (pktns->rx.max_ack_eliciting_pkt_num < pkt_num) {
+      pktns->rx.max_ack_eliciting_pkt_num = pkt_num;
+    }
+  }
+
+  if (pktns->rx.max_pkt_num < pkt_num) {
+    pktns->rx.max_pkt_num = pkt_num;
+    pktns->rx.max_pkt_ts = ts;
   }
 
   return 0;
