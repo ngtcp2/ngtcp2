@@ -218,7 +218,7 @@ void test_ngtcp2_transport_params_encode(void) {
   CU_ASSERT(params.active_connection_id_limit ==
             nparams.active_connection_id_limit);
   CU_ASSERT(params.max_datagram_frame_size == nparams.max_datagram_frame_size);
-  CU_ASSERT(params.grease_quic_bit = nparams.grease_quic_bit);
+  CU_ASSERT(params.grease_quic_bit == nparams.grease_quic_bit);
   CU_ASSERT(params.version_info_present == nparams.version_info_present);
   CU_ASSERT(params.version_info.chosen_version ==
             nparams.version_info.chosen_version);
@@ -397,7 +397,7 @@ void test_ngtcp2_transport_params_decode_new(void) {
   CU_ASSERT(params.active_connection_id_limit ==
             nparams->active_connection_id_limit);
   CU_ASSERT(params.max_datagram_frame_size == nparams->max_datagram_frame_size);
-  CU_ASSERT(params.grease_quic_bit = nparams->grease_quic_bit);
+  CU_ASSERT(params.grease_quic_bit == nparams->grease_quic_bit);
   CU_ASSERT(params.version_info_present == nparams->version_info_present);
   CU_ASSERT(params.version_info.chosen_version ==
             nparams->version_info.chosen_version);

@@ -138,7 +138,7 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   CU_ASSERT(srcbuf.active_connection_id_limit ==
             dest->active_connection_id_limit);
   CU_ASSERT(srcbuf.max_datagram_frame_size == dest->max_datagram_frame_size);
-  CU_ASSERT(srcbuf.grease_quic_bit = dest->grease_quic_bit);
+  CU_ASSERT(srcbuf.grease_quic_bit == dest->grease_quic_bit);
   CU_ASSERT(srcbuf.version_info_present == dest->version_info_present);
   CU_ASSERT(srcbuf.version_info.chosen_version ==
             dest->version_info.chosen_version);
@@ -248,7 +248,7 @@ void test_ngtcp2_transport_params_convert_to_old(void) {
   CU_ASSERT(src.active_connection_id_limit ==
             destbuf.active_connection_id_limit);
   CU_ASSERT(src.max_datagram_frame_size == destbuf.max_datagram_frame_size);
-  CU_ASSERT(src.grease_quic_bit = destbuf.grease_quic_bit);
+  CU_ASSERT(src.grease_quic_bit == destbuf.grease_quic_bit);
   CU_ASSERT(src.version_info_present == destbuf.version_info_present);
   CU_ASSERT(src.version_info.chosen_version ==
             destbuf.version_info.chosen_version);
