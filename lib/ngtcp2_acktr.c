@@ -66,7 +66,7 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
   rv = ngtcp2_ringbuf_init(&acktr->acks, 32, sizeof(ngtcp2_acktr_ack_entry),
                            mem);
   if (rv != 0) {
-    return rv;
+    goto fail_acks_init;
   }
 
   ngtcp2_ksl_init(&acktr->ents, greater, sizeof(int64_t), mem);
@@ -78,6 +78,10 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
   acktr->rx_npkt = 0;
 
   return 0;
+
+fail_acks_init:
+  ngtcp2_objalloc_free(&acktr->objalloc);
+  return rv;
 }
 
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
