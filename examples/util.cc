@@ -169,7 +169,7 @@ std::mt19937 make_mt19937() {
   return std::mt19937(rd());
 }
 
-ngtcp2_tstamp timestamp(struct ev_loop *loop) {
+ngtcp2_tstamp timestamp() {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(
              std::chrono::steady_clock::now().time_since_epoch())
       .count();
