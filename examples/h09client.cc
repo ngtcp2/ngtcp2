@@ -682,7 +682,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   }
 
   settings.cc_algo = config.cc_algo;
-  settings.initial_ts = util::timestamp(loop_);
+  settings.initial_ts = util::timestamp();
   settings.initial_rtt = config.initial_rtt;
   settings.max_window = config.max_window;
   settings.max_stream_window = config.max_stream_window;
@@ -798,7 +798,7 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       const_cast<Endpoint *>(&ep),
   };
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data, datalen,
-                                     util::timestamp(loop_));
+                                     util::timestamp());
       rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
     if (!last_error_.error_code) {
@@ -883,7 +883,7 @@ int Client::on_read(const Endpoint &ep) {
 }
 
 int Client::handle_expiry() {
-  auto now = util::timestamp(loop_);
+  auto now = util::timestamp();
   if (auto rv = ngtcp2_conn_handle_expiry(conn_, now); rv != 0) {
     std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -927,7 +927,7 @@ int Client::write_streams() {
   size_t pktcnt = 0;
   auto max_udp_payload_size = ngtcp2_conn_get_max_tx_udp_payload_size(conn_);
   auto max_pktcnt = ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size;
-  auto ts = util::timestamp(loop_);
+  auto ts = util::timestamp();
 
   ngtcp2_path_storage_zero(&ps);
 
@@ -1016,7 +1016,7 @@ int Client::write_streams() {
 
 void Client::update_timer() {
   auto expiry = ngtcp2_conn_get_expiry(conn_);
-  auto now = util::timestamp(loop_);
+  auto now = util::timestamp();
 
   if (expiry <= now) {
     if (!config.quiet) {
@@ -1282,8 +1282,8 @@ int Client::change_local_addr() {
         },
         &ep,
     };
-    if (auto rv = ngtcp2_conn_initiate_immediate_migration(
-            conn_, &path, util::timestamp(loop_));
+    if (auto rv = ngtcp2_conn_initiate_immediate_migration(conn_, &path,
+                                                           util::timestamp());
         rv != 0) {
       std::cerr << "ngtcp2_conn_initiate_immediate_migration: "
                 << ngtcp2_strerror(rv) << std::endl;
@@ -1341,7 +1341,7 @@ int Client::initiate_key_update() {
     std::cerr << "Initiate key update" << std::endl;
   }
 
-  if (auto rv = ngtcp2_conn_initiate_key_update(conn_, util::timestamp(loop_));
+  if (auto rv = ngtcp2_conn_initiate_key_update(conn_, util::timestamp());
       rv != 0) {
     std::cerr << "ngtcp2_conn_initiate_key_update: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1481,7 +1481,7 @@ int Client::handle_error() {
 
   auto nwrite = ngtcp2_conn_write_connection_close(
       conn_, &ps.path, &pi, buf.data(), buf.size(), &last_error_,
-      util::timestamp(loop_));
+      util::timestamp());
   if (nwrite < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: "
               << ngtcp2_strerror(nwrite) << std::endl;

@@ -704,7 +704,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
-  settings.initial_ts = util::timestamp(loop_);
+  settings.initial_ts = util::timestamp();
   settings.token = token;
   settings.tokenlen = tokenlen;
   settings.cc_algo = config.cc_algo;
@@ -849,7 +849,7 @@ int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
   };
 
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data, datalen,
-                                     util::timestamp(loop_));
+                                     util::timestamp());
       rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
     switch (rv) {
@@ -891,7 +891,7 @@ int Handler::on_read(const Endpoint &ep, const Address &local_addr,
 }
 
 int Handler::handle_expiry() {
-  auto now = util::timestamp(loop_);
+  auto now = util::timestamp();
   if (auto rv = ngtcp2_conn_handle_expiry(conn_, now); rv != 0) {
     std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -941,7 +941,7 @@ int Handler::write_streams() {
   uint8_t *bufpos = tx_.data.get();
   ngtcp2_pkt_info pi;
   size_t gso_size = 0;
-  auto ts = util::timestamp(loop_);
+  auto ts = util::timestamp();
 
   ngtcp2_path_storage_zero(&ps);
   ngtcp2_path_storage_zero(&prev_ps);
@@ -1212,7 +1212,7 @@ int Handler::start_closing_period() {
   ngtcp2_pkt_info pi;
   auto n = ngtcp2_conn_write_connection_close(
       conn_, &ps.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
-      &last_error_, util::timestamp(loop_));
+      &last_error_, util::timestamp());
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;
@@ -1266,7 +1266,7 @@ int Handler::send_conn_close() {
 
 void Handler::update_timer() {
   auto expiry = ngtcp2_conn_get_expiry(conn_);
-  auto now = util::timestamp(loop_);
+  auto now = util::timestamp();
 
   if (expiry <= now) {
     if (!config.quiet) {

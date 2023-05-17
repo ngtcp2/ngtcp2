@@ -24,6 +24,7 @@
  */
 #include "tls_session_base_gnutls.h"
 
+#include <cstring>
 #include <fstream>
 
 #include "util.h"
