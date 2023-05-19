@@ -79,6 +79,7 @@ int main(void) {
                    test_ngtcp2_pkt_decode_hd_long) ||
       !CU_add_test(pSuite, "pkt_decode_hd_short",
                    test_ngtcp2_pkt_decode_hd_short) ||
+      !CU_add_test(pSuite, "pkt_decode_frame", test_ngtcp2_pkt_decode_frame) ||
       !CU_add_test(pSuite, "pkt_decode_stream_frame",
                    test_ngtcp2_pkt_decode_stream_frame) ||
       !CU_add_test(pSuite, "pkt_decode_ack_frame",
