@@ -452,6 +452,34 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(0 == nhd.len);
 }
 
+void test_ngtcp2_pkt_decode_frame(void) {
+  const uint8_t malformed_stream_frame[] = {
+      0xff, 0x01, 0x01, 0x01, 0x01,
+  };
+  const uint8_t good_stream_frame[] = {
+      0x0f, 0x01, 0x01, 0x01, 0x01,
+  };
+  ngtcp2_ssize rv;
+  ngtcp2_frame fr;
+
+  rv = ngtcp2_pkt_decode_frame(&fr, malformed_stream_frame,
+                               sizeof(malformed_stream_frame));
+
+  CU_ASSERT(NGTCP2_ERR_FRAME_ENCODING == rv);
+
+  rv = ngtcp2_pkt_decode_frame(&fr, good_stream_frame,
+                               sizeof(good_stream_frame));
+
+  CU_ASSERT(5 == rv);
+  CU_ASSERT(NGTCP2_FRAME_STREAM == fr.type);
+  CU_ASSERT(0x7 == fr.stream.flags);
+  CU_ASSERT(1 == fr.stream.stream_id);
+  CU_ASSERT(1 == fr.stream.offset);
+  CU_ASSERT(1 == fr.stream.fin);
+  CU_ASSERT(1 == fr.stream.datacnt);
+  CU_ASSERT(1 == fr.stream.data[0].len);
+}
+
 void test_ngtcp2_pkt_decode_stream_frame(void) {
   uint8_t buf[256];
   size_t buflen;
