@@ -1462,7 +1462,6 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       return -1;
     }
     settings.qlog.write = ::write_qlog;
-    settings.qlog.odcid = *scid;
   }
   if (!config.preferred_versions.empty()) {
     settings.preferred_versions = config.preferred_versions.data();
