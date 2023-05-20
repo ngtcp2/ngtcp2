@@ -883,7 +883,7 @@ typedef enum ngtcp2_pkt_type {
    */
   NGTCP2_PKT_INITIAL = 0x10,
   /**
-   * :enum:`NGTCP2_PKT_0RTT` indicates 0RTT packet.
+   * :enum:`NGTCP2_PKT_0RTT` indicates 0-RTT packet.
    */
   NGTCP2_PKT_0RTT = 0x11,
   /**
@@ -1782,8 +1782,8 @@ typedef struct ngtcp2_settings {
   ngtcp2_printf log_printf;
   /**
    * :member:`max_tx_udp_payload_size` is the maximum size of UDP
-   * datagram payload that this endpoint transmits.  It is used by
-   * congestion controller to compute congestion window.
+   * datagram payload that the local endpoint transmits.  It is used
+   * by congestion controller to compute congestion window.
    */
   size_t max_tx_udp_payload_size;
   /**
@@ -1797,10 +1797,13 @@ typedef struct ngtcp2_settings {
    *
    * `ngtcp2_conn_server_new` and `ngtcp2_conn_client_new` make a copy
    * of token.
+   *
+   * Set NULL if there is no token.
    */
   const uint8_t *token;
   /**
-   * :member:`tokenlen` is the length of :member:`token`.
+   * :member:`tokenlen` is the length of :member:`token`.  Set 0 if
+   * there is no token.
    */
   size_t tokenlen;
   /**
@@ -1831,16 +1834,17 @@ typedef struct ngtcp2_settings {
   uint64_t max_stream_window;
   /**
    * :member:`ack_thresh` is the minimum number of the received ACK
-   * eliciting packets that triggers the immediate acknowledgement.
+   * eliciting packets that trigger the immediate acknowledgement from
+   * the local endpoint.
    */
   size_t ack_thresh;
   /**
    * :member:`no_tx_udp_payload_size_shaping`, if set to nonzero,
    * instructs the library not to limit the UDP payload size to
    * :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE` (which can be extended by
-   * Path MTU Discovery) and instead use the mininum size among the
+   * Path MTU Discovery), and instead use the minimum size among the
    * given buffer size, :member:`max_tx_udp_payload_size`, and the
-   * received max_udp_payload QUIC transport parameter.
+   * received max_udp_payload_size QUIC transport parameter.
    */
   uint8_t no_tx_udp_payload_size_shaping;
   /**
@@ -1865,8 +1869,9 @@ typedef struct ngtcp2_settings {
    * If there is no overlap, but the client chosen version is
    * supported by the library, the server chooses the client chosen
    * version as the negotiated version.  This version set corresponds
-   * to Offered Versions in QUIC Version Negotiation draft, and it
-   * should be included in Version Negotiation packet.
+   * to Offered Versions in
+   * https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation,
+   * and it should be included in Version Negotiation packet.
    *
    * Client uses this field and :member:`original_version` to prevent
    * version downgrade attack if it reacted upon Version Negotiation
@@ -1887,9 +1892,10 @@ typedef struct ngtcp2_settings {
    * <ngtcp2_version_info.available_versions>` field of outgoing
    * version_information QUIC transport parameter.
    *
-   * For server, this corresponds to Fully-Deployed Versions in QUIC
-   * Version Negotiation draft.  If this field is set not, it is set
-   * to :member:`preferred_versions` internally if
+   * For server, this corresponds to Fully-Deployed Versions in
+   * https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation.
+   * If this field is not set, it is set to
+   * :member:`preferred_versions` internally if
    * :member:`preferred_versionslen` is not zero.  If this field is
    * not set, and :member:`preferred_versionslen` is zero, this field
    * is set to :macro:`NGTCP2_PROTO_VER_V1` internally.
@@ -1935,7 +1941,8 @@ typedef struct ngtcp2_addr {
    */
   ngtcp2_sockaddr *addr;
   /**
-   * :member:`addrlen` is the length of addr.
+   * :member:`addrlen` is the length of :member:`addr`.  It must not
+   * be longer than sizeof(:type:`ngtcp2_sockaddr_union`).
    */
   ngtcp2_socklen addrlen;
 } ngtcp2_addr;
@@ -1962,7 +1969,7 @@ typedef struct ngtcp2_path {
    * Note that :type:`ngtcp2_path` is generally passed to
    * :type:`ngtcp2_conn` by an application, and :type:`ngtcp2_conn`
    * stores their copies.  Unfortunately, there is no way for the
-   * application to know when :type:`ngtcp2_conn` finishes using a
+   * application to know when :type:`ngtcp2_conn` finished using a
    * specific :type:`ngtcp2_path` object in mid connection, which
    * means that the application cannot free the data pointed by this
    * field.  Therefore, it is advised to use this field only when the
@@ -2077,7 +2084,7 @@ typedef struct ngtcp2_crypto_cipher_ctx {
  * :type:`ngtcp2_crypto_ctx` is a convenient structure to bind all
  * crypto related objects in one place.  Use
  * `ngtcp2_crypto_ctx_initial` to initialize this struct for Initial
- * packet encryption.  For Handshake and 1RTT packets, use
+ * packet encryption.  For Handshake and 1-RTT packets, use
  * `ngtcp2_crypto_ctx_tls`.
  */
 typedef struct ngtcp2_crypto_ctx {
@@ -2115,7 +2122,7 @@ typedef struct ngtcp2_crypto_ctx {
  * returns the number of bytes required to store the encoded transport
  * parameters.
  *
- * This function returns the number of written, or one of the
+ * This function returns the number of bytes written, or one of the
  * following negative error codes:
  *
  * :macro:`NGTCP2_ERR_NOBUF`
@@ -2132,8 +2139,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
  * |data| of length |datalen|, and stores the result in the object
  * pointed by |params|.
  *
- * If the optional parameters are missing, the default value is
- * assigned.
+ * If an optional parameter is missing, the default value is assigned.
  *
  * The following fields may point to somewhere inside the buffer
  * pointed by |data| of length |datalen|:
@@ -2244,15 +2250,16 @@ typedef struct ngtcp2_version_cid {
  * QUIC version.
  *
  * If the given packet is Long header packet, this function extracts
- * the version from the packet and assigns it to
+ * the version from the packet, and assigns it to
  * :member:`dest->version <ngtcp2_version_cid.version>`.  It also
  * extracts the pointer to the Destination Connection ID and its
- * length and assigns them to :member:`dest->dcid
+ * length, and assigns them to :member:`dest->dcid
  * <ngtcp2_version_cid.dcid>` and :member:`dest->dcidlen
  * <ngtcp2_version_cid.dcidlen>` respectively.  Similarly, it extracts
- * the pointer to the Source Connection ID and its length and assigns
+ * the pointer to the Source Connection ID and its length, and assigns
  * them to :member:`dest->scid <ngtcp2_version_cid.scid>` and
  * :member:`dest->scidlen <ngtcp2_version_cid.scidlen>` respectively.
+ * |short_dcidlen| is ignored.
  *
  * If the given packet is Short header packet, :member:`dest->version
  * <ngtcp2_version_cid.version>` will be 0, :member:`dest->scid
@@ -2261,7 +2268,7 @@ typedef struct ngtcp2_version_cid {
  * Because the Short header packet does not have the length of
  * Destination Connection ID, the caller has to pass the length in
  * |short_dcidlen|.  This function extracts the pointer to the
- * Destination Connection ID and assigns it to :member:`dest->dcid
+ * Destination Connection ID, and assigns it to :member:`dest->dcid
  * <ngtcp2_version_cid.dcid>`.  |short_dcidlen| is assigned to
  * :member:`dest->dcidlen <ngtcp2_version_cid.dcidlen>`.
  *
@@ -2321,12 +2328,12 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest,
 /**
  * @function
  *
- * `ngtcp2_pkt_decode_hd_short` decodes QUIC short header packet
- * header in |pkt| of length |pktlen|.  |dcidlen| is the length of
- * DCID in packet header.  Short header packet does not encode the
- * length of connection ID, thus we need the input from the outside.
- * This function only parses the input just before packet number
- * field.  This function can handle Connection ID up to
+ * `ngtcp2_pkt_decode_hd_short` decodes QUIC short header in |pkt| of
+ * length |pktlen|.  Short header packet does not encode the length of
+ * Connection ID, thus we need the input from the outside.  |dcidlen|
+ * is the length of Destination Connection ID in packet header.  This
+ * function only parses the input just before packet number field.
+ * This function can handle Connection ID up to
  * :macro:`NGTCP2_MAX_CIDLEN`.  Consider to use
  * `ngtcp2_pkt_decode_version_cid` to get longer Connection ID.  It
  * stores the result in the object pointed by |dest|, and returns the
@@ -2374,13 +2381,13 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(
  *
  * `ngtcp2_pkt_write_version_negotiation` writes Version Negotiation
  * packet in the buffer pointed by |dest| whose length is |destlen|.
- * |unused_random| should be generated randomly.  |dcid| is the
- * destination connection ID which appears in a packet as a source
- * connection ID sent by client which caused version negotiation.
- * Similarly, |scid| is the source connection ID which appears in a
- * packet as a destination connection ID sent by client.  |sv| is a
- * list of supported versions, and |nsv| specifies the number of
- * supported versions included in |sv|.
+ * |unused_random| should be generated randomly.  |dcid| is a
+ * Connection ID which appeared in a packet as a Source Connection ID
+ * sent by client which caused version negotiation.  Similarly, |scid|
+ * is a Connection ID which appeared in a packet as a Destination
+ * Connection ID sent by client.  |sv| is a list of supported
+ * versions, and |nsv| specifies the number of supported versions
+ * included in |sv|.
  *
  * This function returns the number of bytes written to the buffer, or
  * one of the following negative error codes:
@@ -2407,7 +2414,7 @@ typedef struct ngtcp2_conn ngtcp2_conn;
  * asks TLS stack to produce first TLS cryptographic handshake data.
  *
  * This implementation of this callback must get the first handshake
- * data from TLS stack and pass it to ngtcp2 library using
+ * data from TLS stack, and pass it to ngtcp2 library using
  * `ngtcp2_conn_submit_crypto_data` function.  Make sure that before
  * calling `ngtcp2_conn_submit_crypto_data` function, client
  * application must create initial packet protection keys and IVs, and
@@ -2427,9 +2434,9 @@ typedef int (*ngtcp2_client_initial)(ngtcp2_conn *conn, void *user_data);
  * Initial packet from client.  An server application must implement
  * this callback, and generate initial keys and IVs for both
  * transmission and reception.  Install them using
- * `ngtcp2_conn_install_initial_key`.  |dcid| is the destination
- * connection ID which client generated randomly.  It is used to
- * derive initial packet protection keys.
+ * `ngtcp2_conn_install_initial_key`.  |dcid| is the Destination
+ * Connection ID in Initial packet received from client.  It is used
+ * to derive initial packet protection keys.
  *
  * The callback function must return 0 if it succeeds.  If an error
  * occurs, return :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the
@@ -2446,23 +2453,21 @@ typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
  */
 typedef enum ngtcp2_crypto_level {
   /**
-   * :enum:`NGTCP2_CRYPTO_LEVEL_INITIAL` is Initial Keys encryption
-   * level.
+   * :enum:`NGTCP2_CRYPTO_LEVEL_INITIAL` is Initial encryption level.
    */
   NGTCP2_CRYPTO_LEVEL_INITIAL,
   /**
-   * :enum:`NGTCP2_CRYPTO_LEVEL_HANDSHAKE` is Handshake Keys
-   * encryption level.
+   * :enum:`NGTCP2_CRYPTO_LEVEL_HANDSHAKE` is Handshake encryption
+   * level.
    */
   NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
   /**
-   * :enum:`NGTCP2_CRYPTO_LEVEL_APPLICATION` is Application Data
-   * (1-RTT) Keys encryption level.
+   * :enum:`NGTCP2_CRYPTO_LEVEL_APPLICATION` is 1-RTT encryption
+   * level.
    */
   NGTCP2_CRYPTO_LEVEL_APPLICATION,
   /**
-   * :enum:`NGTCP2_CRYPTO_LEVEL_EARLY` is Early Data (0-RTT) Keys
-   * encryption level.
+   * :enum:`NGTCP2_CRYPTO_LEVEL_EARLY` is 0-RTT encryption level.
    */
   NGTCP2_CRYPTO_LEVEL_EARLY
 } ngtcp2_crypto_level;
@@ -2471,15 +2476,14 @@ typedef enum ngtcp2_crypto_level {
  * @functypedef
  *
  * :type`ngtcp2_recv_crypto_data` is invoked when crypto data is
- * received.  The received data is pointed to by |data|, and its
- * length is |datalen|.  The |offset| specifies the offset where
- * |data| is positioned.  |user_data| is the arbitrary pointer passed
- * to `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.  The
- * ngtcp2 library ensures that the crypto data is passed to the
- * application in the increasing order of |offset|.  |datalen| is
- * always strictly greater than 0.  |crypto_level| indicates the
- * encryption level where this data is received.  Crypto data can
- * never be received in
+ * received.  The received data is pointed by |data|, and its length
+ * is |datalen|.  The |offset| specifies the offset where |data| is
+ * positioned.  |user_data| is the arbitrary pointer passed to
+ * `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.  The ngtcp2
+ * library ensures that the crypto data is passed to the application
+ * in the increasing order of |offset|.  |datalen| is always strictly
+ * greater than 0.  |crypto_level| indicates the encryption level
+ * where this data is received.  Crypto data can never be received in
  * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`.
  *
  * The application should provide the given data to TLS stack.
@@ -2558,9 +2562,9 @@ typedef int (*ngtcp2_recv_version_negotiation)(ngtcp2_conn *conn,
  * This callback is client use only.
  *
  * Application must regenerate packet protection key, IV, and header
- * protection key for Initial packets using the destination connection
- * ID obtained by :member:`hd->scid <ngtcp2_pkt_hd.scid>` and install
- * them by calling `ngtcp2_conn_install_initial_key()`.
+ * protection key for Initial packets using the Destination Connection
+ * ID obtained by :member:`hd->scid <ngtcp2_pkt_hd.scid>`, and install
+ * them by calling `ngtcp2_conn_install_initial_key`.
  *
  * 0-RTT data accepted by the ngtcp2 library will be automatically
  * retransmitted as 0-RTT data by the library.
@@ -2579,12 +2583,12 @@ typedef int (*ngtcp2_recv_retry)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * application to encrypt packet payload.  The packet payload to
  * encrypt is passed as |plaintext| of length |plaintextlen|.  The
  * AEAD cipher is |aead|.  |aead_ctx| is the AEAD cipher context
- * object which is initialized with encryption key.  The nonce is
- * passed as |nonce| of length |noncelen|.  The Additional
+ * object which is initialized with the specific encryption key.  The
+ * nonce is passed as |nonce| of length |noncelen|.  The Additional
  * Authenticated Data is passed as |aad| of length |aadlen|.
  *
  * The implementation of this callback must encrypt |plaintext| using
- * the negotiated cipher suite and write the ciphertext into the
+ * the negotiated cipher suite, and write the ciphertext into the
  * buffer pointed by |dest|.  |dest| has enough capacity to store the
  * ciphertext and any additional AEAD tag data.
  *
@@ -2607,12 +2611,12 @@ typedef int (*ngtcp2_encrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * application to decrypt packet payload.  The packet payload to
  * decrypt is passed as |ciphertext| of length |ciphertextlen|.  The
  * AEAD cipher is |aead|.  |aead_ctx| is the AEAD cipher context
- * object which is initialized with decryption key.  The nonce is
- * passed as |nonce| of length |noncelen|.  The Additional
+ * object which is initialized with the specific decryption key.  The
+ * nonce is passed as |nonce| of length |noncelen|.  The Additional
  * Authenticated Data is passed as |aad| of length |aadlen|.
  *
  * The implementation of this callback must decrypt |ciphertext| using
- * the negotiated cipher suite and write the ciphertext into the
+ * the negotiated cipher suite, and write the ciphertext into the
  * buffer pointed by |dest|.  |dest| has enough capacity to store the
  * cleartext.
  *
@@ -2635,12 +2639,12 @@ typedef int (*ngtcp2_decrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * :type:`ngtcp2_hp_mask` is invoked when the ngtcp2 library asks the
  * application to produce a mask to encrypt or decrypt packet header.
  * The encryption cipher is |hp|.  |hp_ctx| is the cipher context
- * object which is initialized with header protection key.  The sample
- * is passed as |sample| which is :macro:`NGTCP2_HP_SAMPLELEN` bytes
- * long.
+ * object which is initialized with the specific header protection
+ * key.  The sample is passed as |sample| which is
+ * :macro:`NGTCP2_HP_SAMPLELEN` bytes long.
  *
  * The implementation of this callback must produce a mask using the
- * header protection cipher suite specified by QUIC specification and
+ * header protection cipher suite specified by QUIC specification, and
  * write the result into the buffer pointed by |dest|.  The length of
  * the mask must be at least :macro:`NGTCP2_HP_MASKLEN`.  The library
  * only uses the first :macro:`NGTCP2_HP_MASKLEN` bytes of the
@@ -2681,7 +2685,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * @macro
  *
  * :macro:`NGTCP2_STREAM_DATA_FLAG_EARLY` indicates that this chunk of
- * data contains data received in 0RTT packet and the handshake has
+ * data contains data received in 0-RTT packet, and the handshake has
  * not completed yet, which means that the data might be replayed.
  */
 #define NGTCP2_STREAM_DATA_FLAG_EARLY 0x02u
