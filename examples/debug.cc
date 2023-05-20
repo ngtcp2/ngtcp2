@@ -59,25 +59,25 @@ bool packet_lost(double prob) {
   return p < prob;
 }
 
-void print_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
-                       size_t datalen) {
-  const char *crypto_level_str;
-  switch (crypto_level) {
-  case NGTCP2_CRYPTO_LEVEL_INITIAL:
-    crypto_level_str = "Initial";
+void print_crypto_data(ngtcp2_encryption_level encryption_level,
+                       const uint8_t *data, size_t datalen) {
+  const char *encryption_level_str;
+  switch (encryption_level) {
+  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
+    encryption_level_str = "Initial";
     break;
-  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
-    crypto_level_str = "Handshake";
+  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
+    encryption_level_str = "Handshake";
     break;
-  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
-    crypto_level_str = "Application";
+  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
+    encryption_level_str = "1-RTT";
     break;
   default:
     assert(0);
     abort();
   }
   fprintf(outfile, "Ordered CRYPTO data in %s crypto level\n",
-          crypto_level_str);
+          encryption_level_str);
   util::hexdump(outfile, data, datalen);
 }
 
@@ -279,13 +279,13 @@ void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
   }
 }
 
-std::string_view secret_title(ngtcp2_crypto_level level) {
+std::string_view secret_title(ngtcp2_encryption_level level) {
   switch (level) {
-  case NGTCP2_CRYPTO_LEVEL_EARLY:
+  case NGTCP2_ENCRYPTION_LEVEL_0RTT:
     return "early_traffic"sv;
-  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     return "handshake_traffic"sv;
-  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
+  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
     return "application_traffic"sv;
   default:
     assert(0);

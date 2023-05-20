@@ -356,13 +356,14 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   return 0;
 }
 
-int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
-                                         ngtcp2_crypto_level crypto_level,
-                                         const uint8_t *data, size_t datalen) {
+int ngtcp2_crypto_read_write_crypto_data(
+    ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
+    const uint8_t *data, size_t datalen) {
   ngtcp2_crypto_picotls_ctx *cptls = ngtcp2_conn_get_tls_native_handle(conn);
   ptls_buffer_t sendbuf;
   size_t epoch_offsets[5] = {0};
-  size_t epoch = ngtcp2_crypto_picotls_from_ngtcp2_crypto_level(crypto_level);
+  size_t epoch =
+      ngtcp2_crypto_picotls_from_ngtcp2_encryption_level(encryption_level);
   size_t epoch_datalen;
   size_t i;
   int rv;
@@ -442,32 +443,32 @@ int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
   return 0;
 }
 
-ngtcp2_crypto_level ngtcp2_crypto_picotls_from_epoch(size_t epoch) {
+ngtcp2_encryption_level ngtcp2_crypto_picotls_from_epoch(size_t epoch) {
   switch (epoch) {
   case 0:
-    return NGTCP2_CRYPTO_LEVEL_INITIAL;
+    return NGTCP2_ENCRYPTION_LEVEL_INITIAL;
   case 1:
-    return NGTCP2_CRYPTO_LEVEL_EARLY;
+    return NGTCP2_ENCRYPTION_LEVEL_0RTT;
   case 2:
-    return NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
+    return NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
   case 3:
-    return NGTCP2_CRYPTO_LEVEL_APPLICATION;
+    return NGTCP2_ENCRYPTION_LEVEL_1RTT;
   default:
     assert(0);
     abort();
   }
 }
 
-size_t ngtcp2_crypto_picotls_from_ngtcp2_crypto_level(
-    ngtcp2_crypto_level crypto_level) {
+size_t ngtcp2_crypto_picotls_from_ngtcp2_encryption_level(
+    ngtcp2_encryption_level crypto_level) {
   switch (crypto_level) {
-  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
     return 0;
-  case NGTCP2_CRYPTO_LEVEL_EARLY:
+  case NGTCP2_ENCRYPTION_LEVEL_0RTT:
     return 1;
-  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     return 2;
-  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
+  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
     return 3;
   default:
     assert(0);
@@ -571,7 +572,7 @@ static int update_traffic_key_server_cb(ptls_update_traffic_key_t *self,
                                         const void *secret) {
   ngtcp2_crypto_conn_ref *conn_ref = *ptls_get_data_ptr(ptls);
   ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
-  ngtcp2_crypto_level level = ngtcp2_crypto_picotls_from_epoch(epoch);
+  ngtcp2_encryption_level level = ngtcp2_crypto_picotls_from_epoch(epoch);
   ptls_cipher_suite_t *cipher = ptls_get_cipher(ptls);
   size_t secretlen = cipher->hash->digest_size;
   ngtcp2_crypto_picotls_ctx *cptls;
@@ -584,7 +585,7 @@ static int update_traffic_key_server_cb(ptls_update_traffic_key_t *self,
       return -1;
     }
 
-    if (level == NGTCP2_CRYPTO_LEVEL_HANDSHAKE) {
+    if (level == NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE) {
       /* libngtcp2 allows an application to change QUIC transport
        * parameters before installing Handshake tx key.  We need to
        * wait for the key to get the correct local transport
@@ -616,7 +617,7 @@ static int update_traffic_key_cb(ptls_update_traffic_key_t *self, ptls_t *ptls,
                                  int is_enc, size_t epoch, const void *secret) {
   ngtcp2_crypto_conn_ref *conn_ref = *ptls_get_data_ptr(ptls);
   ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
-  ngtcp2_crypto_level level = ngtcp2_crypto_picotls_from_epoch(epoch);
+  ngtcp2_encryption_level level = ngtcp2_crypto_picotls_from_epoch(epoch);
   ptls_cipher_suite_t *cipher = ptls_get_cipher(ptls);
   size_t secretlen = cipher->hash->digest_size;
 

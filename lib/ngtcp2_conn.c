@@ -129,14 +129,14 @@ static int conn_call_recv_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
 }
 
 static int conn_call_recv_crypto_data(ngtcp2_conn *conn,
-                                      ngtcp2_crypto_level crypto_level,
+                                      ngtcp2_encryption_level encryption_level,
                                       uint64_t offset, const uint8_t *data,
                                       size_t datalen) {
   int rv;
 
   assert(conn->callbacks.recv_crypto_data);
 
-  rv = conn->callbacks.recv_crypto_data(conn, crypto_level, offset, data,
+  rv = conn->callbacks.recv_crypto_data(conn, encryption_level, offset, data,
                                         datalen, conn->user_data);
   switch (rv) {
   case 0:
@@ -627,7 +627,8 @@ static int conn_call_version_negotiation(ngtcp2_conn *conn, uint32_t version,
   return 0;
 }
 
-static int conn_call_recv_rx_key(ngtcp2_conn *conn, ngtcp2_crypto_level level) {
+static int conn_call_recv_rx_key(ngtcp2_conn *conn,
+                                 ngtcp2_encryption_level level) {
   int rv;
 
   if (!conn->callbacks.recv_rx_key) {
@@ -642,7 +643,8 @@ static int conn_call_recv_rx_key(ngtcp2_conn *conn, ngtcp2_crypto_level level) {
   return 0;
 }
 
-static int conn_call_recv_tx_key(ngtcp2_conn *conn, ngtcp2_crypto_level level) {
+static int conn_call_recv_tx_key(ngtcp2_conn *conn,
+                                 ngtcp2_encryption_level level) {
   int rv;
 
   if (!conn->callbacks.recv_tx_key) {
@@ -5778,10 +5780,10 @@ decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * NGTCP2_ERR_CRYPTO
  *     TLS backend reported error
  */
-static int conn_emit_pending_crypto_data(ngtcp2_conn *conn,
-                                         ngtcp2_crypto_level crypto_level,
-                                         ngtcp2_strm *strm,
-                                         uint64_t rx_offset) {
+static int
+conn_emit_pending_crypto_data(ngtcp2_conn *conn,
+                              ngtcp2_encryption_level encryption_level,
+                              ngtcp2_strm *strm, uint64_t rx_offset) {
   size_t datalen;
   const uint8_t *data;
   int rv;
@@ -5801,7 +5803,8 @@ static int conn_emit_pending_crypto_data(ngtcp2_conn *conn,
     offset = rx_offset;
     rx_offset += datalen;
 
-    rv = conn_call_recv_crypto_data(conn, crypto_level, offset, data, datalen);
+    rv = conn_call_recv_crypto_data(conn, encryption_level, offset, data,
+                                    datalen);
     if (rv != 0) {
       return rv;
     }
@@ -6114,7 +6117,8 @@ static int vneg_available_versions_includes(const uint8_t *available_versions,
   return 0;
 }
 
-static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
+static int conn_recv_crypto(ngtcp2_conn *conn,
+                            ngtcp2_encryption_level encryption_level,
                             ngtcp2_strm *strm, const ngtcp2_crypto *fr);
 
 static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
@@ -6181,7 +6185,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_decrypt decrypt;
   ngtcp2_pktns *pktns;
   ngtcp2_strm *crypto;
-  ngtcp2_crypto_level crypto_level;
+  ngtcp2_encryption_level encryption_level;
   int invalid_reserved_bits = 0;
 
   if (pktlen == 0) {
@@ -6420,7 +6424,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     pktns = conn->in_pktns;
     crypto = &pktns->crypto.strm;
-    crypto_level = NGTCP2_CRYPTO_LEVEL_INITIAL;
+    encryption_level = NGTCP2_ENCRYPTION_LEVEL_INITIAL;
 
     if (hd.version == conn->client_chosen_version) {
       ckm = pktns->crypto.rx.ckm;
@@ -6459,7 +6463,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     pktns = conn->hs_pktns;
     crypto = &pktns->crypto.strm;
-    crypto_level = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
+    encryption_level = NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
     ckm = pktns->crypto.rx.ckm;
     hp_ctx = &pktns->crypto.rx.hp_ctx;
 
@@ -6650,7 +6654,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                         conn->negotiated_version);
       }
 
-      rv = conn_recv_crypto(conn, crypto_level, crypto, &fr->crypto);
+      rv = conn_recv_crypto(conn, encryption_level, crypto, &fr->crypto);
       if (rv != 0) {
         return rv;
       }
@@ -6928,8 +6932,9 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
  * |rx_offset_base| is the offset in the entire TLS handshake stream.
  * fr->offset specifies the offset in each encryption level.
  * |max_rx_offset| is, if it is nonzero, the maximum offset in the
- * entire TLS handshake stream that |fr| can carry.  |crypto_level| is
- * the encryption level where this data is received.
+ * entire TLS handshake stream that |fr| can carry.
+ * |encryption_level| is the encryption level where this data is
+ * received.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -6945,7 +6950,8 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
+static int conn_recv_crypto(ngtcp2_conn *conn,
+                            ngtcp2_encryption_level encryption_level,
                             ngtcp2_strm *crypto, const ngtcp2_crypto *fr) {
   uint64_t fr_end_offset;
   uint64_t rx_offset;
@@ -6966,7 +6972,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
   if (fr_end_offset <= rx_offset) {
     if (conn->server &&
         !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT) &&
-        crypto_level == NGTCP2_CRYPTO_LEVEL_INITIAL) {
+        encryption_level == NGTCP2_ENCRYPTION_LEVEL_INITIAL) {
       /* recovery draft: Speeding Up Handshake Completion
 
          When a server receives an Initial packet containing duplicate
@@ -7003,12 +7009,14 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
       return rv;
     }
 
-    rv = conn_call_recv_crypto_data(conn, crypto_level, offset, data, datalen);
+    rv = conn_call_recv_crypto_data(conn, encryption_level, offset, data,
+                                    datalen);
     if (rv != 0) {
       return rv;
     }
 
-    rv = conn_emit_pending_crypto_data(conn, crypto_level, crypto, rx_offset);
+    rv = conn_emit_pending_crypto_data(conn, encryption_level, crypto,
+                                       rx_offset);
     if (rv != 0) {
       return rv;
     }
@@ -9202,7 +9210,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_CRYPTO:
-      rv = conn_recv_crypto(conn, NGTCP2_CRYPTO_LEVEL_APPLICATION,
+      rv = conn_recv_crypto(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT,
                             &pktns->crypto.strm, &fr->crypto);
       if (rv != 0) {
         return rv;
@@ -10612,7 +10620,7 @@ int ngtcp2_conn_install_rx_handshake_key(
 
   pktns->crypto.rx.hp_ctx = *hp_ctx;
 
-  rv = conn_call_recv_rx_key(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE);
+  rv = conn_call_recv_rx_key(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE);
   if (rv != 0) {
     ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, conn->mem);
     pktns->crypto.rx.ckm = NULL;
@@ -10651,7 +10659,7 @@ int ngtcp2_conn_install_tx_handshake_key(
     }
   }
 
-  rv = conn_call_recv_tx_key(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE);
+  rv = conn_call_recv_tx_key(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE);
   if (rv != 0) {
     ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
     pktns->crypto.tx.ckm = NULL;
@@ -10685,9 +10693,9 @@ int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
   conn->flags |= NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED;
 
   if (conn->server) {
-    rv = conn_call_recv_rx_key(conn, NGTCP2_CRYPTO_LEVEL_EARLY);
+    rv = conn_call_recv_rx_key(conn, NGTCP2_ENCRYPTION_LEVEL_0RTT);
   } else {
-    rv = conn_call_recv_tx_key(conn, NGTCP2_CRYPTO_LEVEL_EARLY);
+    rv = conn_call_recv_tx_key(conn, NGTCP2_ENCRYPTION_LEVEL_0RTT);
   }
   if (rv != 0) {
     ngtcp2_crypto_km_del(conn->early.ckm, conn->mem);
@@ -10736,7 +10744,7 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
     }
   }
 
-  rv = conn_call_recv_rx_key(conn, NGTCP2_CRYPTO_LEVEL_APPLICATION);
+  rv = conn_call_recv_rx_key(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT);
   if (rv != 0) {
     ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, conn->mem);
     pktns->crypto.rx.ckm = NULL;
@@ -10782,7 +10790,7 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
     conn_discard_early_key(conn);
   }
 
-  rv = conn_call_recv_tx_key(conn, NGTCP2_CRYPTO_LEVEL_APPLICATION);
+  rv = conn_call_recv_tx_key(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT);
   if (rv != 0) {
     ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
     pktns->crypto.tx.ckm = NULL;
@@ -13038,7 +13046,7 @@ static int conn_buffer_crypto_data(ngtcp2_conn *conn, const uint8_t **pdata,
 }
 
 int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
-                                   ngtcp2_crypto_level crypto_level,
+                                   ngtcp2_encryption_level encryption_level,
                                    const uint8_t *data, const size_t datalen) {
   ngtcp2_pktns *pktns;
   ngtcp2_frame_chain *frc;
@@ -13049,16 +13057,16 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
     return 0;
   }
 
-  switch (crypto_level) {
-  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+  switch (encryption_level) {
+  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
     assert(conn->in_pktns);
     pktns = conn->in_pktns;
     break;
-  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     assert(conn->hs_pktns);
     pktns = conn->hs_pktns;
     break;
-  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
+  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
     pktns = &conn->pktns;
     break;
   default:

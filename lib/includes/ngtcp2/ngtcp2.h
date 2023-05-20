@@ -2449,28 +2449,28 @@ typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
 /**
  * @enum
  *
- * :type:`ngtcp2_crypto_level` is encryption level.
+ * :type:`ngtcp2_encryption_level` is QUIC encryption level.
  */
-typedef enum ngtcp2_crypto_level {
+typedef enum ngtcp2_encryption_level {
   /**
-   * :enum:`NGTCP2_CRYPTO_LEVEL_INITIAL` is Initial encryption level.
-   */
-  NGTCP2_CRYPTO_LEVEL_INITIAL,
-  /**
-   * :enum:`NGTCP2_CRYPTO_LEVEL_HANDSHAKE` is Handshake encryption
+   * :enum:`NGTCP2_ENCRYPTION_LEVEL_INITIAL` is Initial encryption
    * level.
    */
-  NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
+  NGTCP2_ENCRYPTION_LEVEL_INITIAL,
   /**
-   * :enum:`NGTCP2_CRYPTO_LEVEL_APPLICATION` is 1-RTT encryption
+   * :enum:`NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE` is Handshake encryption
    * level.
    */
-  NGTCP2_CRYPTO_LEVEL_APPLICATION,
+  NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
   /**
-   * :enum:`NGTCP2_CRYPTO_LEVEL_EARLY` is 0-RTT encryption level.
+   * :enum:`NGTCP2_ENCRYPTION_LEVEL_1RTT` is 1-RTT encryption level.
    */
-  NGTCP2_CRYPTO_LEVEL_EARLY
-} ngtcp2_crypto_level;
+  NGTCP2_ENCRYPTION_LEVEL_1RTT,
+  /**
+   * :enum:`NGTCP2_ENCRYPTION_LEVEL_0RTT` is 0-RTT encryption level.
+   */
+  NGTCP2_ENCRYPTION_LEVEL_0RTT
+} ngtcp2_encryption_level;
 
 /**
  * @functypedef
@@ -2484,7 +2484,7 @@ typedef enum ngtcp2_crypto_level {
  * in the increasing order of |offset|.  |datalen| is always strictly
  * greater than 0.  |crypto_level| indicates the encryption level
  * where this data is received.  Crypto data can never be received in
- * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`.
+ * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`.
  *
  * The application should provide the given data to TLS stack.
  *
@@ -2508,7 +2508,7 @@ typedef enum ngtcp2_crypto_level {
  * return immediately.
  */
 typedef int (*ngtcp2_recv_crypto_data)(ngtcp2_conn *conn,
-                                       ngtcp2_crypto_level crypto_level,
+                                       ngtcp2_encryption_level encryption_level,
                                        uint64_t offset, const uint8_t *data,
                                        size_t datalen, void *user_data);
 
@@ -3245,7 +3245,7 @@ typedef int (*ngtcp2_version_negotiation)(ngtcp2_conn *conn, uint32_t version,
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_recv_key)(ngtcp2_conn *conn, ngtcp2_crypto_level level,
+typedef int (*ngtcp2_recv_key)(ngtcp2_conn *conn, ngtcp2_encryption_level level,
                                void *user_data);
 
 /**
@@ -3508,14 +3508,14 @@ typedef struct ngtcp2_callbacks {
    * :member:`recv_rx_key` is a callback function which is invoked
    * when a new key for decrypting packets is installed during QUIC
    * cryptographic handshake.  It is not called for
-   * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_INITIAL`.
+   * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_INITIAL`.
    */
   ngtcp2_recv_key recv_rx_key;
   /**
    * :member:`recv_tx_key` is a callback function which is invoked
    * when a new key for encrypting packets is installed during QUIC
    * cryptographic handshake.  It is not called for
-   * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_INITIAL`.
+   * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_INITIAL`.
    */
   ngtcp2_recv_key recv_tx_key;
   /**
@@ -4868,7 +4868,7 @@ NGTCP2_EXTERN void ngtcp2_conn_get_conn_info_versioned(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int
 ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
-                               ngtcp2_crypto_level crypto_level,
+                               ngtcp2_encryption_level encryption_level,
                                const uint8_t *data, const size_t datalen);
 
 /**

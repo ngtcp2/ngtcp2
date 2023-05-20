@@ -193,8 +193,8 @@ typedef struct {
 static int client_initial(ngtcp2_conn *conn, void *user_data) {
   (void)user_data;
 
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
-                                 217);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                 null_data, 217);
 
   return 0;
 }
@@ -206,8 +206,8 @@ static int client_initial_early_data(ngtcp2_conn *conn, void *user_data) {
 
   (void)user_data;
 
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
-                                 217);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                 null_data, 217);
 
   init_crypto_ctx(&crypto_ctx);
 
@@ -228,8 +228,8 @@ static int client_initial_large_crypto_early_data(ngtcp2_conn *conn,
 
   /* Initial CRYPTO data which is larger than a typical single
      datagram. */
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
-                                 1500);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                 null_data, 1500);
 
   init_crypto_ctx(&crypto_ctx);
 
@@ -302,11 +302,12 @@ static int recv_client_initial_early(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
   return 0;
 }
 
-static int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
+static int recv_crypto_data(ngtcp2_conn *conn,
+                            ngtcp2_encryption_level encryption_level,
                             uint64_t offset, const uint8_t *data,
                             size_t datalen, void *user_data) {
   (void)conn;
-  (void)crypto_level;
+  (void)encryption_level;
   (void)offset;
   (void)data;
   (void)datalen;
@@ -314,24 +315,22 @@ static int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
   return 0;
 }
 
-static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
-                                              ngtcp2_crypto_level crypto_level,
-                                              uint64_t offset,
-                                              const uint8_t *data,
-                                              size_t datalen, void *user_data) {
+static int recv_crypto_data_server_early_data(
+    ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
+    uint64_t offset, const uint8_t *data, size_t datalen, void *user_data) {
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   (void)offset;
-  (void)crypto_level;
+  (void)encryption_level;
   (void)data;
   (void)datalen;
   (void)user_data;
 
   assert(conn->server);
 
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
-                                 179);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                 null_data, 179);
 
   ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
                              null_iv, sizeof(null_iv), &hp_ctx);
@@ -341,11 +340,9 @@ static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
   return 0;
 }
 
-static int recv_crypto_data_client_handshake(ngtcp2_conn *conn,
-                                             ngtcp2_crypto_level crypto_level,
-                                             uint64_t offset,
-                                             const uint8_t *data,
-                                             size_t datalen, void *user_data) {
+static int recv_crypto_data_client_handshake(
+    ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
+    uint64_t offset, const uint8_t *data, size_t datalen, void *user_data) {
   int rv;
   ngtcp2_transport_params params;
   const ngtcp2_early_transport_params *early_params;
@@ -357,8 +354,8 @@ static int recv_crypto_data_client_handshake(ngtcp2_conn *conn,
   (void)datalen;
   (void)user_data;
 
-  switch (crypto_level) {
-  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+  switch (encryption_level) {
+  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
     init_crypto_ctx(&crypto_ctx);
     ngtcp2_conn_set_crypto_ctx(conn, &crypto_ctx);
 
@@ -368,7 +365,7 @@ static int recv_crypto_data_client_handshake(ngtcp2_conn *conn,
                                          sizeof(null_iv), &hp_ctx);
 
     return 0;
-  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     if (conn->flags & NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED) {
       return 0;
     }
@@ -407,7 +404,7 @@ static int recv_crypto_data_client_handshake(ngtcp2_conn *conn,
     ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret),
                                &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
 
-    rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
+    rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
                                         null_data, 57);
 
     CU_ASSERT(0 == rv);
@@ -445,11 +442,11 @@ static int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
 }
 
 static int recv_crypto_handshake_error(ngtcp2_conn *conn,
-                                       ngtcp2_crypto_level crypto_level,
+                                       ngtcp2_encryption_level encryption_level,
                                        uint64_t offset, const uint8_t *data,
                                        size_t datalen, void *user_data) {
   (void)conn;
-  (void)crypto_level;
+  (void)encryption_level;
   (void)offset;
   (void)data;
   (void)datalen;
@@ -457,13 +454,11 @@ static int recv_crypto_handshake_error(ngtcp2_conn *conn,
   return NGTCP2_ERR_CRYPTO;
 }
 
-static int recv_crypto_fatal_alert_generated(ngtcp2_conn *conn,
-                                             ngtcp2_crypto_level crypto_level,
-                                             uint64_t offset,
-                                             const uint8_t *data,
-                                             size_t datalen, void *user_data) {
+static int recv_crypto_fatal_alert_generated(
+    ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
+    uint64_t offset, const uint8_t *data, size_t datalen, void *user_data) {
   (void)conn;
-  (void)crypto_level;
+  (void)encryption_level;
   (void)offset;
   (void)data;
   (void)datalen;
@@ -472,7 +467,7 @@ static int recv_crypto_fatal_alert_generated(ngtcp2_conn *conn,
 }
 
 static int recv_crypto_data_server(ngtcp2_conn *conn,
-                                   ngtcp2_crypto_level crypto_level,
+                                   ngtcp2_encryption_level encryption_level,
                                    uint64_t offset, const uint8_t *data,
                                    size_t datalen, void *user_data) {
   (void)offset;
@@ -481,9 +476,10 @@ static int recv_crypto_data_server(ngtcp2_conn *conn,
   (void)user_data;
 
   ngtcp2_conn_submit_crypto_data(conn,
-                                 crypto_level == NGTCP2_CRYPTO_LEVEL_INITIAL
-                                     ? NGTCP2_CRYPTO_LEVEL_INITIAL
-                                     : NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
+                                 encryption_level ==
+                                         NGTCP2_ENCRYPTION_LEVEL_INITIAL
+                                     ? NGTCP2_ENCRYPTION_LEVEL_INITIAL
+                                     : NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
                                  null_data, 218);
 
   return 0;
@@ -3021,8 +3017,8 @@ void test_ngtcp2_conn_handshake(void) {
 
   CU_ASSERT(0 == rv);
 
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
-                                 91);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 91);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -6357,16 +6353,16 @@ void test_ngtcp2_conn_handshake_loss(void) {
   /* Increase anti-amplification factor for easier testing */
   conn->dcid.current.bytes_recv += 10000;
 
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
-                                 123);
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
-                                 163);
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
-                                 2369);
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
-                                 79);
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
-                                 36);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                 null_data, 123);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 163);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 2369);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 79);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 36);
 
   /* Initial and first Handshake are coalesced into 1 packet. */
   for (i = 0; i < 3; ++i) {
@@ -6508,10 +6504,10 @@ void test_ngtcp2_conn_handshake_loss(void) {
   /* Increase anti-amplification factor for easier testing */
   conn->dcid.current.bytes_recv += 10000;
 
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
-                                 123);
-  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
-                                 3000);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                 null_data, 123);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 3000);
   /* Initial and first Handshake are coalesced into 1 packet. */
   for (i = 0; i < 3; ++i) {
     spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);

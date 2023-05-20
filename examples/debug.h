@@ -50,8 +50,8 @@ int handshake_confirmed(ngtcp2_conn *conn, void *user_data);
 
 bool packet_lost(double prob);
 
-void print_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
-                       size_t datalen);
+void print_crypto_data(ngtcp2_encryption_level encryption_level,
+                       const uint8_t *data, size_t datalen);
 
 void print_stream_data(int64_t stream_id, const uint8_t *data, size_t datalen);
 
@@ -115,7 +115,7 @@ void print_http_request_headers(int64_t stream_id, const nghttp3_nv *nva,
 void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
                                  size_t nvlen);
 
-std::string_view secret_title(ngtcp2_crypto_level level);
+std::string_view secret_title(ngtcp2_encryption_level level);
 
 } // namespace debug
 

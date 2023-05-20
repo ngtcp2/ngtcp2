@@ -351,21 +351,22 @@ ngtcp2_crypto_hp_mask_cb(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * `ngtcp2_crypto_packet_protection_ivlen(ctx->aead)
  * <ngtcp2_crypto_packet_protection_ivlen>` where ctx is obtained by
  * `ngtcp2_crypto_ctx_tls` (or `ngtcp2_crypto_ctx_tls_early` if
- * |level| == :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`).
+ * |level| ==
+ * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`).
  *
  * In the first call of this function, it calls
  * `ngtcp2_conn_set_crypto_ctx` (or `ngtcp2_conn_set_early_crypto_ctx`
  * if |level| ==
- * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`) to set
- * negotiated AEAD and message digest algorithm.  After the successful
- * call of this function, application can use
+ * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
+ * set negotiated AEAD and message digest algorithm.  After the
+ * successful call of this function, application can use
  * `ngtcp2_conn_get_crypto_ctx` (or `ngtcp2_conn_get_early_crypto_ctx`
  * if |level| ==
- * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`) to get
- * :type:`ngtcp2_crypto_ctx`.
+ * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
+ * get :type:`ngtcp2_crypto_ctx`.
  *
  * If |conn| is initialized as client, and |level| is
- * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_APPLICATION`, this
+ * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_1RTT`, this
  * function retrieves a remote QUIC transport parameters extension
  * from an object obtained by `ngtcp2_conn_get_tls_native_handle` and
  * sets it to |conn| by calling
@@ -375,7 +376,7 @@ ngtcp2_crypto_hp_mask_cb(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  */
 NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
     ngtcp2_conn *conn, uint8_t *key, uint8_t *iv, uint8_t *hp,
-    ngtcp2_crypto_level level, const uint8_t *secret, size_t secretlen);
+    ngtcp2_encryption_level level, const uint8_t *secret, size_t secretlen);
 
 /**
  * @function
@@ -398,21 +399,22 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
  * `ngtcp2_crypto_packet_protection_ivlen(ctx->aead)
  * <ngtcp2_crypto_packet_protection_ivlen>` where ctx is obtained by
  * `ngtcp2_crypto_ctx_tls` (or `ngtcp2_crypto_ctx_tls_early` if
- * |level| == :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`).
+ * |level| ==
+ * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`).
  *
  * In the first call of this function, it calls
  * `ngtcp2_conn_set_crypto_ctx` (or `ngtcp2_conn_set_early_crypto_ctx`
  * if |level| ==
- * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`) to set
- * negotiated AEAD and message digest algorithm.  After the successful
- * call of this function, application can use
+ * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
+ * set negotiated AEAD and message digest algorithm.  After the
+ * successful call of this function, application can use
  * `ngtcp2_conn_get_crypto_ctx` (or `ngtcp2_conn_get_early_crypto_ctx`
  * if |level| ==
- * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`) to get
- * :type:`ngtcp2_crypto_ctx`.
+ * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
+ * get :type:`ngtcp2_crypto_ctx`.
  *
  * If |conn| is initialized as server, and |level| is
- * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_APPLICATION`, this
+ * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_1RTT`, this
  * function retrieves a remote QUIC transport parameters extension
  * from an object obtained by `ngtcp2_conn_get_tls_native_handle` and
  * sets it to |conn| by calling
@@ -422,7 +424,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
  */
 NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_tx_key(
     ngtcp2_conn *conn, uint8_t *key, uint8_t *iv, uint8_t *hp,
-    ngtcp2_crypto_level level, const uint8_t *secret, size_t secretlen);
+    ngtcp2_encryption_level level, const uint8_t *secret, size_t secretlen);
 
 /**
  * @function
@@ -539,11 +541,11 @@ NGTCP2_EXTERN int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_crypto_read_write_crypto_data` reads CRYPTO data |data| of
- * length |datalen| in encryption level |crypto_level| and may feed
- * outgoing CRYPTO data to |conn|.  This function can drive handshake.
- * This function can be also used after handshake completes.  It is
- * allowed to call this function with |datalen| == 0.  In this case,
- * no additional read operation is done.
+ * length |datalen| in encryption level |encryption_level| and may
+ * feed outgoing CRYPTO data to |conn|.  This function can drive
+ * handshake.  This function can be also used after handshake
+ * completes.  It is allowed to call this function with |datalen| ==
+ * 0.  In this case, no additional read operation is done.
  *
  * This function returns 0 if it succeeds, or a negative error code.
  * The generic error code is -1 if a specific error code is not
@@ -553,7 +555,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int
 ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
-                                     ngtcp2_crypto_level crypto_level,
+                                     ngtcp2_encryption_level encryption_level,
                                      const uint8_t *data, size_t datalen);
 
 /**
@@ -570,8 +572,8 @@ ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
  * codes.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_recv_crypto_data_cb(
-    ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level, uint64_t offset,
-    const uint8_t *data, size_t datalen, void *user_data);
+    ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
+    uint64_t offset, const uint8_t *data, size_t datalen, void *user_data);
 
 /**
  * @function
