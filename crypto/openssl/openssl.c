@@ -591,15 +591,16 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   return 0;
 }
 
-int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
-                                         ngtcp2_crypto_level crypto_level,
-                                         const uint8_t *data, size_t datalen) {
+int ngtcp2_crypto_read_write_crypto_data(
+    ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
+    const uint8_t *data, size_t datalen) {
   SSL *ssl = ngtcp2_conn_get_tls_native_handle(conn);
   int rv;
   int err;
 
   if (SSL_provide_quic_data(
-          ssl, ngtcp2_crypto_openssl_from_ngtcp2_crypto_level(crypto_level),
+          ssl,
+          ngtcp2_crypto_openssl_from_ngtcp2_encryption_level(encryption_level),
           data, datalen) != 1) {
     return -1;
   }
@@ -670,17 +671,17 @@ int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
   return 0;
 }
 
-ngtcp2_crypto_level ngtcp2_crypto_openssl_from_ossl_encryption_level(
+ngtcp2_encryption_level ngtcp2_crypto_openssl_from_ossl_encryption_level(
     OSSL_ENCRYPTION_LEVEL ossl_level) {
   switch (ossl_level) {
   case ssl_encryption_initial:
-    return NGTCP2_CRYPTO_LEVEL_INITIAL;
+    return NGTCP2_ENCRYPTION_LEVEL_INITIAL;
   case ssl_encryption_early_data:
-    return NGTCP2_CRYPTO_LEVEL_EARLY;
+    return NGTCP2_ENCRYPTION_LEVEL_0RTT;
   case ssl_encryption_handshake:
-    return NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
+    return NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
   case ssl_encryption_application:
-    return NGTCP2_CRYPTO_LEVEL_APPLICATION;
+    return NGTCP2_ENCRYPTION_LEVEL_1RTT;
   default:
     assert(0);
     abort(); /* if NDEBUG is set */
@@ -688,16 +689,16 @@ ngtcp2_crypto_level ngtcp2_crypto_openssl_from_ossl_encryption_level(
 }
 
 OSSL_ENCRYPTION_LEVEL
-ngtcp2_crypto_openssl_from_ngtcp2_crypto_level(
-    ngtcp2_crypto_level crypto_level) {
-  switch (crypto_level) {
-  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+ngtcp2_crypto_openssl_from_ngtcp2_encryption_level(
+    ngtcp2_encryption_level encryption_level) {
+  switch (encryption_level) {
+  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
     return ssl_encryption_initial;
-  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     return ssl_encryption_handshake;
-  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
+  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
     return ssl_encryption_application;
-  case NGTCP2_CRYPTO_LEVEL_EARLY:
+  case NGTCP2_ENCRYPTION_LEVEL_0RTT:
     return ssl_encryption_early_data;
   default:
     assert(0);
@@ -730,7 +731,7 @@ static int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
                                   const uint8_t *tx_secret, size_t secretlen) {
   ngtcp2_crypto_conn_ref *conn_ref = SSL_get_app_data(ssl);
   ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
-  ngtcp2_crypto_level level =
+  ngtcp2_encryption_level level =
       ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
 
   if (rx_secret &&
@@ -752,7 +753,7 @@ static int add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
                               const uint8_t *data, size_t datalen) {
   ngtcp2_crypto_conn_ref *conn_ref = SSL_get_app_data(ssl);
   ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
-  ngtcp2_crypto_level level =
+  ngtcp2_encryption_level level =
       ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
   int rv;
 

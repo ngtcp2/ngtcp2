@@ -230,14 +230,14 @@ void Client::disconnect() {
 }
 
 namespace {
-int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
-                     uint64_t offset, const uint8_t *data, size_t datalen,
-                     void *user_data) {
+int recv_crypto_data(ngtcp2_conn *conn,
+                     ngtcp2_encryption_level encryption_level, uint64_t offset,
+                     const uint8_t *data, size_t datalen, void *user_data) {
   if (!config.quiet && !config.no_quic_dump) {
-    debug::print_crypto_data(crypto_level, data, datalen);
+    debug::print_crypto_data(encryption_level, data, datalen);
   }
 
-  return ngtcp2_crypto_recv_crypto_data_cb(conn, crypto_level, offset, data,
+  return ngtcp2_crypto_recv_crypto_data_cb(conn, encryption_level, offset, data,
                                            datalen, user_data);
 }
 } // namespace

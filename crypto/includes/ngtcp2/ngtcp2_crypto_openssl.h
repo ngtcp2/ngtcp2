@@ -65,23 +65,23 @@ extern "C" {
  * @function
  *
  * `ngtcp2_crypto_openssl_from_ossl_encryption_level` translates
- * |ossl_level| to :type:`ngtcp2_crypto_level`.  This function is only
- * available for OpenSSL backend.
+ * |ossl_level| to :type:`ngtcp2_encryption_level`.  This function is
+ * only available for OpenSSL backend.
  */
-NGTCP2_EXTERN ngtcp2_crypto_level
+NGTCP2_EXTERN ngtcp2_encryption_level
 ngtcp2_crypto_openssl_from_ossl_encryption_level(
     OSSL_ENCRYPTION_LEVEL ossl_level);
 
 /**
  * @function
  *
- * `ngtcp2_crypto_openssl_from_ngtcp2_crypto_level` translates
- * |crypto_level| to OSSL_ENCRYPTION_LEVEL.  This function is only
+ * `ngtcp2_crypto_openssl_from_ngtcp2_encryption_level` translates
+ * |encryption_level| to OSSL_ENCRYPTION_LEVEL.  This function is only
  * available for OpenSSL backend.
  */
 NGTCP2_EXTERN OSSL_ENCRYPTION_LEVEL
-ngtcp2_crypto_openssl_from_ngtcp2_crypto_level(
-    ngtcp2_crypto_level crypto_level);
+ngtcp2_crypto_openssl_from_ngtcp2_encryption_level(
+    ngtcp2_encryption_level encryption_level);
 
 /**
  * @function
