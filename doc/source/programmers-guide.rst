@@ -308,30 +308,30 @@ from `ngtcp2_conn_get_scid()`.  Association for the initial Connection
 ID which can be obtained by calling
 `ngtcp2_conn_get_client_initial_dcid()` should also be removed.
 
-Dealing with early data
------------------------
+Dealing with 0-RTT (early) data
+-------------------------------
 
 Client application has to remember the subset of the QUIC transport
 parameters received from a server in the previous connection.
-`ngtcp2_conn_encode_early_transport_params` returns the encoded QUIC
-transport parameters that include these values.  When sending early
+`ngtcp2_conn_encode_0rtt_transport_params` returns the encoded QUIC
+transport parameters that include these values.  When sending 0-RTT
 data, the remembered transport parameters should be set via
-`ngtcp2_conn_decode_early_transport_params`.  Then client can open
+`ngtcp2_conn_decode_0rtt_transport_params`.  Then client can open
 streams with `ngtcp2_conn_open_bidi_streams` or
 `ngtcp2_conn_open_uni_stream`.  Note that
-`ngtcp2_conn_decode_early_transport_params` does not invoke neither
+`ngtcp2_conn_decode_0rtt_transport_params` does not invoke neither
 :member:`ngtcp2_callbacks.extend_max_local_streams_bidi` nor
 :member:`ngtcp2_callbacks.extend_max_local_streams_uni`.
 
-Other than that, there is no difference between early data and 1RTT
-data in terms of API usage.
+Other than that, there is no difference between 0-RTT and 1-RTT data
+in terms of API usage.
 
 If early data is rejected by a server, client must call
 `ngtcp2_conn_early_data_rejected`.  All connection states altered
-during early data transmission are undone.  The library does not
-retransmit early data to server as 1RTT data.  If an application
-wishes to resend data, it has to reopen streams and writes data again.
-See `ngtcp2_conn_early_data_rejected`.
+during 0-RTT transmission are undone.  The library does not retransmit
+0-RTT data to server as 1-RTT data.  If an application wishes to
+resend data, it has to reopen streams and writes data again.  See
+`ngtcp2_conn_early_data_rejected`.
 
 Closing streams
 ---------------

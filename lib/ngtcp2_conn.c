@@ -580,7 +580,7 @@ static int conn_call_recv_datagram(ngtcp2_conn *conn,
   }
 
   if (!conn_is_tls_handshake_completed(conn)) {
-    flags |= NGTCP2_DATAGRAM_FLAG_EARLY;
+    flags |= NGTCP2_DATAGRAM_FLAG_0RTT;
   }
 
   rv = conn->callbacks.recv_datagram(conn, flags, data, datalen,
@@ -6915,7 +6915,7 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
       sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
     }
     if (!handshake_completed) {
-      sdflags |= NGTCP2_STREAM_DATA_FLAG_EARLY;
+      sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
     }
 
     rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data, datalen);
@@ -7235,7 +7235,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
       }
       if (!conn_is_tls_handshake_completed(conn)) {
-        sdflags |= NGTCP2_STREAM_DATA_FLAG_EARLY;
+        sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
       }
       rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data,
                                       (size_t)datalen);
@@ -10672,10 +10672,10 @@ int ngtcp2_conn_install_tx_handshake_key(
   return 0;
 }
 
-int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
-                                  const ngtcp2_crypto_aead_ctx *aead_ctx,
-                                  const uint8_t *iv, size_t ivlen,
-                                  const ngtcp2_crypto_cipher_ctx *hp_ctx) {
+int ngtcp2_conn_install_0rtt_key(ngtcp2_conn *conn,
+                                 const ngtcp2_crypto_aead_ctx *aead_ctx,
+                                 const uint8_t *iv, size_t ivlen,
+                                 const ngtcp2_crypto_cipher_ctx *hp_ctx) {
   int rv;
 
   assert(ivlen >= 8);
@@ -11383,9 +11383,9 @@ ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn) {
   return conn->remote.transport_params;
 }
 
-ngtcp2_ssize ngtcp2_conn_encode_early_transport_params(ngtcp2_conn *conn,
-                                                       uint8_t *dest,
-                                                       size_t destlen) {
+ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params(ngtcp2_conn *conn,
+                                                      uint8_t *dest,
+                                                      size_t destlen) {
   ngtcp2_transport_params params, *src;
 
   if (conn->server) {
@@ -11418,9 +11418,9 @@ ngtcp2_ssize ngtcp2_conn_encode_early_transport_params(ngtcp2_conn *conn,
   return ngtcp2_transport_params_encode(dest, destlen, &params);
 }
 
-int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
-                                              const uint8_t *data,
-                                              size_t datalen) {
+int ngtcp2_conn_decode_0rtt_transport_params(ngtcp2_conn *conn,
+                                             const uint8_t *data,
+                                             size_t datalen) {
   ngtcp2_transport_params params;
   int rv;
 
@@ -11429,10 +11429,10 @@ int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
     return rv;
   }
 
-  return ngtcp2_conn_set_early_remote_transport_params(conn, &params);
+  return ngtcp2_conn_set_0rtt_remote_transport_params(conn, &params);
 }
 
-int ngtcp2_conn_set_early_remote_transport_params(
+int ngtcp2_conn_set_0rtt_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
   ngtcp2_transport_params *p;
 
@@ -13496,12 +13496,12 @@ const ngtcp2_crypto_ctx *ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn) {
   return &conn->pktns.crypto.ctx;
 }
 
-void ngtcp2_conn_set_early_crypto_ctx(ngtcp2_conn *conn,
-                                      const ngtcp2_crypto_ctx *ctx) {
+void ngtcp2_conn_set_0rtt_crypto_ctx(ngtcp2_conn *conn,
+                                     const ngtcp2_crypto_ctx *ctx) {
   conn->early.ctx = *ctx;
 }
 
-const ngtcp2_crypto_ctx *ngtcp2_conn_get_early_crypto_ctx(ngtcp2_conn *conn) {
+const ngtcp2_crypto_ctx *ngtcp2_conn_get_0rtt_crypto_ctx(ngtcp2_conn *conn) {
   return &conn->early.ctx;
 }
 
