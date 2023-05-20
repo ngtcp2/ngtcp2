@@ -722,7 +722,7 @@ static void conn_set_scid_used(ngtcp2_conn *conn) {
   int rv;
   (void)rv;
 
-  assert(1 + (conn->local.transport_params.preferred_address_present != 0) ==
+  assert(1 + (conn->local.transport_params.preferred_addr_present != 0) ==
          ngtcp2_ksl_len(&conn->scid.set));
 
   it = ngtcp2_ksl_begin(&conn->scid.set);
@@ -6048,15 +6048,15 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
      server disable_active_migration */
   server_default_transport_params(&params);
   params.disable_active_migration = 1;
-  params.preferred_address_present = 1;
-  params.preferred_address.cid = cid;
+  params.preferred_addr_present = 1;
+  params.preferred_addr.cid = cid;
 
   /* Set local address of new_path */
   assert(AF_INET == new_path.path.local.addr->sa_family);
 
-  params.preferred_address.ipv4_present = 1;
-  memcpy(&params.preferred_address.ipv4, new_path.path.local.addr,
-         sizeof(params.preferred_address.ipv4));
+  params.preferred_addr.ipv4_present = 1;
+  memcpy(&params.preferred_addr.ipv4, new_path.path.local.addr,
+         sizeof(params.preferred_addr.ipv4));
 
   server_default_settings(&settings);
 
@@ -8708,8 +8708,8 @@ void test_ngtcp2_conn_get_scid(void) {
 
   /* With preferred address */
   server_default_transport_params(&params);
-  params.preferred_address_present = 1;
-  ngtcp2_cid_init(&params.preferred_address.cid, raw_cid, sizeof(raw_cid));
+  params.preferred_addr_present = 1;
+  ngtcp2_cid_init(&params.preferred_addr.cid, raw_cid, sizeof(raw_cid));
 
   ngtcp2_conn_server_new(&conn, &dcid, &scid, &null_path.path,
                          NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
@@ -8720,7 +8720,7 @@ void test_ngtcp2_conn_get_scid(void) {
   ngtcp2_conn_get_scid(conn, scids);
 
   CU_ASSERT(ngtcp2_cid_eq(&scid, &scids[0]));
-  CU_ASSERT(ngtcp2_cid_eq(&params.preferred_address.cid, &scids[1]));
+  CU_ASSERT(ngtcp2_cid_eq(&params.preferred_addr.cid, &scids[1]));
 
   ngtcp2_conn_del(conn);
 }

@@ -1448,10 +1448,10 @@ typedef struct ngtcp2_version_info {
  */
 typedef struct ngtcp2_transport_params {
   /**
-   * :member:`preferred_address` contains preferred address if
-   * :member:`preferred_address_present` is nonzero.
+   * :member:`preferred_addr` contains preferred address if
+   * :member:`preferred_addr_present` is nonzero.
    */
-  ngtcp2_preferred_addr preferred_address;
+  ngtcp2_preferred_addr preferred_addr;
   /**
    * :member:`original_dcid` is the Destination Connection ID field
    * from the first Initial packet from client.  Server must specify
@@ -1575,10 +1575,10 @@ typedef struct ngtcp2_transport_params {
    */
   uint8_t retry_scid_present;
   /**
-   * :member:`preferred_address_present` is nonzero if
+   * :member:`preferred_addr_present` is nonzero if
    * :member:`preferred_address` is set.
    */
-  uint8_t preferred_address_present;
+  uint8_t preferred_addr_present;
   /**
    * :member:`stateless_reset_token` contains stateless reset token.
    */

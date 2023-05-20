@@ -1000,9 +1000,9 @@ void ngtcp2_qlog_parameters_set_transport_params(
   *p++ = ',';
   p = write_pair_number(p, "initial_max_streams_uni",
                         params->initial_max_streams_uni);
-  if (params->preferred_address_present) {
+  if (params->preferred_addr_present) {
     *p++ = ',';
-    paddr = &params->preferred_address;
+    paddr = &params->preferred_addr;
     p = write_string(p, "preferred_address");
     *p++ = ':';
     *p++ = '{';
