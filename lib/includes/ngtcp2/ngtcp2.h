@@ -324,7 +324,7 @@ typedef struct ngtcp2_mem {
  * @macro
  *
  * :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE` is the default maximum UDP
- * datagram payload size that this endpoint transmits.
+ * datagram payload size that the local endpoint transmits.
  */
 #define NGTCP2_MAX_UDP_PAYLOAD_SIZE 1200
 
@@ -1464,41 +1464,42 @@ typedef struct ngtcp2_transport_params {
   ngtcp2_cid original_dcid;
   /**
    * :member:`initial_scid` is the Source Connection ID field from the
-   * first Initial packet the endpoint sends.  Application should not
-   * specify this field.  If :member:`initial_scid_present` is set to
-   * nonzero, it indicates this field is set.
+   * first Initial packet the local endpoint sends.  Application
+   * should not specify this field.  If :member:`initial_scid_present`
+   * is set to nonzero, it indicates this field is set.
    */
   ngtcp2_cid initial_scid;
   /**
    * :member:`retry_scid` is the Source Connection ID field from Retry
    * packet.  Only server uses this field.  If server application
-   * received Initial packet with retry token from client and server
-   * verified its token, server application must set Destination
-   * Connection ID field from the Initial packet to this field and set
-   * :member:`retry_scid_present` to nonzero.  Server application must
-   * verify that the Destination Connection ID from Initial packet was
-   * sent in Retry packet by, for example, including the Connection ID
-   * in a token, or including it in AAD when encrypting a token.
+   * received Initial packet with retry token from client, and server
+   * successfully verified its token, server application must set
+   * Destination Connection ID field from the Initial packet to this
+   * field, and set :member:`retry_scid_present` to nonzero.  Server
+   * application must verify that the Destination Connection ID from
+   * Initial packet was sent in Retry packet by, for example,
+   * including the Connection ID in a token, or including it in AAD
+   * when encrypting a token.
    */
   ngtcp2_cid retry_scid;
   /**
    * :member:`initial_max_stream_data_bidi_local` is the size of flow
    * control window of locally initiated stream.  This is the number
-   * of bytes that the remote endpoint can send and the local endpoint
-   * must ensure that it has enough buffer to receive them.
+   * of bytes that the remote endpoint can send, and the local
+   * endpoint must ensure that it has enough buffer to receive them.
    */
   uint64_t initial_max_stream_data_bidi_local;
   /**
    * :member:`initial_max_stream_data_bidi_remote` is the size of flow
    * control window of remotely initiated stream.  This is the number
-   * of bytes that the remote endpoint can send and the local endpoint
-   * must ensure that it has enough buffer to receive them.
+   * of bytes that the remote endpoint can send, and the local
+   * endpoint must ensure that it has enough buffer to receive them.
    */
   uint64_t initial_max_stream_data_bidi_remote;
   /**
    * :member:`initial_max_stream_data_uni` is the size of flow control
    * window of remotely initiated unidirectional stream.  This is the
-   * number of bytes that the remote endpoint can send and the local
+   * number of bytes that the remote endpoint can send, and the local
    * endpoint must ensure that it has enough buffer to receive them.
    */
   uint64_t initial_max_stream_data_uni;
@@ -1523,8 +1524,8 @@ typedef struct ngtcp2_transport_params {
    */
   ngtcp2_duration max_idle_timeout;
   /**
-   * :member:`max_udp_payload_size` is the maximum datagram size that
-   * the endpoint can receive.
+   * :member:`max_udp_payload_size` is the maximum UDP payload size
+   * that the local endpoint can receive.
    */
   uint64_t max_udp_payload_size;
   /**
@@ -1539,12 +1540,12 @@ typedef struct ngtcp2_transport_params {
   uint64_t ack_delay_exponent;
   /**
    * :member:`max_ack_delay` is the maximum acknowledgement delay by
-   * which the endpoint will delay sending acknowledgements.
+   * which the local endpoint will delay sending acknowledgements.
    */
   ngtcp2_duration max_ack_delay;
   /**
    * :member:`max_datagram_frame_size` is the maximum size of DATAGRAM
-   * frame that this endpoint willingly receives.  Specifying 0
+   * frame that the local endpoint willingly receives.  Specifying 0
    * disables DATAGRAM support.  See :rfc:`9221`.
    */
   uint64_t max_datagram_frame_size;
@@ -1554,8 +1555,8 @@ typedef struct ngtcp2_transport_params {
    */
   uint8_t stateless_reset_token_present;
   /**
-   * :member:`disable_active_migration` is nonzero if the endpoint
-   * does not support active connection migration.
+   * :member:`disable_active_migration` is nonzero if the local
+   * endpoint does not support active connection migration.
    */
   uint8_t disable_active_migration;
   /**
@@ -1770,9 +1771,8 @@ typedef void (*ngtcp2_qlog_write)(void *user_data, uint32_t flags,
 typedef struct ngtcp2_qlog_settings {
   /**
    * :member:`odcid` is Original Destination Connection ID sent by
-   * client.  It is used as group_id and ODCID fields.  Client ignores
-   * this field and uses dcid parameter passed to
-   * `ngtcp2_conn_client_new()`.
+   * client.  It is used as group_id.  Client ignores this field and
+   * uses dcid parameter passed to `ngtcp2_conn_client_new()`.
    */
   ngtcp2_cid odcid;
   /**
