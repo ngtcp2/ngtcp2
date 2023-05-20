@@ -293,8 +293,8 @@ int main(void) {
                    test_ngtcp2_conn_path_validation) ||
       !CU_add_test(pSuite, "conn_early_data_sync_stream_data_limit",
                    test_ngtcp2_conn_early_data_sync_stream_data_limit) ||
-      !CU_add_test(pSuite, "conn_early_data_rejected",
-                   test_ngtcp2_conn_early_data_rejected) ||
+      !CU_add_test(pSuite, "conn_tls_early_data_rejected",
+                   test_ngtcp2_conn_tls_early_data_rejected) ||
       !CU_add_test(pSuite, "conn_keep_alive", test_ngtcp2_conn_keep_alive) ||
       !CU_add_test(pSuite, "conn_retire_stale_bound_dcid",
                    test_ngtcp2_conn_retire_stale_bound_dcid) ||

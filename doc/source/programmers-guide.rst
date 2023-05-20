@@ -326,12 +326,12 @@ streams with `ngtcp2_conn_open_bidi_streams` or
 Other than that, there is no difference between 0-RTT and 1-RTT data
 in terms of API usage.
 
-If early data is rejected by a server, client must call
-`ngtcp2_conn_early_data_rejected`.  All connection states altered
-during 0-RTT transmission are undone.  The library does not retransmit
-0-RTT data to server as 1-RTT data.  If an application wishes to
-resend data, it has to reopen streams and writes data again.  See
-`ngtcp2_conn_early_data_rejected`.
+If early data is rejected by a server during TLS handshake, client
+must call `ngtcp2_conn_tls_early_data_rejected`.  All connection
+states altered during 0-RTT transmission are undone.  The library does
+not retransmit 0-RTT data to server as 1-RTT data.  If an application
+wishes to resend data, it has to reopen streams and writes data again.
+See `ngtcp2_conn_tls_early_data_rejected`.
 
 Closing streams
 ---------------

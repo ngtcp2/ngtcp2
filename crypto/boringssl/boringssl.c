@@ -425,7 +425,7 @@ int ngtcp2_crypto_read_write_crypto_data(
 
         SSL_reset_early_data_reject(ssl);
 
-        rv = ngtcp2_conn_early_data_rejected(conn);
+        rv = ngtcp2_conn_tls_early_data_rejected(conn);
         if (rv != 0) {
           return -1;
         }
