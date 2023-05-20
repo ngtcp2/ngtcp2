@@ -312,8 +312,8 @@ int main(void) {
       !CU_add_test(pSuite, "conn_pmtud_loss", test_ngtcp2_conn_pmtud_loss) ||
       !CU_add_test(pSuite, "conn_amplification",
                    test_ngtcp2_conn_amplification) ||
-      !CU_add_test(pSuite, "conn_encode_early_transport_params",
-                   test_ngtcp2_conn_encode_early_transport_params) ||
+      !CU_add_test(pSuite, "conn_encode_0rtt_transport_params",
+                   test_ngtcp2_conn_encode_0rtt_transport_params) ||
       !CU_add_test(pSuite, "conn_create_ack_frame",
                    test_ngtcp2_conn_create_ack_frame) ||
       !CU_add_test(pSuite, "conn_new_failmalloc",

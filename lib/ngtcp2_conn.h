@@ -1118,7 +1118,7 @@ int ngtcp2_conn_set_remote_transport_params(
 /**
  * @function
  *
- * `ngtcp2_conn_set_early_remote_transport_params` sets |params| as
+ * `ngtcp2_conn_set_0rtt_remote_transport_params` sets |params| as
  * transport parameters previously received from a server.  The
  * parameters are used to send early data.  QUIC requires that client
  * application should remember transport parameters along with a
@@ -1151,7 +1151,7 @@ int ngtcp2_conn_set_remote_transport_params(
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-int ngtcp2_conn_set_early_remote_transport_params(
+int ngtcp2_conn_set_0rtt_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params);
 
 /*

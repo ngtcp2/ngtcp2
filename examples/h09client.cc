@@ -314,10 +314,10 @@ int Client::handshake_completed() {
 
   if (config.tp_file) {
     std::array<uint8_t, 256> data;
-    auto datalen = ngtcp2_conn_encode_early_transport_params(conn_, data.data(),
-                                                             data.size());
+    auto datalen = ngtcp2_conn_encode_0rtt_transport_params(conn_, data.data(),
+                                                            data.size());
     if (datalen < 0) {
-      std::cerr << "Could not encode early transport parameters: "
+      std::cerr << "Could not encode 0-RTT transport parameters: "
                 << ngtcp2_strerror(datalen) << std::endl;
     } else if (util::write_transport_params(config.tp_file, data.data(),
                                             datalen) != 0) {
@@ -763,11 +763,11 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     if (!params) {
       early_data_ = false;
     } else {
-      auto rv = ngtcp2_conn_decode_early_transport_params(
+      auto rv = ngtcp2_conn_decode_0rtt_transport_params(
           conn_, reinterpret_cast<const uint8_t *>(params->data()),
           params->size());
       if (rv != 0) {
-        std::cerr << "ngtcp2_conn_decode_early_transport_params: "
+        std::cerr << "ngtcp2_conn_decode_0rtt_transport_params: "
                   << ngtcp2_strerror(rv) << std::endl;
         early_data_ = false;
       } else if (make_stream_early() != 0) {

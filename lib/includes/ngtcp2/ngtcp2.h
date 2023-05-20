@@ -2684,11 +2684,11 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 /**
  * @macro
  *
- * :macro:`NGTCP2_STREAM_DATA_FLAG_EARLY` indicates that this chunk of
+ * :macro:`NGTCP2_STREAM_DATA_FLAG_0RTT` indicates that this chunk of
  * data contains data received in 0-RTT packet, and the handshake has
  * not completed yet, which means that the data might be replayed.
  */
-#define NGTCP2_STREAM_DATA_FLAG_EARLY 0x02u
+#define NGTCP2_STREAM_DATA_FLAG_0RTT 0x02u
 
 /**
  * @functypedef
@@ -2704,7 +2704,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * overlap.  The data is passed as |data| of length |datalen|.
  * |datalen| may be 0 if and only if |fin| is nonzero.
  *
- * If :macro:`NGTCP2_STREAM_DATA_FLAG_EARLY` is set in |flags|, it
+ * If :macro:`NGTCP2_STREAM_DATA_FLAG_0RTT` is set in |flags|, it
  * indicates that a part of or whole data was received in 0RTT packet
  * and a handshake has not completed yet.
  *
@@ -3125,11 +3125,11 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
 /**
  * @macro
  *
- * :macro:`NGTCP2_DATAGRAM_FLAG_EARLY` indicates that DATAGRAM frame
- * is received in 0RTT packet and the handshake has not completed yet,
+ * :macro:`NGTCP2_DATAGRAM_FLAG_0RTT` indicates that DATAGRAM frame is
+ * received in 0RTT packet and the handshake has not completed yet,
  * which means that the data might be replayed.
  */
-#define NGTCP2_DATAGRAM_FLAG_EARLY 0x01u
+#define NGTCP2_DATAGRAM_FLAG_0RTT 0x01u
 
 /**
  * @functypedef
@@ -3138,7 +3138,7 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
  * received.  |flags| is bitwise-OR of zero or more of
  * :macro:`NGTCP2_DATAGRAM_FLAG_* <NGTCP2_DATAGRAM_FLAG_NONE>`.
  *
- * If :macro:`NGTCP2_DATAGRAM_FLAG_EARLY` is set in |flags|, it
+ * If :macro:`NGTCP2_DATAGRAM_FLAG_0RTT` is set in |flags|, it
  * indicates that DATAGRAM frame was received in 0RTT packet and a
  * handshake has not completed yet.
  *
@@ -3870,7 +3870,7 @@ NGTCP2_EXTERN int ngtcp2_conn_install_tx_handshake_key(
 /**
  * @function
  *
- * `ngtcp2_conn_install_early_key` installs packet protection AEAD
+ * `ngtcp2_conn_install_0rtt_key` installs packet protection AEAD
  * cipher context object |aead_ctx|, IV |iv| of length |ivlen|, and
  * packet header protection cipher context object |hp_ctx| to encrypt
  * (for client) or decrypt (for server) 0RTT packets.
@@ -3890,7 +3890,7 @@ NGTCP2_EXTERN int ngtcp2_conn_install_tx_handshake_key(
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_install_early_key(
+NGTCP2_EXTERN int ngtcp2_conn_install_0rtt_key(
     ngtcp2_conn *conn, const ngtcp2_crypto_aead_ctx *aead_ctx,
     const uint8_t *iv, size_t ivlen, const ngtcp2_crypto_cipher_ctx *hp_ctx);
 
@@ -4088,7 +4088,7 @@ ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_encode_early_transport_params` encodes the QUIC
+ * `ngtcp2_conn_encode_0rtt_transport_params` encodes the QUIC
  * transport parameters that are used for early data in the buffer
  * pointed by |dest| of length |destlen|.  The subset includes at
  * least the following fields:
@@ -4121,14 +4121,14 @@ ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn);
  *     Buffer is too small.
  */
 NGTCP2_EXTERN
-ngtcp2_ssize ngtcp2_conn_encode_early_transport_params(ngtcp2_conn *conn,
-                                                       uint8_t *dest,
-                                                       size_t destlen);
+ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params(ngtcp2_conn *conn,
+                                                      uint8_t *dest,
+                                                      size_t destlen);
 
 /**
  * @function
  *
- * `ngtcp2_conn_decode_early_transport_params` decodes QUIC transport
+ * `ngtcp2_conn_decode_0rtt_transport_params` decodes QUIC transport
  * parameters from |data| of length |datalen|, which is assumed to be
  * the parameters received from the server in the previous connection,
  * and sets it to |conn|.  These parameters are used to send early
@@ -4156,9 +4156,9 @@ ngtcp2_ssize ngtcp2_conn_encode_early_transport_params(ngtcp2_conn *conn,
  * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
  *     The input is malformed.
  */
-NGTCP2_EXTERN int ngtcp2_conn_decode_early_transport_params(ngtcp2_conn *conn,
-                                                            const uint8_t *data,
-                                                            size_t datalen);
+NGTCP2_EXTERN int ngtcp2_conn_decode_0rtt_transport_params(ngtcp2_conn *conn,
+                                                           const uint8_t *data,
+                                                           size_t datalen);
 
 /**
  * @function
@@ -4214,7 +4214,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(
  *
  * Application can call this function before handshake completes.  For
  * 0RTT packet, application can call this function after calling
- * `ngtcp2_conn_decode_early_transport_params`.  For 1RTT packet,
+ * `ngtcp2_conn_decode_0rtt_transport_params`.  For 1RTT packet,
  * application can call this function after calling
  * `ngtcp2_conn_decode_remote_transport_params` and
  * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
@@ -4242,7 +4242,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
  *
  * Application can call this function before handshake completes.  For
  * 0RTT packet, application can call this function after calling
- * `ngtcp2_conn_decode_early_transport_params`.  For 1RTT packet,
+ * `ngtcp2_conn_decode_0rtt_transport_params`.  For 1RTT packet,
  * application can call this function after calling
  * `ngtcp2_conn_decode_remote_transport_params` and
  * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
@@ -5117,23 +5117,23 @@ ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_set_early_crypto_ctx` sets |ctx| for 0RTT packet
+ * `ngtcp2_conn_set_0rtt_crypto_ctx` sets |ctx| for 0RTT packet
  * encryption.  The passed data will be passed to
  * :type:`ngtcp2_encrypt`, :type:`ngtcp2_decrypt` and
  * :type:`ngtcp2_hp_mask` callbacks.
  */
 NGTCP2_EXTERN void
-ngtcp2_conn_set_early_crypto_ctx(ngtcp2_conn *conn,
-                                 const ngtcp2_crypto_ctx *ctx);
+ngtcp2_conn_set_0rtt_crypto_ctx(ngtcp2_conn *conn,
+                                const ngtcp2_crypto_ctx *ctx);
 
 /**
  * @function
  *
- * `ngtcp2_conn_get_early_crypto_ctx` returns
- * :type:`ngtcp2_crypto_ctx` object for 0RTT packet encryption.
+ * `ngtcp2_conn_get_0rtt_crypto_ctx` returns :type:`ngtcp2_crypto_ctx`
+ * object for 0RTT packet encryption.
  */
 NGTCP2_EXTERN const ngtcp2_crypto_ctx *
-ngtcp2_conn_get_early_crypto_ctx(ngtcp2_conn *conn);
+ngtcp2_conn_get_0rtt_crypto_ctx(ngtcp2_conn *conn);
 
 /**
  * @enum
