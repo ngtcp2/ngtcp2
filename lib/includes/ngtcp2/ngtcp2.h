@@ -54,26 +54,26 @@
 #  ifdef WIN32
 #    ifndef WIN32_LEAN_AND_MEAN
 #      define WIN32_LEAN_AND_MEAN
-#    endif
+#    endif /* WIN32_LEAN_AND_MEAN */
 #    include <ws2tcpip.h>
-#  else
+#  else /* !WIN32 */
 #    include <sys/socket.h>
 #    include <netinet/in.h>
-#  endif
-#endif
+#  endif /* !WIN32 */
+#endif   /* NGTCP2_USE_GENERIC_SOCKADDR */
 
 #ifdef AF_INET
 #  define NGTCP2_AF_INET AF_INET
-#else
+#else /* !AF_INET */
 #  define NGTCP2_AF_INET 2
-#endif
+#endif /* !AF_INET */
 
 #ifdef AF_INET6
 #  define NGTCP2_AF_INET6 AF_INET6
-#else
+#else /* !AF_INET6 */
 #  define NGTCP2_AF_INET6 23
 #  define NGTCP2_USE_GENERIC_IPV6_SOCKADDR
-#endif
+#endif /* !AF_INET6 */
 
 #include <ngtcp2/version.h>
 
@@ -223,7 +223,8 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_SECONDS` is a count of tick which corresponds to 1 second.
+ * :macro:`NGTCP2_SECONDS` is a count of tick which corresponds to 1
+ * second.
  */
 #define NGTCP2_SECONDS ((ngtcp2_duration)1000000000ULL)
 
@@ -361,7 +362,7 @@ typedef struct ngtcp2_mem {
  * @macro
  *
  * :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN` is the minimum length
- * of random bytes (Unpredictable Bits) in Stateless Reset packet
+ * of random bytes (Unpredictable Bits) in Stateless Reset packet.
  */
 #define NGTCP2_MIN_STATELESS_RESET_RANDLEN 5
 
@@ -403,8 +404,8 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_RETRY_NONCE_V1` is nonce used when generating integrity
- * tag of Retry packet.  It is used for QUIC v1.
+ * :macro:`NGTCP2_RETRY_NONCE_V1` is nonce used when generating
+ * integrity tag of Retry packet.  It is used for QUIC v1.
  */
 #define NGTCP2_RETRY_NONCE_V1 "\x46\x15\x99\xd3\x5d\x63\x2b\xf2\x23\x98\x25\xbb"
 
@@ -525,8 +526,8 @@ typedef struct ngtcp2_mem {
  */
 typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
   /**
-   * :member:`ecn` is ECN marking and when passing
-   * `ngtcp2_conn_read_pkt()`, and it should be either
+   * :member:`ecn` is ECN marking, and when it is passed to
+   * `ngtcp2_conn_read_pkt()`, it should be either
    * :macro:`NGTCP2_ECN_NOT_ECT`, :macro:`NGTCP2_ECN_ECT_1`,
    * :macro:`NGTCP2_ECN_ECT_0`, or :macro:`NGTCP2_ECN_CE`.
    */
@@ -671,8 +672,8 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
 /**
  * @macro
  *
- * :macro:`NGTCP2_ERR_STREAM_NOT_FOUND` indicates that a stream was not
- * found.
+ * :macro:`NGTCP2_ERR_STREAM_NOT_FOUND` indicates that a stream was
+ * not found.
  */
 #define NGTCP2_ERR_STREAM_NOT_FOUND -222
 /**
@@ -1054,7 +1055,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_VERSION_NEGOTIATION_ERROR` is QUIC transport error
  * code ``VERSION_NEGOTIATION_ERROR``.
  *
- * https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation-14
+ * https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation
  */
 #define NGTCP2_VERSION_NEGOTIATION_ERROR 0x11
 
@@ -1086,7 +1087,8 @@ typedef enum ngtcp2_path_validation_result {
  * @typedef
  *
  * :type:`ngtcp2_tstamp` is a timestamp with nanosecond resolution.
- * ``UINT64_MAX`` is an invalid value.
+ * ``UINT64_MAX`` is an invalid value, and it is often used to
+ * indicate that no value is set.
  */
 typedef uint64_t ngtcp2_tstamp;
 
@@ -1094,7 +1096,8 @@ typedef uint64_t ngtcp2_tstamp;
  * @typedef
  *
  * :type:`ngtcp2_duration` is a period of time in nanosecond
- * resolution.  ``UINT64_MAX`` is an invalid value.
+ * resolution.  ``UINT64_MAX`` is an invalid value, and it is often
+ * used to indicate that no value is set.
  */
 typedef uint64_t ngtcp2_duration;
 
@@ -1169,12 +1172,13 @@ typedef struct ngtcp2_pkt_hd {
    */
   int64_t pkt_num;
   /**
-   * :member:`token` contains token for Initial
-   * packet.
+   * :member:`token` contains token.  Only Initial packet may contain
+   * token.  NULL if no token is present.
    */
   const uint8_t *token;
   /**
-   * :member:`tokenlen` is the length of :member:`token`.
+   * :member:`tokenlen` is the length of :member:`token`.  0 if no
+   * token is present.
    */
   size_t tokenlen;
   /**
@@ -1192,8 +1196,10 @@ typedef struct ngtcp2_pkt_hd {
    */
   uint32_t version;
   /**
-   * :member:`type` is a type of QUIC packet.  See
-   * :type:`ngtcp2_pkt_type`.
+   * :member:`type` is a type of QUIC packet.  This field does not
+   * have a QUIC packet type defined for a specific QUIC version.
+   * Instead, it contains version independent packet type defined by
+   * this library.  See :type:`ngtcp2_pkt_type`.
    */
   uint8_t type;
   /**
@@ -1318,7 +1324,7 @@ typedef struct ngtcp2_sockaddr_storage {
 #  undef NGTCP2_SS_MAXSIZE
 
 typedef uint32_t ngtcp2_socklen;
-#else
+#else  /* !NGTCP2_USE_GENERIC_SOCKADDR */
 /**
  * @typedef
  *
@@ -1352,7 +1358,7 @@ typedef struct sockaddr_in ngtcp2_sockaddr_in;
  * uint32_t.
  */
 typedef socklen_t ngtcp2_socklen;
-#endif
+#endif /* !NGTCP2_USE_GENERIC_SOCKADDR */
 
 #if defined(NGTCP2_USE_GENERIC_SOCKADDR) ||                                    \
     defined(NGTCP2_USE_GENERIC_IPV6_SOCKADDR)
@@ -1367,7 +1373,8 @@ typedef struct ngtcp2_sockaddr_in6 {
   ngtcp2_in6_addr sin6_addr;
   uint32_t sin6_scope_id;
 } ngtcp2_sockaddr_in6;
-#else
+#else  /* !defined(NGTCP2_USE_GENERIC_SOCKADDR) &&                             \
+          !defined(NGTCP2_USE_GENERIC_IPV6_SOCKADDR) */
 /**
  * @typedef
  *
@@ -1376,7 +1383,8 @@ typedef struct ngtcp2_sockaddr_in6 {
  * to the generic struct sockaddr_in6 defined in ngtcp2.h.
  */
 typedef struct sockaddr_in6 ngtcp2_sockaddr_in6;
-#endif
+#endif /* !defined(NGTCP2_USE_GENERIC_SOCKADDR) &&                             \
+          !defined(NGTCP2_USE_GENERIC_IPV6_SOCKADDR) */
 
 /**
  * @struct
@@ -1406,7 +1414,7 @@ typedef struct ngtcp2_preferred_addr {
    */
   ngtcp2_sockaddr_in ipv4;
   /**
-   * :member:`ipv6` contains IPv4 address and port.
+   * :member:`ipv6` contains IPv6 address and port.
    */
   ngtcp2_sockaddr_in6 ipv6;
   /**
@@ -1430,6 +1438,8 @@ typedef struct ngtcp2_preferred_addr {
  *
  * :type:`ngtcp2_version_info` represents version_information
  * structure.
+ *
+ * https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation
  */
 typedef struct ngtcp2_version_info {
   /**
