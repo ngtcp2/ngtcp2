@@ -35,6 +35,7 @@
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pq.h"
 #include "ngtcp2_objalloc.h"
+#include "ngtcp2_pktns_id.h"
 
 typedef struct ngtcp2_conn ngtcp2_conn;
 typedef struct ngtcp2_pktns ngtcp2_pktns;

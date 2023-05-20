@@ -117,7 +117,8 @@ HFILES = \
 	ngtcp2_net.h \
 	ngtcp2_unreachable.h \
 	ngtcp2_conversion.h \
-	ngtcp2_conn_stat.h
+	ngtcp2_conn_stat.h \
+	ngtcp2_pktns_id.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
 libngtcp2_la_LDFLAGS = -no-undefined \
