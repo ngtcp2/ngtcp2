@@ -1351,8 +1351,13 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   conn_reset_ecn_validation_state(*pconn);
 
-  ngtcp2_qlog_start(&(*pconn)->qlog, server ? &settings->qlog.odcid : dcid,
-                    server);
+  ngtcp2_qlog_start(
+      &(*pconn)->qlog,
+      server ? ((*pconn)->local.transport_params.retry_scid_present
+                    ? &(*pconn)->local.transport_params.retry_scid
+                    : &(*pconn)->local.transport_params.original_dcid)
+             : dcid,
+      server);
 
   return 0;
 
