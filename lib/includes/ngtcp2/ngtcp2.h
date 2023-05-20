@@ -1612,34 +1612,6 @@ typedef struct ngtcp2_transport_params {
   uint64_t placeholder_field2;
 } ngtcp2_transport_params;
 
-/**
- * @enum
- *
- * :type:`ngtcp2_pktns_id` defines packet number space identifier.
- */
-typedef enum ngtcp2_pktns_id {
-  /**
-   * :enum:`NGTCP2_PKTNS_ID_INITIAL` is the Initial packet number
-   * space.
-   */
-  NGTCP2_PKTNS_ID_INITIAL,
-  /**
-   * :enum:`NGTCP2_PKTNS_ID_HANDSHAKE` is the Handshake packet number
-   * space.
-   */
-  NGTCP2_PKTNS_ID_HANDSHAKE,
-  /**
-   * :enum:`NGTCP2_PKTNS_ID_APPLICATION` is the Application data
-   * packet number space.
-   */
-  NGTCP2_PKTNS_ID_APPLICATION,
-  /**
-   * :enum:`NGTCP2_PKTNS_ID_MAX` is defined to get the number of
-   * packet number spaces.
-   */
-  NGTCP2_PKTNS_ID_MAX
-} ngtcp2_pktns_id;
-
 #define NGTCP2_CONN_INFO_V1 1
 #define NGTCP2_CONN_INFO_VERSION NGTCP2_CONN_INFO_V1
 

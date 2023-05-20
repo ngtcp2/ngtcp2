@@ -31,6 +31,8 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_pktns_id.h"
+
 #define NGTCP2_LOSS_REDUCTION_FACTOR_BITS 1
 #define NGTCP2_PERSISTENT_CONGESTION_THRESHOLD 3
 
