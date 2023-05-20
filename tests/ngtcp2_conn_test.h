@@ -84,7 +84,7 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto_datagram(void);
 void test_ngtcp2_conn_validate_ecn(void);
 void test_ngtcp2_conn_path_validation(void);
 void test_ngtcp2_conn_early_data_sync_stream_data_limit(void);
-void test_ngtcp2_conn_early_data_rejected(void);
+void test_ngtcp2_conn_tls_early_data_rejected(void);
 void test_ngtcp2_conn_keep_alive(void);
 void test_ngtcp2_conn_retire_stale_bound_dcid(void);
 void test_ngtcp2_conn_get_scid(void);

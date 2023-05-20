@@ -3251,14 +3251,16 @@ typedef int (*ngtcp2_recv_key)(ngtcp2_conn *conn, ngtcp2_encryption_level level,
 /**
  * @functypedef
  *
- * :type:`ngtcp2_early_data_rejected` is invoked when early data was
- * rejected by server, or client decided not to attempt early data.
+ * :type:`ngtcp2_tls_early_data_rejected` is invoked when early data
+ * was rejected by server during TLS handshake, or client decided not
+ * to attempt early data.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_early_data_rejected)(ngtcp2_conn *conn, void *user_data);
+typedef int (*ngtcp2_tls_early_data_rejected)(ngtcp2_conn *conn,
+                                              void *user_data);
 
 #define NGTCP2_CALLBACKS_V1 1
 #define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V1
@@ -3519,12 +3521,12 @@ typedef struct ngtcp2_callbacks {
    */
   ngtcp2_recv_key recv_tx_key;
   /**
-   * :member:`ngtcp2_early_data_rejected` is a callback function which
-   * is invoked when an attempt to send early data by client was
-   * rejected by server, or client decided not to attempt early data.
-   * This callback function is only used by client.
+   * :member:`ngtcp2_tls_early_data_rejected` is a callback function
+   * which is invoked when server rejected early data in TLS
+   * handshake, or client decided not to attempt early data.  This
+   * callback function is only used by client.
    */
-  ngtcp2_early_data_rejected early_data_rejected;
+  ngtcp2_tls_early_data_rejected tls_early_data_rejected;
 } ngtcp2_callbacks;
 
 /**
@@ -4817,9 +4819,10 @@ NGTCP2_EXTERN uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_early_data_rejected` tells |conn| that early data was
- * rejected by a server, or client decided not to attempt early data
- * for some reason.  |conn| discards the following connection states:
+ * `ngtcp2_conn_tls_early_data_rejected` tells |conn| that early data
+ * was rejected by a server during TLS handshake, or client decided
+ * not to attempt early data for some reason.  |conn| discards the
+ * following connection states:
  *
  * - Any opended streams.
  * - Stream identifier allocations.
@@ -4836,15 +4839,15 @@ NGTCP2_EXTERN uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn);
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
  */
-NGTCP2_EXTERN int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
+NGTCP2_EXTERN int ngtcp2_conn_tls_early_data_rejected(ngtcp2_conn *conn);
 
 /**
  * @function
  *
- * `ngtcp2_conn_get_early_data_rejected` returns nonzero if
- * `ngtcp2_conn_early_data_rejected` has been called.
+ * `ngtcp2_conn_get_tls_early_data_rejected` returns nonzero if
+ * `ngtcp2_conn_tls_early_data_rejected` has been called.
  */
-NGTCP2_EXTERN int ngtcp2_conn_get_early_data_rejected(ngtcp2_conn *conn);
+NGTCP2_EXTERN int ngtcp2_conn_get_tls_early_data_rejected(ngtcp2_conn *conn);
 
 /**
  * @function

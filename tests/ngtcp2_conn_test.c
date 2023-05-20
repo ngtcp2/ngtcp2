@@ -8444,7 +8444,7 @@ void test_ngtcp2_conn_early_data_sync_stream_data_limit(void) {
   ngtcp2_conn_del(conn);
 }
 
-void test_ngtcp2_conn_early_data_rejected(void) {
+void test_ngtcp2_conn_tls_early_data_rejected(void) {
   ngtcp2_conn *conn;
   uint8_t buf[1024];
   ngtcp2_ssize spktlen;
@@ -8557,7 +8557,7 @@ void test_ngtcp2_conn_early_data_rejected(void) {
   CU_ASSERT(0 == rv);
 
   ngtcp2_conn_tls_handshake_completed(conn);
-  ngtcp2_conn_early_data_rejected(conn);
+  ngtcp2_conn_tls_early_data_rejected(conn);
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(0 < spktlen);

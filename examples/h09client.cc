@@ -298,9 +298,9 @@ int Client::handshake_completed() {
     // handshake completion (e.g., OpenSSL).  For TLS backends which
     // report it early (e.g., BoringSSL and PicoTLS), the following
     // functions are noop.
-    if (auto rv = ngtcp2_conn_early_data_rejected(conn_); rv != 0) {
-      std::cerr << "ngtcp2_conn_early_data_rejected: " << ngtcp2_strerror(rv)
-                << std::endl;
+    if (auto rv = ngtcp2_conn_tls_early_data_rejected(conn_); rv != 0) {
+      std::cerr << "ngtcp2_conn_tls_early_data_rejected: "
+                << ngtcp2_strerror(rv) << std::endl;
       return -1;
     }
   }

@@ -386,7 +386,7 @@ int ngtcp2_crypto_read_write_crypto_data(
   if (!ngtcp2_conn_is_server(conn) &&
       cptls->handshake_properties.client.early_data_acceptance ==
           PTLS_EARLY_DATA_REJECTED) {
-    rv = ngtcp2_conn_early_data_rejected(conn);
+    rv = ngtcp2_conn_tls_early_data_rejected(conn);
     if (rv != 0) {
       rv = -1;
       goto fin;
