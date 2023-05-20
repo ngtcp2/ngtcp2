@@ -920,12 +920,14 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   ngtcp2_crypto_md md;
   ngtcp2_crypto_aead_ctx aead_ctx;
   size_t plaintextlen;
-  uint8_t aad[sizeof(version) + sizeof(ngtcp2_sockaddr_storage) +
-              NGTCP2_MAX_CIDLEN];
+  uint8_t
+      aad[sizeof(version) + sizeof(ngtcp2_sockaddr_in6) + NGTCP2_MAX_CIDLEN];
   size_t aadlen;
   uint8_t *p = plaintext;
   ngtcp2_tstamp ts_be = ngtcp2_htonl64(ts);
   int rv;
+
+  assert((size_t)remote_addrlen <= sizeof(ngtcp2_sockaddr_in6));
 
   memset(plaintext, 0, sizeof(plaintext));
 
@@ -997,8 +999,8 @@ int ngtcp2_crypto_verify_retry_token(
   ngtcp2_crypto_aead_ctx aead_ctx;
   ngtcp2_crypto_aead aead;
   ngtcp2_crypto_md md;
-  uint8_t aad[sizeof(version) + sizeof(ngtcp2_sockaddr_storage) +
-              NGTCP2_MAX_CIDLEN];
+  uint8_t
+      aad[sizeof(version) + sizeof(ngtcp2_sockaddr_in6) + NGTCP2_MAX_CIDLEN];
   size_t aadlen;
   const uint8_t *rand_data;
   const uint8_t *ciphertext;
@@ -1006,6 +1008,8 @@ int ngtcp2_crypto_verify_retry_token(
   size_t cil;
   int rv;
   ngtcp2_tstamp gen_ts;
+
+  assert((size_t)remote_addrlen <= sizeof(ngtcp2_sockaddr_in6));
 
   if (tokenlen != NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN ||
       token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY) {

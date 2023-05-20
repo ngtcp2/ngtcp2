@@ -1307,25 +1307,6 @@ typedef struct ngtcp2_sockaddr_in {
   uint8_t sin_zero[8];
 } ngtcp2_sockaddr_in;
 
-#  define NGTCP2_SS_MAXSIZE 128
-#  define NGTCP2_SS_ALIGNSIZE (sizeof(uint64_t))
-#  define NGTCP2_SS_PAD1SIZE (NGTCP2_SS_ALIGNSIZE - sizeof(uint16_t))
-#  define NGTCP2_SS_PAD2SIZE                                                   \
-    (NGTCP2_SS_MAXSIZE -                                                       \
-     (sizeof(ngtcp2_sa_family_t) + NGTCP2_SS_PAD1SIZE + NGTCP2_SS_ALIGNSIZE))
-
-typedef struct ngtcp2_sockaddr_storage {
-  ngtcp2_sa_family_t ss_family;
-  uint8_t _ss_pad1[NGTCP2_SS_PAD1SIZE];
-  uint64_t _ss_align;
-  uint8_t _ss_pad2[NGTCP2_SS_PAD2SIZE];
-} ngtcp2_sockaddr_storage;
-
-#  undef NGTCP2_SS_PAD2SIZE
-#  undef NGTCP2_SS_PAD1SIZE
-#  undef NGTCP2_SS_ALIGNSIZE
-#  undef NGTCP2_SS_MAXSIZE
-
 typedef uint32_t ngtcp2_socklen;
 #else  /* !NGTCP2_USE_GENERIC_SOCKADDR */
 /**
@@ -1336,15 +1317,6 @@ typedef uint32_t ngtcp2_socklen;
  * the generic struct sockaddr defined in ngtcp2.h.
  */
 typedef struct sockaddr ngtcp2_sockaddr;
-/**
- * @typedef
- *
- * :type:`ngtcp2_sockaddr_storage` is typedefed to struct
- * sockaddr_storage.  If :macro:`NGTCP2_USE_GENERIC_SOCKADDR` is
- * defined, it is typedefed to the generic struct sockaddr_storage
- * defined in ngtcp2.h.
- */
-typedef struct sockaddr_storage ngtcp2_sockaddr_storage;
 /**
  * @typedef
  *
