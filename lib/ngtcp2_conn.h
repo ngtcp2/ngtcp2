@@ -222,14 +222,6 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    endpoint has initiated key update. */
 #define NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR 0x10000u
 
-typedef struct ngtcp2_crypto_data {
-  ngtcp2_buf buf;
-  /* pkt_type is the type of packet to send data in buf.  If it is 0,
-     it must be sent in Short packet.  Otherwise, it is sent the long
-     packet type denoted by pkt_type. */
-  uint8_t pkt_type;
-} ngtcp2_crypto_data;
-
 typedef struct ngtcp2_pktns {
   struct {
     /* last_pkt_num is the packet number which the local endpoint sent
