@@ -770,29 +770,28 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   }
 
   if (config.preferred_ipv4_addr.len || config.preferred_ipv6_addr.len) {
-    params.preferred_address_present = 1;
+    params.preferred_addr_present = 1;
 
     if (config.preferred_ipv4_addr.len) {
-      params.preferred_address.ipv4 = config.preferred_ipv4_addr.su.in;
-      params.preferred_address.ipv4_present = 1;
+      params.preferred_addr.ipv4 = config.preferred_ipv4_addr.su.in;
+      params.preferred_addr.ipv4_present = 1;
     }
 
     if (config.preferred_ipv6_addr.len) {
-      params.preferred_address.ipv6 = config.preferred_ipv6_addr.su.in6;
-      params.preferred_address.ipv6_present = 1;
+      params.preferred_addr.ipv6 = config.preferred_ipv6_addr.su.in6;
+      params.preferred_addr.ipv6_present = 1;
     }
 
-    auto &token = params.preferred_address.stateless_reset_token;
+    auto &token = params.preferred_addr.stateless_reset_token;
     if (util::generate_secure_random(token, sizeof(token)) != 0) {
       std::cerr << "Could not generate preferred address stateless reset token"
                 << std::endl;
       return -1;
     }
 
-    params.preferred_address.cid.datalen = NGTCP2_SV_SCIDLEN;
-    if (util::generate_secure_random(params.preferred_address.cid.data,
-                                     params.preferred_address.cid.datalen) !=
-        0) {
+    params.preferred_addr.cid.datalen = NGTCP2_SV_SCIDLEN;
+    if (util::generate_secure_random(params.preferred_addr.cid.data,
+                                     params.preferred_addr.cid.datalen) != 0) {
       std::cerr << "Could not generate preferred address connection ID"
                 << std::endl;
       return -1;

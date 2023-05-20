@@ -316,10 +316,10 @@ static int conn_call_select_preferred_addr(ngtcp2_conn *conn,
   }
 
   assert(conn->remote.transport_params);
-  assert(conn->remote.transport_params->preferred_address_present);
+  assert(conn->remote.transport_params->preferred_addr_present);
 
   rv = conn->callbacks.select_preferred_addr(
-      conn, dest, &conn->remote.transport_params->preferred_address,
+      conn, dest, &conn->remote.transport_params->preferred_addr,
       conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -1085,7 +1085,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
          (!server && !params->original_dcid_present));
   assert(!params->initial_scid_present);
   assert(server || !params->stateless_reset_token_present);
-  assert(server || !params->preferred_address_present);
+  assert(server || !params->preferred_addr_present);
   assert(server || !params->retry_scid_present);
   assert(server || callbacks->client_initial);
   assert(!server || callbacks->recv_client_initial);
@@ -8208,7 +8208,7 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   assert(conn->remote.transport_params);
 
-  if (conn->remote.transport_params->preferred_address_present) {
+  if (conn->remote.transport_params->preferred_addr_present) {
     rv = conn_select_preferred_addr(conn);
     if (rv != 0) {
       return rv;
@@ -8762,11 +8762,11 @@ conn_allow_path_change_under_disable_active_migration(ngtcp2_conn *conn,
   /* If local address changes, it must be one of the preferred
      addresses. */
 
-  if (!conn->local.transport_params.preferred_address_present) {
+  if (!conn->local.transport_params.preferred_addr_present) {
     return 0;
   }
 
-  paddr = &conn->local.transport_params.preferred_address;
+  paddr = &conn->local.transport_params.preferred_addr;
 
   if (paddr->ipv4_present) {
     ngtcp2_addr_init(&addr, (const ngtcp2_sockaddr *)&paddr->ipv4,
@@ -10208,10 +10208,10 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     assert(conn->remote.transport_params);
 
-    if (conn->remote.transport_params->preferred_address_present) {
+    if (conn->remote.transport_params->preferred_addr_present) {
       assert(!ngtcp2_ringbuf_full(&conn->dcid.unused.rb));
 
-      paddr = &conn->remote.transport_params->preferred_address;
+      paddr = &conn->remote.transport_params->preferred_addr;
       dcid = ngtcp2_ringbuf_push_back(&conn->dcid.unused.rb);
       ngtcp2_dcid_init(dcid, 1, &paddr->cid, paddr->stateless_reset_token);
 
@@ -11172,8 +11172,7 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
-  if (params->preferred_address_present &&
-      conn->dcid.current.cid.datalen == 0) {
+  if (params->preferred_addr_present && conn->dcid.current.cid.datalen == 0) {
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
@@ -11286,7 +11285,7 @@ int ngtcp2_conn_set_remote_transport_params(
   if (conn->server) {
     if (params->original_dcid_present ||
         params->stateless_reset_token_present ||
-        params->preferred_address_present || params->retry_scid_present) {
+        params->preferred_addr_present || params->retry_scid_present) {
       return NGTCP2_ERR_TRANSPORT_PARAM;
     }
 
@@ -11532,16 +11531,16 @@ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
   params->initial_scid_present = 1;
 
   if (conn->oscid.datalen == 0) {
-    params->preferred_address_present = 0;
+    params->preferred_addr_present = 0;
   }
 
-  if (conn->server && params->preferred_address_present) {
+  if (conn->server && params->preferred_addr_present) {
     scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
     if (scident == NULL) {
       return NGTCP2_ERR_NOMEM;
     }
 
-    ngtcp2_scid_init(scident, 1, &params->preferred_address.cid);
+    ngtcp2_scid_init(scident, 1, &params->preferred_addr.cid);
 
     rv = ngtcp2_ksl_insert(&conn->scid.set, NULL, &scident->cid, scident);
     if (rv != 0) {
@@ -13140,16 +13139,16 @@ int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   return ngtcp2_pq_push(&conn->tx.strmq, &strm->pe);
 }
 
-static int conn_has_uncommited_preferred_address_cid(ngtcp2_conn *conn) {
+static int conn_has_uncommited_preferred_addr_cid(ngtcp2_conn *conn) {
   return conn->server &&
          !(conn->flags & NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED) &&
          conn->oscid.datalen &&
-         conn->local.transport_params.preferred_address_present;
+         conn->local.transport_params.preferred_addr_present;
 }
 
 size_t ngtcp2_conn_get_num_scid(ngtcp2_conn *conn) {
   return ngtcp2_ksl_len(&conn->scid.set) +
-         (size_t)conn_has_uncommited_preferred_address_cid(conn);
+         (size_t)conn_has_uncommited_preferred_addr_cid(conn);
 }
 
 size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest) {
@@ -13163,8 +13162,8 @@ size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest) {
     *dest++ = scid->cid;
   }
 
-  if (conn_has_uncommited_preferred_address_cid(conn)) {
-    *dest++ = conn->local.transport_params.preferred_address.cid;
+  if (conn_has_uncommited_preferred_addr_cid(conn)) {
+    *dest++ = conn->local.transport_params.preferred_addr.cid;
   }
 
   return (size_t)(dest - origdest);

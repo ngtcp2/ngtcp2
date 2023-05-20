@@ -179,12 +179,12 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
            NGTCP2_STATELESS_RESET_TOKENLEN;
   }
 
-  if (params->preferred_address_present) {
-    assert(params->preferred_address.cid.datalen >= NGTCP2_MIN_CIDLEN);
-    assert(params->preferred_address.cid.datalen <= NGTCP2_MAX_CIDLEN);
+  if (params->preferred_addr_present) {
+    assert(params->preferred_addr.cid.datalen >= NGTCP2_MIN_CIDLEN);
+    assert(params->preferred_addr.cid.datalen <= NGTCP2_MAX_CIDLEN);
     preferred_addrlen = 4 /* ipv4Address */ + 2 /* ipv4Port */ +
                         16 /* ipv6Address */ + 2 /* ipv6Port */
-                        + 1 + params->preferred_address.cid.datalen /* CID */ +
+                        + 1 + params->preferred_addr.cid.datalen /* CID */ +
                         NGTCP2_STATELESS_RESET_TOKENLEN;
     len += ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS) +
            ngtcp2_put_uvarintlen(preferred_addrlen) + preferred_addrlen;
@@ -291,12 +291,12 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
                       sizeof(params->stateless_reset_token));
   }
 
-  if (params->preferred_address_present) {
+  if (params->preferred_addr_present) {
     p = ngtcp2_put_uvarint(p, NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS);
     p = ngtcp2_put_uvarint(p, preferred_addrlen);
 
-    if (params->preferred_address.ipv4_present) {
-      sa_in = &params->preferred_address.ipv4;
+    if (params->preferred_addr.ipv4_present) {
+      sa_in = &params->preferred_addr.ipv4;
       p = ngtcp2_cpymem(p, &sa_in->sin_addr, sizeof(sa_in->sin_addr));
       p = ngtcp2_put_uint16(p, sa_in->sin_port);
     } else {
@@ -304,8 +304,8 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
       p = ngtcp2_put_uint16(p, 0);
     }
 
-    if (params->preferred_address.ipv6_present) {
-      sa_in6 = &params->preferred_address.ipv6;
+    if (params->preferred_addr.ipv6_present) {
+      sa_in6 = &params->preferred_addr.ipv6;
       p = ngtcp2_cpymem(p, &sa_in6->sin6_addr, sizeof(sa_in6->sin6_addr));
       p = ngtcp2_put_uint16(p, sa_in6->sin6_port);
     } else {
@@ -313,13 +313,13 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
       p = ngtcp2_put_uint16(p, 0);
     }
 
-    *p++ = (uint8_t)params->preferred_address.cid.datalen;
-    if (params->preferred_address.cid.datalen) {
-      p = ngtcp2_cpymem(p, params->preferred_address.cid.data,
-                        params->preferred_address.cid.datalen);
+    *p++ = (uint8_t)params->preferred_addr.cid.datalen;
+    if (params->preferred_addr.cid.datalen) {
+      p = ngtcp2_cpymem(p, params->preferred_addr.cid.data,
+                        params->preferred_addr.cid.datalen);
     }
-    p = ngtcp2_cpymem(p, params->preferred_address.stateless_reset_token,
-                      sizeof(params->preferred_address.stateless_reset_token));
+    p = ngtcp2_cpymem(p, params->preferred_addr.stateless_reset_token,
+                      sizeof(params->preferred_addr.stateless_reset_token));
   }
 
   if (params->retry_scid_present) {
@@ -548,7 +548,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
   params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
   params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params->stateless_reset_token_present = 0;
-  params->preferred_address_present = 0;
+  params->preferred_addr_present = 0;
   params->disable_active_migration = 0;
   params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
   params->max_idle_timeout = 0;
@@ -659,7 +659,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
 
-      sa_in = &params->preferred_address.ipv4;
+      sa_in = &params->preferred_addr.ipv4;
 
       p = ngtcp2_get_bytes(&sa_in->sin_addr, p, sizeof(sa_in->sin_addr));
       p = ngtcp2_get_uint16be(&sa_in->sin_port, p);
@@ -667,10 +667,10 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       if (sa_in->sin_port || memcmp(empty_address, &sa_in->sin_addr,
                                     sizeof(sa_in->sin_addr)) != 0) {
         sa_in->sin_family = AF_INET;
-        params->preferred_address.ipv4_present = 1;
+        params->preferred_addr.ipv4_present = 1;
       }
 
-      sa_in6 = &params->preferred_address.ipv6;
+      sa_in6 = &params->preferred_addr.ipv6;
 
       p = ngtcp2_get_bytes(&sa_in6->sin6_addr, p, sizeof(sa_in6->sin6_addr));
       p = ngtcp2_get_uint16be(&sa_in6->sin6_port, p);
@@ -678,27 +678,27 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       if (sa_in6->sin6_port || memcmp(empty_address, &sa_in6->sin6_addr,
                                       sizeof(sa_in6->sin6_addr)) != 0) {
         sa_in6->sin6_family = AF_INET6;
-        params->preferred_address.ipv6_present = 1;
+        params->preferred_addr.ipv6_present = 1;
       }
 
       /* cid */
-      params->preferred_address.cid.datalen = *p++;
-      len += params->preferred_address.cid.datalen;
+      params->preferred_addr.cid.datalen = *p++;
+      len += params->preferred_addr.cid.datalen;
       if (valuelen != len ||
-          params->preferred_address.cid.datalen > NGTCP2_MAX_CIDLEN ||
-          params->preferred_address.cid.datalen < NGTCP2_MIN_CIDLEN) {
+          params->preferred_addr.cid.datalen > NGTCP2_MAX_CIDLEN ||
+          params->preferred_addr.cid.datalen < NGTCP2_MIN_CIDLEN) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
-      if (params->preferred_address.cid.datalen) {
-        p = ngtcp2_get_bytes(params->preferred_address.cid.data, p,
-                             params->preferred_address.cid.datalen);
+      if (params->preferred_addr.cid.datalen) {
+        p = ngtcp2_get_bytes(params->preferred_addr.cid.data, p,
+                             params->preferred_addr.cid.datalen);
       }
 
       /* stateless reset token */
       p = ngtcp2_get_bytes(
-          params->preferred_address.stateless_reset_token, p,
-          sizeof(params->preferred_address.stateless_reset_token));
-      params->preferred_address_present = 1;
+          params->preferred_addr.stateless_reset_token, p,
+          sizeof(params->preferred_addr.stateless_reset_token));
+      params->preferred_addr_present = 1;
       break;
     case NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION:
       if (decode_varint(&valuelen, &p, end) != 0) {

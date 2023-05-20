@@ -59,16 +59,16 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   memset(srcbuf.stateless_reset_token, 0xf1,
          sizeof(srcbuf.stateless_reset_token));
   srcbuf.ack_delay_exponent = 20;
-  srcbuf.preferred_address_present = 1;
-  srcbuf.preferred_address.ipv4_present = 0;
-  sa_in6 = &srcbuf.preferred_address.ipv6;
+  srcbuf.preferred_addr_present = 1;
+  srcbuf.preferred_addr.ipv4_present = 0;
+  sa_in6 = &srcbuf.preferred_addr.ipv6;
   sa_in6->sin6_family = AF_INET6;
   memset(&sa_in6->sin6_addr, 0xe1, sizeof(sa_in6->sin6_addr));
   sa_in6->sin6_port = ngtcp2_htons(63111);
-  srcbuf.preferred_address.ipv6_present = 1;
-  scid_init(&srcbuf.preferred_address.cid);
-  memset(srcbuf.preferred_address.stateless_reset_token, 0xd1,
-         sizeof(srcbuf.preferred_address.stateless_reset_token));
+  srcbuf.preferred_addr.ipv6_present = 1;
+  scid_init(&srcbuf.preferred_addr.cid);
+  memset(srcbuf.preferred_addr.stateless_reset_token, 0xd1,
+         sizeof(srcbuf.preferred_addr.stateless_reset_token));
   srcbuf.disable_active_migration = 1;
   srcbuf.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
   srcbuf.retry_scid_present = 1;
@@ -111,24 +111,20 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
                         dest->stateless_reset_token,
                         sizeof(srcbuf.stateless_reset_token)));
   CU_ASSERT(srcbuf.ack_delay_exponent == dest->ack_delay_exponent);
-  CU_ASSERT(srcbuf.preferred_address_present ==
-            dest->preferred_address_present);
-  CU_ASSERT(0 == memcmp(&srcbuf.preferred_address.ipv4,
-                        &dest->preferred_address.ipv4,
-                        sizeof(srcbuf.preferred_address.ipv4)));
-  CU_ASSERT(srcbuf.preferred_address.ipv4_present ==
-            dest->preferred_address.ipv4_present);
-  CU_ASSERT(0 == memcmp(&srcbuf.preferred_address.ipv6,
-                        &dest->preferred_address.ipv6,
-                        sizeof(srcbuf.preferred_address.ipv6)));
-  CU_ASSERT(srcbuf.preferred_address.ipv6_present ==
-            dest->preferred_address.ipv6_present);
-  CU_ASSERT(ngtcp2_cid_eq(&srcbuf.preferred_address.cid,
-                          &dest->preferred_address.cid));
-  CU_ASSERT(0 ==
-            memcmp(srcbuf.preferred_address.stateless_reset_token,
-                   dest->preferred_address.stateless_reset_token,
-                   sizeof(srcbuf.preferred_address.stateless_reset_token)));
+  CU_ASSERT(srcbuf.preferred_addr_present == dest->preferred_addr_present);
+  CU_ASSERT(0 == memcmp(&srcbuf.preferred_addr.ipv4, &dest->preferred_addr.ipv4,
+                        sizeof(srcbuf.preferred_addr.ipv4)));
+  CU_ASSERT(srcbuf.preferred_addr.ipv4_present ==
+            dest->preferred_addr.ipv4_present);
+  CU_ASSERT(0 == memcmp(&srcbuf.preferred_addr.ipv6, &dest->preferred_addr.ipv6,
+                        sizeof(srcbuf.preferred_addr.ipv6)));
+  CU_ASSERT(srcbuf.preferred_addr.ipv6_present ==
+            dest->preferred_addr.ipv6_present);
+  CU_ASSERT(
+      ngtcp2_cid_eq(&srcbuf.preferred_addr.cid, &dest->preferred_addr.cid));
+  CU_ASSERT(0 == memcmp(srcbuf.preferred_addr.stateless_reset_token,
+                        dest->preferred_addr.stateless_reset_token,
+                        sizeof(srcbuf.preferred_addr.stateless_reset_token)));
   CU_ASSERT(srcbuf.disable_active_migration == dest->disable_active_migration);
   CU_ASSERT(srcbuf.max_ack_delay == dest->max_ack_delay);
   CU_ASSERT(srcbuf.retry_scid_present == dest->retry_scid_present);
@@ -176,16 +172,16 @@ void test_ngtcp2_transport_params_convert_to_old(void) {
   src.stateless_reset_token_present = 1;
   memset(src.stateless_reset_token, 0xf1, sizeof(src.stateless_reset_token));
   src.ack_delay_exponent = 20;
-  src.preferred_address_present = 1;
-  src.preferred_address.ipv4_present = 0;
-  sa_in6 = &src.preferred_address.ipv6;
+  src.preferred_addr_present = 1;
+  src.preferred_addr.ipv4_present = 0;
+  sa_in6 = &src.preferred_addr.ipv6;
   sa_in6->sin6_family = AF_INET6;
   memset(&sa_in6->sin6_addr, 0xe1, sizeof(sa_in6->sin6_addr));
   sa_in6->sin6_port = ngtcp2_htons(63111);
-  src.preferred_address.ipv6_present = 1;
-  scid_init(&src.preferred_address.cid);
-  memset(src.preferred_address.stateless_reset_token, 0xd1,
-         sizeof(src.preferred_address.stateless_reset_token));
+  src.preferred_addr.ipv6_present = 1;
+  scid_init(&src.preferred_addr.cid);
+  memset(src.preferred_addr.stateless_reset_token, 0xd1,
+         sizeof(src.preferred_addr.stateless_reset_token));
   src.disable_active_migration = 1;
   src.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
   src.retry_scid_present = 1;
@@ -223,22 +219,20 @@ void test_ngtcp2_transport_params_convert_to_old(void) {
                         destbuf.stateless_reset_token,
                         sizeof(src.stateless_reset_token)));
   CU_ASSERT(src.ack_delay_exponent == destbuf.ack_delay_exponent);
-  CU_ASSERT(src.preferred_address_present == destbuf.preferred_address_present);
-  CU_ASSERT(0 == memcmp(&src.preferred_address.ipv4,
-                        &destbuf.preferred_address.ipv4,
-                        sizeof(src.preferred_address.ipv4)));
-  CU_ASSERT(src.preferred_address.ipv4_present ==
-            destbuf.preferred_address.ipv4_present);
-  CU_ASSERT(0 == memcmp(&src.preferred_address.ipv6,
-                        &destbuf.preferred_address.ipv6,
-                        sizeof(src.preferred_address.ipv6)));
-  CU_ASSERT(src.preferred_address.ipv6_present ==
-            destbuf.preferred_address.ipv6_present);
-  CU_ASSERT(ngtcp2_cid_eq(&src.preferred_address.cid,
-                          &destbuf.preferred_address.cid));
-  CU_ASSERT(0 == memcmp(src.preferred_address.stateless_reset_token,
-                        destbuf.preferred_address.stateless_reset_token,
-                        sizeof(src.preferred_address.stateless_reset_token)));
+  CU_ASSERT(src.preferred_addr_present == destbuf.preferred_addr_present);
+  CU_ASSERT(0 == memcmp(&src.preferred_addr.ipv4, &destbuf.preferred_addr.ipv4,
+                        sizeof(src.preferred_addr.ipv4)));
+  CU_ASSERT(src.preferred_addr.ipv4_present ==
+            destbuf.preferred_addr.ipv4_present);
+  CU_ASSERT(0 == memcmp(&src.preferred_addr.ipv6, &destbuf.preferred_addr.ipv6,
+                        sizeof(src.preferred_addr.ipv6)));
+  CU_ASSERT(src.preferred_addr.ipv6_present ==
+            destbuf.preferred_addr.ipv6_present);
+  CU_ASSERT(
+      ngtcp2_cid_eq(&src.preferred_addr.cid, &destbuf.preferred_addr.cid));
+  CU_ASSERT(0 == memcmp(src.preferred_addr.stateless_reset_token,
+                        destbuf.preferred_addr.stateless_reset_token,
+                        sizeof(src.preferred_addr.stateless_reset_token)));
   CU_ASSERT(src.disable_active_migration == destbuf.disable_active_migration);
   CU_ASSERT(src.max_ack_delay == destbuf.max_ack_delay);
   CU_ASSERT(src.retry_scid_present == destbuf.retry_scid_present);
