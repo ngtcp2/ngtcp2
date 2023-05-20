@@ -1288,8 +1288,11 @@ typedef struct ngtcp2_pkt_stateless_reset {
 #define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT 0xffa5u
 
 #ifdef NGTCP2_USE_GENERIC_SOCKADDR
+typedef unsigned short int ngtcp2_sa_family_t;
+typedef uint16_t ngtcp2_in_port_t;
+
 typedef struct ngtcp2_sockaddr {
-  uint16_t sa_family;
+  ngtcp2_sa_family_t sa_family;
   uint8_t sa_data[14];
 } ngtcp2_sockaddr;
 
@@ -1298,8 +1301,8 @@ typedef struct ngtcp2_in_addr {
 } ngtcp2_in_addr;
 
 typedef struct ngtcp2_sockaddr_in {
-  uint16_t sin_family;
-  uint16_t sin_port;
+  ngtcp2_sa_family_t sin_family;
+  ngtcp2_in_port_t sin_port;
   ngtcp2_in_addr sin_addr;
   uint8_t sin_zero[8];
 } ngtcp2_sockaddr_in;
@@ -1309,10 +1312,10 @@ typedef struct ngtcp2_sockaddr_in {
 #  define NGTCP2_SS_PAD1SIZE (NGTCP2_SS_ALIGNSIZE - sizeof(uint16_t))
 #  define NGTCP2_SS_PAD2SIZE                                                   \
     (NGTCP2_SS_MAXSIZE -                                                       \
-     (sizeof(uint16_t) + NGTCP2_SS_PAD1SIZE + NGTCP2_SS_ALIGNSIZE))
+     (sizeof(ngtcp2_sa_family_t) + NGTCP2_SS_PAD1SIZE + NGTCP2_SS_ALIGNSIZE))
 
 typedef struct ngtcp2_sockaddr_storage {
-  uint16_t ss_family;
+  ngtcp2_sa_family_t ss_family;
   uint8_t _ss_pad1[NGTCP2_SS_PAD1SIZE];
   uint64_t _ss_align;
   uint8_t _ss_pad2[NGTCP2_SS_PAD2SIZE];
@@ -1367,8 +1370,8 @@ typedef struct ngtcp2_in6_addr {
 } ngtcp2_in6_addr;
 
 typedef struct ngtcp2_sockaddr_in6 {
-  uint16_t sin6_family;
-  uint16_t sin6_port;
+  ngtcp2_sa_family_t sin6_family;
+  ngtcp2_in_port_t sin6_port;
   uint32_t sin6_flowinfo;
   ngtcp2_in6_addr sin6_addr;
   uint32_t sin6_scope_id;
