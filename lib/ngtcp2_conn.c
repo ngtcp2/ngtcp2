@@ -8253,6 +8253,8 @@ static int conn_key_phase_changed(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd) {
          !(hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE);
 }
 
+static int conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts);
+
 /*
  * conn_prepare_key_update installs new updated keys.
  */
@@ -8269,7 +8271,7 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   if ((conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
       tx_ckm->use_count >= pktns->crypto.ctx.max_encryption &&
-      ngtcp2_conn_initiate_key_update(conn, ts) != 0) {
+      conn_initiate_key_update(conn, ts) != 0) {
     return NGTCP2_ERR_AEAD_LIMIT_REACHED;
   }
 
@@ -10803,7 +10805,7 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
   return 0;
 }
 
-int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+static int conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_tstamp confirmed_ts = conn->crypto.key_update.confirmed_ts;
   ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
 
@@ -10820,6 +10822,12 @@ int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn_rotate_keys(conn, NGTCP2_MAX_PKT_NUM, /* initiator = */ 1);
 
   return 0;
+}
+
+int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  conn_update_timestamp(conn, ts);
+
+  return conn_initiate_key_update(conn, ts);
 }
 
 /*
@@ -10968,7 +10976,11 @@ ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
 
 int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv;
-  ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
+  ngtcp2_duration pto;
+
+  conn_update_timestamp(conn, ts);
+
+  pto = conn_compute_pto(conn, &conn->pktns);
 
   assert(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
 
@@ -12215,8 +12227,6 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_pkt(
   ngtcp2_ssize nwrite;
   uint64_t server_tx_left;
 
-  conn_update_timestamp(conn, ts);
-
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
@@ -12278,8 +12288,6 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
   ngtcp2_ssize res = 0;
   ngtcp2_frame fr;
   uint64_t server_tx_left;
-
-  conn_update_timestamp(conn, ts);
 
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
@@ -12417,6 +12425,8 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
     ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
     const ngtcp2_ccerr *ccerr, ngtcp2_tstamp ts) {
   (void)pkt_info_version;
+
+  conn_update_timestamp(conn, ts);
 
   switch (ccerr->type) {
   case NGTCP2_CCERR_TYPE_TRANSPORT:
@@ -12950,8 +12960,6 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
   ngtcp2_tstamp earliest_loss_time;
   ngtcp2_pktns *loss_pktns = NULL;
-
-  conn_update_timestamp(conn, ts);
 
   switch (conn->state) {
   case NGTCP2_CS_CLOSING:
@@ -13559,6 +13567,8 @@ int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn, int64_t stream_id,
 void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   double pacing_rate;
   ngtcp2_duration interval;
+
+  conn_update_timestamp(conn, ts);
 
   if (conn->tx.pacing.pktlen == 0) {
     return;
