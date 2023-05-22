@@ -460,8 +460,8 @@ ngtcp2_encryption_level ngtcp2_crypto_picotls_from_epoch(size_t epoch) {
 }
 
 size_t ngtcp2_crypto_picotls_from_ngtcp2_encryption_level(
-    ngtcp2_encryption_level crypto_level) {
-  switch (crypto_level) {
+    ngtcp2_encryption_level encryption_level) {
+  switch (encryption_level) {
   case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
     return 0;
   case NGTCP2_ENCRYPTION_LEVEL_0RTT:
