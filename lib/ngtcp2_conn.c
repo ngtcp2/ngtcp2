@@ -1142,7 +1142,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_log_init(&(*pconn)->log, scid, settings->log_printf,
                   settings->initial_ts, user_data);
-  ngtcp2_qlog_init(&(*pconn)->qlog, settings->qlog.write, settings->initial_ts,
+  ngtcp2_qlog_init(&(*pconn)->qlog, settings->qlog_write, settings->initial_ts,
                    user_data);
   if ((*pconn)->qlog.write) {
     buf = ngtcp2_mem_malloc(mem, NGTCP2_QLOG_BUFLEN);

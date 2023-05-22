@@ -10072,7 +10072,7 @@ void test_ngtcp2_conn_new_failmalloc(void) {
   ngtcp2_settings_default(&settings);
   ngtcp2_transport_params_default(&params);
 
-  settings.qlog.write = qlog_write;
+  settings.qlog_write = qlog_write;
   settings.token = token;
   settings.tokenlen = tokenlen;
   settings.preferred_versions = preferred_versions;
