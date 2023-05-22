@@ -552,8 +552,8 @@ static void client_close(struct client *c) {
   ngtcp2_path_storage ps;
   uint8_t buf[1280];
 
-  if (ngtcp2_conn_is_in_closing_period(c->conn) ||
-      ngtcp2_conn_is_in_draining_period(c->conn)) {
+  if (ngtcp2_conn_in_closing_period(c->conn) ||
+      ngtcp2_conn_in_draining_period(c->conn)) {
     goto fin;
   }
 

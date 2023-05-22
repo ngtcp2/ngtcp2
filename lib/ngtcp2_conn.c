@@ -12442,11 +12442,11 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
   }
 }
 
-int ngtcp2_conn_is_in_closing_period(ngtcp2_conn *conn) {
+int ngtcp2_conn_in_closing_period(ngtcp2_conn *conn) {
   return conn->state == NGTCP2_CS_CLOSING;
 }
 
-int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn) {
+int ngtcp2_conn_in_draining_period(ngtcp2_conn *conn) {
   return conn->state == NGTCP2_CS_DRAINING;
 }
 
