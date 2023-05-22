@@ -4689,14 +4689,18 @@ NGTCP2_EXTERN int ngtcp2_conn_in_draining_period(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_extend_max_stream_offset` extends stream's max stream
- * data value by |datalen|.
+ * `ngtcp2_conn_extend_max_stream_offset` extends the maximum stream
+ * data that a remote endpoint can send by |datalen|.  |stream_id|
+ * specifies the stream ID.  This function only extends stream-level
+ * flow control window.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |stream_id| refers to a local unidirectional stream.
  */
 NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
                                                        int64_t stream_id,

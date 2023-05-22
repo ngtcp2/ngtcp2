@@ -12659,6 +12659,10 @@ int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, int64_t stream_id,
     return 0;
   }
 
+  if (!bidi_stream(stream_id) && conn_local_stream(conn, stream_id)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
   return conn_extend_max_stream_offset(conn, strm, datalen);
 }
 
