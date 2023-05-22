@@ -3329,17 +3329,17 @@ typedef struct ngtcp2_callbacks {
   ngtcp2_hp_mask hp_mask;
   /**
    * :member:`recv_stream_data` is a callback function which is
-   * invoked when STREAM frame data, which includes application data,
-   * is received.  This callback function is optional.
+   * invoked when stream data, which includes application data, is
+   * received.  This callback function is optional.
    */
   ngtcp2_recv_stream_data recv_stream_data;
   /**
    * :member:`acked_stream_data_offset` is a callback function which
-   * is invoked when STREAM frame data, which includes application
-   * data, is acknowledged by a remote endpoint.  It tells an
-   * application the largest offset of acknowledged STREAM frame data
-   * without a gap so that application can free memory for the data up
-   * to that offset.  This callback function is optional.
+   * is invoked when stream data, which includes application data, is
+   * acknowledged by a remote endpoint.  It tells an application the
+   * largest offset of acknowledged stream data without a gap so that
+   * application can free memory for the data up to that offset.  This
+   * callback function is optional.
    */
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
   /**
@@ -3439,7 +3439,7 @@ typedef struct ngtcp2_callbacks {
   ngtcp2_extend_max_streams extend_max_remote_streams_uni;
   /**
    * :member:`extend_max_stream_data` is callback function which is
-   * invoked when the maximum offset of STREAM frame data that a local
+   * invoked when the maximum offset of stream data that a local
    * endpoint can send is increased.  This callback function is
    * optional.
    */
@@ -3707,15 +3707,17 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  *
  * This function returns 0 if it succeeds, or negative error codes.
  * If :macro:`NGTCP2_ERR_RETRY` is returned, application must be a
- * server and it must perform address validation by sending Retry
- * packet and discard the connection state.  If
+ * server, and it must perform address validation by sending Retry
+ * packet (see `ngtcp2_crypto_write_retry` and
+ * `ngtcp2_pkt_write_retry`), and discard the connection state.  If
  * :macro:`NGTCP2_ERR_DROP_CONN` is returned, server application must
  * drop the connection silently (without sending any CONNECTION_CLOSE
- * frame) and discard connection state.  If
+ * frame), and discard connection state.  If
  * :macro:`NGTCP2_ERR_DRAINING` is returned, a connection has entered
  * the draining state, and no further packet transmission is allowed.
  * If :macro:`NGTCP2_ERR_CRYPTO` is returned, the error happened in
- * TLS stack and `ngtcp2_conn_get_tls_alert` returns TLS alert if set.
+ * TLS stack, and `ngtcp2_conn_get_tls_alert` returns TLS alert if
+ * set.
  *
  * If any other negative errors are returned, call
  * `ngtcp2_conn_write_connection_close` to get terminal packet, and
@@ -3731,8 +3733,8 @@ ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
  * @function
  *
  * `ngtcp2_conn_write_pkt` is equivalent to calling
- * `ngtcp2_conn_writev_stream` with -1 as stream_id, no stream data, and
- * :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE` as flags.
+ * `ngtcp2_conn_writev_stream` with -1 as |stream_id|, no stream data,
+ * and :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE` as flags.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_pkt_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
@@ -3751,8 +3753,8 @@ NGTCP2_EXTERN void ngtcp2_conn_tls_handshake_completed(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_get_handshake_completed` returns nonzero if QUIC handshake
- * has completed.
+ * `ngtcp2_conn_get_handshake_completed` returns nonzero if QUIC
+ * handshake has completed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
 
@@ -3761,11 +3763,11 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_install_initial_key` installs packet protection keying
  * materials for Initial packets.  |rx_aead_ctx| is AEAD cipher
- * context object and must be initialized with a decryption key.
+ * context object, and must be initialized with a decryption key.
  * |rx_iv| is IV of length |rx_ivlen| for decryption.  |rx_hp_ctx| is
  * a packet header protection cipher context object for decryption.
  * Similarly, |tx_aead_ctx|, |tx_iv| and |tx_hp_ctx| are for
- * encrypting outgoing packets and are the same length with the
+ * encrypting outgoing packets, and are the same length with the
  * decryption counterpart .  If they have already been set, they are
  * overwritten.
  *
@@ -3779,9 +3781,11 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  * these objects when they are no longer used.  If this function
  * fails, the caller is responsible to delete them.
  *
- * After receiving Retry packet, the DCID most likely changes.  In
- * that case, client application must generate these keying materials
- * again based on new DCID and install them again.
+ * After receiving Retry packet, a Destination Connection ID that
+ * client sends in Initial packet most likely changes.  In that case,
+ * client application must generate these keying materials again based
+ * on new Destination Connection ID, and install them again with this
+ * function.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3801,11 +3805,11 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_key(
  * `ngtcp2_conn_install_vneg_initial_key` installs packet protection
  * keying materials for Initial packets on compatible version
  * negotiation for |version|.  |rx_aead_ctx| is AEAD cipher context
- * object and must be initialized with a decryption key.  |rx_iv| is
+ * object, and must be initialized with a decryption key.  |rx_iv| is
  * IV of length |rx_ivlen| for decryption.  |rx_hp_ctx| is a packet
  * header protection cipher context object for decryption.  Similarly,
  * |tx_aead_ctx|, |tx_iv| and |tx_hp_ctx| are for encrypting outgoing
- * packets and are the same length with the decryption counterpart .
+ * packets, and are the same length with the decryption counterpart.
  * If they have already been set, they are overwritten.
  *
  * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
@@ -3893,7 +3897,7 @@ NGTCP2_EXTERN int ngtcp2_conn_install_tx_handshake_key(
  * `ngtcp2_conn_install_0rtt_key` installs packet protection AEAD
  * cipher context object |aead_ctx|, IV |iv| of length |ivlen|, and
  * packet header protection cipher context object |hp_ctx| to encrypt
- * (for client) or decrypt (for server) 0RTT packets.
+ * (for client) or decrypt (for server) 0-RTT packets.
  *
  * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
  * that is larger.
@@ -3918,7 +3922,7 @@ NGTCP2_EXTERN int ngtcp2_conn_install_0rtt_key(
  * @function
  *
  * `ngtcp2_conn_install_rx_key` installs packet protection keying
- * materials for decrypting Short header packets.  |secret| of length
+ * materials for decrypting 1-RTT packets.  |secret| of length
  * |secretlen| is the decryption secret which is used to derive keying
  * materials passed to this function.  |aead_ctx| is AEAD cipher
  * context object which must be initialized with a decryption key.
@@ -3949,7 +3953,7 @@ NGTCP2_EXTERN int ngtcp2_conn_install_rx_key(
  * @function
  *
  * `ngtcp2_conn_install_tx_key` installs packet protection keying
- * materials for encrypting Short header packets.  |secret| of length
+ * materials for encrypting 1-RTT packets.  |secret| of length
  * |secretlen| is the encryption secret which is used to derive keying
  * materials passed to this function.  |aead_ctx| is AEAD cipher
  * context object which must be initialized with an encryption key.
@@ -3999,10 +4003,12 @@ NGTCP2_EXTERN int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn,
  * is defined as NGTCP2_ERR_* macro, such as
  * :macro:`NGTCP2_ERR_DECRYPT`).  In general, error code should be
  * propagated via return value, but sometimes ngtcp2 API is called
- * inside callback function of TLS stack and it does not allow to
+ * inside callback function of TLS stack, and it does not allow to
  * return ngtcp2 error code directly.  In this case, implementation
  * can set the error code (e.g.,
  * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`) using this function.
+ *
+ * See also `ngtcp2_conn_get_tls_error`.
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_tls_error(ngtcp2_conn *conn, int liberr);
 
@@ -4019,7 +4025,9 @@ NGTCP2_EXTERN int ngtcp2_conn_get_tls_error(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_set_tls_alert` sets a TLS alert |alert| generated by a
- * local endpoint to |conn|.
+ * TLS stack of a local endpoint to |conn|.
+ *
+ * See also `ngtcp2_conn_get_tls_alert`.
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_tls_alert(ngtcp2_conn *conn, uint8_t alert);
 
@@ -4038,7 +4046,7 @@ NGTCP2_EXTERN uint8_t ngtcp2_conn_get_tls_alert(ngtcp2_conn *conn);
  * `ngtcp2_conn_set_keep_alive_timeout` sets keep-alive timeout.  If
  * nonzero value is given, after a connection is idle at least in a
  * given amount of time, a keep-alive packet is sent.  If 0 is set,
- * keep-alive functionality is disabled and this is the default.
+ * keep-alive functionality is disabled, and this is the default.
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
                                                       ngtcp2_duration timeout);
@@ -4049,16 +4057,16 @@ NGTCP2_EXTERN void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
  * `ngtcp2_conn_get_expiry` returns the next expiry time.  It returns
  * ``UINT64_MAX`` if there is no next expiry.
  *
- * Call `ngtcp2_conn_handle_expiry()` and `ngtcp2_conn_write_pkt` (or
- * `ngtcp2_conn_writev_stream`) if expiry time is passed.
+ * Call `ngtcp2_conn_handle_expiry` and then
+ * `ngtcp2_conn_writev_stream` (or `ngtcp2_conn_writev_datagram`) when
+ * the expiry time has passed.
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
 
 /**
  * @function
  *
- * `ngtcp2_conn_handle_expiry` handles expired timer.  It does nothing
- * if timer is not expired.
+ * `ngtcp2_conn_handle_expiry` handles expired timer.
  */
 NGTCP2_EXTERN int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn,
                                             ngtcp2_tstamp ts);
@@ -4109,25 +4117,25 @@ ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_encode_0rtt_transport_params` encodes the QUIC
- * transport parameters that are used for early data in the buffer
- * pointed by |dest| of length |destlen|.  The subset includes at
- * least the following fields:
+ * transport parameters that are used for 0-RTT data in the buffer
+ * pointed by |dest| of length |destlen|.  It includes at least the
+ * following fields:
  *
- * - initial_max_stream_id_bidi
- * - initial_max_stream_id_uni
- * - initial_max_stream_data_bidi_local
- * - initial_max_stream_data_bidi_remote
- * - initial_max_stream_data_uni
- * - initial_max_data
- * - active_connection_id_limit
- * - max_datagram_frame_size
+ * - :member:`ngtcp2_transport_params.initial_max_streams_bidi`
+ * - :member:`ngtcp2_transport_params.initial_max_streams_uni`
+ * - :member:`ngtcp2_transport_params.initial_max_stream_data_bidi_local`
+ * - :member:`ngtcp2_transport_params.initial_max_stream_data_bidi_remote`
+ * - :member:`ngtcp2_transport_params.initial_max_stream_data_uni`
+ * - :member:`ngtcp2_transport_params.initial_max_data`
+ * - :member:`ngtcp2_transport_params.active_connection_id_limit`
+ * - :member:`ngtcp2_transport_params.max_datagram_frame_size`
  *
  * If |conn| is initialized as server, the following additional fields
  * are also included:
  *
- * - max_idle_timeout
- * - max_udp_payload_size
- * - disable_active_migration
+ * - :member:`ngtcp2_transport_params.max_idle_timeout`
+ * - :member:`ngtcp2_transport_params.max_udp_payload_size`
+ * - :member:`ngtcp2_transport_params.disable_active_migration`
  *
  * If |conn| is initialized as client, these parameters are
  * synthesized from the remote transport parameters received from
@@ -4151,20 +4159,21 @@ ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params(ngtcp2_conn *conn,
  * `ngtcp2_conn_decode_0rtt_transport_params` decodes QUIC transport
  * parameters from |data| of length |datalen|, which is assumed to be
  * the parameters received from the server in the previous connection,
- * and sets it to |conn|.  These parameters are used to send early
+ * and sets it to |conn|.  These parameters are used to send 0-RTT
  * data.  QUIC requires that client application should remember
  * transport parameters along with a session ticket.
  *
- * At least following fields should be set:
+ * At least following fields should be included:
  *
- * - initial_max_stream_id_bidi
- * - initial_max_stream_id_uni
- * - initial_max_stream_data_bidi_local
- * - initial_max_stream_data_bidi_remote
- * - initial_max_stream_data_uni
- * - initial_max_data
- * - active_connection_id_limit
- * - max_datagram_frame_size (if DATAGRAM extension was negotiated)
+ * - :member:`ngtcp2_transport_params.initial_max_streams_bidi`
+ * - :member:`ngtcp2_transport_params.initial_max_streams_uni`
+ * - :member:`ngtcp2_transport_params.initial_max_stream_data_bidi_local`
+ * - :member:`ngtcp2_transport_params.initial_max_stream_data_bidi_remote`
+ * - :member:`ngtcp2_transport_params.initial_max_stream_data_uni`
+ * - :member:`ngtcp2_transport_params.initial_max_data`
+ * - :member:`ngtcp2_transport_params.active_connection_id_limit`
+ * - :member:`ngtcp2_transport_params.max_datagram_frame_size` (if
+ *   DATAGRAM extension was negotiated)
  *
  * This function must only be used by client.
  *
@@ -4188,7 +4197,7 @@ NGTCP2_EXTERN int ngtcp2_conn_decode_0rtt_transport_params(ngtcp2_conn *conn,
  * Although the local transport parameters are passed to
  * `ngtcp2_conn_server_new`, server might want to update them after
  * ALPN is chosen.  In that case, server can update the transport
- * parameter with this function.  Server must call this function
+ * parameters with this function.  Server must call this function
  * before calling `ngtcp2_conn_install_tx_handshake_key`.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -4216,7 +4225,7 @@ ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn);
  * `ngtcp2_conn_encode_local_transport_params` encodes the local QUIC
  * transport parameters in |dest| of length |destlen|.
  *
- * This function returns the number of written, or one of the
+ * This function returns the number of bytes written, or one of the
  * following negative error codes:
  *
  * :macro:`NGTCP2_ERR_NOBUF`
@@ -4230,16 +4239,16 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(
  *
  * `ngtcp2_conn_open_bidi_stream` opens new bidirectional stream.  The
  * |stream_user_data| is the user data specific to the stream.  The
- * open stream ID is stored in |*pstream_id|.
+ * stream ID of the opened stream is stored in |*pstream_id|.
  *
  * Application can call this function before handshake completes.  For
- * 0RTT packet, application can call this function after calling
- * `ngtcp2_conn_decode_0rtt_transport_params`.  For 1RTT packet,
+ * 0-RTT packet, application can call this function after calling
+ * `ngtcp2_conn_decode_0rtt_transport_params`.  For 1-RTT packet,
  * application can call this function after calling
  * `ngtcp2_conn_decode_remote_transport_params` and
  * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
  * used, application can call this function after calling
- * `ngtcp2_crypto_derive_and_install_tx_key` for 1RTT packet.
+ * `ngtcp2_crypto_derive_and_install_tx_key` for 1-RTT packet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4247,7 +4256,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :macro:`NGTCP2_ERR_STREAM_ID_BLOCKED`
- *     The remote peer does not allow |stream_id| yet.
+ *     The remote endpoint does not allow |stream_id| yet.
  */
 NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
                                                int64_t *pstream_id,
@@ -4258,16 +4267,16 @@ NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
  *
  * `ngtcp2_conn_open_uni_stream` opens new unidirectional stream.  The
  * |stream_user_data| is the user data specific to the stream.  The
- * open stream ID is stored in |*pstream_id|.
+ * stream ID of the opened stream is stored in |*pstream_id|.
  *
  * Application can call this function before handshake completes.  For
- * 0RTT packet, application can call this function after calling
- * `ngtcp2_conn_decode_0rtt_transport_params`.  For 1RTT packet,
+ * 0-RTT packet, application can call this function after calling
+ * `ngtcp2_conn_decode_0rtt_transport_params`.  For 1-RTT packet,
  * application can call this function after calling
  * `ngtcp2_conn_decode_remote_transport_params` and
  * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
  * used, application can call this function after calling
- * `ngtcp2_crypto_derive_and_install_tx_key` for 1RTT packet.
+ * `ngtcp2_crypto_derive_and_install_tx_key` for 1-RTT packet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4275,7 +4284,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :macro:`NGTCP2_ERR_STREAM_ID_BLOCKED`
- *     The remote peer does not allow |stream_id| yet.
+ *     The remote endpoint does not allow |stream_id| yet.
  */
 NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
                                               int64_t *pstream_id,
@@ -4284,12 +4293,12 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_shutdown_stream` closes stream denoted by |stream_id|
- * abruptly.  |app_error_code| is one of application error codes, and
- * indicates the reason of shutdown.  Successful call of this function
- * does not immediately erase the state of the stream.  The actual
- * deletion is done when the remote endpoint sends acknowledgement.
- * Calling this function is equivalent to call
+ * `ngtcp2_conn_shutdown_stream` closes a stream denoted by
+ * |stream_id| abruptly.  |app_error_code| is one of application error
+ * codes, and indicates the reason of shutdown.  Successful call of
+ * this function does not immediately erase the state of the stream.
+ * The actual deletion is done when the remote endpoint sends
+ * acknowledgement.  Calling this function is equivalent to call
  * `ngtcp2_conn_shutdown_stream_read`, and
  * `ngtcp2_conn_shutdown_stream_write` sequentially with the following
  * differences.  If |stream_id| refers to a local unidirectional
@@ -4310,12 +4319,12 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_shutdown_stream_write` closes write-side of stream
+ * `ngtcp2_conn_shutdown_stream_write` closes write-side of a stream
  * denoted by |stream_id| abruptly.  |app_error_code| is one of
  * application error codes, and indicates the reason of shutdown.  If
- * this function succeeds, no application data is sent to the remote
- * endpoint.  It discards all data which has not been acknowledged
- * yet.
+ * this function succeeds, no further application data is sent to the
+ * remote endpoint.  It discards all data which has not been
+ * acknowledged yet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4332,11 +4341,11 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_shutdown_stream_read` closes read-side of stream
+ * `ngtcp2_conn_shutdown_stream_read` closes read-side of a stream
  * denoted by |stream_id| abruptly.  |app_error_code| is one of
  * application error codes, and indicates the reason of shutdown.  If
- * this function succeeds, no application data is forwarded to an
- * application layer.
+ * this function succeeds, no further application data is forwarded to
+ * an application layer.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4367,15 +4376,15 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * @macro
  *
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` indicates that more data may
- * come and should be coalesced into the same packet if possible.
+ * come, and should be coalesced into the same packet if possible.
  */
 #define NGTCP2_WRITE_STREAM_FLAG_MORE 0x01u
 
 /**
  * @macro
  *
- * :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` indicates that the passed
- * data is the final part of a stream.
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` indicates that a passed data
+ * is the final part of a stream.
  */
 #define NGTCP2_WRITE_STREAM_FLAG_FIN 0x02u
 
@@ -4396,7 +4405,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * @function
  *
  * `ngtcp2_conn_writev_stream` writes a packet containing stream data
- * of stream denoted by |stream_id|.  The buffer of the packet is
+ * of a stream denoted by |stream_id|.  The buffer of the packet is
  * pointed by |dest| of length |destlen|.  This function performs QUIC
  * handshake as well.
  *
@@ -4406,10 +4415,11 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * Specifying -1 to |stream_id| means no new stream data to send.
  *
  * If |path| is not ``NULL``, this function stores the network path
- * with which the packet should be sent.  Each addr field must point
- * to the buffer which should be at least ``sizeof(struct
- * sockaddr_storage)`` bytes long.  The assignment might not be done
- * if nothing is written to |dest|.
+ * with which the packet should be sent.  Each addr field
+ * (:member:`ngtcp2_path.local` and :member:`ngtcp2_path.remote`) must
+ * point to the buffer which should be at least
+ * sizeof(:type:`sockaddr_union`) bytes long.  The assignment might
+ * not be done if nothing is written to |dest|.
  *
  * If |pi| is not ``NULL``, this function stores packet metadata in it
  * if it succeeds.  The metadata includes ECN markings.  When calling
@@ -4417,7 +4427,10 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * :macro:`NGTCP2_ERR_WRITE_MORE`, caller must pass the same |pi| to
  * this function.
  *
- * If the all given data is encoded as STREAM frame in |dest|, and if
+ * Stream data is specified as vector of data |datav|.  |datavcnt|
+ * specifies the number of :type:`ngtcp2_vec` that |datav| includes.
+ *
+ * If all given data is encoded as STREAM frame in |dest|, and if
  * |flags| & :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` is nonzero, fin
  * flag is set to outgoing STREAM frame.  Otherwise, fin flag in
  * STREAM frame is not set.
@@ -4434,24 +4447,23 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * The number of data encoded in STREAM frame is stored in |*pdatalen|
  * if it is not ``NULL``.  The caller must keep the portion of data
  * covered by |*pdatalen| bytes in tact until
- * :type:`ngtcp2_acked_stream_data_offset` indicates that they are
- * acknowledged by a remote endpoint or the stream is closed.
+ * :member:`ngtcp2_callbacks.acked_stream_data_offset` indicates that
+ * they are acknowledged by a remote endpoint or the stream is closed.
  *
- * If |flags| equals to :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE`, this
- * function produces a single payload of UDP packet.  If the given
- * stream data is small (e.g., few bytes), the packet might be
- * severely under filled.  Too many small packet might increase
- * overall packet processing costs.  Unless there are retransmissions,
- * by default, application can only send 1 STREAM frame in one QUIC
- * packet.  In order to include more than 1 STREAM frame in one QUIC
- * packet, specify :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` in |flags|.
- * This is analogous to ``MSG_MORE`` flag in :manpage:`send(2)`.  If
- * the :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` is used, there are 4
+ * If the given stream data is small (e.g., few bytes), the packet
+ * might be severely under filled.  Too many small packet might
+ * increase overall packet processing costs.  Unless there are
+ * retransmissions, by default, application can only send 1 STREAM
+ * frame in one QUIC packet.  In order to include more than 1 STREAM
+ * frame in one QUIC packet, specify
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` in |flags|.  This is
+ * analogous to ``MSG_MORE`` flag in :manpage:`send(2)`.  If the
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` is used, there are 4
  * outcomes:
  *
  * - The function returns the written length of packet just like
  *   without :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE`.  This is because
- *   packet is nearly full and the library decided to make a complete
+ *   packet is nearly full, and the library decided to make a complete
  *   packet.  |*pdatalen| might be -1 or >= 0.  It may return 0 which
  *   indicates that no packet transmission is possible at the moment
  *   for some reason.
@@ -4467,7 +4479,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  *
  * - The function returns one of the following negative error codes:
  *   :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED`,
- *   :macro:`NGTCP2_ERR_STREAM_NOT_FOUND`,
+ *   :macro:`NGTCP2_ERR_STREAM_NOT_FOUND`, or
  *   :macro:`NGTCP2_ERR_STREAM_SHUT_WR`.  In this case, |*pdatalen| ==
  *   -1 is asserted.  Application can still write the stream data of
  *   the other streams by calling this function (or
@@ -4485,10 +4497,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * least once, it must not call other ngtcp2 API functions
  * (application can still call `ngtcp2_conn_write_connection_close` to
  * handle error from this function), just keep calling this function
- * (or `ngtcp2_conn_write_pkt`, or `ngtcp2_conn_writev_datagram`)
- * until it returns 0, a positive number (which indicates a complete
- * packet is ready), or the error codes other than
- * :macro:`NGTCP2_ERR_WRITE_MORE`,
+ * (or `ngtcp2_conn_writev_datagram`) until it returns 0, a positive
+ * number (which indicates a complete packet is ready), or the error
+ * codes other than :macro:`NGTCP2_ERR_WRITE_MORE`,
  * :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED`,
  * :macro:`NGTCP2_ERR_STREAM_NOT_FOUND`, and
  * :macro:`NGTCP2_ERR_STREAM_SHUT_WR`.  If there is no stream data to
@@ -4531,7 +4542,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * In general, if the error code which satisfies
  * `ngtcp2_err_is_fatal(err) <ngtcp2_err_is_fatal>` != 0 is returned,
  * the application should just close the connection by calling
- * `ngtcp2_conn_write_connection_close` or just delete the QUIC
+ * `ngtcp2_conn_write_connection_close`, or just delete the QUIC
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
  * other library functions.
  */
@@ -4558,7 +4569,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * @macro
  *
  * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_MORE` indicates that more data
- * may come and should be coalesced into the same packet if possible.
+ * may come, and should be coalesced into the same packet if possible.
  */
 #define NGTCP2_WRITE_DATAGRAM_FLAG_MORE 0x01u
 
@@ -4576,20 +4587,23 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * For |path| and |pi| parameters, refer to
  * `ngtcp2_conn_writev_stream`.
  *
+ * Stream data is specified as vector of data |datav|.  |datavcnt|
+ * specifies the number of :type:`ngtcp2_vec` that |datav| includes.
+ *
  * If the given data is written to the buffer, nonzero value is
  * assigned to |*paccepted| if it is not NULL.  The data in DATAGRAM
  * frame cannot be fragmented; writing partial data is not possible.
  *
  * |dgram_id| is an opaque identifier which should uniquely identify
- * the given DATAGRAM.  It is passed to :type:`ngtcp2_ack_datagram`
- * callback when a packet that contains DATAGRAM frame is
- * acknowledged.  It is passed to :type:`ngtcp2_lost_datagram`
- * callback when a packet that contains DATAGRAM frame is declared
- * lost.  If an application uses neither of those callbacks, it can
- * sets 0 to this parameter.
+ * the given DATAGRAM data.  It is passed to
+ * :type:`ngtcp2_ack_datagram` callback when a packet that contains
+ * DATAGRAM frame is acknowledged.  It is also passed to
+ * :type:`ngtcp2_lost_datagram` callback when a packet that contains
+ * DATAGRAM frame is declared lost.  If an application uses neither of
+ * those callbacks, it can sets 0 to this parameter.
  *
- * This function might write other frames other than DATAGRAM, just
- * like `ngtcp2_conn_writev_stream`.
+ * This function might write other frames other than DATAGRAM frame,
+ * just like `ngtcp2_conn_writev_stream`.
  *
  * If the function returns 0, it means that no more data cannot be
  * sent because of congestion control limit; or, data does not fit
@@ -4620,10 +4634,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * When application sees :macro:`NGTCP2_ERR_WRITE_MORE`, it must not
  * call other ngtcp2 API functions (application can still call
  * `ngtcp2_conn_write_connection_close` to handle error from this
- * function).  Just keep calling `ngtcp2_conn_writev_datagram`,
- * `ngtcp2_conn_writev_stream` or `ngtcp2_conn_write_pkt` until it
- * returns a positive number (which indicates a complete packet is
- * ready).
+ * function).  Just keep calling this function (or
+ * `ngtcp2_conn_writev_stream`) until it returns a positive number
+ * (which indicates a complete packet is ready).
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -4647,7 +4660,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * In general, if the error code which satisfies
  * `ngtcp2_err_is_fatal(err) <ngtcp2_err_is_fatal>` != 0 is returned,
  * the application should just close the connection by calling
- * `ngtcp2_conn_write_connection_close` or just delete the QUIC
+ * `ngtcp2_conn_write_connection_close`, or just delete the QUIC
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
  * other library functions.
  */
