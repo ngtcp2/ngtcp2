@@ -1553,8 +1553,8 @@ int Client::send_blocked_packet() {
 }
 
 int Client::handle_error() {
-  if (!conn_ || ngtcp2_conn_is_in_closing_period(conn_) ||
-      ngtcp2_conn_is_in_draining_period(conn_)) {
+  if (!conn_ || ngtcp2_conn_in_closing_period(conn_) ||
+      ngtcp2_conn_in_draining_period(conn_)) {
     return 0;
   }
 

@@ -273,7 +273,7 @@ void close_waitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto s = h->server();
   auto conn = h->conn();
 
-  if (ngtcp2_conn_is_in_closing_period(conn)) {
+  if (ngtcp2_conn_in_closing_period(conn)) {
     if (!config.quiet) {
       std::cerr << "Closing Period is over" << std::endl;
     }
@@ -281,7 +281,7 @@ void close_waitcb(struct ev_loop *loop, ev_timer *w, int revents) {
     s->remove(h);
     return;
   }
-  if (ngtcp2_conn_is_in_draining_period(conn)) {
+  if (ngtcp2_conn_in_draining_period(conn)) {
     if (!config.quiet) {
       std::cerr << "Draining Period is over" << std::endl;
     }
@@ -901,8 +901,8 @@ int Handler::handle_expiry() {
 }
 
 int Handler::on_write() {
-  if (ngtcp2_conn_is_in_closing_period(conn_) ||
-      ngtcp2_conn_is_in_draining_period(conn_)) {
+  if (ngtcp2_conn_in_closing_period(conn_) ||
+      ngtcp2_conn_in_draining_period(conn_)) {
     return 0;
   }
 
@@ -1184,8 +1184,8 @@ void Handler::start_draining_period() {
 }
 
 int Handler::start_closing_period() {
-  if (!conn_ || ngtcp2_conn_is_in_closing_period(conn_) ||
-      ngtcp2_conn_is_in_draining_period(conn_)) {
+  if (!conn_ || ngtcp2_conn_in_closing_period(conn_) ||
+      ngtcp2_conn_in_draining_period(conn_)) {
     return 0;
   }
 
@@ -1235,7 +1235,7 @@ int Handler::handle_error() {
     return -1;
   }
 
-  if (ngtcp2_conn_is_in_draining_period(conn_)) {
+  if (ngtcp2_conn_in_draining_period(conn_)) {
     return NETWORK_ERR_CLOSE_WAIT;
   }
 
@@ -1253,7 +1253,7 @@ int Handler::send_conn_close() {
 
   assert(conn_closebuf_ && conn_closebuf_->size());
   assert(conn_);
-  assert(!ngtcp2_conn_is_in_draining_period(conn_));
+  assert(!ngtcp2_conn_in_draining_period(conn_));
 
   auto path = ngtcp2_conn_get_path(conn_);
 
@@ -1874,7 +1874,7 @@ int Server::on_read(Endpoint &ep) {
 
     auto h = (*handler_it).second;
     auto conn = h->conn();
-    if (ngtcp2_conn_is_in_closing_period(conn)) {
+    if (ngtcp2_conn_in_closing_period(conn)) {
       // TODO do exponential backoff.
       switch (h->send_conn_close()) {
       case 0:
@@ -1884,7 +1884,7 @@ int Server::on_read(Endpoint &ep) {
       }
       continue;
     }
-    if (ngtcp2_conn_is_in_draining_period(conn)) {
+    if (ngtcp2_conn_in_draining_period(conn)) {
       continue;
     }
 

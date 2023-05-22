@@ -4673,18 +4673,18 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
 /**
  * @function
  *
- * `ngtcp2_conn_is_in_closing_period` returns nonzero if |conn| is in
- * the closing period.
+ * `ngtcp2_conn_in_closing_period` returns nonzero if |conn| is in the
+ * closing period.
  */
-NGTCP2_EXTERN int ngtcp2_conn_is_in_closing_period(ngtcp2_conn *conn);
+NGTCP2_EXTERN int ngtcp2_conn_in_closing_period(ngtcp2_conn *conn);
 
 /**
  * @function
  *
- * `ngtcp2_conn_is_in_draining_period` returns nonzero if |conn| is in
+ * `ngtcp2_conn_in_draining_period` returns nonzero if |conn| is in
  * the draining period.
  */
-NGTCP2_EXTERN int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn);
+NGTCP2_EXTERN int ngtcp2_conn_in_draining_period(ngtcp2_conn *conn);
 
 /**
  * @function
