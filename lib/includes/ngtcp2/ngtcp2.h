@@ -1735,19 +1735,6 @@ typedef struct ngtcp2_rand_ctx {
 typedef void (*ngtcp2_qlog_write)(void *user_data, uint32_t flags,
                                   const void *data, size_t datalen);
 
-/**
- * @struct
- *
- * :type:`ngtcp2_qlog_settings` is a set of settings for qlog.
- */
-typedef struct ngtcp2_qlog_settings {
-  /**
-   * :member:`write` is a callback function to write qlog.  Setting
-   * ``NULL`` disables qlog.
-   */
-  ngtcp2_qlog_write write;
-} ngtcp2_qlog_settings;
-
 #define NGTCP2_SETTINGS_V1 1
 #define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V1
 
@@ -1758,9 +1745,10 @@ typedef struct ngtcp2_qlog_settings {
  */
 typedef struct ngtcp2_settings {
   /**
-   * :member:`qlog` is qlog settings.
+   * :member:`qlog_write` is a callback function to write qlog.
+   * Setting ``NULL`` disables qlog.
    */
-  ngtcp2_qlog_settings qlog;
+  ngtcp2_qlog_write qlog_write;
   /**
    * :member:`cc_algo` specifies congestion control algorithm.
    */

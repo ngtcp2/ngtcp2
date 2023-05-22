@@ -678,7 +678,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                 << strerror(errno) << std::endl;
       return -1;
     }
-    settings.qlog.write = qlog_write_cb;
+    settings.qlog_write = qlog_write_cb;
   }
 
   settings.cc_algo = config.cc_algo;

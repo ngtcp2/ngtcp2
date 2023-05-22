@@ -1462,7 +1462,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
                 << strerror(errno) << std::endl;
       return -1;
     }
-    settings.qlog.write = ::write_qlog;
+    settings.qlog_write = ::write_qlog;
   }
   if (!config.preferred_versions.empty()) {
     settings.preferred_versions = config.preferred_versions.data();
