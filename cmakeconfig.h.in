@@ -34,3 +34,7 @@
 
 /* Define to 1 if you have the `be64toh' function. */
 #cmakedefine HAVE_BE64TOH 1
+
+/* Define WORDS_BIGENDIAN to 1 if target architecture is big
+   endian. */
+#cmakedefine WORDS_BIGENDIAN 1
