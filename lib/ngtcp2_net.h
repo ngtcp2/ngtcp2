@@ -54,15 +54,6 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-#if defined(HAVE_BSWAP_64) ||                                                  \
-    (defined(HAVE_DECL_BSWAP_64) && HAVE_DECL_BSWAP_64 > 0)
-#  define ngtcp2_bswap64 bswap_64
-#else /* !HAVE_BSWAP_64 */
-#  define ngtcp2_bswap64(N)                                                    \
-    ((uint64_t)(ngtcp2_ntohl((uint32_t)(N))) << 32 |                           \
-     ngtcp2_ntohl((uint32_t)((N) >> 32)))
-#endif /* !HAVE_BSWAP_64 */
-
 #if defined(HAVE_BE64TOH) ||                                                   \
     (defined(HAVE_DECL_BE64TOH) && HAVE_DECL_BE64TOH > 0)
 #  define ngtcp2_ntohl64(N) be64toh(N)
@@ -72,6 +63,16 @@
 #    define ngtcp2_ntohl64(N) (N)
 #    define ngtcp2_htonl64(N) (N)
 #  else /* !WORDS_BIGENDIAN */
+#    if defined(HAVE_BSWAP_64) ||                                              \
+        (defined(HAVE_DECL_BSWAP_64) && HAVE_DECL_BSWAP_64 > 0)
+#      define ngtcp2_bswap64 bswap_64
+#    elif defined(WIN32)
+#      define ngtcp2_bswap64 _byteswap_uint64
+#    else /* !HAVE_BSWAP_64 && !WIN32 */
+#      define ngtcp2_bswap64(N)                                                \
+        ((uint64_t)(ngtcp2_ntohl((uint32_t)(N))) << 32 |                       \
+         ngtcp2_ntohl((uint32_t)((N) >> 32)))
+#    endif /* !HAVE_BSWAP_64 && !WIN32 */
 #    define ngtcp2_ntohl64(N) ngtcp2_bswap64(N)
 #    define ngtcp2_htonl64(N) ngtcp2_bswap64(N)
 #  endif /* !WORDS_BIGENDIAN */
