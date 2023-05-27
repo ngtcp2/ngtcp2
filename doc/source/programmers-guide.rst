@@ -316,11 +316,11 @@ parameters received from a server in the previous connection.
 `ngtcp2_conn_encode_0rtt_transport_params` returns the encoded QUIC
 transport parameters that include these values.  When sending 0-RTT
 data, the remembered transport parameters should be set via
-`ngtcp2_conn_decode_0rtt_transport_params`.  Then client can open
-streams with `ngtcp2_conn_open_bidi_streams` or
+`ngtcp2_conn_decode_and_set_0rtt_transport_params`.  Then client can
+open streams with `ngtcp2_conn_open_bidi_streams` or
 `ngtcp2_conn_open_uni_stream`.  Note that
-`ngtcp2_conn_decode_0rtt_transport_params` does not invoke neither
-:member:`ngtcp2_callbacks.extend_max_local_streams_bidi` nor
+`ngtcp2_conn_decode_and_set_0rtt_transport_params` does not invoke
+neither :member:`ngtcp2_callbacks.extend_max_local_streams_bidi` nor
 :member:`ngtcp2_callbacks.extend_max_local_streams_uni`.
 
 Other than that, there is no difference between 0-RTT and 1-RTT data

@@ -363,7 +363,7 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls) {
   wolfSSL_get_peer_quic_transport_params(ssl, &tp, &tplen);
   DEBUG_MSG("WOLFSSL: get peer transport params, len=%lu\n", tplen);
 
-  rv = ngtcp2_conn_decode_remote_transport_params(conn, tp, tplen);
+  rv = ngtcp2_conn_decode_and_set_remote_transport_params(conn, tp, tplen);
   if (rv != 0) {
     DEBUG_MSG("WOLFSSL: decode peer transport params failed, rv=%d\n", rv);
     ngtcp2_conn_set_tls_error(conn, rv);

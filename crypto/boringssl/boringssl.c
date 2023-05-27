@@ -469,7 +469,7 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls) {
 
   SSL_get_peer_quic_transport_params(ssl, &tp, &tplen);
 
-  rv = ngtcp2_conn_decode_remote_transport_params(conn, tp, tplen);
+  rv = ngtcp2_conn_decode_and_set_remote_transport_params(conn, tp, tplen);
   if (rv != 0) {
     ngtcp2_conn_set_tls_error(conn, rv);
     return -1;

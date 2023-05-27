@@ -590,7 +590,7 @@ static int tp_recv_func(gnutls_session_t session, const uint8_t *data,
   ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
   int rv;
 
-  rv = ngtcp2_conn_decode_remote_transport_params(conn, data, datalen);
+  rv = ngtcp2_conn_decode_and_set_remote_transport_params(conn, data, datalen);
   if (rv != 0) {
     ngtcp2_conn_set_tls_error(conn, rv);
     return -1;

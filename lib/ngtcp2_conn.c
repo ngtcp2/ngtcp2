@@ -11371,9 +11371,9 @@ int ngtcp2_conn_set_remote_transport_params(
   return 0;
 }
 
-int ngtcp2_conn_decode_remote_transport_params(ngtcp2_conn *conn,
-                                               const uint8_t *data,
-                                               size_t datalen) {
+int ngtcp2_conn_decode_and_set_remote_transport_params(ngtcp2_conn *conn,
+                                                       const uint8_t *data,
+                                                       size_t datalen) {
   ngtcp2_transport_params params;
   int rv;
 
@@ -11429,9 +11429,9 @@ ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params(ngtcp2_conn *conn,
   return ngtcp2_transport_params_encode(dest, destlen, &params);
 }
 
-int ngtcp2_conn_decode_0rtt_transport_params(ngtcp2_conn *conn,
-                                             const uint8_t *data,
-                                             size_t datalen) {
+int ngtcp2_conn_decode_and_set_0rtt_transport_params(ngtcp2_conn *conn,
+                                                     const uint8_t *data,
+                                                     size_t datalen) {
   ngtcp2_transport_params params;
   int rv;
 

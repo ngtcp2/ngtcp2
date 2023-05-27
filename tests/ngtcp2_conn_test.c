@@ -9564,7 +9564,8 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   ngtcp2_conn_install_initial_key(conn, &aead_ctx, null_iv, &hp_ctx, &aead_ctx,
                                   null_iv, &hp_ctx, sizeof(null_iv));
 
-  rv = ngtcp2_conn_decode_0rtt_transport_params(conn, buf, (size_t)slen);
+  rv =
+      ngtcp2_conn_decode_and_set_0rtt_transport_params(conn, buf, (size_t)slen);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(early_params.initial_max_streams_bidi ==
