@@ -64,8 +64,6 @@ int ngtcp2_crypto_hkdf_expand_label(uint8_t *dest, size_t destlen,
                                    (size_t)(p - info));
 }
 
-#define NGTCP2_CRYPTO_INITIAL_SECRETLEN 32
-
 int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
                                          uint8_t *initial_secret,
                                          uint32_t version,

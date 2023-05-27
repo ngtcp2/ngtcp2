@@ -2073,7 +2073,8 @@ typedef struct ngtcp2_crypto_cipher_ctx {
  * crypto related objects in one place.  Use
  * `ngtcp2_crypto_ctx_initial` to initialize this struct for Initial
  * packet encryption.  For Handshake and 1-RTT packets, use
- * `ngtcp2_crypto_ctx_tls`.
+ * `ngtcp2_crypto_ctx_tls`.  For 0-RTT packets, use
+ * `ngtcp2_crypto_ctx_tls_early`.
  */
 typedef struct ngtcp2_crypto_ctx {
   /**

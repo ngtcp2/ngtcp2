@@ -73,6 +73,30 @@
 #define NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_CCM (2965820ULL)
 
 /**
+ * @macro
+ *
+ * :macro:`NGTCP2_CRYPTO_INITIAL_SECRETLEN` is the length of secret
+ * for Initial packets.
+ */
+#define NGTCP2_CRYPTO_INITIAL_SECRETLEN 32
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_CRYPTO_INITIAL_KEYLEN` is the length of key for
+ * Initial packets.
+ */
+#define NGTCP2_CRYPTO_INITIAL_KEYLEN 16
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_CRYPTO_INITIAL_IVLEN` is the length of IV for
+ * Initial packets.
+ */
+#define NGTCP2_CRYPTO_INITIAL_IVLEN 12
+
+/**
  * @function
  *
  * `ngtcp2_crypto_ctx_initial` initializes |ctx| for Initial packet
@@ -105,6 +129,25 @@ ngtcp2_crypto_aead *ngtcp2_crypto_aead_init(ngtcp2_crypto_aead *aead,
  * AEAD_AES_128_GCM for Retry packet integrity protection.
  */
 ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead);
+
+/**
+ * @enum
+ *
+ * :type:`ngtcp2_crypto_side` indicates which side the application
+ * implements; client or server.
+ */
+typedef enum ngtcp2_crypto_side {
+  /**
+   * :enum:`NGTCP2_CRYPTO_SIDE_CLIENT` indicates that the application
+   * is client.
+   */
+  NGTCP2_CRYPTO_SIDE_CLIENT,
+  /**
+   * :enum:`NGTCP2_CRYPTO_SIDE_SERVER` indicates that the application
+   * is server.
+   */
+  NGTCP2_CRYPTO_SIDE_SERVER
+} ngtcp2_crypto_side;
 
 /**
  * @function
@@ -346,5 +389,19 @@ ngtcp2_crypto_aead *ngtcp2_crypto_aead_aes_128_gcm(ngtcp2_crypto_aead *aead);
  * This function returns 0 if it succeeds, or -1.
  */
 int ngtcp2_crypto_random(uint8_t *data, size_t datalen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_hkdf_expand_label` performs HKDF expand label.  The
+ * result is |destlen| bytes long, and is stored to the buffer pointed
+ * by |dest|.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+int ngtcp2_crypto_hkdf_expand_label(uint8_t *dest, size_t destlen,
+                                    const ngtcp2_crypto_md *md,
+                                    const uint8_t *secret, size_t secretlen,
+                                    const uint8_t *label, size_t labellen);
 
 #endif /* NGTCP2_SHARED_H */
