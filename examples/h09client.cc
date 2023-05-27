@@ -763,11 +763,11 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     if (!params) {
       early_data_ = false;
     } else {
-      auto rv = ngtcp2_conn_decode_0rtt_transport_params(
+      auto rv = ngtcp2_conn_decode_and_set_0rtt_transport_params(
           conn_, reinterpret_cast<const uint8_t *>(params->data()),
           params->size());
       if (rv != 0) {
-        std::cerr << "ngtcp2_conn_decode_0rtt_transport_params: "
+        std::cerr << "ngtcp2_conn_decode_and_set_0rtt_transport_params:"
                   << ngtcp2_strerror(rv) << std::endl;
         early_data_ = false;
       } else if (make_stream_early() != 0) {

@@ -554,8 +554,8 @@ int ngtcp2_crypto_picotls_collected_extensions(
     conn_ref = *ptls_get_data_ptr(ptls);
     conn = conn_ref->get_conn(conn_ref);
 
-    rv = ngtcp2_conn_decode_remote_transport_params(conn, extensions->data.base,
-                                                    extensions->data.len);
+    rv = ngtcp2_conn_decode_and_set_remote_transport_params(
+        conn, extensions->data.base, extensions->data.len);
     if (rv != 0) {
       ngtcp2_conn_set_tls_error(conn, rv);
       return -1;

@@ -4069,9 +4069,9 @@ NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_decode_remote_transport_params` decodes QUIC transport
- * parameters from the buffer pointed by |data| of length |datalen|,
- * and sets the result to |conn|.
+ * `ngtcp2_conn_decode_and_set_remote_transport_params` decodes QUIC
+ * transport parameters from the buffer pointed by |data| of length
+ * |datalen|, and sets the result to |conn|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4087,9 +4087,8 @@ NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn);
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
  */
-NGTCP2_EXTERN int
-ngtcp2_conn_decode_remote_transport_params(ngtcp2_conn *conn,
-                                           const uint8_t *data, size_t datalen);
+NGTCP2_EXTERN int ngtcp2_conn_decode_and_set_remote_transport_params(
+    ngtcp2_conn *conn, const uint8_t *data, size_t datalen);
 
 /**
  * @function
@@ -4144,12 +4143,12 @@ ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_decode_0rtt_transport_params` decodes QUIC transport
- * parameters from |data| of length |datalen|, which is assumed to be
- * the parameters received from the server in the previous connection,
- * and sets it to |conn|.  These parameters are used to send 0-RTT
- * data.  QUIC requires that client application should remember
- * transport parameters along with a session ticket.
+ * `ngtcp2_conn_decode_and_set_0rtt_transport_params` decodes QUIC
+ * transport parameters from |data| of length |datalen|, which is
+ * assumed to be the parameters received from the server in the
+ * previous connection, and sets it to |conn|.  These parameters are
+ * used to send 0-RTT data.  QUIC requires that client application
+ * should remember transport parameters along with a session ticket.
  *
  * At least following fields should be included:
  *
@@ -4173,9 +4172,8 @@ ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params(ngtcp2_conn *conn,
  * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
  *     The input is malformed.
  */
-NGTCP2_EXTERN int ngtcp2_conn_decode_0rtt_transport_params(ngtcp2_conn *conn,
-                                                           const uint8_t *data,
-                                                           size_t datalen);
+NGTCP2_EXTERN int ngtcp2_conn_decode_and_set_0rtt_transport_params(
+    ngtcp2_conn *conn, const uint8_t *data, size_t datalen);
 
 /**
  * @function
@@ -4231,9 +4229,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(
  *
  * Application can call this function before handshake completes.  For
  * 0-RTT packet, application can call this function after calling
- * `ngtcp2_conn_decode_0rtt_transport_params`.  For 1-RTT packet,
- * application can call this function after calling
- * `ngtcp2_conn_decode_remote_transport_params` and
+ * `ngtcp2_conn_decode_and_set_0rtt_transport_params`.  For 1-RTT
+ * packet, application can call this function after calling
+ * `ngtcp2_conn_decode_and_set_remote_transport_params` and
  * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
  * used, application can call this function after calling
  * `ngtcp2_crypto_derive_and_install_tx_key` for 1-RTT packet.
@@ -4259,9 +4257,9 @@ NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
  *
  * Application can call this function before handshake completes.  For
  * 0-RTT packet, application can call this function after calling
- * `ngtcp2_conn_decode_0rtt_transport_params`.  For 1-RTT packet,
- * application can call this function after calling
- * `ngtcp2_conn_decode_remote_transport_params` and
+ * `ngtcp2_conn_decode_and_set_0rtt_transport_params`.  For 1-RTT
+ * packet, application can call this function after calling
+ * `ngtcp2_conn_decode_and_set_remote_transport_params` and
  * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
  * used, application can call this function after calling
  * `ngtcp2_crypto_derive_and_install_tx_key` for 1-RTT packet.
