@@ -514,7 +514,7 @@ recv_stream_data_shutdown_stream_read(ngtcp2_conn *conn, uint32_t flags,
   recv_stream_data(conn, flags, stream_id, offset, data, datalen, user_data,
                    stream_user_data);
 
-  rv = ngtcp2_conn_shutdown_stream_read(conn, stream_id, NGTCP2_APP_ERR01);
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, stream_id, NGTCP2_APP_ERR01);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -1451,7 +1451,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   /* Stream not found */
   setup_default_server(&conn);
 
-  rv = ngtcp2_conn_shutdown_stream_write(conn, 4, NGTCP2_APP_ERR01);
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 0, 4, NGTCP2_APP_ERR01);
 
   CU_ASSERT(0 == rv);
 
@@ -1464,7 +1464,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                            NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_data,
                            1239, 1);
-  rv = ngtcp2_conn_shutdown_stream_write(conn, stream_id, NGTCP2_APP_ERR01);
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 0, stream_id, NGTCP2_APP_ERR01);
 
   CU_ASSERT(0 == rv);
 
@@ -1535,7 +1535,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, stream_id));
 
-  rv = ngtcp2_conn_shutdown_stream_write(conn, stream_id, NGTCP2_APP_ERR01);
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 0, stream_id, NGTCP2_APP_ERR01);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, stream_id));
@@ -1597,7 +1597,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_conn_shutdown_stream_write(conn, stream_id, NGTCP2_APP_ERR01);
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 0, stream_id, NGTCP2_APP_ERR01);
 
   CU_ASSERT(0 == rv);
 
@@ -1683,7 +1683,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
 
   ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                            NGTCP2_WRITE_STREAM_FLAG_NONE, 4, null_data, 354, 2);
-  ngtcp2_conn_shutdown_stream_read(conn, 4, NGTCP2_APP_ERR01);
+  ngtcp2_conn_shutdown_stream_read(conn, 0, 4, NGTCP2_APP_ERR01);
   ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 3);
 
   fr.type = NGTCP2_FRAME_RESET_STREAM;
@@ -1720,7 +1720,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
 
   ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                            NGTCP2_WRITE_STREAM_FLAG_NONE, 4, null_data, 354, 2);
-  ngtcp2_conn_shutdown_stream_write(conn, 4, NGTCP2_APP_ERR01);
+  ngtcp2_conn_shutdown_stream_write(conn, 0, 4, NGTCP2_APP_ERR01);
   ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 3);
 
   fr.type = NGTCP2_FRAME_RESET_STREAM;
@@ -2135,7 +2135,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
 
   ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                            NGTCP2_WRITE_STREAM_FLAG_NONE, 4, null_data, 354, 2);
-  ngtcp2_conn_shutdown_stream_read(conn, 4, NGTCP2_APP_ERR01);
+  ngtcp2_conn_shutdown_stream_read(conn, 0, 4, NGTCP2_APP_ERR01);
   ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 3);
 
   CU_ASSERT(128 * 1024 + 956 == conn->rx.unsent_max_offset);
@@ -3235,8 +3235,8 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_conn_open_bidi_stream(conn, &stream_id_a, NULL);
   ngtcp2_conn_open_bidi_stream(conn, &stream_id_b, NULL);
 
-  ngtcp2_conn_shutdown_stream_write(conn, stream_id_a, NGTCP2_APP_ERR01);
-  ngtcp2_conn_shutdown_stream_write(conn, stream_id_b, NGTCP2_APP_ERR01);
+  ngtcp2_conn_shutdown_stream_write(conn, 0, stream_id_a, NGTCP2_APP_ERR01);
+  ngtcp2_conn_shutdown_stream_write(conn, 0, stream_id_b, NGTCP2_APP_ERR01);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -3445,7 +3445,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_conn_shutdown_stream_read(conn, 4, NGTCP2_APP_ERR01);
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, 4, NGTCP2_APP_ERR01);
 
   CU_ASSERT(0 == rv);
 
@@ -3858,7 +3858,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 4));
 
-  rv = ngtcp2_conn_shutdown_stream_read(conn, 4, 99);
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, 4, 99);
 
   CU_ASSERT(0 == rv);
 
@@ -8884,7 +8884,7 @@ void test_ngtcp2_conn_stream_close(void) {
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_conn_shutdown_stream(conn, stream_id, NGTCP2_APP_ERR01);
+  rv = ngtcp2_conn_shutdown_stream(conn, 0, stream_id, NGTCP2_APP_ERR01);
 
   CU_ASSERT(0 == rv);
 
@@ -8933,7 +8933,7 @@ void test_ngtcp2_conn_stream_close(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  rv = ngtcp2_conn_shutdown_stream_write(conn, stream_id, NGTCP2_APP_ERR01);
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 0, stream_id, NGTCP2_APP_ERR01);
 
   CU_ASSERT(0 == rv);
 

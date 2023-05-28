@@ -1920,7 +1920,7 @@ int http_stop_sending(nghttp3_conn *conn, int64_t stream_id,
 
 int Client::stop_sending(int64_t stream_id, uint64_t app_error_code) {
   if (auto rv =
-          ngtcp2_conn_shutdown_stream_read(conn_, stream_id, app_error_code);
+          ngtcp2_conn_shutdown_stream_read(conn_, 0, stream_id, app_error_code);
       rv != 0) {
     std::cerr << "ngtcp2_conn_shutdown_stream_read: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1942,8 +1942,8 @@ int http_reset_stream(nghttp3_conn *conn, int64_t stream_id,
 } // namespace
 
 int Client::reset_stream(int64_t stream_id, uint64_t app_error_code) {
-  if (auto rv =
-          ngtcp2_conn_shutdown_stream_write(conn_, stream_id, app_error_code);
+  if (auto rv = ngtcp2_conn_shutdown_stream_write(conn_, 0, stream_id,
+                                                  app_error_code);
       rv != 0) {
     std::cerr << "ngtcp2_conn_shutdown_stream_write: " << ngtcp2_strerror(rv)
               << std::endl;

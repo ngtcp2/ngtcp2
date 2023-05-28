@@ -4293,13 +4293,15 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
  * |stream_id| refers to a remote unidirectional stream, this function
  * only shutdowns read side of the stream.
  *
+ * |flags| is currently unused, and should be set to 0.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  */
-NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
+NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, uint32_t flags,
                                               int64_t stream_id,
                                               uint64_t app_error_code);
 
@@ -4313,6 +4315,8 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  * remote endpoint.  It discards all data which has not been
  * acknowledged yet.
  *
+ * |flags| is currently unused, and should be set to 0.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -4322,6 +4326,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  *     |stream_id| refers to a remote unidirectional stream.
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
+                                                    uint32_t flags,
                                                     int64_t stream_id,
                                                     uint64_t app_error_code);
 
@@ -4334,6 +4339,8 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  * this function succeeds, no further application data is forwarded to
  * an application layer.
  *
+ * |flags| is currently unused, and should be set to 0.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -4343,6 +4350,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  *     |stream_id| refers to a local unidirectional stream.
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
+                                                   uint32_t flags,
                                                    int64_t stream_id,
                                                    uint64_t app_error_code);
 
