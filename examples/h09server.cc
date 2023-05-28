@@ -1344,7 +1344,7 @@ int Handler::recv_stream_data(uint32_t flags, int64_t stream_id,
         http_parser_execute(&stream->htp, &htp_settings,
                             reinterpret_cast<const char *>(data), datalen);
     if (nread != datalen) {
-      if (auto rv = ngtcp2_conn_shutdown_stream(conn_, stream_id,
+      if (auto rv = ngtcp2_conn_shutdown_stream(conn_, 0, stream_id,
                                                 /* app error code */ 1);
           rv != 0) {
         std::cerr << "ngtcp2_conn_shutdown_stream: " << ngtcp2_strerror(rv)
@@ -1423,7 +1423,7 @@ int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
 }
 
 void Handler::shutdown_read(int64_t stream_id, int app_error_code) {
-  ngtcp2_conn_shutdown_stream_read(conn_, stream_id, app_error_code);
+  ngtcp2_conn_shutdown_stream_read(conn_, 0, stream_id, app_error_code);
 }
 
 void Handler::add_sendq(Stream *stream) { sendq_.emplace(stream); }
