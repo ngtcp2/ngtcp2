@@ -24,6 +24,7 @@
  */
 #include "tls_client_session_picotls.h"
 
+#include <cstring>
 #include <iostream>
 #include <memory>
 

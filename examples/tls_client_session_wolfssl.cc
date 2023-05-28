@@ -25,6 +25,7 @@
 #include "tls_client_session_wolfssl.h"
 
 #include <cassert>
+#include <cstring>
 #include <iostream>
 
 #include "tls_client_context_wolfssl.h"
