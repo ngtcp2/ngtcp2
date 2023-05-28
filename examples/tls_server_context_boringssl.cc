@@ -24,6 +24,7 @@
  */
 #include "tls_server_context_boringssl.h"
 
+#include <cstring>
 #include <iostream>
 #include <fstream>
 

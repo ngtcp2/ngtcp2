@@ -24,6 +24,7 @@
  */
 #include "tls_client_context_openssl.h"
 
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <limits>

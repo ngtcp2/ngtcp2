@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cerrno>
+#include <cstring>
 #include <iostream>
 #include <algorithm>
 #include <memory>
