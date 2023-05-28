@@ -52,6 +52,10 @@
 #  include <sys/endian.h>
 #endif /* HAVE_SYS_ENDIAN_H */
 
+#if defined(__APPLE__)
+#  include <libkern/OSByteOrder.h>
+#endif // __APPLE__
+
 #include <ngtcp2/ngtcp2.h>
 
 #if defined(HAVE_BE64TOH) ||                                                   \
@@ -68,11 +72,13 @@
 #      define ngtcp2_bswap64 bswap_64
 #    elif defined(WIN32)
 #      define ngtcp2_bswap64 _byteswap_uint64
-#    else /* !HAVE_BSWAP_64 && !WIN32 */
+#    elif defined(__APPLE__)
+#      define ngtcp2_bswap64 OSSwapInt64
+#    else /* !HAVE_BSWAP_64 && !WIN32 && !__APPLE__ */
 #      define ngtcp2_bswap64(N)                                                \
         ((uint64_t)(ngtcp2_ntohl((uint32_t)(N))) << 32 |                       \
          ngtcp2_ntohl((uint32_t)((N) >> 32)))
-#    endif /* !HAVE_BSWAP_64 && !WIN32 */
+#    endif /* !HAVE_BSWAP_64 && !WIN32 && !__APPLE__ */
 #    define ngtcp2_ntohl64(N) ngtcp2_bswap64(N)
 #    define ngtcp2_htonl64(N) ngtcp2_bswap64(N)
 #  endif /* !WORDS_BIGENDIAN */
