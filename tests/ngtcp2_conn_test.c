@@ -6328,6 +6328,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
   int64_t ack_pkt_num;
   int64_t stream_id;
   ngtcp2_ssize nwrite;
+  ngtcp2_ssize datalen;
 
   rcid_init(&rcid);
   setup_handshake_server(&conn);
@@ -6767,6 +6768,74 @@ void test_ngtcp2_conn_handshake_loss(void) {
   CU_ASSERT(0 == rv);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  ngtcp2_conn_del(conn);
+
+  /* Client can send PTO Initial packet even if reduced CWND is less
+     than in-flight bytes which are mostly occupied by 0-RTT
+     packets. */
+  setup_early_client(&conn);
+
+  conn->callbacks.client_initial = client_initial_large_crypto_early_data;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  for (i = 0; i < 14; ++i) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                       &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                       stream_id, null_data, 1024, ++t);
+
+    CU_ASSERT(spktlen > 0);
+  }
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 1024, ++t);
+
+  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(conn->cstat.bytes_in_flight >= conn->cstat.cwnd);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 1;
+  fr.ack.ack_delay = 0;
+  fr.ack.ack_delay_unscaled = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = write_initial_pkt(
+      buf, sizeof(buf), &conn->oscid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
+      conn->client_chosen_version, NULL, 0, &fr, 1, &null_ckm);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
+
+  CU_ASSERT(0 == rv);
+
+  t += 35 * NGTCP2_MILLISECONDS;
+
+  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->in_pktns->crypto.tx.frq));
+
+  ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  /* On loss-based packet loss detection, we need another timeout,
+     according to RFC 9002.  No PTO on first
+     ngtcp2_conn_on_loss_detection_timer. */
+  t = conn->cstat.loss_detection_timer;
+
+  ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  CU_ASSERT(1 == conn->in_pktns->rtb.probe_pkt_left);
+  CU_ASSERT(conn->cstat.bytes_in_flight > conn->cstat.cwnd);
+  CU_ASSERT(ngtcp2_ksl_len(&conn->in_pktns->crypto.tx.frq) != 0);
+
+  spktlen =
+      ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                               NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, ++t);
 
   CU_ASSERT(spktlen > 0);
 
