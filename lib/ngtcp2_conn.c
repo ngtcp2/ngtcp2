@@ -1279,6 +1279,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     (*pconn)->vneg.preferred_versionslen = settings->preferred_versionslen;
   }
 
+  (*pconn)->local.settings.preferred_versions = NULL;
+  (*pconn)->local.settings.preferred_versionslen = 0;
+
   if (settings->available_versionslen) {
     if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
       for (i = 0; i < settings->available_versionslen; ++i) {
@@ -1329,6 +1332,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     (*pconn)->vneg.available_versions = buf;
     (*pconn)->vneg.available_versionslen = sizeof(uint32_t);
   }
+
+  (*pconn)->local.settings.available_versions = NULL;
+  (*pconn)->local.settings.available_versionslen = 0;
 
   (*pconn)->client_chosen_version = client_chosen_version;
 
