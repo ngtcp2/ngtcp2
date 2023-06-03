@@ -64,8 +64,7 @@ typedef enum ngtcp2_transport_param_id {
   /* https://datatracker.ietf.org/doc/html/rfc9221 */
   NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE = 0x0020,
   NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT = 0x2ab2,
-  /* https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation-14
-   */
+  /* https://datatracker.ietf.org/doc/html/rfc9368 */
   NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION = 0x11,
 } ngtcp2_transport_param_id;
 

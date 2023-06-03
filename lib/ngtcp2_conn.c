@@ -11213,8 +11213,8 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
 
       /* QUIC v1 (and the supported draft versions) are treated
          specially.  If version_info is missing, no further validation
-         is necessary.
-         https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation-10#section-8
+         is necessary.  See
+         https://datatracker.ietf.org/doc/html/rfc9368#section-8
        */
       if (conn->client_chosen_version == NGTCP2_PROTO_VER_V1 ||
           (NGTCP2_PROTO_VER_DRAFT_MIN <= conn->client_chosen_version &&
@@ -11225,8 +11225,8 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
       return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
     }
 
-    /* Server choose original version after Version Negotiation.
-       Draft does not say this particular case, but this smells like
+    /* Server choose original version after Version Negotiation.  RFC
+       9368 does not say this particular case, but this smells like
        misbehaved server because server should accept original_version
        in the original connection. */
     if (conn->local.settings.original_version ==
