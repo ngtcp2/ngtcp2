@@ -207,9 +207,9 @@ The library implements the following QUIC protocol extensions:
 - `Greasing the QUIC Bit
   <https://datatracker.ietf.org/doc/html/rfc9287>`_
 - `Compatible Version Negotiation for QUIC
-  <https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation>`_
+  <https://datatracker.ietf.org/doc/html/rfc9368>`_
 - `QUIC Version 2
-  <https://datatracker.ietf.org/doc/html/draft-ietf-quic-v2>`_
+  <https://datatracker.ietf.org/doc/html/rfc9369>`_
 
 Configuring Wireshark for QUIC
 ------------------------------

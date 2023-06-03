@@ -268,9 +268,8 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_PROTO_VER_V2` is the QUIC version 2.
- *
- * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
+ * :macro:`NGTCP2_PROTO_VER_V2` is the QUIC version 2.  See
+ * :rfc:`9369`.
  */
 #define NGTCP2_PROTO_VER_V2 ((uint32_t)0x6b3343cfu)
 
@@ -413,9 +412,8 @@ typedef struct ngtcp2_mem {
  * @macro
  *
  * :macro:`NGTCP2_RETRY_KEY_V2` is an encryption key to create
- * integrity tag of Retry packet.  It is used for QUIC v2.
- *
- * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
+ * integrity tag of Retry packet.  It is used for QUIC v2.  See
+ * :rfc:`9369`.
  */
 #define NGTCP2_RETRY_KEY_V2                                                    \
   "\x8f\xb4\xb0\x1b\x56\xac\x48\xe2\x60\xfb\xcb\xce\xad\x7c\xcc\x92"
@@ -424,9 +422,8 @@ typedef struct ngtcp2_mem {
  * @macro
  *
  * :macro:`NGTCP2_RETRY_NONCE_V2` is nonce used when generating
- * integrity tag of Retry packet.  It is used for QUIC v2.
- *
- * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
+ * integrity tag of Retry packet.  It is used for QUIC v2.  See
+ * :rfc:`9369`.
  */
 #define NGTCP2_RETRY_NONCE_V2 "\xd8\x69\x69\xbc\x2d\x7c\x6d\x99\x90\xef\xb0\x4a"
 
@@ -1053,9 +1050,7 @@ typedef enum ngtcp2_pkt_type {
  * @macro
  *
  * :macro:`NGTCP2_VERSION_NEGOTIATION_ERROR` is QUIC transport error
- * code ``VERSION_NEGOTIATION_ERROR``.
- *
- * https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation
+ * code ``VERSION_NEGOTIATION_ERROR``.  See :rfc:`9368`.
  */
 #define NGTCP2_VERSION_NEGOTIATION_ERROR 0x11
 
@@ -1412,9 +1407,7 @@ typedef struct ngtcp2_preferred_addr {
  * @struct
  *
  * :type:`ngtcp2_version_info` represents version_information
- * structure.
- *
- * https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation
+ * structure.  See :rfc:`9368`.
  */
 typedef struct ngtcp2_version_info {
   /**
@@ -1857,9 +1850,8 @@ typedef struct ngtcp2_settings {
    * If there is no overlap, but the client chosen version is
    * supported by the library, the server chooses the client chosen
    * version as the negotiated version.  This version set corresponds
-   * to Offered Versions in
-   * https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation,
-   * and it should be included in Version Negotiation packet.
+   * to Offered Versions described in :rfc:`9368`, and it should be
+   * included in Version Negotiation packet.
    *
    * Client uses this field and :member:`original_version` to prevent
    * version downgrade attack if it reacted upon Version Negotiation
@@ -1880,9 +1872,8 @@ typedef struct ngtcp2_settings {
    * <ngtcp2_version_info.available_versions>` field of outgoing
    * version_information QUIC transport parameter.
    *
-   * For server, this corresponds to Fully-Deployed Versions in
-   * https://datatracker.ietf.org/doc/html/draft-ietf-quic-version-negotiation.
-   * If this field is not set, it is set to
+   * For server, this corresponds to Fully-Deployed Versions described
+   * in :rfc:`9368`.  If this field is not set, it is set to
    * :member:`preferred_versions` internally if
    * :member:`preferred_versionslen` is not zero.  If this field is
    * not set, and :member:`preferred_versionslen` is zero, this field
