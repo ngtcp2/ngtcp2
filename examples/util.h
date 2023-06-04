@@ -215,15 +215,13 @@ read_mime_types(const std::string_view &filename);
 
 // format_uint converts |n| into string.
 template <typename T> std::string format_uint(T n) {
-  std::string res;
   if (n == 0) {
-    res = "0";
-    return res;
+    return "0";
   }
   size_t nlen = 0;
   for (auto t = n; t; t /= 10, ++nlen)
     ;
-  res.resize(nlen);
+  std::string res(nlen, '\0');
   for (; n; n /= 10) {
     res[--nlen] = (n % 10) + '0';
   }
