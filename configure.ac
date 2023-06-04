@@ -284,7 +284,7 @@ AM_CONDITIONAL([HAVE_OPENSSL], [ test "x${have_openssl}" = "xyes" ])
 # GnuTLS (required for libngtcp2_crypto_gnutls)
 have_gnutls=no
 if test "x${request_gnutls}" != "xno"; then
-  PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.7.2],
+  PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.7.3],
                     [have_gnutls=yes], [have_gnutls=no])
   if test "x${have_gnutls}" = "xno"; then
     AC_MSG_NOTICE($GNUTLS_PKG_ERRORS)
