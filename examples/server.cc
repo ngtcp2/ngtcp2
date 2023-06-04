@@ -1679,6 +1679,8 @@ int Handler::write_streams() {
 
   max_pktcnt = std::min(max_pktcnt, static_cast<size_t>(config.max_gso_dgrams));
 
+  ssize_t nwrite = 0;
+
   for (;;) {
     int64_t stream_id = -1;
     int fin = 0;
@@ -1706,7 +1708,11 @@ int Handler::write_streams() {
       flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
     }
 
-    auto nwrite = ngtcp2_conn_writev_stream(
+    if (nwrite != NGTCP2_ERR_WRITE_MORE) {
+      ts = util::timestamp();
+    }
+
+    nwrite = ngtcp2_conn_writev_stream(
         conn_, &ps.path, &pi, bufpos, max_udp_payload_size, &ndatalen, flags,
         stream_id, reinterpret_cast<const ngtcp2_vec *>(v), vcnt, ts);
     if (nwrite < 0) {
@@ -1773,7 +1779,7 @@ int Handler::write_streams() {
       }
 
       // We are congestion limited.
-      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
+      ngtcp2_conn_update_pkt_tx_time(conn_, util::timestamp());
       return 0;
     }
 
@@ -1823,7 +1829,7 @@ int Handler::write_streams() {
         }
       }
 
-      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
+      ngtcp2_conn_update_pkt_tx_time(conn_, util::timestamp());
       return 0;
     }
 
@@ -1844,7 +1850,7 @@ int Handler::write_streams() {
         start_wev_endpoint(ep);
       }
 
-      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
+      ngtcp2_conn_update_pkt_tx_time(conn_, util::timestamp());
       return 0;
     }
   }
