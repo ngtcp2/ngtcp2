@@ -1283,11 +1283,11 @@ typedef struct ngtcp2_pkt_stateless_reset {
 #define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT 0xffa5u
 
 #ifdef NGTCP2_USE_GENERIC_SOCKADDR
-typedef unsigned short int ngtcp2_sa_family_t;
-typedef uint16_t ngtcp2_in_port_t;
+typedef unsigned short int ngtcp2_sa_family;
+typedef uint16_t ngtcp2_in_port;
 
 typedef struct ngtcp2_sockaddr {
-  ngtcp2_sa_family_t sa_family;
+  ngtcp2_sa_family sa_family;
   uint8_t sa_data[14];
 } ngtcp2_sockaddr;
 
@@ -1296,8 +1296,8 @@ typedef struct ngtcp2_in_addr {
 } ngtcp2_in_addr;
 
 typedef struct ngtcp2_sockaddr_in {
-  ngtcp2_sa_family_t sin_family;
-  ngtcp2_in_port_t sin_port;
+  ngtcp2_sa_family sin_family;
+  ngtcp2_in_port sin_port;
   ngtcp2_in_addr sin_addr;
   uint8_t sin_zero[8];
 } ngtcp2_sockaddr_in;
@@ -1337,8 +1337,8 @@ typedef struct ngtcp2_in6_addr {
 } ngtcp2_in6_addr;
 
 typedef struct ngtcp2_sockaddr_in6 {
-  ngtcp2_sa_family_t sin6_family;
-  ngtcp2_in_port_t sin6_port;
+  ngtcp2_sa_family sin6_family;
+  ngtcp2_in_port sin6_port;
   uint32_t sin6_flowinfo;
   ngtcp2_in6_addr sin6_addr;
   uint32_t sin6_scope_id;
