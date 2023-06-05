@@ -51,6 +51,7 @@ if(HAVE_CUNIT)
     ngtcp2_pv_test.c
     ngtcp2_pmtud_test.c
     ngtcp2_str_test.c
+    ngtcp2_tstamp_test.c
     ngtcp2_conversion_test.c
     ngtcp2_cc_test.c
   )

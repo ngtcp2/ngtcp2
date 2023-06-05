@@ -49,6 +49,7 @@
 #include "ngtcp2_pv_test.h"
 #include "ngtcp2_pmtud_test.h"
 #include "ngtcp2_str_test.h"
+#include "ngtcp2_tstamp_test.h"
 #include "ngtcp2_conversion_test.h"
 
 static int init_suite1(void) { return 0; }
@@ -347,6 +348,7 @@ int main(void) {
       !CU_add_test(pSuite, "encode_ipv4", test_ngtcp2_encode_ipv4) ||
       !CU_add_test(pSuite, "encode_ipv6", test_ngtcp2_encode_ipv6) ||
       !CU_add_test(pSuite, "get_bytes", test_ngtcp2_get_bytes) ||
+      !CU_add_test(pSuite, "tstamp_elapsed", test_ngtcp2_tstamp_elapsed) ||
       !CU_add_test(pSuite, "transport_params_convert_to_latest",
                    test_ngtcp2_transport_params_convert_to_latest) ||
       !CU_add_test(pSuite, "transport_params_convert_to_old",

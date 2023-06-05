@@ -35,6 +35,7 @@
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_rst.h"
 #include "ngtcp2_unreachable.h"
+#include "ngtcp2_tstamp.h"
 
 int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
@@ -1141,7 +1142,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
                         size_t pkt_thres, ngtcp2_tstamp ts) {
   ngtcp2_tstamp loss_time;
 
-  if (ent->ts + loss_delay <= ts ||
+  if (ngtcp2_tstamp_elapsed(ent->ts, loss_delay, ts) ||
       rtb->largest_acked_tx_pkt_num >= ent->hd.pkt_num + (int64_t)pkt_thres) {
     return 1;
   }
