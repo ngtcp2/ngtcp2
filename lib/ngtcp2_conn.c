@@ -3369,7 +3369,7 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
   for (; !ngtcp2_pq_empty(&conn->scid.used);) {
     scid = ngtcp2_struct_of(ngtcp2_pq_top(&conn->scid.used), ngtcp2_scid, pe);
 
-    if (scid->retired_ts == UINT64_MAX || scid->retired_ts + timeout >= ts) {
+    if (scid->retired_ts == UINT64_MAX || scid->retired_ts + timeout > ts) {
       break;
     }
 
