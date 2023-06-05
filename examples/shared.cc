@@ -212,12 +212,14 @@ struct nlmsg {
 };
 
 namespace {
-int send_netlink_msg(int fd, const Address &remote_addr) {
+int send_netlink_msg(int fd, const Address &remote_addr, uint32_t seq) {
   nlmsg nlmsg{};
   nlmsg.hdr.nlmsg_type = RTM_GETROUTE;
   nlmsg.hdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+  nlmsg.hdr.nlmsg_seq = seq;
 
   nlmsg.msg.rtm_family = remote_addr.su.sa.sa_family;
+  nlmsg.msg.rtm_protocol = RTPROT_KERNEL;
 
   nlmsg.dst.rta_type = RTA_DST;
 
@@ -265,7 +267,7 @@ int send_netlink_msg(int fd, const Address &remote_addr) {
 } // namespace
 
 namespace {
-int recv_netlink_msg(in_addr_union &iau, int fd) {
+int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
   std::array<uint8_t, 8192> buf;
   iovec iov = {buf.data(), buf.size()};
   sockaddr_nl sa{};
@@ -288,11 +290,24 @@ int recv_netlink_msg(in_addr_union &iau, int fd) {
     return -1;
   }
 
+  size_t in_addrlen = 0;
+
   for (auto hdr = reinterpret_cast<nlmsghdr *>(buf.data());
        NLMSG_OK(hdr, nread); hdr = NLMSG_NEXT(hdr, nread)) {
+    if (seq != hdr->nlmsg_seq) {
+      std::cerr << "netlink: unexpected sequence number " << hdr->nlmsg_seq
+                << " while expecting " << seq << std::endl;
+      return -1;
+    }
+
+    if (hdr->nlmsg_flags & NLM_F_MULTI) {
+      std::cerr << "netlink: unexpected NLM_F_MULTI flag set" << std::endl;
+      return -1;
+    }
+
     switch (hdr->nlmsg_type) {
     case NLMSG_DONE:
-      std::cerr << "netlink: no info returned from kernel" << std::endl;
+      std::cerr << "netlink: unexpected NLMSG_DONE" << std::endl;
       return -1;
     case NLMSG_NOOP:
       continue;
@@ -312,8 +327,6 @@ int recv_netlink_msg(in_addr_union &iau, int fd) {
         continue;
       }
 
-      size_t in_addrlen;
-
       switch (static_cast<rtmsg *>(NLMSG_DATA(hdr))->rtm_family) {
       case AF_INET:
         in_addrlen = sizeof(in_addr);
@@ -332,11 +345,73 @@ int recv_netlink_msg(in_addr_union &iau, int fd) {
 
       memcpy(&iau, RTA_DATA(rta), in_addrlen);
 
-      return 0;
+      break;
     }
   }
 
-  return -1;
+  if (in_addrlen == 0) {
+    return -1;
+  }
+
+  // Read ACK
+  sa = {};
+  msg = {};
+
+  msg.msg_name = &sa;
+  msg.msg_namelen = sizeof(sa);
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
+
+  int error = -1;
+
+  do {
+    nread = recvmsg(fd, &msg, 0);
+  } while (nread == -1 && errno == EINTR);
+
+  if (nread == -1) {
+    std::cerr << "recvmsg: Could not receive netlink message: "
+              << strerror(errno) << std::endl;
+    return -1;
+  }
+
+  error = -1;
+
+  for (auto hdr = reinterpret_cast<nlmsghdr *>(buf.data());
+       NLMSG_OK(hdr, nread); hdr = NLMSG_NEXT(hdr, nread)) {
+    if (seq != hdr->nlmsg_seq) {
+      std::cerr << "netlink: unexpected sequence number " << hdr->nlmsg_seq
+                << " while expecting " << seq << std::endl;
+      return -1;
+    }
+
+    if (hdr->nlmsg_flags & NLM_F_MULTI) {
+      std::cerr << "netlink: unexpected NLM_F_MULTI flag set" << std::endl;
+      return -1;
+    }
+
+    switch (hdr->nlmsg_type) {
+    case NLMSG_DONE:
+      std::cerr << "netlink: unexpected NLMSG_DONE" << std::endl;
+      return -1;
+    case NLMSG_NOOP:
+      continue;
+    case NLMSG_ERROR:
+      error = -static_cast<nlmsgerr *>(NLMSG_DATA(hdr))->error;
+      if (error == 0) {
+        break;
+      }
+
+      std::cerr << "netlink: " << strerror(error) << std::endl;
+
+      return -1;
+    }
+  }
+
+  if (error != 0) {
+    return -1;
+  }
+
+  return 0;
 }
 } // namespace
 
@@ -359,11 +434,13 @@ int get_local_addr(in_addr_union &iau, const Address &remote_addr) {
     return -1;
   }
 
-  if (send_netlink_msg(fd, remote_addr) != 0) {
+  uint32_t seq = 1;
+
+  if (send_netlink_msg(fd, remote_addr, seq) != 0) {
     return -1;
   }
 
-  return recv_netlink_msg(iau, fd);
+  return recv_netlink_msg(iau, fd, seq);
 }
 
 #endif // HAVE_LINUX_NETLINK_H
