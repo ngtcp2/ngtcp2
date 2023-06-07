@@ -1347,6 +1347,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   (*pconn)->keep_alive.last_ts = UINT64_MAX;
+  (*pconn)->keep_alive.timeout = UINT64_MAX;
 
   (*pconn)->oscid = *scid;
   (*pconn)->callbacks = *callbacks;
@@ -2422,7 +2423,8 @@ static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
  * conn_keep_alive_enabled returns nonzero if keep-alive is enabled.
  */
 static int conn_keep_alive_enabled(ngtcp2_conn *conn) {
-  return conn->keep_alive.last_ts != UINT64_MAX && conn->keep_alive.timeout;
+  return conn->keep_alive.last_ts != UINT64_MAX &&
+         conn->keep_alive.timeout != UINT64_MAX;
 }
 
 /*
@@ -2430,8 +2432,7 @@ static int conn_keep_alive_enabled(ngtcp2_conn *conn) {
  * expired.
  */
 static int conn_keep_alive_expired(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  return conn_keep_alive_enabled(conn) &&
-         ngtcp2_tstamp_elapsed(conn->keep_alive.last_ts,
+  return ngtcp2_tstamp_elapsed(conn->keep_alive.last_ts,
                                conn->keep_alive.timeout, ts);
 }
 
@@ -2440,7 +2441,8 @@ static int conn_keep_alive_expired(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
  */
 static ngtcp2_tstamp conn_keep_alive_expiry(ngtcp2_conn *conn) {
   if ((conn->flags & NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED) ||
-      !conn_keep_alive_enabled(conn)) {
+      !conn_keep_alive_enabled(conn) ||
+      conn->keep_alive.last_ts >= UINT64_MAX - conn->keep_alive.timeout) {
     return UINT64_MAX;
   }
 
