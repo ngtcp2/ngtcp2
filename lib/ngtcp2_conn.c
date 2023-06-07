@@ -10957,7 +10957,9 @@ ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
 
 static ngtcp2_tstamp conn_handshake_expiry(ngtcp2_conn *conn) {
   if (conn_is_tls_handshake_completed(conn) ||
-      conn->local.settings.handshake_timeout == UINT64_MAX) {
+      conn->local.settings.handshake_timeout == UINT64_MAX ||
+      conn->local.settings.initial_ts >=
+          UINT64_MAX - conn->local.settings.handshake_timeout) {
     return UINT64_MAX;
   }
 
