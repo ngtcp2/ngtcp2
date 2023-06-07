@@ -38,6 +38,7 @@
 #include "ngtcp2_unreachable.h"
 #include "ngtcp2_net.h"
 #include "ngtcp2_conversion.h"
+#include "ngtcp2_tstamp.h"
 
 /* NGTCP2_FLOW_WINDOW_RTT_FACTOR is the factor of RTT when flow
    control window auto-tuning is triggered. */
@@ -2430,7 +2431,8 @@ static int conn_keep_alive_enabled(ngtcp2_conn *conn) {
  */
 static int conn_keep_alive_expired(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   return conn_keep_alive_enabled(conn) &&
-         conn->keep_alive.last_ts + conn->keep_alive.timeout <= ts;
+         ngtcp2_tstamp_elapsed(conn->keep_alive.last_ts,
+                               conn->keep_alive.timeout, ts);
 }
 
 /*
@@ -3369,7 +3371,7 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
   for (; !ngtcp2_pq_empty(&conn->scid.used);) {
     scid = ngtcp2_struct_of(ngtcp2_pq_top(&conn->scid.used), ngtcp2_scid, pe);
 
-    if (scid->retired_ts == UINT64_MAX || scid->retired_ts + timeout > ts) {
+    if (!ngtcp2_tstamp_elapsed(scid->retired_ts, timeout, ts)) {
       break;
     }
 
@@ -8282,7 +8284,7 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   }
 
   if ((conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
-      (confirmed_ts != UINT64_MAX && confirmed_ts + pto > ts)) {
+      ngtcp2_tstamp_not_elapsed(confirmed_ts, pto, ts)) {
     return 0;
   }
 
@@ -10821,7 +10823,7 @@ static int conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       (conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
       !conn->crypto.key_update.new_tx_ckm ||
       !conn->crypto.key_update.new_rx_ckm ||
-      (confirmed_ts != UINT64_MAX && confirmed_ts + 3 * pto > ts)) {
+      ngtcp2_tstamp_not_elapsed(confirmed_ts, 3 * pto, ts)) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
@@ -10859,7 +10861,7 @@ static int conn_retire_stale_bound_dcid(ngtcp2_conn *conn,
 
     assert(dcid->cid.datalen);
 
-    if (dcid->bound_ts + timeout > ts) {
+    if (ngtcp2_tstamp_not_elapsed(dcid->bound_ts, timeout, ts)) {
       ++i;
       continue;
     }
@@ -11033,17 +11035,13 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   }
 
   if (conn->server && conn->early.ckm &&
-      conn->early.discard_started_ts != UINT64_MAX) {
-    if (conn->early.discard_started_ts + 3 * pto <= ts) {
-      conn_discard_early_key(conn);
-    }
+      ngtcp2_tstamp_elapsed(conn->early.discard_started_ts, 3 * pto, ts)) {
+    conn_discard_early_key(conn);
   }
 
   if (!conn_is_tls_handshake_completed(conn) &&
-      conn->local.settings.handshake_timeout != UINT64_MAX &&
-      conn->local.settings.initial_ts +
-              conn->local.settings.handshake_timeout <=
-          ts) {
+      ngtcp2_tstamp_elapsed(conn->local.settings.initial_ts,
+                            conn->local.settings.handshake_timeout, ts)) {
     return NGTCP2_ERR_HANDSHAKE_TIMEOUT;
   }
 
@@ -11054,8 +11052,7 @@ static void acktr_cancel_expired_ack_delay_timer(ngtcp2_acktr *acktr,
                                                  ngtcp2_duration max_ack_delay,
                                                  ngtcp2_tstamp ts) {
   if (!(acktr->flags & NGTCP2_ACKTR_FLAG_CANCEL_TIMER) &&
-      acktr->first_unacked_ts != UINT64_MAX &&
-      acktr->first_unacked_ts + max_ack_delay <= ts) {
+      ngtcp2_tstamp_elapsed(acktr->first_unacked_ts, max_ack_delay, ts)) {
     acktr->flags |= NGTCP2_ACKTR_FLAG_CANCEL_TIMER;
   }
 }
