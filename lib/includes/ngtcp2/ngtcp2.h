@@ -1513,7 +1513,8 @@ typedef struct ngtcp2_transport_params {
   uint64_t initial_max_streams_uni;
   /**
    * :member:`max_idle_timeout` is a duration during which sender
-   * allows quiescent.
+   * allows quiescent.  0 means no idle timeout.  It must not be
+   * UINT64_MAX.
    */
   ngtcp2_duration max_idle_timeout;
   /**
@@ -1533,7 +1534,10 @@ typedef struct ngtcp2_transport_params {
   uint64_t ack_delay_exponent;
   /**
    * :member:`max_ack_delay` is the maximum acknowledgement delay by
-   * which the local endpoint will delay sending acknowledgements.
+   * which the local endpoint will delay sending acknowledgements.  It
+   * must be strictly less than (1 << 14) milliseconds.
+   * Sub-millisecond part is dropped when sending it in a QUIC
+   * transport parameter.
    */
   ngtcp2_duration max_ack_delay;
   /**
