@@ -2473,6 +2473,10 @@ static void conn_update_keep_alive_last_ts(ngtcp2_conn *conn,
 
 void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
                                         ngtcp2_duration timeout) {
+  if (timeout == 0) {
+    timeout = UINT64_MAX;
+  }
+
   conn->keep_alive.timeout = timeout;
 }
 
