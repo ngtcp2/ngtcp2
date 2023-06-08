@@ -13485,7 +13485,13 @@ ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
                                          ? &conn->pktns
                                          : conn->hs_pktns);
 
-  return conn->idle_ts + ngtcp2_max(idle_timeout, trpto);
+  idle_timeout = ngtcp2_max(idle_timeout, trpto);
+
+  if (conn->idle_ts >= UINT64_MAX - idle_timeout) {
+    return UINT64_MAX;
+  }
+
+  return conn->idle_ts + idle_timeout;
 }
 
 ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn) {
