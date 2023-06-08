@@ -4027,7 +4027,8 @@ NGTCP2_EXTERN uint8_t ngtcp2_conn_get_tls_alert(ngtcp2_conn *conn);
  * nonzero value is given, after a connection is idle at least in a
  * given amount of time, a keep-alive packet is sent.  If UINT64_MAX
  * is set, keep-alive functionality is disabled, and this is the
- * default.
+ * default.  Specifying 0 in |timeout| is reserved for a future
+ * extension, and for now it is treated as if UINT64_MAX is given.
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
                                                       ngtcp2_duration timeout);
