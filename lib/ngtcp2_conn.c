@@ -1088,6 +1088,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(server || !params->stateless_reset_token_present);
   assert(server || !params->preferred_addr_present);
   assert(server || !params->retry_scid_present);
+  assert(params->max_idle_timeout != UINT64_MAX);
+  assert(params->max_ack_delay < (1 << 14) * NGTCP2_MILLISECONDS);
   assert(server || callbacks->client_initial);
   assert(!server || callbacks->recv_client_initial);
   assert(callbacks->recv_crypto_data);
