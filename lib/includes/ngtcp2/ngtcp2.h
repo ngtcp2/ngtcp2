@@ -1428,10 +1428,8 @@ typedef struct ngtcp2_version_info {
   size_t available_versionslen;
 } ngtcp2_version_info;
 
-/* TODO Reset to NGTCP2_TRANSPORT_PARAMS_V1 on ngtcp2 v1 */
 #define NGTCP2_TRANSPORT_PARAMS_V1 1
-#define NGTCP2_TRANSPORT_PARAMS_V2 2
-#define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_V2
+#define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_V1
 
 /**
  * @struct
@@ -1599,14 +1597,6 @@ typedef struct ngtcp2_transport_params {
    * this field.
    */
   uint8_t version_info_present;
-
-  /* The following fields are available since
-     NGTCP2_TRANSPORT_PARAMS_V2 */
-  /* TODO The following 2 fields are added to test
-     ngtcp2_transport_params version conversion.  These fields are
-     removed on ngtcp2 v1. */
-  uint64_t placeholder_field1;
-  uint64_t placeholder_field2;
 } ngtcp2_transport_params;
 
 #define NGTCP2_CONN_INFO_V1 1
