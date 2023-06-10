@@ -84,7 +84,7 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
       ngtcp2_arraylen(available_versions);
   srcbuf.version_info_present = 1;
 
-  v1len = offsetof(ngtcp2_transport_params, placeholder_field1);
+  v1len = sizeof(srcbuf);
 
   src = malloc(v1len);
 
@@ -93,9 +93,7 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   dest = ngtcp2_transport_params_convert_to_latest(
       &paramsbuf, NGTCP2_TRANSPORT_PARAMS_V1, src);
 
-  free(src);
-
-  CU_ASSERT(dest == &paramsbuf);
+  CU_ASSERT(dest == src);
   CU_ASSERT(srcbuf.initial_max_stream_data_bidi_local ==
             dest->initial_max_stream_data_bidi_local);
   CU_ASSERT(srcbuf.initial_max_stream_data_bidi_remote ==
@@ -141,112 +139,8 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   CU_ASSERT(0 == memcmp(srcbuf.version_info.available_versions,
                         dest->version_info.available_versions,
                         srcbuf.version_info.available_versionslen));
-  CU_ASSERT(1000000007 == dest->placeholder_field1);
-  CU_ASSERT(1000000009 == dest->placeholder_field2);
+
+  free(src);
 }
 
-void test_ngtcp2_transport_params_convert_to_old(void) {
-  ngtcp2_transport_params src, *dest, destbuf;
-  size_t v1len;
-  ngtcp2_cid rcid, scid, dcid;
-  uint8_t available_versions[sizeof(uint32_t) * 3];
-  ngtcp2_sockaddr_in6 *sa_in6;
-
-  rcid_init(&rcid);
-  scid_init(&scid);
-  dcid_init(&dcid);
-
-  v1len = offsetof(ngtcp2_transport_params, placeholder_field1);
-
-  dest = malloc(v1len);
-
-  ngtcp2_transport_params_default(&src);
-  src.initial_max_stream_data_bidi_local = 1000000007;
-  src.initial_max_stream_data_bidi_remote = 961748941;
-  src.initial_max_stream_data_uni = 982451653;
-  src.initial_max_data = 1000000009;
-  src.initial_max_streams_bidi = 908;
-  src.initial_max_streams_uni = 16383;
-  src.max_idle_timeout = 16363 * NGTCP2_MILLISECONDS;
-  src.max_udp_payload_size = 1200;
-  src.stateless_reset_token_present = 1;
-  memset(src.stateless_reset_token, 0xf1, sizeof(src.stateless_reset_token));
-  src.ack_delay_exponent = 20;
-  src.preferred_addr_present = 1;
-  src.preferred_addr.ipv4_present = 0;
-  sa_in6 = &src.preferred_addr.ipv6;
-  sa_in6->sin6_family = AF_INET6;
-  memset(&sa_in6->sin6_addr, 0xe1, sizeof(sa_in6->sin6_addr));
-  sa_in6->sin6_port = ngtcp2_htons(63111);
-  src.preferred_addr.ipv6_present = 1;
-  scid_init(&src.preferred_addr.cid);
-  memset(src.preferred_addr.stateless_reset_token, 0xd1,
-         sizeof(src.preferred_addr.stateless_reset_token));
-  src.disable_active_migration = 1;
-  src.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
-  src.retry_scid_present = 1;
-  src.retry_scid = rcid;
-  src.original_dcid = dcid;
-  src.initial_scid = scid;
-  src.active_connection_id_limit = 1073741824;
-  src.max_datagram_frame_size = 63;
-  src.grease_quic_bit = 1;
-  src.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
-  src.version_info.available_versions = available_versions;
-  src.version_info.available_versionslen = ngtcp2_arraylen(available_versions);
-  src.version_info_present = 1;
-
-  ngtcp2_transport_params_convert_to_old(NGTCP2_TRANSPORT_PARAMS_V1, dest,
-                                         &src);
-
-  memset(&destbuf, 0, sizeof(destbuf));
-  memcpy(&destbuf, dest, v1len);
-
-  free(dest);
-
-  CU_ASSERT(src.initial_max_stream_data_bidi_local ==
-            destbuf.initial_max_stream_data_bidi_local);
-  CU_ASSERT(src.initial_max_stream_data_bidi_remote ==
-            destbuf.initial_max_stream_data_bidi_remote);
-  CU_ASSERT(src.initial_max_stream_data_uni ==
-            destbuf.initial_max_stream_data_uni);
-  CU_ASSERT(src.initial_max_data == destbuf.initial_max_data);
-  CU_ASSERT(src.initial_max_streams_bidi == destbuf.initial_max_streams_bidi);
-  CU_ASSERT(src.initial_max_streams_uni == destbuf.initial_max_streams_uni);
-  CU_ASSERT(src.max_idle_timeout == destbuf.max_idle_timeout);
-  CU_ASSERT(src.max_udp_payload_size == destbuf.max_udp_payload_size);
-  CU_ASSERT(0 == memcmp(src.stateless_reset_token,
-                        destbuf.stateless_reset_token,
-                        sizeof(src.stateless_reset_token)));
-  CU_ASSERT(src.ack_delay_exponent == destbuf.ack_delay_exponent);
-  CU_ASSERT(src.preferred_addr_present == destbuf.preferred_addr_present);
-  CU_ASSERT(0 == memcmp(&src.preferred_addr.ipv4, &destbuf.preferred_addr.ipv4,
-                        sizeof(src.preferred_addr.ipv4)));
-  CU_ASSERT(src.preferred_addr.ipv4_present ==
-            destbuf.preferred_addr.ipv4_present);
-  CU_ASSERT(0 == memcmp(&src.preferred_addr.ipv6, &destbuf.preferred_addr.ipv6,
-                        sizeof(src.preferred_addr.ipv6)));
-  CU_ASSERT(src.preferred_addr.ipv6_present ==
-            destbuf.preferred_addr.ipv6_present);
-  CU_ASSERT(
-      ngtcp2_cid_eq(&src.preferred_addr.cid, &destbuf.preferred_addr.cid));
-  CU_ASSERT(0 == memcmp(src.preferred_addr.stateless_reset_token,
-                        destbuf.preferred_addr.stateless_reset_token,
-                        sizeof(src.preferred_addr.stateless_reset_token)));
-  CU_ASSERT(src.disable_active_migration == destbuf.disable_active_migration);
-  CU_ASSERT(src.max_ack_delay == destbuf.max_ack_delay);
-  CU_ASSERT(src.retry_scid_present == destbuf.retry_scid_present);
-  CU_ASSERT(ngtcp2_cid_eq(&src.retry_scid, &destbuf.retry_scid));
-  CU_ASSERT(ngtcp2_cid_eq(&src.initial_scid, &destbuf.initial_scid));
-  CU_ASSERT(ngtcp2_cid_eq(&src.original_dcid, &destbuf.original_dcid));
-  CU_ASSERT(src.active_connection_id_limit ==
-            destbuf.active_connection_id_limit);
-  CU_ASSERT(src.max_datagram_frame_size == destbuf.max_datagram_frame_size);
-  CU_ASSERT(src.grease_quic_bit == destbuf.grease_quic_bit);
-  CU_ASSERT(src.version_info_present == destbuf.version_info_present);
-  CU_ASSERT(src.version_info.chosen_version ==
-            destbuf.version_info.chosen_version);
-  CU_ASSERT(0 == memcmp(src.version_info.available_versions,
-                        destbuf.version_info.available_versions,
-                        src.version_info.available_versionslen));
-}
+void test_ngtcp2_transport_params_convert_to_old(void) {}
