@@ -22,14 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "tls_server_context_openssl.h"
+#include "tls_server_context_quictls.h"
 
 #include <cstring>
 #include <iostream>
 #include <fstream>
 #include <limits>
 
-#include <ngtcp2/ngtcp2_crypto_openssl.h>
+#include <ngtcp2/ngtcp2_crypto_quictls.h>
 
 #include <openssl/err.h>
 
@@ -218,8 +218,8 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     return -1;
   }
 
-  if (ngtcp2_crypto_openssl_configure_server_context(ssl_ctx_) != 0) {
-    std::cerr << "ngtcp2_crypto_openssl_configure_server_context failed"
+  if (ngtcp2_crypto_quictls_configure_server_context(ssl_ctx_) != 0) {
+    std::cerr << "ngtcp2_crypto_quictls_configure_server_context failed"
               << std::endl;
     return -1;
   }

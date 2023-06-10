@@ -22,26 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_SESSION_OPENSSL_H
-#define TLS_SERVER_SESSION_OPENSSL_H
+#ifndef TLS_SERVER_CONTEXT_QUICTLS_H
+#define TLS_SERVER_CONTEXT_QUICTLS_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
-#include "tls_session_base_openssl.h"
+#include <openssl/ssl.h>
 
-class TLSServerContext;
-class HandlerBase;
+#include "shared.h"
 
-class TLSServerSession : public TLSSessionBase {
+using namespace ngtcp2;
+
+class TLSServerContext {
 public:
-  TLSServerSession();
-  ~TLSServerSession();
+  TLSServerContext();
+  ~TLSServerContext();
 
-  int init(const TLSServerContext &tls_ctx, HandlerBase *handler);
-  // ticket is sent automatically.
-  int send_session_ticket() { return 0; }
+  int init(const char *private_key_file, const char *cert_file,
+           AppProtocol app_proto);
+
+  SSL_CTX *get_native_handle() const;
+
+  void enable_keylog();
+
+private:
+  SSL_CTX *ssl_ctx_;
 };
 
-#endif // TLS_SERVER_SESSION_OPENSSL_H
+#endif // TLS_SERVER_CONTEXT_QUICTLS_H

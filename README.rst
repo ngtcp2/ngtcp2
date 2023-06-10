@@ -55,7 +55,7 @@ required:
 ngtcp2 crypto helper library, and client and server under examples
 directory require at least one of the following TLS backends:
 
-- `OpenSSL with QUIC support
+- `quictls
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1u+quic>`_
 - GnuTLS >= 3.7.5
 - BoringSSL (commit b0341041b03ea71d8371a9692aedae263fc06ee9)
@@ -103,7 +103,7 @@ Client
 
 .. code-block:: shell
 
-   $ examples/client [OPTIONS] <HOST> <PORT> [<URI>...]
+   $ examples/qtlsclient [OPTIONS] <HOST> <PORT> [<URI>...]
 
 The notable options are:
 
@@ -115,33 +115,33 @@ Server
 
 .. code-block:: shell
 
-   $ examples/server [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> <CERTIFICATE_FILE>
+   $ examples/qtlsserver [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> <CERTIFICATE_FILE>
 
 The notable options are:
 
 - ``-V``, ``--validate-addr``: Enforce stateless address validation.
 
-H09client/H09server
--------------------
+H09qtlsclient/H09qtlsserver
+---------------------------
 
-There are h09client and h09server which speak HTTP/0.9.  They are
-written just for `quic-interop-runner
+There are h09qtlsclient and h09qtlsserver which speak HTTP/0.9.  They
+are written just for `quic-interop-runner
 <https://github.com/marten-seemann/quic-interop-runner>`_.  They share
 the basic functionalities with HTTP/3 client and server but have less
-functions (e.g., h09client does not have a capability to send request
-body, and h09server does not understand numeric request path, like
-/1000).
+functions (e.g., h09qtlsclient does not have a capability to send
+request body, and h09qtlsserver does not understand numeric request
+path, like /1000).
 
 Resumption and 0-RTT
 --------------------
 
 In order to resume a session, a session ticket, and a transport
-parameters must be fetched from server.  First, run examples/client
-with --session-file, and --tp-file options which specify a path to
-session ticket, and transport parameter files respectively to save
-them locally.
+parameters must be fetched from server.  First, run
+examples/qtlsclient with --session-file, and --tp-file options which
+specify a path to session ticket, and transport parameter files
+respectively to save them locally.
 
-Once these files are available, run examples/client with the same
+Once these files are available, run examples/qtlsclient with the same
 arguments again.  You will see that session is resumed in your log if
 resumption succeeds.  Resuming session makes server's first Handshake
 packet pretty small because it does not send its certificates.
@@ -157,7 +157,7 @@ established.  Client can send this token in subsequent connection to
 the server.  Server verifies the token and if it succeeds, the address
 validation completes and lifts some restrictions on server which might
 speed up transfer.  In order to save and/or load a token,
-use --token-file option of examples/client.  The given file is
+use --token-file option of examples/qtlsclient.  The given file is
 overwritten if it already exists when storing a token.
 
 Crypto helper library
@@ -171,7 +171,7 @@ The header file exists under crypto/includes/ngtcp2 directory.
 Each library file is built for a particular TLS backend.  The
 available crypto helper libraries are:
 
-- libngtcp2_crypto_openssl: Use OpenSSL as TLS backend
+- libngtcp2_crypto_quictls: Use quictls as TLS backend
 - libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
 - libngtcp2_crypto_boringssl: Use BoringSSL as TLS backend
 - libngtcp2_crypto_picotls: Use Picotls as TLS backend
@@ -186,8 +186,8 @@ The examples directory contains client and server that are linked to
 those crypto helper libraries and TLS backends.  They are only built
 if their corresponding crypto helper library is built:
 
-- client: OpenSSL client
-- server: OpenSSL server
+- qtlsclient: quictls client
+- qtlsserver: quictls server
 - gtlsclient: GnuTLS client
 - gtlsserver: GnuTLS server
 - bsslclient: BoringSSL client

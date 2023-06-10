@@ -22,31 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SESSION_BASE_OPENSSL_H
-#define TLS_SESSION_BASE_OPENSSL_H
+#include "tls_server_session_quictls.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // HAVE_CONFIG_H
+#include <iostream>
 
-#include <string>
+#include <openssl/err.h>
 
-#include <openssl/ssl.h>
+#include "tls_server_context_quictls.h"
+#include "server_base.h"
 
-class TLSSessionBase {
-public:
-  TLSSessionBase();
-  ~TLSSessionBase();
+TLSServerSession::TLSServerSession() {}
 
-  SSL *get_native_handle() const;
+TLSServerSession::~TLSServerSession() {}
 
-  std::string get_cipher_name() const;
-  std::string get_selected_alpn() const;
-  // Keylog is enabled per SSL_CTX.
-  void enable_keylog() {}
+int TLSServerSession::init(const TLSServerContext &tls_ctx,
+                           HandlerBase *handler) {
+  auto ssl_ctx = tls_ctx.get_native_handle();
 
-protected:
-  SSL *ssl_;
-};
+  ssl_ = SSL_new(ssl_ctx);
+  if (!ssl_) {
+    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
+              << std::endl;
+    return -1;
+  }
 
-#endif // TLS_SESSION_BASE_OPENSSL_H
+  SSL_set_app_data(ssl_, handler->conn_ref());
+  SSL_set_accept_state(ssl_);
+  SSL_set_quic_early_data_enabled(ssl_, 1);
+
+  return 0;
+}

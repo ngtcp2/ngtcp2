@@ -22,33 +22,26 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "tls_session_base_openssl.h"
+#ifndef TLS_SERVER_SESSION_QUICTLS_H
+#define TLS_SERVER_SESSION_QUICTLS_H
 
-#include <array>
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif // HAVE_CONFIG_H
 
-#include "util.h"
+#include "tls_session_base_quictls.h"
 
-using namespace ngtcp2;
+class TLSServerContext;
+class HandlerBase;
 
-TLSSessionBase::TLSSessionBase() : ssl_{nullptr} {}
+class TLSServerSession : public TLSSessionBase {
+public:
+  TLSServerSession();
+  ~TLSServerSession();
 
-TLSSessionBase::~TLSSessionBase() {
-  if (ssl_) {
-    SSL_free(ssl_);
-  }
-}
+  int init(const TLSServerContext &tls_ctx, HandlerBase *handler);
+  // ticket is sent automatically.
+  int send_session_ticket() { return 0; }
+};
 
-SSL *TLSSessionBase::get_native_handle() const { return ssl_; }
-
-std::string TLSSessionBase::get_cipher_name() const {
-  return SSL_get_cipher_name(ssl_);
-}
-
-std::string TLSSessionBase::get_selected_alpn() const {
-  const unsigned char *alpn = nullptr;
-  unsigned int alpnlen;
-
-  SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
-
-  return std::string{alpn, alpn + alpnlen};
-}
+#endif // TLS_SERVER_SESSION_QUICTLS_H

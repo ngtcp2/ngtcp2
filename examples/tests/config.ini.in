@@ -3,7 +3,7 @@ version = @PACKAGE_VERSION@
 examples = @EXAMPLES_ENABLED@
 
 [crypto]
-openssl = @have_openssl@
+quictls = @have_openssl@
 gnutls = @have_gnutls@
 boringssl = @have_boringssl@
 picotls = @have_picotls@
@@ -11,21 +11,21 @@ wolfssl = @have_wolfssl@
 
 [examples]
 port = 4433
-openssl = @EXAMPLES_OPENSSL@
+quictls = @EXAMPLES_QUICTLS@
 gnutls = @EXAMPLES_GNUTLS@
 boringssl = @EXAMPLES_BORINGSSL@
 picotls = @EXAMPLES_PICOTLS@
 wolfssl = @EXAMPLES_WOLFSSL@
 
 [clients]
-openssl = client
+quictls = qtlsclient
 gnutls = gtlsclient
 boringssl = bsslclient
 picotls = ptlsclient
 wolfssl = wsslclient
 
 [servers]
-openssl = server
+quictls = qtlsserver
 gnutls = gtlsserver
 boringssl = bsslserver
 picotls = ptlsserver

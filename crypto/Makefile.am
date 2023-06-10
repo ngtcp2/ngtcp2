@@ -27,7 +27,7 @@ SUBDIRS += includes
 endif
 
 if HAVE_OPENSSL
-SUBDIRS += openssl
+SUBDIRS += quictls
 endif
 
 if HAVE_GNUTLS
