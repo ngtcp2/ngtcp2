@@ -86,6 +86,7 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
 
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
+  default:
     salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V1;
     saltlen = sizeof(NGTCP2_INITIAL_SALT_V1) - 1;
     break;
@@ -93,9 +94,6 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
     salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V2;
     saltlen = sizeof(NGTCP2_INITIAL_SALT_V2) - 1;
     break;
-  default:
-    salt = (const uint8_t *)NGTCP2_INITIAL_SALT_DRAFT;
-    saltlen = sizeof(NGTCP2_INITIAL_SALT_DRAFT) - 1;
   }
 
   if (ngtcp2_crypto_hkdf_extract(initial_secret, &ctx.md, client_dcid->data,
@@ -581,6 +579,7 @@ int ngtcp2_crypto_derive_and_install_initial_key(
 
     switch (version) {
     case NGTCP2_PROTO_VER_V1:
+    default:
       retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_V1;
       retry_noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
       break;
@@ -588,9 +587,6 @@ int ngtcp2_crypto_derive_and_install_initial_key(
       retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_V2;
       retry_noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
       break;
-    default:
-      retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_DRAFT;
-      retry_noncelen = sizeof(NGTCP2_RETRY_NONCE_DRAFT) - 1;
     }
 
     if (ngtcp2_crypto_aead_ctx_encrypt_init(&retry_aead_ctx, &retry_aead,
@@ -1308,6 +1304,7 @@ ngtcp2_ssize ngtcp2_crypto_write_retry(uint8_t *dest, size_t destlen,
 
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
+  default:
     key = (const uint8_t *)NGTCP2_RETRY_KEY_V1;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
     break;
@@ -1315,9 +1312,6 @@ ngtcp2_ssize ngtcp2_crypto_write_retry(uint8_t *dest, size_t destlen,
     key = (const uint8_t *)NGTCP2_RETRY_KEY_V2;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
     break;
-  default:
-    key = (const uint8_t *)NGTCP2_RETRY_KEY_DRAFT;
-    noncelen = sizeof(NGTCP2_RETRY_NONCE_DRAFT) - 1;
   }
 
   if (ngtcp2_crypto_aead_ctx_encrypt_init(&aead_ctx, &aead, key, noncelen) !=
