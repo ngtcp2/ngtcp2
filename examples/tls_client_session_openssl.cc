@@ -58,9 +58,6 @@ int TLSClientSession::init(bool &early_data_enabled,
   SSL_set_app_data(ssl_, client->conn_ref());
   SSL_set_connect_state(ssl_);
 
-  SSL_set_quic_use_legacy_codepoint(ssl_,
-                                    (quic_version & 0xff000000) == 0xff000000);
-
   switch (app_proto) {
   case AppProtocol::H3:
     SSL_set_alpn_protos(ssl_, H3_ALPN, str_size(H3_ALPN));
