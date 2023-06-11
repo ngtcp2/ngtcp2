@@ -606,7 +606,6 @@ class TlsExtensions:
         (0x33, 'KEY_SHARE', ExtKeyShare),
         (0x39, 'QUIC_TP_PARAMS', ExtQuicTP),
         (0xff01, 'RENEGOTIATION_INFO', Extension),
-        (0xffa5, 'QUIC_TP_PARAMS_DRAFT', ExtQuicTP),
     ]
     NAME_BY_ID = {}
     CLASS_BY_ID = {}

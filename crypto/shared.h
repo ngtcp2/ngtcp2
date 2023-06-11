@@ -34,16 +34,6 @@
 /**
  * @macro
  *
- * :macro:`NGTCP2_INITIAL_SALT_DRAFT` is a salt value which is used to
- * derive initial secret.  It is used for QUIC draft versions.
- */
-#define NGTCP2_INITIAL_SALT_DRAFT                                              \
-  "\xaf\xbf\xec\x28\x99\x93\xd2\x4c\x9e\x97\x86\xf1\x9c\x61\x11\xe0\x43\x90"   \
-  "\xa8\x99"
-
-/**
- * @macro
- *
  * :macro:`NGTCP2_INITIAL_SALT_V1` is a salt value which is used to
  * derive initial secret.  It is used for QUIC v1.
  */

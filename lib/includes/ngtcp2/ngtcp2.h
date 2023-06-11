@@ -276,22 +276,6 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_PROTO_VER_DRAFT_MAX` is the maximum QUIC draft
- * version that this library supports.
- */
-#define NGTCP2_PROTO_VER_DRAFT_MAX 0xff000020u
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_PROTO_VER_DRAFT_MIN` is the minimum QUIC draft
- * version that this library supports.
- */
-#define NGTCP2_PROTO_VER_DRAFT_MIN 0xff00001du
-
-/**
- * @macro
- *
  * :macro:`NGTCP2_PROTO_VER_MAX` is the highest QUIC version that this
  * library supports.
  */
@@ -303,7 +287,7 @@ typedef struct ngtcp2_mem {
  * :macro:`NGTCP2_PROTO_VER_MIN` is the lowest QUIC version that this
  * library supports.
  */
-#define NGTCP2_PROTO_VER_MIN NGTCP2_PROTO_VER_DRAFT_MIN
+#define NGTCP2_PROTO_VER_MIN NGTCP2_PROTO_VER_V1
 
 /**
  * @macro
@@ -372,24 +356,6 @@ typedef struct ngtcp2_mem {
  * PATH_CHALLENGE data.
  */
 #define NGTCP2_PATH_CHALLENGE_DATALEN 8
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_RETRY_KEY_DRAFT` is an encryption key to create
- * integrity tag of Retry packet.  It is used for QUIC draft versions.
- */
-#define NGTCP2_RETRY_KEY_DRAFT                                                 \
-  "\xcc\xce\x18\x7e\xd0\x9a\x09\xd0\x57\x28\x15\x5a\x6c\xb9\x6b\xe1"
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_RETRY_NONCE_DRAFT` is nonce used when generating
- * integrity tag of Retry packet.  It is used for QUIC draft versions.
- */
-#define NGTCP2_RETRY_NONCE_DRAFT                                               \
-  "\xe5\x49\x30\xf9\x7f\x21\x36\xf0\x53\x0a\x8c\x1c"
 
 /**
  * @macro
@@ -1272,15 +1238,6 @@ typedef struct ngtcp2_pkt_stateless_reset {
  * extension type of quic_transport_parameters.
  */
 #define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1 0x39u
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT` is TLS
- * extension type of quic_transport_parameters used during draft
- * development.
- */
-#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT 0xffa5u
 
 #ifdef NGTCP2_USE_GENERIC_SOCKADDR
 typedef unsigned short int ngtcp2_sa_family;

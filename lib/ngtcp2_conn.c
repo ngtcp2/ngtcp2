@@ -11218,14 +11218,11 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
     if (!params->version_info_present) {
       assert(conn->client_chosen_version == conn->negotiated_version);
 
-      /* QUIC v1 (and the supported draft versions) are treated
-         specially.  If version_info is missing, no further validation
-         is necessary.  See
+      /* QUIC v1 is treated specially.  If version_info is missing, no
+         further validation is necessary.  See
          https://datatracker.ietf.org/doc/html/rfc9368#section-8
        */
-      if (conn->client_chosen_version == NGTCP2_PROTO_VER_V1 ||
-          (NGTCP2_PROTO_VER_DRAFT_MIN <= conn->client_chosen_version &&
-           conn->client_chosen_version <= NGTCP2_PROTO_VER_DRAFT_MAX)) {
+      if (conn->client_chosen_version == NGTCP2_PROTO_VER_V1) {
         return 0;
       }
 
