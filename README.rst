@@ -93,7 +93,7 @@ Build from git
    $ make -j$(nproc) check
 
 
-Build with BoringSSL without 0-RTT enabled
+Build with BoringSSL
 -------------------------------------------
 
 .. code-block:: shell
@@ -112,8 +112,7 @@ Build with BoringSSL without 0-RTT enabled
    $ ln -s ../build/crypto/libcrypto.a
    $ cd ../ngtcp2
    $ ./configure --with-boringssl BORINGSSL_LIBS="$PWD/../boringssl/lib/libssl.a $PWD/../boringssl/lib/libcrypto.a" BORINGSSL_CFLAGS="-I$PWD/../boringssl/include" PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig
-    # LDFLAGS="-Wl,-rpath,$PWD/../boringssl/lib"
-   $ ./
+   $ make -j$(nproc) check
 
 
 Client/Server
