@@ -151,6 +151,9 @@ struct Config {
   // ack_thresh is the minimum number of the received ACK eliciting
   // packets that triggers immediate acknowledgement.
   size_t ack_thresh;
+  // initial_pkt_num is the initial packet number for each packet
+  // number space.  If it is set to UINT32_MAX, it is chosen randomly.
+  uint32_t initial_pkt_num;
 };
 
 struct Buffer {

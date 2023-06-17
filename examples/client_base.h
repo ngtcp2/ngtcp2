@@ -186,6 +186,9 @@ struct Config {
   // before exiting on exit_on_first_stream_close or
   // exit_on_all_streams_close.
   bool wait_for_ticket;
+  // initial_pkt_num is the initial packet number for each packet
+  // number space.  If it is set to UINT32_MAX, it is chosen randomly.
+  uint32_t initial_pkt_num;
 };
 
 class ClientBase {

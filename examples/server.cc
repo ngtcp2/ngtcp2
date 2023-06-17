@@ -1472,6 +1472,12 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     settings.available_versions = config.available_versions.data();
     settings.available_versionslen = config.available_versions.size();
   }
+  if (config.initial_pkt_num == UINT32_MAX) {
+    auto dis = std::uniform_int_distribution<uint32_t>(0, INT32_MAX);
+    settings.initial_pkt_num = dis(randgen);
+  } else {
+    settings.initial_pkt_num = config.initial_pkt_num;
+  }
 
   ngtcp2_transport_params params;
   ngtcp2_transport_params_default(&params);
@@ -3141,6 +3147,7 @@ void config_set_default(Config &config) {
   config.max_gso_dgrams = 64;
   config.handshake_timeout = UINT64_MAX;
   config.ack_thresh = 2;
+  config.initial_pkt_num = UINT32_MAX;
 }
 } // namespace
 
@@ -3298,6 +3305,11 @@ Options:
               that triggers immediate acknowledgement.
               Default: )"
             << config.ack_thresh << R"(
+  --initial-pkt-num=<N>
+              The initial packet  number that is used  for each packet
+              number space.  It  must be in range [0, (1  << 31) - 1],
+              inclusive.   By default,  the initial  packet number  is
+              chosen randomly.
   -h, --help  Display this help and exit.
 
 ---
@@ -3362,6 +3374,7 @@ int main(int argc, char **argv) {
         {"available-versions", required_argument, &flag, 28},
         {"no-pmtud", no_argument, &flag, 29},
         {"ack-thresh", required_argument, &flag, 30},
+        {"initial-pkt-num", required_argument, &flag, 31},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3687,6 +3700,19 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         } else {
           config.ack_thresh = *n;
+        }
+        break;
+      case 31:
+        // --initial-pkt-num
+        if (auto n = util::parse_uint(optarg); !n) {
+          std::cerr << "initial-pkt-num: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (*n > INT32_MAX) {
+          std::cerr << "initial-pkt-num: must not exceed (1 << 31) - 1"
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.initial_pkt_num = static_cast<uint32_t>(*n);
         }
         break;
       }
