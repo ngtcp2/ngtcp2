@@ -1439,7 +1439,7 @@ void test_ngtcp2_pkt_validate_ack(void) {
   fr.first_ack_range = 2;
   fr.rangecnt = 0;
 
-  rv = ngtcp2_pkt_validate_ack(&fr);
+  rv = ngtcp2_pkt_validate_ack(&fr, 0);
 
   CU_ASSERT(NGTCP2_ERR_ACK_FRAME == rv);
 
@@ -1450,7 +1450,7 @@ void test_ngtcp2_pkt_validate_ack(void) {
   fr.ranges[0].gap = 248;
   fr.ranges[0].len = 0;
 
-  rv = ngtcp2_pkt_validate_ack(&fr);
+  rv = ngtcp2_pkt_validate_ack(&fr, 0);
 
   CU_ASSERT(NGTCP2_ERR_ACK_FRAME == rv);
 
@@ -1461,9 +1461,31 @@ void test_ngtcp2_pkt_validate_ack(void) {
   fr.ranges[0].gap = 248;
   fr.ranges[0].len = 1;
 
-  rv = ngtcp2_pkt_validate_ack(&fr);
+  rv = ngtcp2_pkt_validate_ack(&fr, 0);
 
   CU_ASSERT(NGTCP2_ERR_ACK_FRAME == rv);
+
+  /* first ack range contains packet number that is smaller than the
+     minimum. */
+  fr.largest_ack = 250;
+  fr.first_ack_range = 0;
+  fr.rangecnt = 0;
+
+  rv = ngtcp2_pkt_validate_ack(&fr, 251);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+
+  /* second ack range contains packet number that is smaller than the
+     minimum. */
+  fr.largest_ack = 250;
+  fr.first_ack_range = 0;
+  fr.rangecnt = 1;
+  fr.ranges[0].gap = 0;
+  fr.ranges[0].len = 0;
+
+  rv = ngtcp2_pkt_validate_ack(&fr, 249);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 }
 
 void test_ngtcp2_pkt_write_stateless_reset(void) {

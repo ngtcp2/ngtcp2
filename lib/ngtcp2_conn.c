@@ -666,8 +666,9 @@ static int crypto_offset_less(const ngtcp2_ksl_key *lhs,
 }
 
 static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
-                      ngtcp2_rst *rst, ngtcp2_cc *cc, ngtcp2_log *log,
-                      ngtcp2_qlog *qlog, ngtcp2_objalloc *rtb_entry_objalloc,
+                      ngtcp2_rst *rst, ngtcp2_cc *cc, int64_t initial_pkt_num,
+                      ngtcp2_log *log, ngtcp2_qlog *qlog,
+                      ngtcp2_objalloc *rtb_entry_objalloc,
                       ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem) {
   int rv;
 
@@ -675,7 +676,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
 
   ngtcp2_gaptr_init(&pktns->rx.pngap, mem);
 
-  pktns->tx.last_pkt_num = -1;
+  pktns->tx.last_pkt_num = initial_pkt_num - 1;
   pktns->rx.max_pkt_num = -1;
   pktns->rx.max_ack_eliciting_pkt_num = -1;
 
@@ -690,8 +691,9 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
   ngtcp2_ksl_init(&pktns->crypto.tx.frq, crypto_offset_less, sizeof(uint64_t),
                   mem);
 
-  ngtcp2_rtb_init(&pktns->rtb, pktns_id, &pktns->crypto.strm, rst, cc, log,
-                  qlog, rtb_entry_objalloc, frc_objalloc, mem);
+  ngtcp2_rtb_init(&pktns->rtb, pktns_id, &pktns->crypto.strm, rst, cc,
+                  initial_pkt_num, log, qlog, rtb_entry_objalloc, frc_objalloc,
+                  mem);
 
   return 0;
 
@@ -702,8 +704,9 @@ fail_acktr_init:
 }
 
 static int pktns_new(ngtcp2_pktns **ppktns, ngtcp2_pktns_id pktns_id,
-                     ngtcp2_rst *rst, ngtcp2_cc *cc, ngtcp2_log *log,
-                     ngtcp2_qlog *qlog, ngtcp2_objalloc *rtb_entry_objalloc,
+                     ngtcp2_rst *rst, ngtcp2_cc *cc, int64_t initial_pkt_num,
+                     ngtcp2_log *log, ngtcp2_qlog *qlog,
+                     ngtcp2_objalloc *rtb_entry_objalloc,
                      ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem) {
   int rv;
 
@@ -712,8 +715,8 @@ static int pktns_new(ngtcp2_pktns **ppktns, ngtcp2_pktns_id pktns_id,
     return NGTCP2_ERR_NOMEM;
   }
 
-  rv = pktns_init(*ppktns, pktns_id, rst, cc, log, qlog, rtb_entry_objalloc,
-                  frc_objalloc, mem);
+  rv = pktns_init(*ppktns, pktns_id, rst, cc, initial_pkt_num, log, qlog,
+                  rtb_entry_objalloc, frc_objalloc, mem);
   if (rv != 0) {
     ngtcp2_mem_free(mem, *ppktns);
   }
@@ -1075,6 +1078,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(settings->max_stream_window <= NGTCP2_MAX_VARINT);
   assert(settings->max_tx_udp_payload_size);
   assert(settings->max_tx_udp_payload_size <= NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE);
+  assert(settings->initial_pkt_num <= INT32_MAX);
   assert(params->active_connection_id_limit >=
          NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT);
   assert(params->active_connection_id_limit <= NGTCP2_MAX_DCID_POOL_SIZE);
@@ -1209,22 +1213,25 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
-                 &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
-                 &(*pconn)->rtb_entry_objalloc, &(*pconn)->frc_objalloc, mem);
+                 &(*pconn)->cc, settings->initial_pkt_num, &(*pconn)->log,
+                 &(*pconn)->qlog, &(*pconn)->rtb_entry_objalloc,
+                 &(*pconn)->frc_objalloc, mem);
   if (rv != 0) {
     goto fail_in_pktns_init;
   }
 
   rv = pktns_new(&(*pconn)->hs_pktns, NGTCP2_PKTNS_ID_HANDSHAKE, &(*pconn)->rst,
-                 &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
-                 &(*pconn)->rtb_entry_objalloc, &(*pconn)->frc_objalloc, mem);
+                 &(*pconn)->cc, settings->initial_pkt_num, &(*pconn)->log,
+                 &(*pconn)->qlog, &(*pconn)->rtb_entry_objalloc,
+                 &(*pconn)->frc_objalloc, mem);
   if (rv != 0) {
     goto fail_hs_pktns_init;
   }
 
   rv = pktns_init(&(*pconn)->pktns, NGTCP2_PKTNS_ID_APPLICATION, &(*pconn)->rst,
-                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
-                  &(*pconn)->rtb_entry_objalloc, &(*pconn)->frc_objalloc, mem);
+                  &(*pconn)->cc, settings->initial_pkt_num, &(*pconn)->log,
+                  &(*pconn)->qlog, &(*pconn)->rtb_entry_objalloc,
+                  &(*pconn)->frc_objalloc, mem);
   if (rv != 0) {
     goto fail_pktns_init;
   }
@@ -5450,7 +5457,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
     return NGTCP2_ERR_PROTO;
   }
 
-  rv = ngtcp2_pkt_validate_ack(fr);
+  rv = ngtcp2_pkt_validate_ack(fr, conn->local.settings.initial_pkt_num);
   if (rv != 0) {
     return rv;
   }

@@ -301,7 +301,7 @@ static int greater(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
 
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
                      ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
-                     ngtcp2_log *log, ngtcp2_qlog *qlog,
+                     int64_t cc_pkt_num, ngtcp2_log *log, ngtcp2_qlog *qlog,
                      ngtcp2_objalloc *rtb_entry_objalloc,
                      ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem) {
   rtb->rtb_entry_objalloc = rtb_entry_objalloc;
@@ -319,7 +319,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
   rtb->num_pto_eliciting = 0;
   rtb->probe_pkt_left = 0;
   rtb->pktns_id = pktns_id;
-  rtb->cc_pkt_num = 0;
+  rtb->cc_pkt_num = cc_pkt_num;
   rtb->cc_bytes_in_flight = 0;
   rtb->persistent_congestion_start_ts = UINT64_MAX;
   rtb->num_lost_pkts = 0;

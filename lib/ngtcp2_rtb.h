@@ -350,7 +350,7 @@ typedef struct ngtcp2_rtb {
  */
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
                      ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
-                     ngtcp2_log *log, ngtcp2_qlog *qlog,
+                     int64_t cc_pkt_num, ngtcp2_log *log, ngtcp2_qlog *qlog,
                      ngtcp2_objalloc *rtb_entry_objalloc,
                      ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem);
 

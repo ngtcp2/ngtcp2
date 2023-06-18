@@ -749,6 +749,12 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.handshake_timeout = config.handshake_timeout;
   settings.no_pmtud = config.no_pmtud;
   settings.ack_thresh = config.ack_thresh;
+  if (config.initial_pkt_num == UINT32_MAX) {
+    auto dis = std::uniform_int_distribution<uint32_t>(0, INT32_MAX);
+    settings.initial_pkt_num = dis(randgen);
+  } else {
+    settings.initial_pkt_num = config.initial_pkt_num;
+  }
 
   std::string token;
 
@@ -2229,6 +2235,7 @@ void config_set_default(Config &config) {
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.handshake_timeout = UINT64_MAX;
   config.ack_thresh = 2;
+  config.initial_pkt_num = UINT32_MAX;
 }
 } // namespace
 
@@ -2430,6 +2437,11 @@ Options:
               that triggers immediate acknowledgement.
               Default: )"
             << config.ack_thresh << R"(
+  --initial-pkt-num=<N>
+              The initial packet  number that is used  for each packet
+              number space.  It  must be in range [0, (1  << 31) - 1],
+              inclusive.   By default,  the initial  packet number  is
+              chosen randomly.
   -h, --help  Display this help and exit.
 
 ---
@@ -2508,6 +2520,7 @@ int main(int argc, char **argv) {
         {"preferred-versions", required_argument, &flag, 39},
         {"ack-thresh", required_argument, &flag, 40},
         {"wait-for-ticket", no_argument, &flag, 41},
+        {"initial-pkt-num", required_argument, &flag, 42},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2919,6 +2932,19 @@ int main(int argc, char **argv) {
       case 41:
         // --wait-for-ticket
         config.wait_for_ticket = true;
+        break;
+      case 42:
+        // --initial-pkt-num
+        if (auto n = util::parse_uint(optarg); !n) {
+          std::cerr << "initial-pkt-num: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (*n > INT32_MAX) {
+          std::cerr << "initial-pkt-num: must not exceed (1 << 31) - 1"
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.initial_pkt_num = static_cast<uint32_t>(*n);
+        }
         break;
       }
       break;
