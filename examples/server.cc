@@ -2597,7 +2597,7 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
     std::array<ngtcp2_cid, 2> scids;
     auto conn = h->conn();
 
-    auto num_scid = ngtcp2_conn_get_num_scid(conn);
+    auto num_scid = ngtcp2_conn_get_scid(conn, nullptr);
 
     assert(num_scid <= scids.size());
 
@@ -3061,7 +3061,7 @@ void Server::remove(const Handler *h) {
 
   dissociate_cid(ngtcp2_conn_get_client_initial_dcid(conn));
 
-  std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(conn));
+  std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_scid(conn, nullptr));
   ngtcp2_conn_get_scid(conn, cids.data());
 
   for (auto &cid : cids) {
