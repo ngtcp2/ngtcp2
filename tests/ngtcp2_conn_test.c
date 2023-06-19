@@ -6715,7 +6715,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   /* Send 2 ACKs with PING to declare the latest Handshake CRYPTO to
      be lost */
-  for (i = 0; i < 4; ++i) {
+  for (i = 0; i < 2; ++i) {
     pktlen = write_handshake_pkt(
         buf, sizeof(buf), &conn->oscid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
         conn->client_chosen_version, &fr, 1, &null_ckm);
@@ -6725,7 +6725,8 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
     CU_ASSERT(0 == rv);
 
-    spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+    t += conn->cstat.smoothed_rtt;
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
 
     CU_ASSERT(spktlen > 0);
   }

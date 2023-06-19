@@ -677,6 +677,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
   ngtcp2_gaptr_init(&pktns->rx.pngap, mem);
 
   pktns->tx.last_pkt_num = initial_pkt_num - 1;
+  pktns->tx.non_ack_pkt_start_ts = UINT64_MAX;
   pktns->rx.max_pkt_num = -1;
   pktns->rx.max_ack_eliciting_pkt_num = -1;
 
@@ -2748,9 +2749,8 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
 
     if (!pkt_empty) {
       if (!(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
-        /* The intention of smaller limit is get more chance to measure
-           RTT samples in early phase. */
-        if (pktns->tx.num_non_ack_pkt >= 1) {
+        if (ngtcp2_tstamp_elapsed(pktns->tx.non_ack_pkt_start_ts,
+                                  conn->cstat.smoothed_rtt, ts)) {
           lfr.type = NGTCP2_FRAME_PING;
 
           rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
@@ -2758,13 +2758,13 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
             assert(rv == NGTCP2_ERR_NOBUF);
           } else {
             rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
-            pktns->tx.num_non_ack_pkt = 0;
+            pktns->tx.non_ack_pkt_start_ts = ts;
           }
-        } else {
-          ++pktns->tx.num_non_ack_pkt;
+        } else if (pktns->tx.non_ack_pkt_start_ts == UINT64_MAX) {
+          pktns->tx.non_ack_pkt_start_ts = ts;
         }
       } else {
-        pktns->tx.num_non_ack_pkt = 0;
+        pktns->tx.non_ack_pkt_start_ts = UINT64_MAX;
       }
     }
   }
@@ -4205,7 +4205,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   }
 
   if (!(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
-    if (pktns->tx.num_non_ack_pkt >= NGTCP2_MAX_NON_ACK_TX_PKT ||
+    if (ngtcp2_tstamp_elapsed(pktns->tx.non_ack_pkt_start_ts,
+                              cstat->smoothed_rtt, ts) ||
         keep_alive_expired || conn->pktns.rtb.probe_pkt_left) {
       lfr.type = NGTCP2_FRAME_PING;
 
@@ -4219,13 +4220,13 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         if (conn->pktns.rtb.probe_pkt_left) {
           rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_PROBE;
         }
-        pktns->tx.num_non_ack_pkt = 0;
+        pktns->tx.non_ack_pkt_start_ts = ts;
       }
-    } else {
-      ++pktns->tx.num_non_ack_pkt;
+    } else if (pktns->tx.non_ack_pkt_start_ts == UINT64_MAX) {
+      pktns->tx.non_ack_pkt_start_ts = ts;
     }
   } else {
-    pktns->tx.num_non_ack_pkt = 0;
+    pktns->tx.non_ack_pkt_start_ts = UINT64_MAX;
   }
 
   /* TODO Push STREAM frame back to ngtcp2_strm if there is an error

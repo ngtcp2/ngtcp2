@@ -112,10 +112,6 @@ typedef enum {
    to put the sane limit.*/
 #define NGTCP2_MAX_SCID_POOL_SIZE 8
 
-/* NGTCP2_MAX_NON_ACK_TX_PKT is the maximum number of continuous non
-   ACK-eliciting packets. */
-#define NGTCP2_MAX_NON_ACK_TX_PKT 3
-
 /* NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS is the maximum number of ECN marked
    packets sent in NGTCP2_ECN_STATE_TESTING period. */
 #define NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS 10
@@ -228,9 +224,9 @@ typedef struct ngtcp2_pktns {
        last time.*/
     int64_t last_pkt_num;
     ngtcp2_frame_chain *frq;
-    /* num_non_ack_pkt is the number of continuous non ACK-eliciting
-       packets. */
-    size_t num_non_ack_pkt;
+    /* non_ack_pkt_start_ts is the timestamp since the local endpoint
+       starts sending continuous non ACK-eliciting packets. */
+    ngtcp2_tstamp non_ack_pkt_start_ts;
 
     struct {
       /* ect0 is the number of QUIC packets, not UDP datagram, which
