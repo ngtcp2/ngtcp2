@@ -2758,7 +2758,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
             assert(rv == NGTCP2_ERR_NOBUF);
           } else {
             rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
-            pktns->tx.non_ack_pkt_start_ts = ts;
+            pktns->tx.non_ack_pkt_start_ts = UINT64_MAX;
           }
         } else if (pktns->tx.non_ack_pkt_start_ts == UINT64_MAX) {
           pktns->tx.non_ack_pkt_start_ts = ts;
@@ -4220,7 +4220,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         if (conn->pktns.rtb.probe_pkt_left) {
           rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_PROBE;
         }
-        pktns->tx.non_ack_pkt_start_ts = ts;
+        pktns->tx.non_ack_pkt_start_ts = UINT64_MAX;
       }
     } else if (pktns->tx.non_ack_pkt_start_ts == UINT64_MAX) {
       pktns->tx.non_ack_pkt_start_ts = ts;
