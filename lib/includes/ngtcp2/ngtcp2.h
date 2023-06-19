@@ -771,7 +771,7 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  *
  * :macro:`NGTCP2_ERR_FATAL` indicates that error codes less than this
  * value is fatal error.  When this error is returned, an endpoint
- * should drop connection immediately.
+ * should close connection immediately.
  */
 #define NGTCP2_ERR_FATAL -500
 /**
