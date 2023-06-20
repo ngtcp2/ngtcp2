@@ -110,7 +110,7 @@ Build with BoringSSL
    $ cd lib
    $ ln -s ../build/ssl/libssl.a
    $ ln -s ../build/crypto/libcrypto.a
-   $ cd ../ngtcp2
+   $ cd ../../ngtcp2
    $ ./configure --with-boringssl BORINGSSL_LIBS="$PWD/../boringssl/lib/libssl.a $PWD/../boringssl/lib/libcrypto.a" BORINGSSL_CFLAGS="-I$PWD/../boringssl/include" PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig
    $ make -j$(nproc) check
 
