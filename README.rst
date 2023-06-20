@@ -103,7 +103,7 @@ Build with BoringSSL
    $ git reset --hard 74646566e93de7551bfdfc5f49de7462f13d1d05
    $ mkdir build
    $ cd build
-   $ cmake ../
+   $ cmake ..
    $ make
    $ cd ..
    $ mkdir lib
