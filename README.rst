@@ -94,7 +94,7 @@ Build from git
 
 
 Build with BoringSSL
--------------------------------------------
+--------------------
 
 .. code-block:: shell
 
