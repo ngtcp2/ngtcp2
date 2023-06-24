@@ -92,7 +92,6 @@ Build from git
    $ ./configure PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig LDFLAGS="-Wl,-rpath,$PWD/../openssl/build/lib"
    $ make -j$(nproc) check
 
-
 Build with BoringSSL
 --------------------
 
@@ -100,7 +99,7 @@ Build with BoringSSL
 
    $ git clone https://boringssl.googlesource.com/boringssl
    $ cd boringssl
-   $ git reset --hard 74646566e93de7551bfdfc5f49de7462f13d1d05
+   $ git reset --hard b0341041b03ea71d8371a9692aedae263fc06ee9
    $ mkdir build
    $ cd build
    $ cmake ..
@@ -113,7 +112,6 @@ Build with BoringSSL
    $ cd ../../ngtcp2
    $ ./configure --with-boringssl BORINGSSL_LIBS="$PWD/../boringssl/lib/libssl.a $PWD/../boringssl/lib/libcrypto.a" BORINGSSL_CFLAGS="-I$PWD/../boringssl/include" PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig
    $ make -j$(nproc) check
-
 
 Client/Server
 -------------
