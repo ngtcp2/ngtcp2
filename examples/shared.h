@@ -67,7 +67,14 @@ void fd_set_ip_mtu_discover(int fd, int family);
 // fd_set_ip_dontfrag sets IP(V6)_DONTFRAG socket option to |fd|.
 void fd_set_ip_dontfrag(int fd, int family);
 
+// fd_set_udp_gro sets UDP_GRO socket option to |fd|.
+void fd_set_udp_gro(int fd);
+
 std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family);
+
+// msghdr_get_udp_gro returns UDP_GRO value from |msg|.  If UDP_GRO is
+// not found, or UDP_GRO is not supported, this function returns 0.
+size_t msghdr_get_udp_gro(msghdr *msg);
 
 void set_port(Address &dst, Address &src);
 

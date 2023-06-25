@@ -1571,7 +1571,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
 
 int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
                        const sockaddr *sa, socklen_t salen,
-                       const ngtcp2_pkt_info *pi, uint8_t *data,
+                       const ngtcp2_pkt_info *pi, const uint8_t *data,
                        size_t datalen) {
   auto path = ngtcp2_path{
       {
@@ -1616,7 +1616,8 @@ int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
 
 int Handler::on_read(const Endpoint &ep, const Address &local_addr,
                      const sockaddr *sa, socklen_t salen,
-                     const ngtcp2_pkt_info *pi, uint8_t *data, size_t datalen) {
+                     const ngtcp2_pkt_info *pi, const uint8_t *data,
+                     size_t datalen) {
   if (auto rv = feed_data(ep, local_addr, sa, salen, pi, data, datalen);
       rv != 0) {
     return rv;
@@ -2399,8 +2400,7 @@ int Server::init(const char *addr, const char *port) {
 
 int Server::on_read(Endpoint &ep) {
   sockaddr_union su;
-  std::array<uint8_t, 64_k> buf;
-  ngtcp2_pkt_hd hd;
+  std::array<uint8_t, 64_k - 1> buf;
   size_t pktcnt = 0;
   ngtcp2_pkt_info pi;
 
@@ -2413,8 +2413,9 @@ int Server::on_read(Endpoint &ep) {
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
-  uint8_t
-      msg_ctrl[CMSG_SPACE(sizeof(uint8_t)) + CMSG_SPACE(sizeof(in6_pktinfo))];
+  uint8_t msg_ctrl[CMSG_SPACE(sizeof(uint8_t)) +
+                   CMSG_SPACE(sizeof(in6_pktinfo)) +
+                   CMSG_SPACE(sizeof(uint16_t))];
   msg.msg_control = msg_ctrl;
 
   for (; pktcnt < 10;) {
@@ -2429,197 +2430,212 @@ int Server::on_read(Endpoint &ep) {
       return 0;
     }
 
-    ++pktcnt;
-
     pi.ecn = msghdr_get_ecn(&msg, su.storage.ss_family);
     auto local_addr = msghdr_get_local_addr(&msg, su.storage.ss_family);
     if (!local_addr) {
+      ++pktcnt;
       std::cerr << "Unable to obtain local address" << std::endl;
       continue;
     }
 
+    auto gso_size = msghdr_get_udp_gro(&msg);
+    if (gso_size == 0) {
+      gso_size = static_cast<size_t>(nread);
+    }
+
     set_port(*local_addr, ep.addr);
 
-    if (!config.quiet) {
-      std::array<char, IF_NAMESIZE> ifname;
-      std::cerr << "Received packet: local="
-                << util::straddr(&local_addr->su.sa, local_addr->len)
-                << " remote=" << util::straddr(&su.sa, msg.msg_namelen)
-                << " if=" << if_indextoname(local_addr->ifindex, ifname.data())
-                << " ecn=0x" << std::hex << pi.ecn << std::dec << " " << nread
-                << " bytes" << std::endl;
-    }
+    auto data = buf.data();
 
-    if (debug::packet_lost(config.rx_loss_prob)) {
+    for (;;) {
+      auto datalen = std::min(static_cast<size_t>(nread), gso_size);
+
+      ++pktcnt;
+
       if (!config.quiet) {
-        std::cerr << "** Simulated incoming packet loss **" << std::endl;
+        std::array<char, IF_NAMESIZE> ifname;
+        std::cerr << "Received packet: local="
+                  << util::straddr(&local_addr->su.sa, local_addr->len)
+                  << " remote=" << util::straddr(&su.sa, msg.msg_namelen)
+                  << " if="
+                  << if_indextoname(local_addr->ifindex, ifname.data())
+                  << " ecn=0x" << std::hex << pi.ecn << std::dec << " "
+                  << datalen << " bytes" << std::endl;
       }
-      continue;
-    }
 
-    if (nread == 0) {
-      continue;
-    }
-
-    ngtcp2_version_cid vc;
-
-    switch (auto rv = ngtcp2_pkt_decode_version_cid(&vc, buf.data(), nread,
-                                                    NGTCP2_SV_SCIDLEN);
-            rv) {
-    case 0:
-      break;
-    case NGTCP2_ERR_VERSION_NEGOTIATION:
-      send_version_negotiation(vc.version, vc.scid, vc.scidlen, vc.dcid,
-                               vc.dcidlen, ep, *local_addr, &su.sa,
-                               msg.msg_namelen);
-      continue;
-    default:
-      std::cerr << "Could not decode version and CID from QUIC packet header: "
-                << ngtcp2_strerror(rv) << std::endl;
-      continue;
-    }
-
-    auto dcid_key = util::make_cid_key(vc.dcid, vc.dcidlen);
-
-    auto handler_it = handlers_.find(dcid_key);
-    if (handler_it == std::end(handlers_)) {
-      if (auto rv = ngtcp2_accept(&hd, buf.data(), nread); rv != 0) {
+      if (debug::packet_lost(config.rx_loss_prob)) {
         if (!config.quiet) {
-          std::cerr << "Unexpected packet received: length=" << nread
-                    << std::endl;
+          std::cerr << "** Simulated incoming packet loss **" << std::endl;
         }
-        continue;
+      } else {
+        read_pkt(ep, *local_addr, &su.sa, msg.msg_namelen, &pi, data, datalen);
       }
 
-      ngtcp2_cid ocid;
-      ngtcp2_cid *pocid = nullptr;
+      nread -= datalen;
+      if (nread == 0) {
+        break;
+      }
 
-      assert(hd.type == NGTCP2_PKT_INITIAL);
+      data += gso_size;
+    }
+  }
 
-      if (config.validate_addr || hd.tokenlen) {
-        std::cerr << "Perform stateless address validation" << std::endl;
-        if (hd.tokenlen == 0) {
-          send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen, nread * 3);
-          continue;
+  return 0;
+}
+
+void Server::read_pkt(Endpoint &ep, const Address &local_addr,
+                      const sockaddr *sa, socklen_t salen,
+                      const ngtcp2_pkt_info *pi, const uint8_t *data,
+                      size_t datalen) {
+  if (datalen == 0) {
+    return;
+  }
+
+  ngtcp2_version_cid vc;
+
+  switch (auto rv = ngtcp2_pkt_decode_version_cid(&vc, data, datalen,
+                                                  NGTCP2_SV_SCIDLEN);
+          rv) {
+  case 0:
+    break;
+  case NGTCP2_ERR_VERSION_NEGOTIATION:
+    send_version_negotiation(vc.version, vc.scid, vc.scidlen, vc.dcid,
+                             vc.dcidlen, ep, local_addr, sa, salen);
+    return;
+  default:
+    std::cerr << "Could not decode version and CID from QUIC packet header: "
+              << ngtcp2_strerror(rv) << std::endl;
+    return;
+  }
+
+  auto dcid_key = util::make_cid_key(vc.dcid, vc.dcidlen);
+
+  auto handler_it = handlers_.find(dcid_key);
+  if (handler_it == std::end(handlers_)) {
+    ngtcp2_pkt_hd hd;
+
+    if (auto rv = ngtcp2_accept(&hd, data, datalen); rv != 0) {
+      if (!config.quiet) {
+        std::cerr << "Unexpected packet received: length=" << datalen
+                  << std::endl;
+      }
+      return;
+    }
+
+    ngtcp2_cid ocid;
+    ngtcp2_cid *pocid = nullptr;
+
+    assert(hd.type == NGTCP2_PKT_INITIAL);
+
+    if (config.validate_addr || hd.tokenlen) {
+      std::cerr << "Perform stateless address validation" << std::endl;
+      if (hd.tokenlen == 0) {
+        send_retry(&hd, ep, local_addr, sa, salen, datalen * 3);
+        return;
+      }
+
+      if (hd.token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY &&
+          hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
+        send_stateless_connection_close(&hd, ep, local_addr, sa, salen);
+        return;
+      }
+
+      switch (hd.token[0]) {
+      case NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY:
+        if (verify_retry_token(&ocid, &hd, sa, salen) != 0) {
+          send_stateless_connection_close(&hd, ep, local_addr, sa, salen);
+          return;
         }
-
-        if (hd.token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY &&
-            hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
-          send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
-                                          msg.msg_namelen);
-          continue;
-        }
-
-        switch (hd.token[0]) {
-        case NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY:
-          if (verify_retry_token(&ocid, &hd, &su.sa, msg.msg_namelen) != 0) {
-            send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
-                                            msg.msg_namelen);
-            continue;
-          }
-          pocid = &ocid;
-          break;
-        case NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR:
-          if (verify_token(&hd, &su.sa, msg.msg_namelen) != 0) {
-            if (config.validate_addr) {
-              send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen,
-                         nread * 3);
-              continue;
-            }
-
-            hd.token = nullptr;
-            hd.tokenlen = 0;
-          }
-          break;
-        default:
-          if (!config.quiet) {
-            std::cerr << "Ignore unrecognized token" << std::endl;
-          }
+        pocid = &ocid;
+        break;
+      case NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR:
+        if (verify_token(&hd, sa, salen) != 0) {
           if (config.validate_addr) {
-            send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen,
-                       nread * 3);
-            continue;
+            send_retry(&hd, ep, local_addr, sa, salen, datalen * 3);
+            return;
           }
 
           hd.token = nullptr;
           hd.tokenlen = 0;
-          break;
         }
-      }
-
-      auto h = std::make_unique<Handler>(loop_, this);
-      if (h->init(ep, *local_addr, &su.sa, msg.msg_namelen, &hd.scid, &hd.dcid,
-                  pocid, hd.token, hd.tokenlen, hd.version, tls_ctx_) != 0) {
-        continue;
-      }
-
-      switch (h->on_read(ep, *local_addr, &su.sa, msg.msg_namelen, &pi,
-                         buf.data(), nread)) {
-      case 0:
-        break;
-      case NETWORK_ERR_RETRY:
-        send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen, nread * 3);
-        continue;
-      default:
-        continue;
-      }
-
-      switch (h->on_write()) {
-      case 0:
         break;
       default:
-        continue;
+        if (!config.quiet) {
+          std::cerr << "Ignore unrecognized token" << std::endl;
+        }
+        if (config.validate_addr) {
+          send_retry(&hd, ep, local_addr, sa, salen, datalen * 3);
+          return;
+        }
+
+        hd.token = nullptr;
+        hd.tokenlen = 0;
+        break;
       }
-
-      std::array<ngtcp2_cid, 2> scids;
-      auto conn = h->conn();
-
-      auto num_scid = ngtcp2_conn_get_num_scid(conn);
-
-      assert(num_scid <= scids.size());
-
-      ngtcp2_conn_get_scid(conn, scids.data());
-
-      for (size_t i = 0; i < num_scid; ++i) {
-        associate_cid(&scids[i], h.get());
-      }
-
-      handlers_.emplace(dcid_key, h.get());
-
-      h.release();
-
-      continue;
     }
 
-    auto h = (*handler_it).second;
+    auto h = std::make_unique<Handler>(loop_, this);
+    if (h->init(ep, local_addr, sa, salen, &hd.scid, &hd.dcid, pocid, hd.token,
+                hd.tokenlen, hd.version, tls_ctx_) != 0) {
+      return;
+    }
+
+    switch (h->on_read(ep, local_addr, sa, salen, pi, data, datalen)) {
+    case 0:
+      break;
+    case NETWORK_ERR_RETRY:
+      send_retry(&hd, ep, local_addr, sa, salen, datalen * 3);
+      return;
+    default:
+      return;
+    }
+
+    if (h->on_write() != 0) {
+      return;
+    }
+
+    std::array<ngtcp2_cid, 2> scids;
     auto conn = h->conn();
-    if (ngtcp2_conn_in_closing_period(conn)) {
-      // TODO do exponential backoff.
-      switch (h->send_conn_close()) {
-      case 0:
-        break;
-      default:
-        remove(h);
-      }
-      continue;
-    }
-    if (ngtcp2_conn_in_draining_period(conn)) {
-      continue;
+
+    auto num_scid = ngtcp2_conn_get_num_scid(conn);
+
+    assert(num_scid <= scids.size());
+
+    ngtcp2_conn_get_scid(conn, scids.data());
+
+    for (size_t i = 0; i < num_scid; ++i) {
+      associate_cid(&scids[i], h.get());
     }
 
-    if (auto rv = h->on_read(ep, *local_addr, &su.sa, msg.msg_namelen, &pi,
-                             buf.data(), nread);
-        rv != 0) {
-      if (rv != NETWORK_ERR_CLOSE_WAIT) {
-        remove(h);
-      }
-      continue;
-    }
+    handlers_.emplace(dcid_key, h.get());
 
-    h->signal_write();
+    h.release();
+
+    return;
   }
 
-  return 0;
+  auto h = (*handler_it).second;
+  auto conn = h->conn();
+  if (ngtcp2_conn_in_closing_period(conn)) {
+    // TODO do exponential backoff.
+    if (h->send_conn_close() != 0) {
+      remove(h);
+    }
+    return;
+  }
+  if (ngtcp2_conn_in_draining_period(conn)) {
+    return;
+  }
+
+  if (auto rv = h->on_read(ep, local_addr, sa, salen, pi, data, datalen);
+      rv != 0) {
+    if (rv != NETWORK_ERR_CLOSE_WAIT) {
+      remove(h);
+    }
+    return;
+  }
+
+  h->signal_write();
 }
 
 namespace {

@@ -34,6 +34,9 @@
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif // HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_UDP_H
+#  include <netinet/udp.h>
+#endif // HAVE_NETINET_UDP_H
 #ifdef HAVE_ASM_TYPES_H
 #  include <asm/types.h>
 #endif // HAVE_ASM_TYPES_H
@@ -153,6 +156,17 @@ void fd_set_ip_dontfrag(int fd, int family) {
 #endif // defined(IP_DONTFRAG) && defined(IPV6_DONTFRAG)
 }
 
+void fd_set_udp_gro(int fd) {
+#ifdef UDP_GRO
+  int val = 1;
+
+  if (setsockopt(fd, IPPROTO_UDP, UDP_GRO, &val,
+                 static_cast<socklen_t>(sizeof(val))) == -1) {
+    std::cerr << "setsockopt: UDP_GRO: " << strerror(errno) << std::endl;
+  }
+#endif // UDP_GRO
+}
+
 std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
   switch (family) {
   case AF_INET:
@@ -185,6 +199,22 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
     return {};
   }
   return {};
+}
+
+size_t msghdr_get_udp_gro(msghdr *msg) {
+  uint16_t gso_size = 0;
+
+#ifdef UDP_GRO
+  for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+    if (cmsg->cmsg_level == SOL_UDP && cmsg->cmsg_type == UDP_GRO) {
+      memcpy(&gso_size, CMSG_DATA(cmsg), sizeof(gso_size));
+
+      break;
+    }
+  }
+#endif // UDP_GRO
+
+  return gso_size;
 }
 
 void set_port(Address &dst, Address &src) {

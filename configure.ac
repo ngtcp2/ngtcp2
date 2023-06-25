@@ -520,6 +520,7 @@ fi
 AC_CHECK_HEADERS([ \
   arpa/inet.h \
   netinet/in.h \
+  netinet/udp.h \
   stddef.h \
   stdint.h \
   stdlib.h \
