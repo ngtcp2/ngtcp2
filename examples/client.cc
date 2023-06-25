@@ -946,7 +946,7 @@ int Client::on_read(const Endpoint &ep) {
         break;
       }
 
-      data += gso_size;
+      data += datalen;
     }
 
     if (pktcnt >= 10) {
