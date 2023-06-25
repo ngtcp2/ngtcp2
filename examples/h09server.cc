@@ -1763,7 +1763,7 @@ int Server::on_read(Endpoint &ep) {
         break;
       }
 
-      data += gso_size;
+      data += datalen;
     }
   }
 
