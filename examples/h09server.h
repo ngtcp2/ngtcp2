@@ -109,13 +109,13 @@ public:
            uint32_t version, TLSServerContext &tls_ctx);
 
   int on_read(const Endpoint &ep, const Address &local_addr, const sockaddr *sa,
-              socklen_t salen, const ngtcp2_pkt_info *pi, uint8_t *data,
+              socklen_t salen, const ngtcp2_pkt_info *pi, const uint8_t *data,
               size_t datalen);
   int on_write();
   int write_streams();
   int feed_data(const Endpoint &ep, const Address &local_addr,
                 const sockaddr *sa, socklen_t salen, const ngtcp2_pkt_info *pi,
-                uint8_t *data, size_t datalen);
+                const uint8_t *data, size_t datalen);
   void update_timer();
   int handle_expiry();
   void signal_write();
@@ -198,6 +198,9 @@ public:
   void close();
 
   int on_read(Endpoint &ep);
+  void read_pkt(Endpoint &ep, const Address &local_addr, const sockaddr *sa,
+                socklen_t salen, const ngtcp2_pkt_info *pi, const uint8_t *data,
+                size_t datalen);
   int send_version_negotiation(uint32_t version, const uint8_t *dcid,
                                size_t dcidlen, const uint8_t *scid,
                                size_t scidlen, Endpoint &ep,

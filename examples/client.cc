@@ -848,6 +848,10 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
 int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                       const ngtcp2_pkt_info *pi, uint8_t *data,
                       size_t datalen) {
+  if (datalen == 0) {
+    return 0;
+  }
+
   auto path = ngtcp2_path{
       {
           const_cast<sockaddr *>(&ep.addr.su.sa),
@@ -878,7 +882,7 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
 }
 
 int Client::on_read(const Endpoint &ep) {
-  std::array<uint8_t, 64_k> buf;
+  std::array<uint8_t, 64_k - 1> buf;
   sockaddr_union su;
   size_t pktcnt = 0;
   ngtcp2_pkt_info pi;
@@ -892,7 +896,7 @@ int Client::on_read(const Endpoint &ep) {
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
-  uint8_t msg_ctrl[CMSG_SPACE(sizeof(uint8_t))];
+  uint8_t msg_ctrl[CMSG_SPACE(sizeof(uint8_t)) + CMSG_SPACE(sizeof(uint16_t))];
   msg.msg_control = msg_ctrl;
 
   for (;;) {
@@ -909,27 +913,43 @@ int Client::on_read(const Endpoint &ep) {
     }
 
     pi.ecn = msghdr_get_ecn(&msg, su.storage.ss_family);
-
-    if (!config.quiet) {
-      std::cerr << "Received packet: local="
-                << util::straddr(&ep.addr.su.sa, ep.addr.len)
-                << " remote=" << util::straddr(&su.sa, msg.msg_namelen)
-                << " ecn=0x" << std::hex << pi.ecn << std::dec << " " << nread
-                << " bytes" << std::endl;
+    auto gso_size = msghdr_get_udp_gro(&msg);
+    if (gso_size == 0) {
+      gso_size = static_cast<size_t>(nread);
     }
 
-    if (debug::packet_lost(config.rx_loss_prob)) {
+    auto data = buf.data();
+
+    for (;;) {
+      auto datalen = std::min(static_cast<size_t>(nread), gso_size);
+
+      ++pktcnt;
+
       if (!config.quiet) {
-        std::cerr << "** Simulated incoming packet loss **" << std::endl;
+        std::cerr << "Received packet: local="
+                  << util::straddr(&ep.addr.su.sa, ep.addr.len)
+                  << " remote=" << util::straddr(&su.sa, msg.msg_namelen)
+                  << " ecn=0x" << std::hex << pi.ecn << std::dec << " "
+                  << datalen << " bytes" << std::endl;
       }
-      break;
+
+      if (debug::packet_lost(config.rx_loss_prob)) {
+        if (!config.quiet) {
+          std::cerr << "** Simulated incoming packet loss **" << std::endl;
+        }
+      } else {
+        feed_data(ep, &su.sa, msg.msg_namelen, &pi, data, datalen);
+      }
+
+      nread -= datalen;
+      if (nread == 0) {
+        break;
+      }
+
+      data += gso_size;
     }
 
-    if (feed_data(ep, &su.sa, msg.msg_namelen, &pi, buf.data(), nread) != 0) {
-      return -1;
-    }
-
-    if (++pktcnt >= 10) {
+    if (pktcnt >= 10) {
       break;
     }
   }
@@ -1220,6 +1240,7 @@ int udp_sock(int family) {
   fd_set_recv_ecn(fd, family);
   fd_set_ip_mtu_discover(fd, family);
   fd_set_ip_dontfrag(fd, family);
+  fd_set_udp_gro(fd);
 
   return fd;
 }
