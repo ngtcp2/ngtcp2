@@ -6997,7 +6997,8 @@ static int conn_recv_crypto(ngtcp2_conn *conn,
     if (conn->server &&
         !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT) &&
         encryption_level == NGTCP2_ENCRYPTION_LEVEL_INITIAL) {
-      /* recovery draft: Speeding Up Handshake Completion
+      /* https://datatracker.ietf.org/doc/html/rfc9002#section-6.2.3:
+         Speeding Up Handshake Completion
 
          When a server receives an Initial packet containing duplicate
          CRYPTO data, it can assume the client did not receive all of
