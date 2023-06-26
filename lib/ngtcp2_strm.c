@@ -120,7 +120,7 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {
 /* strm_rob_heavily_fragmented returns nonzero if the number of gaps
    in |rob| exceeds the limit. */
 static int strm_rob_heavily_fragmented(ngtcp2_rob *rob) {
-  return ngtcp2_ksl_len(&rob->gapksl) >= 1000;
+  return ngtcp2_ksl_len(&rob->gapksl) >= 5000;
 }
 
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
