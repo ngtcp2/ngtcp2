@@ -22,32 +22,32 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 if(LIBEV_FOUND AND HAVE_OPENSSL AND LIBNGHTTP3_FOUND)
-  set(client_SOURCES
+  set(qtlsclient_SOURCES
     client.cc
     client_base.cc
     debug.cc
     util.cc
     shared.cc
-    tls_client_context_openssl.cc
-    tls_client_session_openssl.cc
-    tls_session_base_openssl.cc
+    tls_client_context_quictls.cc
+    tls_client_session_quictls.cc
+    tls_session_base_quictls.cc
     util_openssl.cc
   )
 
-  set(server_SOURCES
+  set(qtlsserver_SOURCES
     server.cc
     server_base.cc
     debug.cc
     util.cc
     http.cc
     shared.cc
-    tls_server_context_openssl.cc
-    tls_server_session_openssl.cc
-    tls_session_base_openssl.cc
+    tls_server_context_quictls.cc
+    tls_server_session_quictls.cc
+    tls_session_base_quictls.cc
     util_openssl.cc
   )
 
-  set(ossl_INCLUDE_DIRS
+  set(qtls_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/lib/includes
     ${CMAKE_BINARY_DIR}/lib/includes
     ${CMAKE_SOURCE_DIR}/third-party
@@ -59,8 +59,8 @@ if(LIBEV_FOUND AND HAVE_OPENSSL AND LIBNGHTTP3_FOUND)
     ${LIBNGHTTP3_INCLUDE_DIRS}
   )
 
-  set(ossl_LIBS
-    ngtcp2_crypto_openssl
+  set(qtls_LIBS
+    ngtcp2_crypto_quictls
     ngtcp2
     ${JEMALLOC_LIBRARIES}
     ${OPENSSL_LIBRARIES}
@@ -68,22 +68,22 @@ if(LIBEV_FOUND AND HAVE_OPENSSL AND LIBNGHTTP3_FOUND)
     ${LIBNGHTTP3_LIBRARIES}
   )
 
-  add_executable(client ${client_SOURCES} $<TARGET_OBJECTS:http-parser>)
-  add_executable(server ${server_SOURCES} $<TARGET_OBJECTS:http-parser>)
-  set_target_properties(client PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_OPENSSL -DWITH_EXAMPLE_OPENSSL"
+  add_executable(qtlsclient ${qtlsclient_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  add_executable(qtlsserver ${qtlsserver_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  set_target_properties(qtlsclient PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_QUICTLS -DWITH_EXAMPLE_QUICTLS"
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
   )
-  set_target_properties(server PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_OPENSSL -DWITH_EXAMPLE_OPENSSL"
+  set_target_properties(qtlsserver PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_QUICTLS -DWITH_EXAMPLE_QUICTLS"
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
   )
-  target_include_directories(client PUBLIC ${ossl_INCLUDE_DIRS})
-  target_include_directories(server PUBLIC ${ossl_INCLUDE_DIRS})
-  target_link_libraries(client ${ossl_LIBS})
-  target_link_libraries(server ${ossl_LIBS})
+  target_include_directories(qtlsclient PUBLIC ${qtls_INCLUDE_DIRS})
+  target_include_directories(qtlsserver PUBLIC ${qtls_INCLUDE_DIRS})
+  target_link_libraries(qtlsclient ${qtls_LIBS})
+  target_link_libraries(qtlsserver ${qtls_LIBS})
 
   # TODO prevent client and example servers from being installed?
 endif()
@@ -164,7 +164,7 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     shared.cc
     tls_client_context_boringssl.cc
     tls_client_session_boringssl.cc
-    tls_session_base_openssl.cc
+    tls_session_base_quictls.cc
     util_openssl.cc
   )
 
@@ -177,7 +177,7 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     shared.cc
     tls_server_context_boringssl.cc
     tls_server_session_boringssl.cc
-    tls_session_base_openssl.cc
+    tls_session_base_quictls.cc
     util_openssl.cc
   )
 

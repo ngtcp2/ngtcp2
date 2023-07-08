@@ -22,31 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_SESSION_OPENSSL_H
-#define TLS_CLIENT_SESSION_OPENSSL_H
+#ifndef TLS_SESSION_BASE_QUICTLS_H
+#define TLS_SESSION_BASE_QUICTLS_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
-#include "tls_session_base_openssl.h"
-#include "shared.h"
+#include <string>
 
-using namespace ngtcp2;
+#include <openssl/ssl.h>
 
-class TLSClientContext;
-class ClientBase;
-
-class TLSClientSession : public TLSSessionBase {
+class TLSSessionBase {
 public:
-  TLSClientSession();
-  ~TLSClientSession();
+  TLSSessionBase();
+  ~TLSSessionBase();
 
-  int init(bool &early_data_enabled, const TLSClientContext &tls_ctx,
-           const char *remote_addr, ClientBase *client, uint32_t quic_version,
-           AppProtocol app_proto);
+  SSL *get_native_handle() const;
 
-  bool get_early_data_accepted() const;
+  std::string get_cipher_name() const;
+  std::string get_selected_alpn() const;
+  // Keylog is enabled per SSL_CTX.
+  void enable_keylog() {}
+
+protected:
+  SSL *ssl_;
 };
 
-#endif // TLS_CLIENT_SESSION_OPENSSL_H
+#endif // TLS_SESSION_BASE_QUICTLS_H

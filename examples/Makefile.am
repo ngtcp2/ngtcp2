@@ -63,59 +63,60 @@ CLIENT_SRCS = \
 
 noinst_PROGRAMS =
 
-if ENABLE_EXAMPLE_OPENSSL
-noinst_PROGRAMS += client server h09client h09server simpleclient
+if ENABLE_EXAMPLE_QUICTLS
+noinst_PROGRAMS += qtlsclient qtlsserver h09qtlsclient h09qtlsserver \
+	qtlssimpleclient
 
-simpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
-	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@ -DWITH_EXAMPLE_OPENSSL
-simpleclient_LDADD = ${LDADD} \
-	$(top_builddir)/crypto/openssl/libngtcp2_crypto_openssl.la \
+qtlssimpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
+	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@
+qtlssimpleclient_LDADD = ${LDADD} \
+	$(top_builddir)/crypto/quictls/libngtcp2_crypto_quictls.la \
 	@OPENSSL_LIBS@ \
 	@JEMALLOC_LIBS@
-simpleclient_SOURCES = simpleclient.c
+qtlssimpleclient_SOURCES = simpleclient.c
 
-client_CPPFLAGS = ${AM_CPPFLAGS} \
-	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@ -DWITH_EXAMPLE_OPENSSL
-client_LDADD = ${LDADD} \
-	$(top_builddir)/crypto/openssl/libngtcp2_crypto_openssl.la \
+qtlsclient_CPPFLAGS = ${AM_CPPFLAGS} \
+	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@ -DWITH_EXAMPLE_QUICTLS
+qtlsclient_LDADD = ${LDADD} \
+	$(top_builddir)/crypto/quictls/libngtcp2_crypto_quictls.la \
 	@OPENSSL_LIBS@ \
 	@JEMALLOC_LIBS@
-client_SOURCES = client.cc client.h ${CLIENT_SRCS} \
-	tls_client_context_openssl.cc tls_client_context_openssl.h \
-	tls_client_session_openssl.cc tls_client_session_openssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
+qtlsclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
+	tls_client_context_quictls.cc tls_client_context_quictls.h \
+	tls_client_session_quictls.cc tls_client_session_quictls.h \
+	tls_session_base_quictls.cc tls_session_base_quictls.h \
 	util_openssl.cc
 
-server_CPPFLAGS = ${client_CPPFLAGS}
-server_LDADD = ${client_LDADD}
-server_SOURCES = server.cc server.h ${SERVER_SRCS} \
-	tls_server_context_openssl.cc tls_server_context_openssl.h \
-	tls_server_session_openssl.cc tls_server_session_openssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
+qtlsserver_CPPFLAGS = ${qtlsclient_CPPFLAGS}
+qtlsserver_LDADD = ${qtlsclient_LDADD}
+qtlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
+	tls_server_context_quictls.cc tls_server_context_quictls.h \
+	tls_server_session_quictls.cc tls_server_session_quictls.h \
+	tls_session_base_quictls.cc tls_session_base_quictls.h \
 	util_openssl.cc
 
-h09client_CPPFLAGS = ${client_CPPFLAGS}
-h09client_LDADD = ${client_LDADD}
-h09client_SOURCES = h09client.cc h09client.h ${CLIENT_SRCS} \
-	tls_client_context_openssl.cc tls_client_context_openssl.h \
-	tls_client_session_openssl.cc tls_client_session_openssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
+h09qtlsclient_CPPFLAGS = ${qtlsclient_CPPFLAGS}
+h09qtlsclient_LDADD = ${qtlsclient_LDADD}
+h09qtlsclient_SOURCES = h09client.cc h09client.h ${CLIENT_SRCS} \
+	tls_client_context_quictls.cc tls_client_context_quictls.h \
+	tls_client_session_quictls.cc tls_client_session_quictls.h \
+	tls_session_base_quictls.cc tls_session_base_quictls.h \
 	util_openssl.cc
 
-h09server_CPPFLAGS = ${client_CPPFLAGS}
-h09server_LDADD = ${client_LDADD}
-h09server_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
-	tls_server_context_openssl.cc tls_server_context_openssl.h \
-	tls_server_session_openssl.cc tls_server_session_openssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
+h09qtlsserver_CPPFLAGS = ${qtlsclient_CPPFLAGS}
+h09qtlsserver_LDADD = ${qtlsclient_LDADD}
+h09qtlsserver_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
+	tls_server_context_quictls.cc tls_server_context_quictls.h \
+	tls_server_session_quictls.cc tls_server_session_quictls.h \
+	tls_session_base_quictls.cc tls_session_base_quictls.h \
 	util_openssl.cc
-endif # ENABLE_EXAMPLE_OPENSSL
+endif # ENABLE_EXAMPLE_QUICTLS
 
 if ENABLE_EXAMPLE_GNUTLS
 noinst_PROGRAMS += gtlsclient gtlsserver gtlssimpleclient
 
 gtlssimpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
-	@JEMALLOC_CFLAGS@ @GNUTLS_CFLAGS@ -DWITH_EXAMPLE_OPENSSL
+	@JEMALLOC_CFLAGS@ @GNUTLS_CFLAGS@
 gtlssimpleclient_LDADD = ${LDADD} \
 	$(top_builddir)/crypto/gnutls/libngtcp2_crypto_gnutls.la \
 	@GNUTLS_LIBS@ \
@@ -156,7 +157,7 @@ bsslclient_LDADD = ${LDADD} \
 bsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 	tls_client_context_boringssl.cc tls_client_context_boringssl.h \
 	tls_client_session_boringssl.cc tls_client_session_boringssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
+	tls_session_base_quictls.cc tls_session_base_quictls.h \
 	util_openssl.cc
 
 bsslserver_CPPFLAGS = ${bsslclient_CPPFLAGS}
@@ -164,7 +165,7 @@ bsslserver_LDADD = ${bsslclient_LDADD}
 bsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	tls_server_context_boringssl.cc tls_server_context_boringssl.h \
 	tls_server_session_boringssl.cc tls_server_session_boringssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
+	tls_session_base_quictls.cc tls_session_base_quictls.h \
 	util_openssl.cc
 endif # ENABLE_EXAMPLE_BORINGSSL
 

@@ -29,7 +29,7 @@
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
-#include "tls_session_base_openssl.h"
+#include "tls_session_base_quictls.h"
 #include "shared.h"
 
 using namespace ngtcp2;

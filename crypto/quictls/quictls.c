@@ -29,7 +29,7 @@
 #include <assert.h>
 
 #include <ngtcp2/ngtcp2_crypto.h>
-#include <ngtcp2/ngtcp2_crypto_openssl.h>
+#include <ngtcp2/ngtcp2_crypto_quictls.h>
 
 #include <openssl/ssl.h>
 #include <openssl/evp.h>
@@ -600,7 +600,7 @@ int ngtcp2_crypto_read_write_crypto_data(
 
   if (SSL_provide_quic_data(
           ssl,
-          ngtcp2_crypto_openssl_from_ngtcp2_encryption_level(encryption_level),
+          ngtcp2_crypto_quictls_from_ngtcp2_encryption_level(encryption_level),
           data, datalen) != 1) {
     return -1;
   }
@@ -614,9 +614,9 @@ int ngtcp2_crypto_read_write_crypto_data(
       case SSL_ERROR_WANT_WRITE:
         return 0;
       case SSL_ERROR_WANT_CLIENT_HELLO_CB:
-        return NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_CLIENT_HELLO_CB;
+        return NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_CLIENT_HELLO_CB;
       case SSL_ERROR_WANT_X509_LOOKUP:
-        return NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_X509_LOOKUP;
+        return NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_X509_LOOKUP;
       case SSL_ERROR_SSL:
         return -1;
       default:
@@ -671,7 +671,7 @@ int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
   return 0;
 }
 
-ngtcp2_encryption_level ngtcp2_crypto_openssl_from_ossl_encryption_level(
+ngtcp2_encryption_level ngtcp2_crypto_quictls_from_ossl_encryption_level(
     OSSL_ENCRYPTION_LEVEL ossl_level) {
   switch (ossl_level) {
   case ssl_encryption_initial:
@@ -689,7 +689,7 @@ ngtcp2_encryption_level ngtcp2_crypto_openssl_from_ossl_encryption_level(
 }
 
 OSSL_ENCRYPTION_LEVEL
-ngtcp2_crypto_openssl_from_ngtcp2_encryption_level(
+ngtcp2_crypto_quictls_from_ngtcp2_encryption_level(
     ngtcp2_encryption_level encryption_level) {
   switch (encryption_level) {
   case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
@@ -732,7 +732,7 @@ static int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
   ngtcp2_crypto_conn_ref *conn_ref = SSL_get_app_data(ssl);
   ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
   ngtcp2_encryption_level level =
-      ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
+      ngtcp2_crypto_quictls_from_ossl_encryption_level(ossl_level);
 
   if (rx_secret &&
       ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL, level,
@@ -754,7 +754,7 @@ static int add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
   ngtcp2_crypto_conn_ref *conn_ref = SSL_get_app_data(ssl);
   ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
   ngtcp2_encryption_level level =
-      ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
+      ngtcp2_crypto_quictls_from_ossl_encryption_level(ossl_level);
   int rv;
 
   rv = ngtcp2_conn_submit_crypto_data(conn, level, data, datalen);
@@ -789,20 +789,20 @@ static SSL_QUIC_METHOD quic_method = {
     send_alert,
 };
 
-static void crypto_openssl_configure_context(SSL_CTX *ssl_ctx) {
+static void crypto_quictls_configure_context(SSL_CTX *ssl_ctx) {
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_quic_method(ssl_ctx, &quic_method);
 }
 
-int ngtcp2_crypto_openssl_configure_server_context(SSL_CTX *ssl_ctx) {
-  crypto_openssl_configure_context(ssl_ctx);
+int ngtcp2_crypto_quictls_configure_server_context(SSL_CTX *ssl_ctx) {
+  crypto_quictls_configure_context(ssl_ctx);
 
   return 0;
 }
 
-int ngtcp2_crypto_openssl_configure_client_context(SSL_CTX *ssl_ctx) {
-  crypto_openssl_configure_context(ssl_ctx);
+int ngtcp2_crypto_quictls_configure_client_context(SSL_CTX *ssl_ctx) {
+  crypto_quictls_configure_context(ssl_ctx);
 
   return 0;
 }

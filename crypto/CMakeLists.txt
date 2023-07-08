@@ -26,9 +26,9 @@ if(HAVE_CRYPTO)
 endif()
 
 if(HAVE_OPENSSL)
-  add_subdirectory(openssl)
+  add_subdirectory(quictls)
 elseif(ENABLE_OPENSSL)
-  message(WARNING "libngtcp2_crypto_openssl library is disabled due to lack of good OpenSSL")
+  message(WARNING "libngtcp2_crypto_quictls library is disabled due to lack of good quictls")
 endif()
 
 if(HAVE_GNUTLS)

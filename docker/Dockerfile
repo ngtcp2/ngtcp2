@@ -21,8 +21,8 @@ RUN apt-get update && \
         LIBEV_LIBS="-l:libev.a" \
         JEMALLOC_LIBS="-l:libjemalloc.a -lm" && \
     make -j$(nproc) && \
-    strip examples/client examples/server && \
-    cp examples/client examples/server /usr/local/bin && \
+    strip examples/qtlsclient examples/qtlsserver && \
+    cp examples/qtlsclient examples/qtlsserver /usr/local/bin && \
     cd .. && rm -rf ngtcp2 && \
     apt-get -y purge \
         git g++ clang-11 make binutils autoconf automake autotools-dev libtool \
@@ -33,7 +33,7 @@ RUN apt-get update && \
 
 FROM gcr.io/distroless/cc-debian11:latest-amd64
 
-COPY --from=build /usr/local/bin/client /usr/local/bin/server /usr/local/bin/
+COPY --from=build /usr/local/bin/qtlsclient /usr/local/bin/qtlsserver /usr/local/bin/
 COPY --from=build /etc/mime.types /etc/
 
-CMD ["/usr/local/bin/client"]
+CMD ["/usr/local/bin/qtlsclient"]

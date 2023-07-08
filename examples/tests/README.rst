@@ -10,7 +10,7 @@ the examples/tests directory.
 .. code-block:: text
 
     examples/test> pytest
-    ngtcp2-examples: [0.9.0-DEV, crypto_libs=['openssl', 'wolfssl']]
+    ngtcp2-examples: [0.9.0-DEV, crypto_libs=['quictls', 'wolfssl']]
     ...
 
 Requirements
@@ -32,11 +32,11 @@ used. For example:
 
 .. code-block:: text
 
-    test_01_handshake.py::TestHandshake::test_01_01_get[openssl-openssl] PASSED                                                                                                  [ 16%]
-    test_01_handshake.py::TestHandshake::test_01_01_get[openssl-wolfssl] PASSED
+    test_01_handshake.py::TestHandshake::test_01_01_get[quictls-quictls] PASSED                                                                                                  [ 16%]
+    test_01_handshake.py::TestHandshake::test_01_01_get[quictls-wolfssl] PASSED
 
-Here, ``test_01_01`` is run first with the OpenSSL server and client and then
-with the OpenSSL server and wolfSSL client. By default, the test suite runs
+Here, ``test_01_01`` is run first with the quictls server and client and then
+with the quictls server and wolfSSL client. By default, the test suite runs
 all combinations of servers and clients that have been configured in the project.
 
 To track down problems, you can restrict the test cases that are run by
@@ -49,7 +49,7 @@ matching patterns:
     # only tests with wolfSSL example client
     > pytest -v -k 'test and -wolfssl'
     # tests with a specific combination
-    > pytest -v -k 'openssl-wolfssl'
+    > pytest -v -k 'quictls-wolfssl'
 
 
 Analysing

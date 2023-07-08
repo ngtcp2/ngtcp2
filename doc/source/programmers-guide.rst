@@ -19,7 +19,7 @@ to build QUIC application you have to choose one of them.  Here is the
 list of TLS stacks which are supposed to provide such interface and
 for which we provide crypto helper libraries:
 
-* `OpenSSL with QUIC support <https://github.com/quictls/openssl>`_
+* `quictls <https://github.com/quictls/openssl>`_
 * GnuTLS
 * BoringSSL
 * Picotls
@@ -163,10 +163,10 @@ helper functions to make it easier for applications to configure TLS
 stack object to work with QUIC and ngtcp2.  They are specific to each
 supported TLS stack:
 
-- OpenSSL
+- quictls
 
-  * `ngtcp2_crypto_openssl_configure_client_context`
-  * `ngtcp2_crypto_openssl_configure_server_context`
+  * `ngtcp2_crypto_quictls_configure_client_context`
+  * `ngtcp2_crypto_quictls_configure_server_context`
 
 - BoringSSL
 

@@ -22,33 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "tls_server_session_openssl.h"
+#ifndef TLS_CLIENT_SESSION_QUICTLS_H
+#define TLS_CLIENT_SESSION_QUICTLS_H
 
-#include <iostream>
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif // HAVE_CONFIG_H
 
-#include <openssl/err.h>
+#include "tls_session_base_quictls.h"
+#include "shared.h"
 
-#include "tls_server_context_openssl.h"
-#include "server_base.h"
+using namespace ngtcp2;
 
-TLSServerSession::TLSServerSession() {}
+class TLSClientContext;
+class ClientBase;
 
-TLSServerSession::~TLSServerSession() {}
+class TLSClientSession : public TLSSessionBase {
+public:
+  TLSClientSession();
+  ~TLSClientSession();
 
-int TLSServerSession::init(const TLSServerContext &tls_ctx,
-                           HandlerBase *handler) {
-  auto ssl_ctx = tls_ctx.get_native_handle();
+  int init(bool &early_data_enabled, const TLSClientContext &tls_ctx,
+           const char *remote_addr, ClientBase *client, uint32_t quic_version,
+           AppProtocol app_proto);
 
-  ssl_ = SSL_new(ssl_ctx);
-  if (!ssl_) {
-    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
-    return -1;
-  }
+  bool get_early_data_accepted() const;
+};
 
-  SSL_set_app_data(ssl_, handler->conn_ref());
-  SSL_set_accept_state(ssl_);
-  SSL_set_quic_early_data_enabled(ssl_, 1);
-
-  return 0;
-}
+#endif // TLS_CLIENT_SESSION_QUICTLS_H

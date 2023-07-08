@@ -37,7 +37,7 @@
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
-#include <ngtcp2/ngtcp2_crypto_openssl.h>
+#include <ngtcp2/ngtcp2_crypto_quictls.h>
 
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
@@ -171,8 +171,8 @@ static int client_ssl_init(struct client *c) {
     return -1;
   }
 
-  if (ngtcp2_crypto_openssl_configure_client_context(c->ssl_ctx) != 0) {
-    fprintf(stderr, "ngtcp2_crypto_openssl_configure_client_context failed\n");
+  if (ngtcp2_crypto_quictls_configure_client_context(c->ssl_ctx) != 0) {
+    fprintf(stderr, "ngtcp2_crypto_quictls_configure_client_context failed\n");
     return -1;
   }
 

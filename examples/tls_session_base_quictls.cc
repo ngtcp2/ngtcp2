@@ -22,33 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_CONTEXT_OPENSSL_H
-#define TLS_SERVER_CONTEXT_OPENSSL_H
+#include "tls_session_base_quictls.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // HAVE_CONFIG_H
+#include <array>
 
-#include <openssl/ssl.h>
-
-#include "shared.h"
+#include "util.h"
 
 using namespace ngtcp2;
 
-class TLSServerContext {
-public:
-  TLSServerContext();
-  ~TLSServerContext();
+TLSSessionBase::TLSSessionBase() : ssl_{nullptr} {}
 
-  int init(const char *private_key_file, const char *cert_file,
-           AppProtocol app_proto);
+TLSSessionBase::~TLSSessionBase() {
+  if (ssl_) {
+    SSL_free(ssl_);
+  }
+}
 
-  SSL_CTX *get_native_handle() const;
+SSL *TLSSessionBase::get_native_handle() const { return ssl_; }
 
-  void enable_keylog();
+std::string TLSSessionBase::get_cipher_name() const {
+  return SSL_get_cipher_name(ssl_);
+}
 
-private:
-  SSL_CTX *ssl_ctx_;
-};
+std::string TLSSessionBase::get_selected_alpn() const {
+  const unsigned char *alpn = nullptr;
+  unsigned int alpnlen;
 
-#endif // TLS_SERVER_CONTEXT_OPENSSL_H
+  SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
+
+  return std::string{alpn, alpn + alpnlen};
+}

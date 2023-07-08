@@ -46,7 +46,7 @@ extern "C" {
  * |tls_native_handle|.  This is used for encrypting/decrypting
  * Handshake and 1-RTT packets.
  *
- * If libngtcp2_crypto_openssl is linked, |tls_native_handle| must be
+ * If libngtcp2_crypto_quictls is linked, |tls_native_handle| must be
  * a pointer to SSL object.
  */
 NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
@@ -60,7 +60,7 @@ NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
  * |tls_native_handle|.  This is used for encrypting/decrypting 0-RTT
  * packets.
  *
- * If libngtcp2_crypto_openssl is linked, |tls_native_handle| must be
+ * If libngtcp2_crypto_quictls is linked, |tls_native_handle| must be
  * a pointer to SSL object.
  */
 NGTCP2_EXTERN ngtcp2_crypto_ctx *
@@ -72,7 +72,7 @@ ngtcp2_crypto_ctx_tls_early(ngtcp2_crypto_ctx *ctx, void *tls_native_handle);
  * `ngtcp2_crypto_md_init` initializes |md| with the provided
  * |md_native_handle| which is an underlying message digest object.
  *
- * If libngtcp2_crypto_openssl is linked, |md_native_handle| must be a
+ * If libngtcp2_crypto_quictls is linked, |md_native_handle| must be a
  * pointer to EVP_MD.
  *
  * If libngtcp2_crypto_gnutls is linked, |md_native_handle| must be
@@ -490,8 +490,8 @@ NGTCP2_EXTERN int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
  * This function returns 0 if it succeeds, or a negative error code.
  * The generic error code is -1 if a specific error code is not
  * suitable.  The error codes less than -10000 are specific to
- * underlying TLS implementation.  For OpenSSL, the error codes are
- * defined in *ngtcp2_crypto_openssl.h*.
+ * underlying TLS implementation.  For quictls, the error codes are
+ * defined in *ngtcp2_crypto_quictls.h*.
  */
 NGTCP2_EXTERN int
 ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
@@ -818,7 +818,7 @@ typedef ngtcp2_conn *(*ngtcp2_crypto_get_conn)(
  *
  * :type:`ngtcp2_crypto_conn_ref` is a structure to get a pointer to
  * :type:`ngtcp2_conn`.  It is meant to be set to TLS native handle as
- * an application specific data (e.g. SSL_set_app_data in OpenSSL).
+ * an application specific data (e.g. SSL_set_app_data in quictls).
  */
 typedef struct ngtcp2_crypto_conn_ref {
   /**

@@ -22,14 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "tls_client_session_openssl.h"
+#include "tls_client_session_quictls.h"
 
 #include <cassert>
 #include <iostream>
 
 #include <openssl/err.h>
 
-#include "tls_client_context_openssl.h"
+#include "tls_client_context_quictls.h"
 #include "client_base.h"
 #include "template.h"
 #include "util.h"

@@ -20,14 +20,24 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-prefix=@prefix@
-exec_prefix=@exec_prefix@
-libdir=@libdir@
-includedir=@includedir@
+EXTRA_DIST = CMakeLists.txt
 
-Name: libngtcp2_crypto_openssl
-Description: ngtcp2 OpenSSL crypto library
-URL: https://github.com/ngtcp2/ngtcp2
-Version: @VERSION@
-Libs: -L${libdir} -lngtcp2_crypto_openssl
-Cflags: -I${includedir}
+AM_CFLAGS = $(WARNCFLAGS) $(DEBUGCFLAGS) $(EXTRACFLAG)
+AM_CPPFLAGS = -I$(top_srcdir)/lib/includes -I$(top_builddir)/lib/includes \
+	-I$(top_srcdir)/lib -DBUILDING_NGTCP2 \
+	-I$(top_srcdir)/crypto/includes -I$(top_builddir)/crypto/includes \
+	-I$(top_srcdir)/crypto -I$(top_builddir)/crypto \
+	@OPENSSL_CFLAGS@
+AM_LDFLAGS = ${LIBTOOL_LDFLAGS}
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libngtcp2_crypto_quictls.pc
+DISTCLEANFILES = $(pkgconfig_DATA)
+
+lib_LTLIBRARIES = libngtcp2_crypto_quictls.la
+
+libngtcp2_crypto_quictls_la_SOURCES = quictls.c ../shared.c ../shared.h
+libngtcp2_crypto_quictls_la_LDFLAGS = -no-undefined \
+	-version-info $(CRYPTO_QUICTLS_LT_CURRENT):$(CRYPTO_QUICTLS_LT_REVISION):$(CRYPTO_QUICTLS_LT_AGE)
+libngtcp2_crypto_quictls_la_LIBADD = $(top_builddir)/lib/libngtcp2.la \
+	@OPENSSL_LIBS@
