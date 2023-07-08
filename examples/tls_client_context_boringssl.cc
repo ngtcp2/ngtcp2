@@ -88,8 +88,8 @@ int TLSClientContext::init(const char *private_key_file,
 
   SSL_CTX_set_default_verify_paths(ssl_ctx_);
 
-  if (SSL_CTX_set1_curves_list(ssl_ctx_, config.groups) != 1) {
-    std::cerr << "SSL_CTX_set1_curves_list failed" << std::endl;
+  if (SSL_CTX_set1_groups_list(ssl_ctx_, config.groups) != 1) {
+    std::cerr << "SSL_CTX_set1_groups_list failed" << std::endl;
     return -1;
   }
 
