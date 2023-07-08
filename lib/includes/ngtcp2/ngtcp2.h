@@ -516,190 +516,190 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  * :macro:`NGTCP2_ERR_NOBUF` indicates that a provided buffer does not
  * have enough space to store data.
  */
-#define NGTCP2_ERR_NOBUF -203
+#define NGTCP2_ERR_NOBUF -202
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_PROTO` indicates a general protocol error.
  */
-#define NGTCP2_ERR_PROTO -205
+#define NGTCP2_ERR_PROTO -203
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_INVALID_STATE` indicates that a requested
  * operation is not allowed at the current connection state.
  */
-#define NGTCP2_ERR_INVALID_STATE -206
+#define NGTCP2_ERR_INVALID_STATE -204
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_ACK_FRAME` indicates that an invalid ACK frame
  * is received.
  */
-#define NGTCP2_ERR_ACK_FRAME -207
+#define NGTCP2_ERR_ACK_FRAME -205
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_STREAM_ID_BLOCKED` indicates that there is no
  * spare stream ID available.
  */
-#define NGTCP2_ERR_STREAM_ID_BLOCKED -208
+#define NGTCP2_ERR_STREAM_ID_BLOCKED -206
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_STREAM_IN_USE` indicates that a stream ID is
  * already in use.
  */
-#define NGTCP2_ERR_STREAM_IN_USE -209
+#define NGTCP2_ERR_STREAM_IN_USE -207
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED` indicates that stream data
  * cannot be sent because of flow control.
  */
-#define NGTCP2_ERR_STREAM_DATA_BLOCKED -210
+#define NGTCP2_ERR_STREAM_DATA_BLOCKED -208
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_FLOW_CONTROL` indicates flow control error.
  */
-#define NGTCP2_ERR_FLOW_CONTROL -211
+#define NGTCP2_ERR_FLOW_CONTROL -209
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_CONNECTION_ID_LIMIT` indicates that the number
  * of received Connection ID exceeds acceptable limit.
  */
-#define NGTCP2_ERR_CONNECTION_ID_LIMIT -212
+#define NGTCP2_ERR_CONNECTION_ID_LIMIT -210
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_STREAM_LIMIT` indicates that a remote endpoint
  * opens more streams that is permitted.
  */
-#define NGTCP2_ERR_STREAM_LIMIT -213
+#define NGTCP2_ERR_STREAM_LIMIT -211
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_FINAL_SIZE` indicates that inconsistent final
  * size of a stream.
  */
-#define NGTCP2_ERR_FINAL_SIZE -214
+#define NGTCP2_ERR_FINAL_SIZE -212
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_CRYPTO` indicates crypto (TLS) related error.
  */
-#define NGTCP2_ERR_CRYPTO -215
+#define NGTCP2_ERR_CRYPTO -213
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_PKT_NUM_EXHAUSTED` indicates that packet number
  * is exhausted.
  */
-#define NGTCP2_ERR_PKT_NUM_EXHAUSTED -216
+#define NGTCP2_ERR_PKT_NUM_EXHAUSTED -214
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM` indicates that a
  * required transport parameter is missing.
  */
-#define NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM -217
+#define NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM -215
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM` indicates that a
  * transport parameter is malformed.
  */
-#define NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM -218
+#define NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM -216
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_FRAME_ENCODING` indicates there is an error in
  * frame encoding.
  */
-#define NGTCP2_ERR_FRAME_ENCODING -219
+#define NGTCP2_ERR_FRAME_ENCODING -217
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_DECRYPT` indicates a decryption failure.
  */
-#define NGTCP2_ERR_DECRYPT -220
+#define NGTCP2_ERR_DECRYPT -218
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_STREAM_SHUT_WR` indicates no more data can be
  * sent to a stream.
  */
-#define NGTCP2_ERR_STREAM_SHUT_WR -221
+#define NGTCP2_ERR_STREAM_SHUT_WR -219
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_STREAM_NOT_FOUND` indicates that a stream was
  * not found.
  */
-#define NGTCP2_ERR_STREAM_NOT_FOUND -222
+#define NGTCP2_ERR_STREAM_NOT_FOUND -220
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_STREAM_STATE` indicates that a requested
  * operation is not allowed at the current stream state.
  */
-#define NGTCP2_ERR_STREAM_STATE -226
+#define NGTCP2_ERR_STREAM_STATE -221
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_RECV_VERSION_NEGOTIATION` indicates that Version
  * Negotiation packet was received.
  */
-#define NGTCP2_ERR_RECV_VERSION_NEGOTIATION -229
+#define NGTCP2_ERR_RECV_VERSION_NEGOTIATION -222
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_CLOSING` indicates that connection is in closing
  * state.
  */
-#define NGTCP2_ERR_CLOSING -230
+#define NGTCP2_ERR_CLOSING -223
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_DRAINING` indicates that connection is in
  * draining state.
  */
-#define NGTCP2_ERR_DRAINING -231
+#define NGTCP2_ERR_DRAINING -224
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_TRANSPORT_PARAM` indicates a general transport
  * parameter error.
  */
-#define NGTCP2_ERR_TRANSPORT_PARAM -234
+#define NGTCP2_ERR_TRANSPORT_PARAM -225
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_DISCARD_PKT` indicates a packet was discarded.
  */
-#define NGTCP2_ERR_DISCARD_PKT -235
+#define NGTCP2_ERR_DISCARD_PKT -226
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_CONN_ID_BLOCKED` indicates that there is no
  * spare Connection ID available.
  */
-#define NGTCP2_ERR_CONN_ID_BLOCKED -237
+#define NGTCP2_ERR_CONN_ID_BLOCKED -227
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_INTERNAL` indicates an internal error.
  */
-#define NGTCP2_ERR_INTERNAL -238
+#define NGTCP2_ERR_INTERNAL -228
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED` indicates that a crypto
  * buffer exceeded.
  */
-#define NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED -239
+#define NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED -229
 /**
  * @macro
  *
@@ -707,21 +707,21 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` is used and a function call
  * succeeded.
  */
-#define NGTCP2_ERR_WRITE_MORE -240
+#define NGTCP2_ERR_WRITE_MORE -230
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_RETRY` indicates that server should send Retry
  * packet.
  */
-#define NGTCP2_ERR_RETRY -241
+#define NGTCP2_ERR_RETRY -231
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_DROP_CONN` indicates that an endpoint should
  * drop connection immediately.
  */
-#define NGTCP2_ERR_DROP_CONN -242
+#define NGTCP2_ERR_DROP_CONN -232
 /**
  * @macro
  *
@@ -729,7 +729,7 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  * limit is reached and key update is not available.  An endpoint
  * should drop connection immediately.
  */
-#define NGTCP2_ERR_AEAD_LIMIT_REACHED -243
+#define NGTCP2_ERR_AEAD_LIMIT_REACHED -233
 /**
  * @macro
  *
@@ -737,35 +737,35 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  * could not probe that a path is capable of sending UDP datagram
  * payload of size at least 1200 bytes.
  */
-#define NGTCP2_ERR_NO_VIABLE_PATH -244
+#define NGTCP2_ERR_NO_VIABLE_PATH -234
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION` indicates that server
  * should send Version Negotiation packet.
  */
-#define NGTCP2_ERR_VERSION_NEGOTIATION -245
+#define NGTCP2_ERR_VERSION_NEGOTIATION -235
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_HANDSHAKE_TIMEOUT` indicates that QUIC
  * connection is not established before the specified deadline.
  */
-#define NGTCP2_ERR_HANDSHAKE_TIMEOUT -246
+#define NGTCP2_ERR_HANDSHAKE_TIMEOUT -236
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE` indicates the
  * version negotiation failed.
  */
-#define NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE -247
+#define NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE -237
 /**
  * @macro
  *
  * :macro:`NGTCP2_ERR_IDLE_CLOSE` indicates the connection should be
  * closed silently because of idle timeout.
  */
-#define NGTCP2_ERR_IDLE_CLOSE -248
+#define NGTCP2_ERR_IDLE_CLOSE -238
 /**
  * @macro
  *
