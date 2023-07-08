@@ -4715,30 +4715,16 @@ ngtcp2_conn_get_client_initial_dcid(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_get_num_scid` returns the number of Source Connection
- * IDs which a local endpoint has provided to a remote endpoint, and
- * are not retired.
- */
-NGTCP2_EXTERN size_t ngtcp2_conn_get_num_scid(ngtcp2_conn *conn);
-
-/**
- * @function
- *
  * `ngtcp2_conn_get_scid` writes the all Source Connection IDs which a
  * local endpoint has provided to a remote endpoint, and are not
- * retired in |dest|.  The buffer pointed by |dest| must have
- * sizeof(:type:`ngtcp2_cid`) * n bytes available, where n is the
- * return value of `ngtcp2_conn_get_num_scid`.
+ * retired in |dest|.  If |dest| is NULL, this function does not write
+ * anything, and returns the number of Source Connection IDs that
+ * would otherwise be written to the provided buffer.  The buffer
+ * pointed by |dest| must have sizeof(:type:`ngtcp2_cid`) * n bytes
+ * available, where n is the return value of `ngtcp2_conn_get_scid`
+ * with |dest| == NULL.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest);
-
-/**
- * @function
- *
- * `ngtcp2_conn_get_num_active_dcid` returns the number of the active
- * Destination Connection ID.
- */
-NGTCP2_EXTERN size_t ngtcp2_conn_get_num_active_dcid(ngtcp2_conn *conn);
 
 /**
  * @struct
@@ -4776,10 +4762,14 @@ typedef struct ngtcp2_cid_token {
  * @function
  *
  * `ngtcp2_conn_get_active_dcid` writes the all active Destination
- * Connection IDs and their tokens to |dest|.  The buffer pointed by
- * |dest| must have sizeof(:type:`ngtcp2_cid_token`) * n bytes
- * available, where n is the return value of
- * `ngtcp2_conn_get_num_active_dcid`.
+ * Connection IDs and their tokens to |dest|.  Before handshake
+ * completes, this function returns 0.  If |dest| is NULL, this
+ * function does not write anything, and returns the number of
+ * Destination Connection IDs that would otherwise be written to the
+ * provided buffer.  The buffer pointed by |dest| must have
+ * sizeof(:type:`ngtcp2_cid_token`) * n bytes available, where n is
+ * the return value of `ngtcp2_conn_get_active_dcid` with |dest| ==
+ * NULL.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn,
                                                  ngtcp2_cid_token *dest);

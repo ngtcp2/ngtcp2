@@ -289,13 +289,11 @@ datagram is received, and it does not belong to any existing
 connections, and it is successfully processed by
 `ngtcp2_conn_read_pkt()`, associate the Destination Connection ID in
 the QUIC packet and :type:`ngtcp2_conn` object.  The server must
-associate the Connection ID returned by `ngtcp2_conn_get_scid()` to
-the :type:`ngtcp2_conn` object as well.  Use
-`ngtcp2_conn_get_num_scid()` to get the number of Connection IDs that
-`ngtcp2_conn_get_scid()` returns.  When new Connection ID is asked by
-the library, :member:`ngtcp2_callbacks.get_new_connection_id` is
-called.  Inside the callback, associate the newly generated Connection
-ID to the :type:`ngtcp2_conn` object.
+associate the Connection IDs returned by `ngtcp2_conn_get_scid()` to
+the :type:`ngtcp2_conn` object as well.  When new Connection ID is
+asked by the library, :member:`ngtcp2_callbacks.get_new_connection_id`
+is called.  Inside the callback, associate the newly generated
+Connection ID to the :type:`ngtcp2_conn` object.
 
 When Connection ID is no longer used, its association should be
 removed.  When Connection ID is retired,

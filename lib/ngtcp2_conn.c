@@ -13182,15 +13182,15 @@ static int conn_has_uncommited_preferred_addr_cid(ngtcp2_conn *conn) {
          conn->local.transport_params.preferred_addr_present;
 }
 
-size_t ngtcp2_conn_get_num_scid(ngtcp2_conn *conn) {
-  return ngtcp2_ksl_len(&conn->scid.set) +
-         (size_t)conn_has_uncommited_preferred_addr_cid(conn);
-}
-
 size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest) {
   ngtcp2_cid *origdest = dest;
   ngtcp2_ksl_it it;
   ngtcp2_scid *scid;
+
+  if (dest == NULL) {
+    return ngtcp2_ksl_len(&conn->scid.set) +
+           (size_t)conn_has_uncommited_preferred_addr_cid(conn);
+  }
 
   for (it = ngtcp2_ksl_begin(&conn->scid.set); !ngtcp2_ksl_it_end(&it);
        ngtcp2_ksl_it_next(&it)) {
@@ -13205,13 +13205,9 @@ size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest) {
   return (size_t)(dest - origdest);
 }
 
-size_t ngtcp2_conn_get_num_active_dcid(ngtcp2_conn *conn) {
+static size_t conn_get_num_active_dcid(ngtcp2_conn *conn) {
   size_t n = 1; /* for conn->dcid.current */
   ngtcp2_pv *pv = conn->pv;
-
-  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
-    return 0;
-  }
 
   if (pv) {
     if (pv->dcid.seq != conn->dcid.current.seq) {
@@ -13248,6 +13244,10 @@ size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn, ngtcp2_cid_token *dest) {
 
   if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
     return 0;
+  }
+
+  if (dest == NULL) {
+    return conn_get_num_active_dcid(conn);
   }
 
   copy_dcid_to_cid_token(dest, &conn->dcid.current);

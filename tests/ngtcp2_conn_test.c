@@ -7019,7 +7019,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   dcid_init(&dcid);
   setup_default_client(&conn);
 
-  CU_ASSERT(1 == ngtcp2_conn_get_num_active_dcid(conn));
+  CU_ASSERT(1 == ngtcp2_conn_get_active_dcid(conn, NULL));
   CU_ASSERT(1 == ngtcp2_conn_get_active_dcid(conn, cid_token));
   CU_ASSERT(0 == cid_token[0].seq);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &cid_token[0].cid));
@@ -8764,7 +8764,7 @@ void test_ngtcp2_conn_get_scid(void) {
                          NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
                          /* mem = */ NULL, NULL);
 
-  CU_ASSERT(1 == ngtcp2_conn_get_num_scid(conn));
+  CU_ASSERT(1 == ngtcp2_conn_get_scid(conn, NULL));
 
   ngtcp2_conn_get_scid(conn, scids);
 
@@ -8781,7 +8781,7 @@ void test_ngtcp2_conn_get_scid(void) {
                          NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
                          /* mem = */ NULL, NULL);
 
-  CU_ASSERT(2 == ngtcp2_conn_get_num_scid(conn));
+  CU_ASSERT(2 == ngtcp2_conn_get_scid(conn, NULL));
 
   ngtcp2_conn_get_scid(conn, scids);
 
