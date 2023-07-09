@@ -53,7 +53,7 @@ clang-format:
 	test -z $${CLANGFORMAT} && CLANGFORMAT="clang-format"; \
 	$${CLANGFORMAT} -i lib/*.{c,h} tests/*.{c,h} lib/includes/ngtcp2/*.h \
 	crypto/*.{c,h} \
-	crypto/openssl/*.c crypto/gnutls/*.c crypto/boringssl/*.c \
+	crypto/quictls/*.c crypto/gnutls/*.c crypto/boringssl/*.c \
 	crypto/wolfssl/*.c \
 	crypto/includes/ngtcp2/*.h \
 	examples/*.{cc,c,h} \
