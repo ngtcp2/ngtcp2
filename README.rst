@@ -99,7 +99,7 @@ Build with BoringSSL
 
    $ git clone https://boringssl.googlesource.com/boringssl
    $ cd boringssl
-   $ git reset --hard 80dcb67d4481fb1194b9669917e35580c32dc388
+   $ git checkout 80dcb67d4481fb1194b9669917e35580c32dc388
    $ mkdir build
    $ cd build
    $ cmake ..
