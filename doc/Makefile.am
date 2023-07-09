@@ -47,7 +47,7 @@ apiref: mkapiref.py \
 
 cryptoapiref: mkapiref.py \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto.h \
-	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_openssl.h \
+	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_quictls.h \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_gnutls.h \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_boringssl.h \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_picotls.h \
