@@ -227,7 +227,7 @@ AM_CONDITIONAL([HAVE_CUNIT], [ test "x${have_cunit}" = "xyes" ])
 
 AM_CONDITIONAL([ENABLE_SHARED], [ test "x${enable_shared}" = "xyes" ])
 
-# OpenSSL (required for libngtcp2_crypto_openssl,
+# OpenSSL (required for libngtcp2_crypto_quictls,
 # libngtcp2_crypto_picotls and examples)
 have_openssl=no
 have_vanilla_openssl=no
