@@ -100,7 +100,7 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx);
  * `ngtcp2_crypto_aead_init` initializes |aead| with the provided
  * |aead_native_handle| which is an underlying AEAD object.
  *
- * If libngtcp2_crypto_openssl is linked, |aead_native_handle| must be
+ * If libngtcp2_crypto_quictls is linked, |aead_native_handle| must be
  * a pointer to EVP_CIPHER.
  *
  * If libngtcp2_crypto_gnutls is linked, |aead_native_handle| must be
@@ -214,7 +214,7 @@ int ngtcp2_crypto_update_traffic_secret(uint8_t *dest, uint32_t version,
  * pointed by |buf| of length |len|, to the native handle |tls|.
  *
  * |tls| points to a implementation dependent TLS session object.  If
- * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
+ * libngtcp2_crypto_quictls is linked, |tls| must be a pointer to SSL
  * object.
  *
  * This function returns 0 if it succeeds, or -1.
@@ -230,7 +230,7 @@ int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
  * `ngtcp2_conn_set_remote_transport_params`.
  *
  * |tls| points to a implementation dependent TLS session object.  If
- * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
+ * libngtcp2_crypto_quictls is linked, |tls| must be a pointer to SSL
  * object.
  *
  * This function returns 0 if it succeeds, or -1.

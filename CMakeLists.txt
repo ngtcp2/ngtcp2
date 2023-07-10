@@ -134,7 +134,7 @@ if(HAVE_CUNIT)
   add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 endif()
 
-# OpenSSL (required for libngtcp2_crypto_openssl,
+# OpenSSL (required for libngtcp2_crypto_quictls,
 # libngtcp2_crypto_picotls and examples)
 include(CheckSymbolExists)
 if(ENABLE_OPENSSL AND OPENSSL_FOUND)
