@@ -44,7 +44,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-11]
+        os: [ubuntu-22.04, macos-12]
 
     runs-on: ${{ matrix.os }}
 
@@ -178,13 +178,13 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-11]
+        os: [ubuntu-22.04, macos-12]
         compiler: [gcc, clang]
         buildtool: [autotools, distcheck, cmake]
         openssl: [openssl1, openssl3]
         sockaddr: [native-sockaddr, generic-sockaddr]
         exclude:
-        - os: macos-11
+        - os: macos-12
           buildtool: distcheck
         - compiler: gcc
           buildtool: distcheck
@@ -198,9 +198,9 @@ jobs:
           sockaddr: generic-sockaddr
         - buildtool: cmake
           sockaddr: generic-sockaddr
-        - os: macos-11
+        - os: macos-12
           compiler: gcc
-        - os: macos-11
+        - os: macos-12
           openssl: openssl3
 
     runs-on: ${{ matrix.os }}
