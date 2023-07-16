@@ -65,7 +65,7 @@ typedef struct ngtcp2_acktr_entry {
   };
 } ngtcp2_acktr_entry;
 
-ngtcp2_objalloc_def(acktr_entry, ngtcp2_acktr_entry, oplent);
+ngtcp2_objalloc_decl(acktr_entry, ngtcp2_acktr_entry, oplent);
 
 /*
  * ngtcp2_acktr_entry_objalloc_new allocates memory for ent, and
