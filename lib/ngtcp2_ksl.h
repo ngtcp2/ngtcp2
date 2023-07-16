@@ -106,7 +106,7 @@ struct ngtcp2_ksl_blk {
   };
 };
 
-ngtcp2_objalloc_def(ksl_blk, ngtcp2_ksl_blk, oplent);
+ngtcp2_objalloc_decl(ksl_blk, ngtcp2_ksl_blk, oplent);
 
 /*
  * ngtcp2_ksl_compar is a function type which returns nonzero if key

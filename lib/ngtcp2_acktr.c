@@ -29,6 +29,8 @@
 #include "ngtcp2_macro.h"
 #include "ngtcp2_tstamp.h"
 
+ngtcp2_objalloc_def(acktr_entry, ngtcp2_acktr_entry, oplent);
+
 static void acktr_entry_init(ngtcp2_acktr_entry *ent, int64_t pkt_num,
                              ngtcp2_tstamp tstamp) {
   ent->pkt_num = pkt_num;

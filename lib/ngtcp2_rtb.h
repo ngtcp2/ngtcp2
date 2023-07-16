@@ -86,7 +86,7 @@ struct ngtcp2_frame_chain {
   };
 };
 
-ngtcp2_objalloc_def(frame_chain, ngtcp2_frame_chain, oplent);
+ngtcp2_objalloc_decl(frame_chain, ngtcp2_frame_chain, oplent);
 
 /*
  * ngtcp2_bind_frame_chains binds two frame chains |a| and |b| using
@@ -271,7 +271,7 @@ struct ngtcp2_rtb_entry {
   };
 };
 
-ngtcp2_objalloc_def(rtb_entry, ngtcp2_rtb_entry, oplent);
+ngtcp2_objalloc_decl(rtb_entry, ngtcp2_rtb_entry, oplent);
 
 /*
  * ngtcp2_rtb_entry_new allocates ngtcp2_rtb_entry object, and assigns
