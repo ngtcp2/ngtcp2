@@ -134,10 +134,7 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
     }
 
     if (strm->rx.cont_offset) {
-      rv = ngtcp2_rob_remove_prefix(strm->rx.rob, strm->rx.cont_offset);
-      if (rv != 0) {
-        return rv;
-      }
+      ngtcp2_rob_remove_prefix(strm->rx.rob, strm->rx.cont_offset);
     }
   }
 
@@ -148,13 +145,13 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
   return ngtcp2_rob_push(strm->rx.rob, offset, data, datalen);
 }
 
-int ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset) {
+void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset) {
   if (strm->rx.rob == NULL) {
     strm->rx.cont_offset = offset;
-    return 0;
+    return;
   }
 
-  return ngtcp2_rob_remove_prefix(strm->rx.rob, offset);
+  ngtcp2_rob_remove_prefix(strm->rx.rob, offset);
 }
 
 void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags) {
