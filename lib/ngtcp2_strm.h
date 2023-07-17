@@ -200,11 +200,8 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
 /*
  * ngtcp2_strm_update_rx_offset tells that data up to offset bytes are
  * received in order.
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory
  */
-int ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset);
+void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset);
 
 /*
  * ngtcp2_strm_shutdown shutdowns |strm|.  |flags| should be
