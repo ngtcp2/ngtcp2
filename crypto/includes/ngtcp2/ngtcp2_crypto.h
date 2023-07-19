@@ -44,7 +44,8 @@ extern "C" {
  * `ngtcp2_crypto_ctx_tls` initializes |ctx| by extracting negotiated
  * ciphers and message digests from native TLS session
  * |tls_native_handle|.  This is used for encrypting/decrypting
- * Handshake and 1-RTT packets.
+ * Handshake and 1-RTT packets.  If it is unable to obtain necessary
+ * data from |tls_native_handle|, this function returns NULL.
  *
  * If libngtcp2_crypto_quictls is linked, |tls_native_handle| must be
  * a pointer to SSL object.
@@ -58,7 +59,8 @@ NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
  * `ngtcp2_crypto_ctx_tls_early` initializes |ctx| by extracting early
  * ciphers and message digests from native TLS session
  * |tls_native_handle|.  This is used for encrypting/decrypting 0-RTT
- * packets.
+ * packets.  If it is unable to obtain necessary data from
+ * |tls_native_handle|, this function returns NULL.
  *
  * If libngtcp2_crypto_quictls is linked, |tls_native_handle| must be
  * a pointer to SSL object.
