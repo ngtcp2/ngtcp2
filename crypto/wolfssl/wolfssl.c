@@ -73,9 +73,8 @@ ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead) {
   return ngtcp2_crypto_aead_init(aead, (void *)wolfSSL_EVP_aes_128_gcm());
 }
 
-static uint64_t crypto_wolfssl_get_aead_max_encryption(WOLFSSL *ssl) {
-  const WOLFSSL_EVP_CIPHER *aead = wolfSSL_quic_get_aead(ssl);
-
+static uint64_t
+crypto_aead_get_aead_max_encryption(const WOLFSSL_EVP_CIPHER *aead) {
   if (wolfSSL_quic_aead_is_gcm(aead)) {
     return NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM;
   }
@@ -88,9 +87,8 @@ static uint64_t crypto_wolfssl_get_aead_max_encryption(WOLFSSL *ssl) {
   return 0;
 }
 
-static uint64_t crypto_wolfssl_get_aead_max_decryption_failure(WOLFSSL *ssl) {
-  const WOLFSSL_EVP_CIPHER *aead = wolfSSL_quic_get_aead(ssl);
-
+static uint64_t
+crypto_aead_get_aead_max_decryption_failure(const WOLFSSL_EVP_CIPHER *aead) {
   if (wolfSSL_quic_aead_is_gcm(aead)) {
     return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_GCM;
   }
@@ -103,16 +101,30 @@ static uint64_t crypto_wolfssl_get_aead_max_decryption_failure(WOLFSSL *ssl) {
   return 0;
 }
 
+static int supported_aead(const WOLFSSL_EVP_CIPHER *aead) {
+  return wolfSSL_quic_aead_is_gcm(aead) ||
+         wolfSSL_quic_aead_is_chacha20(aead) || wolfSSL_quic_aead_is_ccm(aead);
+}
+
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
                                          void *tls_native_handle) {
   WOLFSSL *ssl = tls_native_handle;
+  const WOLFSSL_EVP_CIPHER *aead = wolfSSL_quic_get_aead(ssl);
 
-  ngtcp2_crypto_aead_init(&ctx->aead, (void *)wolfSSL_quic_get_aead(ssl));
+  if (aead == NULL) {
+    return NULL;
+  }
+
+  if (!supported_aead(aead)) {
+    return NULL;
+  }
+
+  ngtcp2_crypto_aead_init(&ctx->aead, (void *)aead);
   ctx->md.native_handle = (void *)wolfSSL_quic_get_md(ssl);
   ctx->hp.native_handle = (void *)wolfSSL_quic_get_hp(ssl);
-  ctx->max_encryption = crypto_wolfssl_get_aead_max_encryption(ssl);
+  ctx->max_encryption = crypto_aead_get_aead_max_encryption(aead);
   ctx->max_decryption_failure =
-      crypto_wolfssl_get_aead_max_decryption_failure(ssl);
+      crypto_aead_get_aead_max_decryption_failure(aead);
   return ctx;
 }
 

@@ -115,6 +115,19 @@ crypto_get_aead_max_decryption_failure(gnutls_cipher_algorithm_t cipher) {
   }
 }
 
+static int supported_cipher(gnutls_cipher_algorithm_t cipher) {
+  switch (cipher) {
+  case GNUTLS_CIPHER_AES_128_GCM:
+  case GNUTLS_CIPHER_AES_256_GCM:
+  case GNUTLS_CIPHER_CHACHA20_POLY1305:
+  case GNUTLS_CIPHER_AES_128_CCM:
+  case GNUTLS_CIPHER_AES_256_CCM:
+    return 1;
+  default:
+    return 0;
+  }
+}
+
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
                                          void *tls_native_handle) {
   gnutls_session_t session = tls_native_handle;
@@ -123,20 +136,27 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
   gnutls_cipher_algorithm_t hp_cipher;
 
   cipher = gnutls_cipher_get(session);
-  if (cipher != GNUTLS_CIPHER_UNKNOWN && cipher != GNUTLS_CIPHER_NULL) {
-    ngtcp2_crypto_aead_init(&ctx->aead, (void *)cipher);
+  if (cipher == GNUTLS_CIPHER_UNKNOWN || cipher == GNUTLS_CIPHER_NULL) {
+    return NULL;
+  }
+
+  if (!supported_cipher(cipher)) {
+    return NULL;
   }
 
   hash = gnutls_prf_hash_get(session);
-  if (hash != GNUTLS_DIG_UNKNOWN && hash != GNUTLS_DIG_NULL) {
-    ctx->md.native_handle = (void *)hash;
+  if (hash == GNUTLS_DIG_UNKNOWN || hash == GNUTLS_DIG_NULL) {
+    return NULL;
   }
 
   hp_cipher = crypto_get_hp(cipher);
-  if (hp_cipher != GNUTLS_CIPHER_UNKNOWN) {
-    ctx->hp.native_handle = (void *)hp_cipher;
+  if (hp_cipher == GNUTLS_CIPHER_UNKNOWN || hp_cipher == GNUTLS_CIPHER_NULL) {
+    return NULL;
   }
 
+  ngtcp2_crypto_aead_init(&ctx->aead, (void *)cipher);
+  ctx->md.native_handle = (void *)hash;
+  ctx->hp.native_handle = (void *)hp_cipher;
   ctx->max_encryption = crypto_get_aead_max_encryption(cipher);
   ctx->max_decryption_failure = crypto_get_aead_max_decryption_failure(cipher);
 
@@ -151,20 +171,27 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls_early(ngtcp2_crypto_ctx *ctx,
   gnutls_cipher_algorithm_t hp_cipher;
 
   cipher = gnutls_early_cipher_get(session);
-  if (cipher != GNUTLS_CIPHER_UNKNOWN && cipher != GNUTLS_CIPHER_NULL) {
-    ngtcp2_crypto_aead_init(&ctx->aead, (void *)cipher);
+  if (cipher == GNUTLS_CIPHER_UNKNOWN || cipher == GNUTLS_CIPHER_NULL) {
+    return NULL;
+  }
+
+  if (!supported_cipher(cipher)) {
+    return NULL;
   }
 
   hash = gnutls_early_prf_hash_get(session);
-  if (hash != GNUTLS_DIG_UNKNOWN && hash != GNUTLS_DIG_NULL) {
-    ctx->md.native_handle = (void *)hash;
+  if (hash == GNUTLS_DIG_UNKNOWN || hash == GNUTLS_DIG_NULL) {
+    return NULL;
   }
 
   hp_cipher = crypto_get_hp(cipher);
-  if (hp_cipher != GNUTLS_CIPHER_UNKNOWN) {
-    ctx->hp.native_handle = (void *)hp_cipher;
+  if (hp_cipher == GNUTLS_CIPHER_UNKNOWN || hp_cipher == GNUTLS_CIPHER_NULL) {
+    return NULL;
   }
 
+  ngtcp2_crypto_aead_init(&ctx->aead, (void *)cipher);
+  ctx->md.native_handle = (void *)hash;
+  ctx->hp.native_handle = (void *)hp_cipher;
   ctx->max_encryption = crypto_get_aead_max_encryption(cipher);
   ctx->max_decryption_failure = crypto_get_aead_max_decryption_failure(cipher);
 

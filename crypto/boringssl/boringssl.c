@@ -92,8 +92,8 @@ ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead) {
   return ngtcp2_crypto_aead_init(aead, (void *)EVP_aead_aes_128_gcm());
 }
 
-static const EVP_AEAD *crypto_ssl_get_aead(SSL *ssl) {
-  switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
+static const EVP_AEAD *crypto_cipher_id_get_aead(uint32_t cipher_id) {
+  switch (cipher_id) {
   case TLS1_CK_AES_128_GCM_SHA256:
     return EVP_aead_aes_128_gcm();
   case TLS1_CK_AES_256_GCM_SHA384:
@@ -105,8 +105,8 @@ static const EVP_AEAD *crypto_ssl_get_aead(SSL *ssl) {
   }
 }
 
-static uint64_t crypto_ssl_get_aead_max_encryption(SSL *ssl) {
-  switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
+static uint64_t crypto_cipher_id_get_aead_max_encryption(uint32_t cipher_id) {
+  switch (cipher_id) {
   case TLS1_CK_AES_128_GCM_SHA256:
   case TLS1_CK_AES_256_GCM_SHA384:
     return NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM;
@@ -117,8 +117,9 @@ static uint64_t crypto_ssl_get_aead_max_encryption(SSL *ssl) {
   }
 }
 
-static uint64_t crypto_ssl_get_aead_max_decryption_failure(SSL *ssl) {
-  switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
+static uint64_t
+crypto_cipher_id_get_aead_max_decryption_failure(uint32_t cipher_id) {
+  switch (cipher_id) {
   case TLS1_CK_AES_128_GCM_SHA256:
   case TLS1_CK_AES_256_GCM_SHA384:
     return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_GCM;
@@ -129,8 +130,9 @@ static uint64_t crypto_ssl_get_aead_max_decryption_failure(SSL *ssl) {
   }
 }
 
-static const ngtcp2_crypto_boringssl_cipher *crypto_ssl_get_hp(SSL *ssl) {
-  switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
+static const ngtcp2_crypto_boringssl_cipher *
+crypto_cipher_id_get_hp(uint32_t cipher_id) {
+  switch (cipher_id) {
   case TLS1_CK_AES_128_GCM_SHA256:
     return &crypto_cipher_aes_128;
   case TLS1_CK_AES_256_GCM_SHA384:
@@ -142,8 +144,8 @@ static const ngtcp2_crypto_boringssl_cipher *crypto_ssl_get_hp(SSL *ssl) {
   }
 }
 
-static const EVP_MD *crypto_ssl_get_md(SSL *ssl) {
-  switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
+static const EVP_MD *crypto_cipher_id_get_md(uint32_t cipher_id) {
+  switch (cipher_id) {
   case TLS1_CK_AES_128_GCM_SHA256:
   case TLS1_CK_CHACHA20_POLY1305_SHA256:
     return EVP_sha256();
@@ -154,15 +156,47 @@ static const EVP_MD *crypto_ssl_get_md(SSL *ssl) {
   }
 }
 
+static int supported_cipher_id(uint32_t cipher_id) {
+  switch (cipher_id) {
+  case TLS1_CK_AES_128_GCM_SHA256:
+  case TLS1_CK_AES_256_GCM_SHA384:
+  case TLS1_CK_CHACHA20_POLY1305_SHA256:
+    return 1;
+  default:
+    return 0;
+  }
+}
+
+static ngtcp2_crypto_ctx *crypto_ctx_cipher_id(ngtcp2_crypto_ctx *ctx,
+                                               uint32_t cipher_id) {
+  ngtcp2_crypto_aead_init(&ctx->aead,
+                          (void *)crypto_cipher_id_get_aead(cipher_id));
+  ctx->md.native_handle = (void *)crypto_cipher_id_get_md(cipher_id);
+  ctx->hp.native_handle = (void *)crypto_cipher_id_get_hp(cipher_id);
+  ctx->max_encryption = crypto_cipher_id_get_aead_max_encryption(cipher_id);
+  ctx->max_decryption_failure =
+      crypto_cipher_id_get_aead_max_decryption_failure(cipher_id);
+
+  return ctx;
+}
+
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
                                          void *tls_native_handle) {
   SSL *ssl = tls_native_handle;
-  ngtcp2_crypto_aead_init(&ctx->aead, (void *)crypto_ssl_get_aead(ssl));
-  ctx->md.native_handle = (void *)crypto_ssl_get_md(ssl);
-  ctx->hp.native_handle = (void *)crypto_ssl_get_hp(ssl);
-  ctx->max_encryption = crypto_ssl_get_aead_max_encryption(ssl);
-  ctx->max_decryption_failure = crypto_ssl_get_aead_max_decryption_failure(ssl);
-  return ctx;
+  const SSL_CIPHER *cipher = SSL_get_current_cipher(ssl);
+  uint32_t cipher_id;
+
+  if (cipher == NULL) {
+    return NULL;
+  }
+
+  cipher_id = SSL_CIPHER_get_id(cipher);
+
+  if (!supported_cipher_id(cipher_id)) {
+    return NULL;
+  }
+
+  return crypto_ctx_cipher_id(ctx, cipher_id);
 }
 
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls_early(ngtcp2_crypto_ctx *ctx,

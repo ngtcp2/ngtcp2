@@ -68,15 +68,8 @@ ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead) {
   return ngtcp2_crypto_aead_init(aead, (void *)&ptls_openssl_aes128gcm);
 }
 
-static const ptls_aead_algorithm_t *crypto_ptls_get_aead(ptls_t *ptls) {
-  ptls_cipher_suite_t *cs = ptls_get_cipher(ptls);
-
-  return cs->aead;
-}
-
-static uint64_t crypto_ptls_get_aead_max_encryption(ptls_t *ptls) {
-  ptls_cipher_suite_t *cs = ptls_get_cipher(ptls);
-
+static uint64_t
+crypto_cipher_suite_get_aead_max_encryption(ptls_cipher_suite_t *cs) {
   if (cs->aead == &ptls_openssl_aes128gcm ||
       cs->aead == &ptls_openssl_aes256gcm) {
     return NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM;
@@ -91,9 +84,8 @@ static uint64_t crypto_ptls_get_aead_max_encryption(ptls_t *ptls) {
   return 0;
 }
 
-static uint64_t crypto_ptls_get_aead_max_decryption_failure(ptls_t *ptls) {
-  ptls_cipher_suite_t *cs = ptls_get_cipher(ptls);
-
+static uint64_t
+crypto_cipher_suite_get_aead_max_decryption_failure(ptls_cipher_suite_t *cs) {
   if (cs->aead == &ptls_openssl_aes128gcm ||
       cs->aead == &ptls_openssl_aes256gcm) {
     return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_GCM;
@@ -108,9 +100,8 @@ static uint64_t crypto_ptls_get_aead_max_decryption_failure(ptls_t *ptls) {
   return 0;
 }
 
-static const ptls_cipher_algorithm_t *crypto_ptls_get_hp(ptls_t *ptls) {
-  ptls_cipher_suite_t *cs = ptls_get_cipher(ptls);
-
+static const ptls_cipher_algorithm_t *
+crypto_cipher_suite_get_hp(ptls_cipher_suite_t *cs) {
   if (cs->aead == &ptls_openssl_aes128gcm) {
     return &ptls_openssl_aes128ctr;
   }
@@ -128,22 +119,34 @@ static const ptls_cipher_algorithm_t *crypto_ptls_get_hp(ptls_t *ptls) {
   return NULL;
 }
 
-static const ptls_hash_algorithm_t *crypto_ptls_get_md(ptls_t *ptls) {
-  ptls_cipher_suite_t *cs = ptls_get_cipher(ptls);
-
-  return cs->hash;
+static int supported_cipher_suite(ptls_cipher_suite_t *cs) {
+  return cs->aead == &ptls_openssl_aes128gcm ||
+         cs->aead == &ptls_openssl_aes256gcm
+#ifdef PTLS_OPENSSL_HAVE_CHACHA20_POLY1305
+         || cs->aead == &ptls_openssl_chacha20poly1305
+#endif /* PTLS_OPENSSL_HAVE_CHACHA20_POLY1305 */
+      ;
 }
 
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
                                          void *tls_native_handle) {
   ngtcp2_crypto_picotls_ctx *cptls = tls_native_handle;
-  ngtcp2_crypto_aead_init(&ctx->aead,
-                          (void *)crypto_ptls_get_aead(cptls->ptls));
-  ctx->md.native_handle = (void *)crypto_ptls_get_md(cptls->ptls);
-  ctx->hp.native_handle = (void *)crypto_ptls_get_hp(cptls->ptls);
-  ctx->max_encryption = crypto_ptls_get_aead_max_encryption(cptls->ptls);
+  ptls_cipher_suite_t *cs = ptls_get_cipher(cptls->ptls);
+
+  if (cs == NULL) {
+    return NULL;
+  }
+
+  if (!supported_cipher_suite(cs)) {
+    return NULL;
+  }
+
+  ngtcp2_crypto_aead_init(&ctx->aead, (void *)cs->aead);
+  ctx->md.native_handle = (void *)cs->hash;
+  ctx->hp.native_handle = (void *)crypto_cipher_suite_get_hp(cs);
+  ctx->max_encryption = crypto_cipher_suite_get_aead_max_encryption(cs);
   ctx->max_decryption_failure =
-      crypto_ptls_get_aead_max_decryption_failure(cptls->ptls);
+      crypto_cipher_suite_get_aead_max_decryption_failure(cs);
   return ctx;
 }
 
