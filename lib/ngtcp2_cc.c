@@ -37,6 +37,10 @@
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_conn_stat.h"
 
+/* NGTCP2_CC_DELIVERY_RATE_SEC_FILTERLEN is the window length of
+   delivery rate filter driven by ACK clocking. */
+#define NGTCP2_CC_DELIVERY_RATE_SEC_FILTERLEN 10
+
 uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   uint64_t n = 2 * max_udp_payload_size;
   n = ngtcp2_max(n, 14720);
@@ -59,7 +63,9 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 }
 
 static void reno_cc_reset(ngtcp2_cc_reno *reno) {
-  reno->max_delivery_rate_sec = 0;
+  ngtcp2_window_filter_init(&reno->delivery_rate_sec_filter,
+                            NGTCP2_CC_DELIVERY_RATE_SEC_FILTERLEN);
+  reno->ack_count = 0;
   reno->target_cwnd = 0;
   reno->pending_add = 0;
 }
@@ -150,24 +156,27 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   ngtcp2_cc_reno *reno = ngtcp2_struct_of(cc, ngtcp2_cc_reno, cc);
   uint64_t target_cwnd, initcwnd;
+  uint64_t max_delivery_rate_sec;
   (void)ack;
   (void)ts;
 
-  /* TODO Use sliding window for min rtt measurement */
-  /* TODO Use sliding window */
-  reno->max_delivery_rate_sec =
-      ngtcp2_max(reno->max_delivery_rate_sec, cstat->delivery_rate_sec);
+  ++reno->ack_count;
 
-  if (cstat->min_rtt != UINT64_MAX && reno->max_delivery_rate_sec) {
-    target_cwnd =
-        reno->max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
+  ngtcp2_window_filter_update(&reno->delivery_rate_sec_filter,
+                              cstat->delivery_rate_sec, reno->ack_count);
+
+  max_delivery_rate_sec =
+      ngtcp2_window_filter_get_best(&reno->delivery_rate_sec_filter);
+
+  if (cstat->min_rtt != UINT64_MAX && max_delivery_rate_sec) {
+    target_cwnd = max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
     initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
     reno->target_cwnd = ngtcp2_max(initcwnd, target_cwnd) * 289 / 100;
 
     ngtcp2_log_info(reno->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "target_cwnd=%" PRIu64 " max_delivery_rate_sec=%" PRIu64
                     " smoothed_rtt=%" PRIu64,
-                    reno->target_cwnd, reno->max_delivery_rate_sec,
+                    reno->target_cwnd, max_delivery_rate_sec,
                     cstat->smoothed_rtt);
   }
 }
@@ -182,7 +191,9 @@ void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 }
 
 static void cubic_cc_reset(ngtcp2_cc_cubic *cubic) {
-  cubic->max_delivery_rate_sec = 0;
+  ngtcp2_window_filter_init(&cubic->delivery_rate_sec_filter,
+                            NGTCP2_CC_DELIVERY_RATE_SEC_FILTERLEN);
+  cubic->ack_count = 0;
   cubic->target_cwnd = 0;
   cubic->w_last_max = 0;
   cubic->w_tcp = 0;
@@ -495,24 +506,27 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     ngtcp2_tstamp ts) {
   ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
   uint64_t target_cwnd, initcwnd;
+  uint64_t max_delivery_rate_sec;
   (void)ack;
   (void)ts;
 
-  /* TODO Use sliding window for min rtt measurement */
-  /* TODO Use sliding window */
-  cubic->max_delivery_rate_sec =
-      ngtcp2_max(cubic->max_delivery_rate_sec, cstat->delivery_rate_sec);
+  ++cubic->ack_count;
 
-  if (cstat->min_rtt != UINT64_MAX && cubic->max_delivery_rate_sec) {
-    target_cwnd =
-        cubic->max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
+  ngtcp2_window_filter_update(&cubic->delivery_rate_sec_filter,
+                              cstat->delivery_rate_sec, cubic->ack_count);
+
+  max_delivery_rate_sec =
+      ngtcp2_window_filter_get_best(&cubic->delivery_rate_sec_filter);
+
+  if (cstat->min_rtt != UINT64_MAX && max_delivery_rate_sec) {
+    target_cwnd = max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
     initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
     cubic->target_cwnd = ngtcp2_max(initcwnd, target_cwnd) * 289 / 100;
 
     ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_RCV,
                     "target_cwnd=%" PRIu64 " max_delivery_rate_sec=%" PRIu64
                     " smoothed_rtt=%" PRIu64,
-                    cubic->target_cwnd, cubic->max_delivery_rate_sec,
+                    cubic->target_cwnd, max_delivery_rate_sec,
                     cstat->smoothed_rtt);
   }
 }
