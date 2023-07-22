@@ -3641,21 +3641,31 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * This function must not be called from inside the callback
  * functions.
  *
- * This function returns 0 if it succeeds, or negative error codes.
- * If :macro:`NGTCP2_ERR_RETRY` is returned, application must be a
- * server, and it must perform address validation by sending Retry
- * packet (see `ngtcp2_crypto_write_retry` and
- * `ngtcp2_pkt_write_retry`), and discard the connection state.  If
- * :macro:`NGTCP2_ERR_DROP_CONN` is returned, server application must
- * drop the connection silently (without sending any CONNECTION_CLOSE
- * frame), and discard connection state.  If
- * :macro:`NGTCP2_ERR_DRAINING` is returned, a connection has entered
- * the draining state, and no further packet transmission is allowed.
- * If :macro:`NGTCP2_ERR_CRYPTO` is returned, the error happened in
- * TLS stack, and `ngtcp2_conn_get_tls_alert` returns TLS alert if
- * set.
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
  *
- * If any other negative errors are returned, call
+ * :macro:`NGTCP2_ERR_RETRY`
+ *    Server must perform address validation by sending Retry packet
+ *    (see `ngtcp2_crypto_write_retry` and `ngtcp2_pkt_write_retry`),
+ *    and discard the connection state.  Client application does not
+ *    get this error code.
+ * :macro:`NGTCP2_ERR_DROP_CONN`
+ *    Server application must drop the connection silently (without
+ *    sending any CONNECTION_CLOSE frame), and discard connection
+ *    state.  Client application does not get this error code.
+ * :macro:`NGTCP2_ERR_DRAINING`
+ *    A connection has entered the draining state, and no further
+ *    packet transmission is allowed.
+ * :macro:`NGTCP2_ERR_CLOSING`
+ *    A connection has entered the closing state, and no further
+ *    packet transmission is allowed.  Calling
+ *    `ngtcp2_conn_write_connection_close` makes a connection enter
+ *    this state.
+ * :macro:`NGTCP2_ERR_CRYPTO`
+ *    An error happened in TLS stack.  `ngtcp2_conn_get_tls_alert`
+ *    returns TLS alert if set.
+ *
+ * If any other negative error is returned, call
  * `ngtcp2_conn_write_connection_close` to get terminal packet, and
  * sending it makes QUIC connection enter the closing state.
  */
@@ -4483,12 +4493,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  *     Application can call this function to pack more stream data
  *     into the same packet.  See above to know how it works.
  *
- * In general, if the error code which satisfies
- * `ngtcp2_err_is_fatal(err) <ngtcp2_err_is_fatal>` != 0 is returned,
- * the application should just close the connection by calling
- * `ngtcp2_conn_write_connection_close`, or just delete the QUIC
- * connection using `ngtcp2_conn_del`.  It is undefined to call the
- * other library functions.
+ * If any other negative error is returned, call
+ * `ngtcp2_conn_write_connection_close` to get terminal packet, and
+ * sending it makes QUIC connection enter the closing state.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
@@ -4601,12 +4608,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  *     The provisional DATAGRAM frame size exceeds the maximum
  *     DATAGRAM frame size that a remote endpoint can receive.
  *
- * In general, if the error code which satisfies
- * `ngtcp2_err_is_fatal(err) <ngtcp2_err_is_fatal>` != 0 is returned,
- * the application should just close the connection by calling
- * `ngtcp2_conn_write_connection_close`, or just delete the QUIC
- * connection using `ngtcp2_conn_del`.  It is undefined to call the
- * other library functions.
+ * If any other negative error is returned, call
+ * `ngtcp2_conn_write_connection_close` to get terminal packet, and
+ * sending it makes QUIC connection enter the closing state.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
