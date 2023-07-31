@@ -22,7 +22,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h> /* rand */
 #include <string.h>
 #include <stdarg.h>
 

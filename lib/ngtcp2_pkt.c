@@ -34,7 +34,6 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_vec.h"
 #include "ngtcp2_unreachable.h"
-#include "ngtcp2_str.h"
 
 int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
                          const ngtcp2_pkt_info *pi, const uint8_t *pkt,
