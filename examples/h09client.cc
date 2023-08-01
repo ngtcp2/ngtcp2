@@ -841,7 +841,7 @@ int Client::on_read(const Endpoint &ep) {
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
-  uint8_t msg_ctrl[CMSG_SPACE(sizeof(uint8_t)) + CMSG_SPACE(sizeof(uint16_t))];
+  uint8_t msg_ctrl[CMSG_SPACE(sizeof(int)) + CMSG_SPACE(sizeof(uint16_t))];
   msg.msg_control = msg_ctrl;
 
   for (;;) {
@@ -1404,7 +1404,31 @@ int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
-  fd_set_ecn(ep.fd, remote_addr.addr->sa_family, ecn);
+  uint8_t msg_ctrl[CMSG_SPACE(sizeof(int))];
+
+  memset(msg_ctrl, 0, sizeof(msg_ctrl));
+
+  msg.msg_control = msg_ctrl;
+  msg.msg_controllen = sizeof(msg_ctrl);
+
+  auto cm = CMSG_FIRSTHDR(&msg);
+  cm->cmsg_len = CMSG_LEN(sizeof(int));
+  memcpy(CMSG_DATA(cm), &ecn, sizeof(ecn));
+
+  switch (remote_addr.addr->sa_family) {
+  case AF_INET:
+    cm->cmsg_level = IPPROTO_IP;
+    cm->cmsg_type = IP_TOS;
+
+    break;
+  case AF_INET6:
+    cm->cmsg_level = IPPROTO_IPV6;
+    cm->cmsg_type = IPV6_TCLASS;
+
+    break;
+  default:
+    assert(0);
+  }
 
   ssize_t nwrite = 0;
 

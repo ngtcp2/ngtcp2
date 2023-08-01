@@ -37,6 +37,9 @@
 #ifdef HAVE_NETINET_UDP_H
 #  include <netinet/udp.h>
 #endif // HAVE_NETINET_UDP_H
+#ifdef HAVE_NETINET_IP_H
+#  include <netinet/ip.h>
+#endif // HAVE_NETINET_IP_H
 #ifdef HAVE_ASM_TYPES_H
 #  include <asm/types.h>
 #endif // HAVE_ASM_TYPES_H
@@ -55,9 +58,14 @@ unsigned int msghdr_get_ecn(msghdr *msg, int family) {
   switch (family) {
   case AF_INET:
     for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
-      if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TOS &&
-          cmsg->cmsg_len) {
-        return *reinterpret_cast<uint8_t *>(CMSG_DATA(cmsg));
+      if (cmsg->cmsg_level == IPPROTO_IP &&
+#ifdef __APPLE__
+          cmsg->cmsg_type == IP_RECVTOS
+#else  // !__APPLE__
+          cmsg->cmsg_type == IP_TOS
+#endif // !__APPLE__
+          && cmsg->cmsg_len) {
+        return *reinterpret_cast<uint8_t *>(CMSG_DATA(cmsg)) & IPTOS_ECN_MASK;
       }
     }
     break;
@@ -65,30 +73,17 @@ unsigned int msghdr_get_ecn(msghdr *msg, int family) {
     for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
       if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_TCLASS &&
           cmsg->cmsg_len) {
-        return *reinterpret_cast<uint8_t *>(CMSG_DATA(cmsg));
+        unsigned int tos;
+
+        memcpy(&tos, CMSG_DATA(cmsg), sizeof(int));
+
+        return tos & IPTOS_ECN_MASK;
       }
     }
     break;
   }
 
   return 0;
-}
-
-void fd_set_ecn(int fd, int family, unsigned int ecn) {
-  switch (family) {
-  case AF_INET:
-    if (setsockopt(fd, IPPROTO_IP, IP_TOS, &ecn,
-                   static_cast<socklen_t>(sizeof(ecn))) == -1) {
-      std::cerr << "setsockopt: " << strerror(errno) << std::endl;
-    }
-    break;
-  case AF_INET6:
-    if (setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &ecn,
-                   static_cast<socklen_t>(sizeof(ecn))) == -1) {
-      std::cerr << "setsockopt: " << strerror(errno) << std::endl;
-    }
-    break;
-  }
 }
 
 void fd_set_recv_ecn(int fd, int family) {
