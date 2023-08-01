@@ -494,7 +494,7 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
    * :macro:`NGTCP2_ECN_NOT_ECT`, :macro:`NGTCP2_ECN_ECT_1`,
    * :macro:`NGTCP2_ECN_ECT_0`, or :macro:`NGTCP2_ECN_CE`.
    */
-  uint32_t ecn;
+  uint8_t ecn;
 } ngtcp2_pkt_info;
 
 /**
