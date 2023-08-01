@@ -94,8 +94,6 @@ struct Endpoint {
   ev_io rev;
   Server *server;
   int fd;
-  // ecn is the last ECN bits set to fd.
-  unsigned int ecn;
 };
 
 class Handler : public HandlerBase {
