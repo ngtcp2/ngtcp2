@@ -929,8 +929,8 @@ int Client::on_read(const Endpoint &ep) {
         std::cerr << "Received packet: local="
                   << util::straddr(&ep.addr.su.sa, ep.addr.len)
                   << " remote=" << util::straddr(&su.sa, msg.msg_namelen)
-                  << " ecn=0x" << std::hex << pi.ecn << std::dec << " "
-                  << datalen << " bytes" << std::endl;
+                  << " ecn=0x" << std::hex << static_cast<uint32_t>(pi.ecn)
+                  << std::dec << " " << datalen << " bytes" << std::endl;
       }
 
       if (debug::packet_lost(config.rx_loss_prob)) {
