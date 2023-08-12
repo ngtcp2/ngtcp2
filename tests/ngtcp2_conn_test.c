@@ -800,10 +800,11 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   setup_default_server_settings(pconn, &null_path.path, &settings, &params);
 }
 
-static void setup_default_client(ngtcp2_conn **pconn) {
+static void
+setup_default_client_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
+                              const ngtcp2_settings *settings,
+                              const ngtcp2_transport_params *params) {
   ngtcp2_callbacks cb;
-  ngtcp2_settings settings;
-  ngtcp2_transport_params params;
   ngtcp2_cid dcid, scid;
   ngtcp2_transport_params remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
@@ -816,11 +817,9 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   init_crypto_ctx(&crypto_ctx);
 
   client_default_callbacks(&cb);
-  client_default_settings(&settings);
-  client_default_transport_params(&params);
 
-  ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
+  ngtcp2_conn_client_new(pconn, &dcid, &scid, path, NGTCP2_PROTO_VER_V1, &cb,
+                         settings, params,
                          /* mem = */ NULL, NULL);
   ngtcp2_conn_set_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
@@ -856,6 +855,16 @@ static void setup_default_client(ngtcp2_conn **pconn) {
 
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_TOKEN_PRESENT;
   memset((*pconn)->dcid.current.token, 0xf1, NGTCP2_STATELESS_RESET_TOKENLEN);
+}
+
+static void setup_default_client(ngtcp2_conn **pconn) {
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+
+  client_default_settings(&settings);
+  client_default_transport_params(&params);
+
+  setup_default_client_settings(pconn, &null_path.path, &settings, &params);
 }
 
 static void setup_handshake_server(ngtcp2_conn **pconn) {
@@ -2408,6 +2417,350 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == conn->pktns.tx.frq);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_recv_stream_data_blocked(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  uint8_t buf[2048];
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_strm *strm;
+  ngtcp2_tstamp t = 0;
+  int64_t pkt_num = 0;
+  int64_t stream_id;
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+
+  /* Receive STREAM_DATA_BLOCKED to locally initiated stream. */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = stream_id;
+  fr.stream_data_blocked.offset = 65535;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(65535 == strm->rx.last_offset);
+  CU_ASSERT(65535 == conn->rx.offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive STREAM_DATA_BLOCKED to a local stream which is not opened
+     yet. */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = 0;
+  fr.stream_data_blocked.offset = 65535;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive STREAM_DATA_BLOCKED to a remote bidirectional stream
+     which is not opened yet. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = 0;
+  fr.stream_data_blocked.offset = 65535;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  CU_ASSERT(65535 == strm->rx.last_offset);
+  CU_ASSERT(65535 == conn->rx.offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive STREAM_DATA_BLOCKED to a remote stream which exceeds
+     bidirectional streams limit */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = 1;
+  fr.stream_data_blocked.offset = 65535;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_LIMIT == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive STREAM_DATA_BLOCKED which violates stream data limit. */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = stream_id;
+  fr.stream_data_blocked.offset = 65536;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive STREAM_DATA_BLOCKED which violates connection data
+     limit. */
+  client_default_settings(&settings);
+  client_default_transport_params(&params);
+  params.initial_max_stream_data_bidi_local = 256 * 1024;
+  setup_default_client_settings(&conn, &null_path.path, &settings, &params);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = stream_id;
+  fr.stream_data_blocked.offset = 128 * 1024 + 1;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive RESET_STREAM, and then STREAM_DATA_BLOCKED. */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM;
+  fr.reset_stream.stream_id = stream_id;
+  fr.reset_stream.app_error_code = NGTCP2_NO_ERROR;
+  fr.reset_stream.final_size = 11999;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(11999 == strm->rx.last_offset);
+  CU_ASSERT(11999 == conn->rx.offset);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = stream_id;
+  fr.stream_data_blocked.offset = 11999;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(11999 == strm->rx.last_offset);
+  CU_ASSERT(11999 == conn->rx.offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive RESET_STREAM, and then STREAM_DATA_BLOCKED which exceeds
+     final size. */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM;
+  fr.reset_stream.stream_id = stream_id;
+  fr.reset_stream.app_error_code = NGTCP2_NO_ERROR;
+  fr.reset_stream.final_size = 11999;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(11999 == strm->rx.last_offset);
+  CU_ASSERT(11999 == conn->rx.offset);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = stream_id;
+  fr.stream_data_blocked.offset = 12000;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_FINAL_SIZE == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Send STOP_SENDING, and then receive STREAM_DATA_BLOCKED. */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, stream_id, NGTCP2_NO_ERROR);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = stream_id;
+  fr.stream_data_blocked.offset = 7777;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  CU_ASSERT(7777 == strm->rx.last_offset);
+  CU_ASSERT(7777 == conn->rx.offset);
+  CU_ASSERT(128 * 1024 + 7777 == conn->rx.unsent_max_offset);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = stream_id;
+  fr.stream.fin = 0;
+  fr.stream.offset = 7755;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 23;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(7778 == strm->rx.last_offset);
+  CU_ASSERT(7778 == conn->rx.offset);
+  CU_ASSERT(128 * 1024 + 7778 == conn->rx.unsent_max_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Decreasing STREAM_DATA_BLOCKED offset. */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = stream_id;
+  fr.stream_data_blocked.offset = 999;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(999 == strm->rx.last_offset);
+  CU_ASSERT(999 == conn->rx.offset);
+  CU_ASSERT(128 * 1024 == conn->rx.unsent_max_offset);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = stream_id;
+  fr.stream_data_blocked.offset = 998;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(999 == strm->rx.last_offset);
+  CU_ASSERT(999 == conn->rx.offset);
+  CU_ASSERT(128 * 1024 == conn->rx.unsent_max_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive STREAM_DATA_BLOCKED to a local unidirectional stream. */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = stream_id;
+  fr.stream_data_blocked.offset = 1;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive STREAM_DATA_BLOCKED to a remote unidirectional stream. */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = 3;
+  fr.stream_data_blocked.offset = 719;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 3);
+
+  CU_ASSERT(719 == strm->rx.last_offset);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
+  CU_ASSERT(719 == conn->rx.offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive STREAM_DATA_BLOCKED which violates unidirectional streams
+     limit. */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
+  fr.stream_data_blocked.stream_id = 11;
+  fr.stream_data_blocked.offset = 719;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_LIMIT == rv);
 
   ngtcp2_conn_del(conn);
 }
