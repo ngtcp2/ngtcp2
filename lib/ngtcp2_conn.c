@@ -12779,13 +12779,13 @@ int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, int64_t stream_id,
                                          uint64_t datalen) {
   ngtcp2_strm *strm;
 
+  if (!bidi_stream(stream_id) && conn_local_stream(conn, stream_id)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {
     return 0;
-  }
-
-  if (!bidi_stream(stream_id) && conn_local_stream(conn, stream_id)) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   return conn_extend_max_stream_offset(conn, strm, datalen);
