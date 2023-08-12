@@ -8136,6 +8136,104 @@ static int conn_recv_streams_blocked_uni(ngtcp2_conn *conn,
   return 0;
 }
 
+static int conn_recv_stream_data_blocked(ngtcp2_conn *conn,
+                                         ngtcp2_stream_data_blocked *fr) {
+  int rv;
+  ngtcp2_strm *strm;
+  ngtcp2_idtr *idtr;
+  int local_stream = conn_local_stream(conn, fr->stream_id);
+  int bidi = bidi_stream(fr->stream_id);
+  uint64_t datalen;
+
+  if (bidi) {
+    if (local_stream) {
+      if (conn->local.bidi.next_stream_id <= fr->stream_id) {
+        return NGTCP2_ERR_STREAM_STATE;
+      }
+    } else if (conn->remote.bidi.max_streams <
+               ngtcp2_ord_stream_id(fr->stream_id)) {
+      return NGTCP2_ERR_STREAM_LIMIT;
+    }
+
+    idtr = &conn->remote.bidi.idtr;
+  } else {
+    if (local_stream) {
+      return NGTCP2_ERR_STREAM_STATE;
+    }
+    if (conn->remote.uni.max_streams < ngtcp2_ord_stream_id(fr->stream_id)) {
+      return NGTCP2_ERR_STREAM_LIMIT;
+    }
+
+    idtr = &conn->remote.uni.idtr;
+  }
+
+  strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
+  if (strm == NULL) {
+    if (local_stream) {
+      return 0;
+    }
+
+    rv = ngtcp2_idtr_open(idtr, fr->stream_id);
+    if (rv != 0) {
+      if (ngtcp2_err_is_fatal(rv)) {
+        return rv;
+      }
+      assert(rv == NGTCP2_ERR_STREAM_IN_USE);
+      return 0;
+    }
+
+    /* Frame is received before we create ngtcp2_strm object. */
+    strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
+    if (strm == NULL) {
+      return NGTCP2_ERR_NOMEM;
+    }
+    rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
+    if (rv != 0) {
+      ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
+      return rv;
+    }
+
+    if (!bidi) {
+      ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
+      strm->flags |= NGTCP2_STRM_FLAG_FIN_ACKED;
+    }
+
+    rv = conn_call_stream_open(conn, strm);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  if (strm->rx.max_offset < fr->offset) {
+    return NGTCP2_ERR_FLOW_CONTROL;
+  }
+
+  if (fr->offset <= strm->rx.last_offset) {
+    return 0;
+  }
+
+  if (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) {
+    return NGTCP2_ERR_FINAL_SIZE;
+  }
+
+  datalen = fr->offset - strm->rx.last_offset;
+  if (datalen) {
+    if (conn_max_data_violated(conn, datalen)) {
+      return NGTCP2_ERR_FLOW_CONTROL;
+    }
+
+    conn->rx.offset += datalen;
+
+    if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+      ngtcp2_conn_extend_max_offset(conn, datalen);
+    }
+  }
+
+  strm->rx.last_offset = fr->offset;
+
+  return 0;
+}
+
 /*
  * conn_select_preferred_addr asks a client application to select a
  * server address from preferred addresses received from server.  If a
@@ -9331,6 +9429,13 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       break;
     case NGTCP2_FRAME_STREAMS_BLOCKED_UNI:
       rv = conn_recv_streams_blocked_uni(conn, &fr->streams_blocked);
+      if (rv != 0) {
+        return rv;
+      }
+      non_probing_pkt = 1;
+      break;
+    case NGTCP2_FRAME_STREAM_DATA_BLOCKED:
+      rv = conn_recv_stream_data_blocked(conn, &fr->stream_data_blocked);
       if (rv != 0) {
         return rv;
       }
