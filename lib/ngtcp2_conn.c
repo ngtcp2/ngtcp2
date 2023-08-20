@@ -9976,10 +9976,10 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
     }
 
     /*
-     * Client ServerHello might not fit into single Initial packet
-     * (e.g., resuming session with client authentication).  If we get
-     * Client Initial which does not increase offset or it is 0RTT
-     * packet buffered, perform address validation in order to buffer
+     * Client Hello might not fit into single Initial packet (e.g.,
+     * resuming session with client authentication).  If we get Client
+     * Initial which does not increase offset or it is 0RTT packet
+     * buffered, perform address validation in order to buffer
      * validated data only.
      */
     if (ngtcp2_strm_rx_offset(&conn->in_pktns->crypto.strm) == 0) {
