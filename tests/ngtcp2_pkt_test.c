@@ -1601,7 +1601,7 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
 
   p = buf;
 
-  CU_ASSERT((0x80 | 133) == buf[0]);
+  CU_ASSERT((0xc0 | 133) == buf[0]);
 
   ++p;
 

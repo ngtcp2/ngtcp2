@@ -2062,7 +2062,7 @@ ngtcp2_ssize ngtcp2_pkt_write_version_negotiation(
 
   p = dest;
 
-  *p++ = 0x80 | unused_random;
+  *p++ = 0xc0 | unused_random;
   p = ngtcp2_put_uint32be(p, 0);
   *p++ = (uint8_t)dcidlen;
   if (dcidlen) {
