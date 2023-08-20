@@ -8136,6 +8136,28 @@ static int conn_recv_streams_blocked_uni(ngtcp2_conn *conn,
   return 0;
 }
 
+/*
+ * conn_recv_stream_data_blocked processes the incoming
+ * STREAM_DATA_BLOCKED frame |fr|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_STREAM_STATE
+ *     STREAM_DATA_BLOCKED is received for a local stream which is not
+ *     initiated; or it is received for a local unidirectional stream.
+ * NGTCP2_ERR_STREAM_LIMIT
+ *     STREAM_DATA_BLOCKED has remote stream ID which is strictly
+ *     greater than the allowed limit.
+ * NGTCP2_ERR_FLOW_CONTROL
+ *     STREAM_DATA_BLOCKED frame violates flow control limit.
+ * NGTCP2_ERR_FINAL_SIZE
+ *     The offset is strictly larger than it is permitted.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
 static int conn_recv_stream_data_blocked(ngtcp2_conn *conn,
                                          ngtcp2_stream_data_blocked *fr) {
   int rv;
@@ -8235,7 +8257,8 @@ static int conn_recv_stream_data_blocked(ngtcp2_conn *conn,
 }
 
 /*
- * conn_recv_data_blocked processes the incoming DATA_BLOCKED.
+ * conn_recv_data_blocked processes the incoming DATA_BLOCKED frame
+ * |fr|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
