@@ -6164,7 +6164,8 @@ static int conn_verify_fixed_bit(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd) {
          frame or Retry packet.  RFC 9287 requires that a token from
          NEW_TOKEN. */
       if (!(conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) &&
-          !conn->local.settings.tokenlen) {
+          (conn->local.settings.token_type != NGTCP2_TOKEN_TYPE_NEW_TOKEN ||
+           !conn->local.settings.tokenlen)) {
         return NGTCP2_ERR_INVALID_ARGUMENT;
       }
 

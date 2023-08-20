@@ -110,7 +110,8 @@ public:
   int init(const Endpoint &ep, const Address &local_addr, const sockaddr *sa,
            socklen_t salen, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
            const ngtcp2_cid *ocid, const uint8_t *token, size_t tokenlen,
-           uint32_t version, TLSServerContext &tls_ctx);
+           ngtcp2_token_type token_type, uint32_t version,
+           TLSServerContext &tls_ctx);
 
   int on_read(const Endpoint &ep, const Address &local_addr, const sockaddr *sa,
               socklen_t salen, const ngtcp2_pkt_info *pi, const uint8_t *data,

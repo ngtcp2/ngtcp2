@@ -651,7 +651,8 @@ void Handler::write_qlog(const void *data, size_t datalen) {
 int Handler::init(const Endpoint &ep, const Address &local_addr,
                   const sockaddr *sa, socklen_t salen, const ngtcp2_cid *dcid,
                   const ngtcp2_cid *scid, const ngtcp2_cid *ocid,
-                  const uint8_t *token, size_t tokenlen, uint32_t version,
+                  const uint8_t *token, size_t tokenlen,
+                  ngtcp2_token_type token_type, uint32_t version,
                   TLSServerContext &tls_ctx) {
   auto callbacks = ngtcp2_callbacks{
       nullptr, // client_initial
@@ -707,6 +708,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.initial_ts = util::timestamp();
   settings.token = token;
   settings.tokenlen = tokenlen;
+  settings.token_type = token_type;
   settings.cc_algo = config.cc_algo;
   settings.initial_rtt = config.initial_rtt;
   settings.max_window = config.max_window;
@@ -1811,6 +1813,7 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
 
     ngtcp2_cid ocid;
     ngtcp2_cid *pocid = nullptr;
+    ngtcp2_token_type token_type = NGTCP2_TOKEN_TYPE_UNKNOWN;
 
     assert(hd.type == NGTCP2_PKT_INITIAL);
 
@@ -1834,6 +1837,9 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
           return;
         }
         pocid = &ocid;
+
+        token_type = NGTCP2_TOKEN_TYPE_RETRY;
+
         break;
       case NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR:
         if (verify_token(&hd, sa, salen) != 0) {
@@ -1844,6 +1850,8 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
 
           hd.token = nullptr;
           hd.tokenlen = 0;
+        } else {
+          token_type = NGTCP2_TOKEN_TYPE_NEW_TOKEN;
         }
         break;
       default:
@@ -1863,7 +1871,7 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
 
     auto h = std::make_unique<Handler>(loop_, this);
     if (h->init(ep, local_addr, sa, salen, &hd.scid, &hd.dcid, pocid, hd.token,
-                hd.tokenlen, hd.version, tls_ctx_) != 0) {
+                hd.tokenlen, token_type, hd.version, tls_ctx_) != 0) {
       return;
     }
 
