@@ -1746,8 +1746,8 @@ int Server::on_read(Endpoint &ep) {
                   << " remote=" << util::straddr(&su.sa, msg.msg_namelen)
                   << " if="
                   << if_indextoname(local_addr->ifindex, ifname.data())
-                  << " ecn=0x" << std::hex << pi.ecn << std::dec << " "
-                  << datalen << " bytes" << std::endl;
+                  << " ecn=0x" << std::hex << static_cast<uint32_t>(pi.ecn)
+                  << std::dec << " " << datalen << " bytes" << std::endl;
       }
 
       if (debug::packet_lost(config.rx_loss_prob)) {
