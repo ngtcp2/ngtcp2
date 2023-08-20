@@ -8235,6 +8235,23 @@ static int conn_recv_stream_data_blocked(ngtcp2_conn *conn,
 }
 
 /*
+ * conn_recv_data_blocked processes the incoming DATA_BLOCKED.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_FLOW_CONTROL
+ *     It violates connection-level flow control limit.
+ */
+static int conn_recv_data_blocked(ngtcp2_conn *conn, ngtcp2_data_blocked *fr) {
+  if (conn->rx.max_offset < fr->offset) {
+    return NGTCP2_ERR_FLOW_CONTROL;
+  }
+
+  return 0;
+}
+
+/*
  * conn_select_preferred_addr asks a client application to select a
  * server address from preferred addresses received from server.  If a
  * client chooses the address, path validation will start.
@@ -9442,7 +9459,10 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_DATA_BLOCKED:
-      /* TODO Not implemented yet */
+      rv = conn_recv_data_blocked(conn, &fr->data_blocked);
+      if (rv != 0) {
+        return rv;
+      }
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_DATAGRAM:
