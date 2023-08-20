@@ -10574,6 +10574,7 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   server_default_settings(&settings);
   settings.token = null_data;
   settings.tokenlen = 117;
+  settings.token_type = NGTCP2_TOKEN_TYPE_NEW_TOKEN;
   server_default_transport_params(&params);
   params.grease_quic_bit = 1;
   setup_handshake_server_settings(&conn, &null_path.path, &settings, &params);
@@ -10599,7 +10600,34 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   server_default_settings(&settings);
   settings.token = null_data;
   settings.tokenlen = 117;
+  settings.token_type = NGTCP2_TOKEN_TYPE_NEW_TOKEN;
   server_default_transport_params(&params);
+  setup_handshake_server_settings(&conn, &null_path.path, &settings, &params);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_initial_pkt_flags(
+      buf, sizeof(buf), NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR, &rcid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, NGTCP2_PROTO_VER_V1, null_data,
+      117, &fr, 1, &null_ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Server enables grease_quic_bit, and receives an Initial packet
+     with a token from Retry packet. */
+  server_default_settings(&settings);
+  settings.token = null_data;
+  settings.tokenlen = 117;
+  settings.token_type = NGTCP2_TOKEN_TYPE_RETRY;
+  server_default_transport_params(&params);
+  params.grease_quic_bit = 1;
   setup_handshake_server_settings(&conn, &null_path.path, &settings, &params);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
