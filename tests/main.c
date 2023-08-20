@@ -215,6 +215,8 @@ int main(void) {
                    test_ngtcp2_conn_recv_stop_sending) ||
       !CU_add_test(pSuite, "conn_recv_stream_data_blocked",
                    test_ngtcp2_conn_recv_stream_data_blocked) ||
+      !CU_add_test(pSuite, "conn_recv_data_blocked",
+                   test_ngtcp2_conn_recv_data_blocked) ||
       !CU_add_test(pSuite, "conn_recv_conn_id_omitted",
                    test_ngtcp2_conn_recv_conn_id_omitted) ||
       !CU_add_test(pSuite, "conn_short_pkt_type",

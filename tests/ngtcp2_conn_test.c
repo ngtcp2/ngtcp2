@@ -2991,6 +2991,43 @@ void test_ngtcp2_conn_short_pkt_type(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_recv_data_blocked(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  uint8_t buf[2048];
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_tstamp t = 0;
+  int64_t pkt_num = 0;
+
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_DATA_BLOCKED;
+  fr.data_blocked.offset = 128 * 1024;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Frame violates flow control limit. */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_DATA_BLOCKED;
+  fr.data_blocked.offset = 128 * 1024 + 1;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_conn_recv_stateless_reset(void) {
   ngtcp2_conn *conn;
   uint8_t buf[256];
