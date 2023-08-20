@@ -1043,9 +1043,6 @@ conn_set_local_transport_params(ngtcp2_conn *conn,
 
   *p = *params;
 
-  /* grease_quic_bit is always enabled. */
-  p->grease_quic_bit = 1;
-
   if (conn->server) {
     p->version_info.chosen_version = chosen_version;
   } else {
@@ -6143,6 +6140,47 @@ static int vneg_available_versions_includes(const uint8_t *available_versions,
   return 0;
 }
 
+/*
+ * conn_verify_fixed_bit verifies that fixed bit in |hd| is
+ * acceptable.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Clearing fixed bit is not permitted.
+ */
+static int conn_verify_fixed_bit(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd) {
+  if (!(hd->flags & NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR)) {
+    return 0;
+  }
+
+  if (conn->server) {
+    switch (hd->type) {
+    case NGTCP2_PKT_INITIAL:
+    case NGTCP2_PKT_0RTT:
+    case NGTCP2_PKT_HANDSHAKE:
+      /* TODO we cannot determine whether a token comes from NEW_TOKEN
+         frame or Retry packet.  RFC 9287 requires that a token from
+         NEW_TOKEN. */
+      if (!(conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) &&
+          !conn->local.settings.tokenlen) {
+        return NGTCP2_ERR_INVALID_ARGUMENT;
+      }
+
+      break;
+    }
+  }
+
+  /* TODO we have no information that we enabled grease_quic_bit in
+     the previous connection. */
+  if (!conn->local.transport_params.grease_quic_bit) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  return 0;
+}
+
 static int conn_recv_crypto(ngtcp2_conn *conn,
                             ngtcp2_encryption_level encryption_level,
                             ngtcp2_strm *strm, const ngtcp2_crypto *fr);
@@ -6291,6 +6329,10 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
+    if (conn_verify_fixed_bit(conn, &hd) != 0) {
+      return NGTCP2_ERR_DISCARD_PKT;
+    }
+
     /* Receiving Retry packet after getting Initial packet from server
        is invalid. */
     if (conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) {
@@ -6329,6 +6371,10 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   } else if (hd.version != conn->client_chosen_version &&
              conn->negotiated_version &&
              hd.version != conn->negotiated_version) {
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
+
+  if (conn_verify_fixed_bit(conn, &hd) != 0) {
     return NGTCP2_ERR_DISCARD_PKT;
   }
 
@@ -9041,6 +9087,10 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
+    if (conn_verify_fixed_bit(conn, &hd) != 0) {
+      return NGTCP2_ERR_DISCARD_PKT;
+    }
+
     pktlen = (size_t)nread + hd.len;
 
     /* Quoted from spec: if subsequent packets of those types include
@@ -9104,6 +9154,10 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     if (nread < 0) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "could not decode short header");
+      return NGTCP2_ERR_DISCARD_PKT;
+    }
+
+    if (conn_verify_fixed_bit(conn, &hd) != 0) {
       return NGTCP2_ERR_DISCARD_PKT;
     }
 

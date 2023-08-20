@@ -792,6 +792,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   params.initial_max_streams_uni = config.max_streams_uni;
   params.max_idle_timeout = config.timeout;
   params.active_connection_id_limit = 7;
+  params.grease_quic_bit = 1;
 
   auto path = ngtcp2_path{
       {

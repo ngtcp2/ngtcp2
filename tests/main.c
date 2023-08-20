@@ -321,6 +321,8 @@ int main(void) {
                    test_ngtcp2_conn_encode_0rtt_transport_params) ||
       !CU_add_test(pSuite, "conn_create_ack_frame",
                    test_ngtcp2_conn_create_ack_frame) ||
+      !CU_add_test(pSuite, "conn_grease_quic_bit",
+                   test_ngtcp2_conn_grease_quic_bit) ||
       !CU_add_test(pSuite, "conn_new_failmalloc",
                    test_ngtcp2_conn_new_failmalloc) ||
       !CU_add_test(pSuite, "accept", test_ngtcp2_accept) ||

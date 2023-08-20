@@ -867,29 +867,38 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   setup_default_client_settings(pconn, &null_path.path, &settings, &params);
 }
 
-static void setup_handshake_server(ngtcp2_conn **pconn) {
+static void
+setup_handshake_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
+                                const ngtcp2_settings *settings,
+                                const ngtcp2_transport_params *params) {
   ngtcp2_callbacks cb;
-  ngtcp2_settings settings;
-  ngtcp2_transport_params params;
   ngtcp2_cid dcid, scid;
-  uint32_t preferred_versions[] = {
-      NGTCP2_PROTO_VER_V2,
-      NGTCP2_PROTO_VER_V1,
-  };
 
   dcid_init(&dcid);
   scid_init(&scid);
 
   server_default_callbacks(&cb);
+
+  ngtcp2_conn_server_new(pconn, &dcid, &scid, path, NGTCP2_PROTO_VER_V1, &cb,
+                         settings, params,
+                         /* mem = */ NULL, NULL);
+}
+
+static void setup_handshake_server(ngtcp2_conn **pconn) {
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+  uint32_t preferred_versions[] = {
+      NGTCP2_PROTO_VER_V2,
+      NGTCP2_PROTO_VER_V1,
+  };
+
   server_default_settings(&settings);
   server_default_transport_params(&params);
 
   settings.preferred_versions = preferred_versions;
   settings.preferred_versionslen = ngtcp2_arraylen(preferred_versions);
 
-  ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
-                         /* mem = */ NULL, NULL);
+  setup_handshake_server_settings(pconn, &null_path.path, &settings, &params);
 }
 
 static void setup_handshake_client_version(ngtcp2_conn **pconn,
@@ -10449,6 +10458,163 @@ void test_ngtcp2_conn_create_ack_frame(void) {
 
   CU_ASSERT(0 == ar.gap);
   CU_ASSERT(0 == ar.len);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_grease_quic_bit(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  uint8_t buf[2048];
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_tstamp t = 0;
+  int64_t pkt_num = 0;
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+  ngtcp2_cid rcid;
+
+  rcid_init(&rcid);
+
+  /* Client disables grease_quic_bit, and receives a 1-RTT packet that
+     has fixed bit not set. */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_pkt_flags(buf, sizeof(buf), NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
+                           &conn->oscid, ++pkt_num, &fr, 1,
+                           conn->pktns.crypto.tx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_acktr_empty(&conn->pktns.acktr));
+
+  ngtcp2_conn_del(conn);
+
+  /* Client enables grease_quic_bit, and receives a 1-RTT packet that
+     has fixed bit not set. */
+  client_default_settings(&settings);
+  client_default_transport_params(&params);
+  params.grease_quic_bit = 1;
+  setup_default_client_settings(&conn, &null_path.path, &settings, &params);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_pkt_flags(buf, sizeof(buf), NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
+                           &conn->oscid, ++pkt_num, &fr, 1,
+                           conn->pktns.crypto.tx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(!ngtcp2_acktr_empty(&conn->pktns.acktr));
+
+  ngtcp2_conn_del(conn);
+
+  /* Server disables grease_quic_bit, and receives a 1-RTT packet that
+     has fixed bit not set. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_pkt_flags(buf, sizeof(buf), NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
+                           &conn->oscid, ++pkt_num, &fr, 1,
+                           conn->pktns.crypto.tx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_acktr_empty(&conn->pktns.acktr));
+
+  ngtcp2_conn_del(conn);
+
+  /* Server enables grease_quic_bit, and receives a 1-RTT packet that
+     has fixed bit not set. */
+  server_default_settings(&settings);
+  server_default_transport_params(&params);
+  params.grease_quic_bit = 1;
+  setup_default_server_settings(&conn, &null_path.path, &settings, &params);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_pkt_flags(buf, sizeof(buf), NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
+                           &conn->oscid, ++pkt_num, &fr, 1,
+                           conn->pktns.crypto.tx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(!ngtcp2_acktr_empty(&conn->pktns.acktr));
+
+  ngtcp2_conn_del(conn);
+
+  /* Server enables grease_quic_bit, and receives an Initial packet
+     that has no token. */
+  server_default_settings(&settings);
+  server_default_transport_params(&params);
+  params.grease_quic_bit = 1;
+  setup_handshake_server_settings(&conn, &null_path.path, &settings, &params);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen =
+      write_initial_pkt_flags(buf, sizeof(buf), NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
+                              &rcid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
+                              NGTCP2_PROTO_VER_V1, NULL, 0, &fr, 1, &null_ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Server enables grease_quic_bit, and receives an Initial packet
+     with a token. */
+  server_default_settings(&settings);
+  settings.token = null_data;
+  settings.tokenlen = 117;
+  server_default_transport_params(&params);
+  params.grease_quic_bit = 1;
+  setup_handshake_server_settings(&conn, &null_path.path, &settings, &params);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_initial_pkt_flags(
+      buf, sizeof(buf), NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR, &rcid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, NGTCP2_PROTO_VER_V1, null_data,
+      117, &fr, 1, &null_ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Server disables grease_quic_bit, and receives an Initial packet
+     with a token. */
+  server_default_settings(&settings);
+  settings.token = null_data;
+  settings.tokenlen = 117;
+  server_default_transport_params(&params);
+  setup_handshake_server_settings(&conn, &null_path.path, &settings, &params);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_initial_pkt_flags(
+      buf, sizeof(buf), NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR, &rcid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, NGTCP2_PROTO_VER_V1, null_data,
+      117, &fr, 1, &null_ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
 
   ngtcp2_conn_del(conn);
 }

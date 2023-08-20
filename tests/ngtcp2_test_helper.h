@@ -99,9 +99,20 @@ size_t write_pkt(uint8_t *out, size_t outlen, const ngtcp2_cid *dcid,
                  ngtcp2_crypto_km *ckm);
 
 /*
- * write_handshake_pkt writes a QUIC Initial packet containing |frlen|
- * frames pointed by |fr| into |out| whose capacity is |outlen|.  This
- * function returns the number of bytes written.
+ * write_initial_pkt_flags writes a QUIC Initial packet containing
+ * |frlen| frames pointed by |fr| into |out| whose capacity is
+ * |outlen|.  This function returns the number of bytes written.
+ */
+size_t write_initial_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
+                               const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
+                               int64_t pkt_num, uint32_t version,
+                               const uint8_t *token, size_t tokenlen,
+                               ngtcp2_frame *fr, size_t frlen,
+                               ngtcp2_crypto_km *ckm);
+
+/*
+ * write_initial_pkt is write_initial_pkt_flags with flag =
+ * NGTCP2_PKT_FLAG_NONE.
  */
 size_t write_initial_pkt(uint8_t *out, size_t outlen, const ngtcp2_cid *dcid,
                          const ngtcp2_cid *scid, int64_t pkt_num,
