@@ -442,6 +442,9 @@ struct ngtcp2_conn {
     /* max_offset is the maximum offset that local endpoint can
        send. */
     uint64_t max_offset;
+    /* last_blocked_offset is the largest offset where the
+       transmission of stream data is blocked. */
+    uint64_t last_blocked_offset;
     /* last_max_data_ts is the timestamp when last MAX_DATA frame is
        sent. */
     ngtcp2_tstamp last_max_data_ts;

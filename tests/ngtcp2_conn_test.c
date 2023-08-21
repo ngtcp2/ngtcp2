@@ -10860,6 +10860,94 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_send_data_blocked(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  int64_t stream_id;
+  uint8_t buf[2048];
+  ngtcp2_ssize spktlen;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_frame_chain *frc;
+
+  /* Stream is blocked before writing any data. */
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  conn->tx.offset = conn->tx.max_offset;
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                     null_data, 111, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
+
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  CU_ASSERT(NGTCP2_FRAME_DATA_BLOCKED == frc->fr.type);
+  CU_ASSERT(conn->tx.max_offset == frc->fr.data_blocked.offset);
+  CU_ASSERT(conn->tx.max_offset == conn->tx.last_blocked_offset);
+  CU_ASSERT(NULL == frc->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* Stream is blocked after writing some data. */
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  conn->tx.offset = conn->tx.max_offset - 839;
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                     null_data, 840, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
+
+  spktlen =
+      ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                               NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, t);
+
+  CU_ASSERT(spktlen > 0);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
+
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  CU_ASSERT(NGTCP2_FRAME_STREAM == frc->fr.type);
+
+  frc = frc->next;
+
+  CU_ASSERT(NGTCP2_FRAME_DATA_BLOCKED == frc->fr.type);
+  CU_ASSERT(conn->tx.max_offset == frc->fr.data_blocked.offset);
+  CU_ASSERT(conn->tx.max_offset == conn->tx.last_blocked_offset);
+  CU_ASSERT(NULL == frc->next);
+
+  ngtcp2_conn_del(conn);
+}
+
 typedef struct failmalloc {
   size_t nmalloc;
   size_t fail_start;

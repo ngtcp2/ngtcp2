@@ -1366,6 +1366,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->crypto.key_update.confirmed_ts = UINT64_MAX;
   (*pconn)->tx.last_max_data_ts = UINT64_MAX;
   (*pconn)->tx.pacing.next_ts = UINT64_MAX;
+  (*pconn)->tx.last_blocked_offset = UINT64_MAX;
   (*pconn)->early.discard_started_ts = UINT64_MAX;
 
   conn_reset_ecn_validation_state(*pconn);
@@ -3464,6 +3465,15 @@ static int strm_should_send_stream_data_blocked(ngtcp2_strm *strm) {
 }
 
 /*
+ * conn_should_send_data_blocked returns nonzero if DATA_BLOCKED frame
+ * should be sent.
+ */
+static int conn_should_send_data_blocked(ngtcp2_conn *conn) {
+  return conn->tx.offset == conn->tx.max_offset &&
+         conn->tx.last_blocked_offset != conn->tx.max_offset;
+}
+
+/*
  * conn_write_pkt writes a protected packet in the buffer pointed by
  * |dest| whose length if |destlen|.  |type| specifies the type of
  * packet.  It can be NGTCP2_PKT_1RTT or NGTCP2_PKT_0RTT.
@@ -3645,6 +3655,20 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           nfrc->fr.max_data.max_data;
     }
 
+    if (stream_blocked && conn_should_send_max_data(conn)) {
+      rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
+      if (rv != 0) {
+        return rv;
+      }
+
+      nfrc->fr.type = NGTCP2_FRAME_DATA_BLOCKED;
+      nfrc->fr.data_blocked.offset = conn->tx.max_offset;
+      nfrc->next = pktns->tx.frq;
+      pktns->tx.frq = nfrc;
+
+      conn->tx.last_blocked_offset = conn->tx.max_offset;
+    }
+
     if (stream_blocked && !ngtcp2_strm_is_tx_queued(vmsg->stream.strm) &&
         strm_should_send_stream_data_blocked(vmsg->stream.strm)) {
       assert(vmsg);
@@ -3800,6 +3824,14 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
             conn, (*pfrc)->fr.stream_data_blocked.stream_id);
         if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) ||
             (*pfrc)->fr.stream_data_blocked.offset != strm->tx.max_offset) {
+          frc = *pfrc;
+          *pfrc = (*pfrc)->next;
+          ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
+          continue;
+        }
+        break;
+      case NGTCP2_FRAME_DATA_BLOCKED:
+        if ((*pfrc)->fr.data_blocked.offset != conn->tx.max_offset) {
           frc = *pfrc;
           *pfrc = (*pfrc)->next;
           ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
@@ -4177,6 +4209,36 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       ((stream_blocked && *pfrc == NULL) ||
        (send_stream &&
         !(vmsg->stream.strm->flags & NGTCP2_STRM_FLAG_SHUT_WR)))) {
+    if (conn_should_send_data_blocked(conn)) {
+      rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+
+        return rv;
+      }
+
+      nfrc->fr.type = NGTCP2_FRAME_DATA_BLOCKED;
+      nfrc->fr.data_blocked.offset = conn->tx.offset;
+
+      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
+      if (rv != 0) {
+        assert(NGTCP2_ERR_NOBUF == rv);
+
+        /* We cannot add nfrc to pktns->tx.frq here. */
+        ngtcp2_frame_chain_objalloc_del(nfrc, &conn->frc_objalloc, conn->mem);
+      } else {
+        *pfrc = nfrc;
+        pfrc = &(*pfrc)->next;
+
+        pkt_empty = 0;
+        rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                           NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
+                           NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
+
+        conn->tx.last_blocked_offset = conn->tx.max_offset;
+      }
+    }
+
     strm = vmsg->stream.strm;
 
     if (strm_should_send_stream_data_blocked(strm)) {
@@ -13066,6 +13128,7 @@ static void conn_discard_early_data_state(ngtcp2_conn *conn) {
   ngtcp2_map_clear(&conn->strms);
 
   conn->tx.offset = 0;
+  conn->tx.last_blocked_offset = UINT64_MAX;
 
   conn->rx.unsent_max_offset = conn->rx.max_offset =
       conn->local.transport_params.initial_max_data;
