@@ -325,6 +325,8 @@ int main(void) {
                    test_ngtcp2_conn_grease_quic_bit) ||
       !CU_add_test(pSuite, "conn_send_stream_data_blocked",
                    test_ngtcp2_conn_send_stream_data_blocked) ||
+      !CU_add_test(pSuite, "conn_send_data_blocked",
+                   test_ngtcp2_conn_send_data_blocked) ||
       !CU_add_test(pSuite, "conn_new_failmalloc",
                    test_ngtcp2_conn_new_failmalloc) ||
       !CU_add_test(pSuite, "accept", test_ngtcp2_accept) ||
