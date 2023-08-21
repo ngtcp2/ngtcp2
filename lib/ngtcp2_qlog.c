@@ -515,31 +515,31 @@ static uint8_t *write_max_streams_frame(uint8_t *p,
 
 static uint8_t *write_data_blocked_frame(uint8_t *p,
                                          const ngtcp2_data_blocked *fr) {
-  (void)fr;
-
   /*
-   * {"frame_type":"data_blocked"}
+   * {"frame_type":"data_blocked","limit":0000000000000000000}
    */
-#define NGTCP2_QLOG_DATA_BLOCKED_FRAME_OVERHEAD 29
+#define NGTCP2_QLOG_DATA_BLOCKED_FRAME_OVERHEAD 57
 
-  /* TODO log limit */
+  p = write_verbatim(p, "{\"frame_type\":\"data_blocked\",");
+  p = write_pair_number(p, "limit", fr->offset);
+  *p++ = '}';
 
-  return write_verbatim(p, "{\"frame_type\":\"data_blocked\"}");
+  return p;
 }
 
 static uint8_t *
 write_stream_data_blocked_frame(uint8_t *p,
                                 const ngtcp2_stream_data_blocked *fr) {
-  (void)fr;
-
   /*
-   * {"frame_type":"stream_data_blocked"}
+   * {"frame_type":"stream_data_blocked","limit":0000000000000000000}
    */
-#define NGTCP2_QLOG_STREAM_DATA_BLOCKED_FRAME_OVERHEAD 36
+#define NGTCP2_QLOG_STREAM_DATA_BLOCKED_FRAME_OVERHEAD 64
 
-  /* TODO log limit */
+  p = write_verbatim(p, "{\"frame_type\":\"stream_data_blocked\",");
+  p = write_pair_number(p, "limit", fr->offset);
+  *p++ = '}';
 
-  return write_verbatim(p, "{\"frame_type\":\"stream_data_blocked\"}");
+  return p;
 }
 
 static uint8_t *write_streams_blocked_frame(uint8_t *p,
