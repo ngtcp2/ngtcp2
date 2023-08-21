@@ -108,6 +108,9 @@ struct ngtcp2_strm {
         /* max_tx_offset is the maximum offset that local endpoint can
            send for this stream. */
         uint64_t max_offset;
+        /* last_blocked_offset is the largest offset where the
+           transmission of stream data is blocked. */
+        uint64_t last_blocked_offset;
         /* last_max_stream_data_ts is the timestamp when last
            MAX_STREAM_DATA frame is sent. */
         ngtcp2_tstamp last_max_stream_data_ts;

@@ -46,6 +46,7 @@ void ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
   strm->tx.streamfrq = NULL;
   strm->tx.offset = 0;
   strm->tx.max_offset = max_tx_offset;
+  strm->tx.last_blocked_offset = UINT64_MAX;
   strm->tx.last_max_stream_data_ts = UINT64_MAX;
   strm->tx.loss_count = 0;
   strm->tx.last_lost_pkt_num = -1;
