@@ -4002,6 +4002,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
               strm->rx.unsent_max_offset + delta;
           ngtcp2_list_insert(nfrc, pfrc);
 
+          strm->rx.max_offset = strm->rx.unsent_max_offset =
+              nfrc->fr.max_stream_data.max_stream_data;
+
           rv =
               conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
           if (rv != 0) {
@@ -4014,8 +4017,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                              NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                              NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
           pfrc = &(*pfrc)->next;
-          strm->rx.max_offset = strm->rx.unsent_max_offset =
-              nfrc->fr.max_stream_data.max_stream_data;
         }
 
         if (ngtcp2_strm_streamfrq_empty(strm)) {
