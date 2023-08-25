@@ -12169,7 +12169,7 @@ ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
       || (uint64_t)datalen > SIZE_MAX
 #endif /* UINT64_MAX > SIZE_MAX */
   ) {
-    return NGTCP2_ERR_INVALID_STATE;
+    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   if (conn->remote.transport_params->max_datagram_frame_size <
