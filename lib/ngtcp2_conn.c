@@ -3720,8 +3720,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
           pkt_empty = 0;
           rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
-          require_padding =
-              !conn->server || destlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE;
+          require_padding = require_padding || !conn->server ||
+                            destlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE;
           /* We don't retransmit PATH_RESPONSE. */
         }
       }
