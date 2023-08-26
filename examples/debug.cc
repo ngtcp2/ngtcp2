@@ -24,9 +24,12 @@
  */
 #include "debug.h"
 
+#include <unistd.h>
+
 #include <cassert>
 #include <random>
 #include <iostream>
+#include <array>
 
 #include "util.h"
 
@@ -179,12 +182,20 @@ void print_hp_mask(const uint8_t *mask, size_t masklen, const uint8_t *sample,
 
 void log_printf(void *user_data, const char *fmt, ...) {
   va_list ap;
+  std::array<char, 4096> buf;
 
   va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
+  auto n = vsnprintf(buf.data(), buf.size(), fmt, ap);
   va_end(ap);
 
-  fprintf(stderr, "\n");
+  if (static_cast<size_t>(n) >= buf.size()) {
+    n = buf.size() - 1;
+  }
+
+  buf[n++] = '\n';
+
+  while (write(fileno(stderr), buf.data(), n) == -1 && errno == EINTR)
+    ;
 }
 
 void path_validation(const ngtcp2_path *path,
