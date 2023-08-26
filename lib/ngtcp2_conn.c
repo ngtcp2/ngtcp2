@@ -4408,8 +4408,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       /* Making full sized packet will help GSO a bit */
       ngtcp2_ppe_left(ppe) < 10) {
     lfr.padding.len = ngtcp2_ppe_padding(ppe);
-  } else {
+  } else if (type == NGTCP2_PKT_1RTT) {
     lfr.padding.len = ngtcp2_ppe_padding_size(ppe, min_pktlen);
+  } else {
+    lfr.padding.len = ngtcp2_ppe_padding_hp_sample(ppe);
   }
 
   if (lfr.padding.len) {
