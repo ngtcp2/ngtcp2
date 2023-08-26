@@ -39,6 +39,7 @@
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_addr.h"
 #include "ngtcp2_net.h"
+#include "ngtcp2_tstamp.h"
 
 static void qlog_write(void *user_data, uint32_t flags, const void *data,
                        size_t datalen) {
@@ -966,17 +967,17 @@ static void setup_early_server(ngtcp2_conn **pconn) {
                          /* mem = */ NULL, NULL);
 }
 
-static void setup_early_client(ngtcp2_conn **pconn) {
+static void setup_early_client_scid(ngtcp2_conn **pconn,
+                                    const ngtcp2_cid *scid) {
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
-  ngtcp2_cid rcid, scid;
+  ngtcp2_cid rcid;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
 
   rcid_init(&rcid);
-  scid_init(&scid);
 
   init_initial_crypto_ctx(&crypto_ctx);
 
@@ -984,7 +985,7 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   client_default_settings(&settings);
   client_default_transport_params(&params);
 
-  ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path.path,
+  ngtcp2_conn_client_new(pconn, &rcid, scid, &null_path.path,
                          NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
                          /* mem = */ NULL, NULL);
   ngtcp2_conn_set_initial_crypto_ctx(*pconn, &crypto_ctx);
@@ -1001,6 +1002,14 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   params.active_connection_id_limit = 8;
 
   ngtcp2_conn_set_0rtt_remote_transport_params(*pconn, &params);
+}
+
+static void setup_early_client(ngtcp2_conn **pconn) {
+  ngtcp2_cid scid;
+
+  scid_init(&scid);
+
+  setup_early_client_scid(pconn, &scid);
 }
 
 void test_ngtcp2_conn_stream_open_close(void) {
@@ -9052,6 +9061,11 @@ void test_ngtcp2_conn_keep_alive(void) {
   ngtcp2_pkt_info pi;
   ngtcp2_tstamp t = 0;
   int rv;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  int64_t pkt_num = 0;
+  ngtcp2_cid scid;
+  ngtcp2_tstamp last_ts;
 
   setup_default_client(&conn);
 
@@ -9080,6 +9094,75 @@ void test_ngtcp2_conn_keep_alive(void) {
 
   CU_ASSERT(0 < spktlen);
   CU_ASSERT(t == conn->keep_alive.last_ts);
+
+  ngtcp2_conn_del(conn);
+
+  /* Keep alive PING is not sent during handshake */
+  ngtcp2_cid_zero(&scid);
+
+  setup_early_client_scid(&conn, &scid);
+
+  ngtcp2_conn_set_keep_alive_timeout(conn, 10 * NGTCP2_MILLISECONDS);
+
+  conn->callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+
+  last_ts = conn->keep_alive.last_ts;
+
+  CU_ASSERT(UINT64_MAX != last_ts);
+
+  t += 10 * NGTCP2_MILLISECONDS;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(last_ts == conn->keep_alive.last_ts);
+  CU_ASSERT(10 * NGTCP2_MILLISECONDS == conn->keep_alive.timeout);
+  CU_ASSERT(ngtcp2_tstamp_elapsed(conn->keep_alive.last_ts,
+                                  conn->keep_alive.timeout, t));
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 127;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_initial_pkt(
+      buf, sizeof(buf), &conn->oscid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
+      conn->client_chosen_version, NULL, 0, &fr, 1, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  pktlen = write_handshake_pkt(buf, sizeof(buf), &conn->oscid,
+                               ngtcp2_conn_get_dcid(conn), ++pkt_num,
+                               conn->client_chosen_version, &fr, 1, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  t += 10 * NGTCP2_MILLISECONDS;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED);
+  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 == spktlen);
+
+  t += 10 * NGTCP2_MILLISECONDS;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
 
   ngtcp2_conn_del(conn);
 }

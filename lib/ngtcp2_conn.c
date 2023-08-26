@@ -2451,6 +2451,7 @@ static int conn_keep_alive_expired(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
  */
 static ngtcp2_tstamp conn_keep_alive_expiry(ngtcp2_conn *conn) {
   if ((conn->flags & NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED) ||
+      !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
       !conn_keep_alive_enabled(conn) ||
       conn->keep_alive.last_ts >= UINT64_MAX - conn->keep_alive.timeout) {
     return UINT64_MAX;
@@ -4335,7 +4336,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       return NGTCP2_ERR_STREAM_DATA_BLOCKED;
     }
 
-    keep_alive_expired = conn_keep_alive_expired(conn, ts);
+    keep_alive_expired =
+        type == NGTCP2_PKT_1RTT && conn_keep_alive_expired(conn, ts);
 
     if (conn->pktns.rtb.probe_pkt_left == 0 && !keep_alive_expired &&
         !require_padding) {
