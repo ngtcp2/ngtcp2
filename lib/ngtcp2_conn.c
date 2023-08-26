@@ -3589,8 +3589,12 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
       /* transport parameter is only valid after handshake completion
          which means we don't know how many connection ID that remote
-         peer can accept before handshake completion. */
-      if (conn->oscid.datalen && conn_is_tls_handshake_completed(conn)) {
+         peer can accept before handshake completion.  Because server
+         can use remote transport parameters sending stream data in
+         0.5 RTT, it is also allowed to use remote transport
+         parameters here.  */
+      if (conn->oscid.datalen &&
+          (conn->server || conn_is_tls_handshake_completed(conn))) {
         rv = conn_enqueue_new_connection_id(conn);
         if (rv != 0) {
           return rv;

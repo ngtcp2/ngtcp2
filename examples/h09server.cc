@@ -1889,7 +1889,7 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
       return;
     }
 
-    std::array<ngtcp2_cid, 2> scids;
+    std::array<ngtcp2_cid, 8> scids;
     auto conn = h->conn();
 
     auto num_scid = ngtcp2_conn_get_scid(conn, nullptr);
