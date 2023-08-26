@@ -715,7 +715,7 @@ static void bbr_start_probe_bw_up(ngtcp2_cc_bbr2 *bbr, ngtcp2_conn_stat *cstat,
   bbr->cycle_stamp = ts;
   bbr->state = NGTCP2_BBR2_STATE_PROBE_BW_UP;
   bbr->pacing_gain = 1.25;
-  bbr->cwnd_gain = 2;
+  bbr->cwnd_gain = 2.25;
 
   bbr_raise_inflight_hi_slope(bbr, cstat);
 }
