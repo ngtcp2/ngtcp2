@@ -10828,7 +10828,6 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
   if (early_spktlen < 0) {
     switch (early_spktlen) {
     case NGTCP2_ERR_STREAM_DATA_BLOCKED:
-      return spktlen;
     case NGTCP2_ERR_WRITE_MORE:
       conn->pkt.hs_spktlen = spktlen;
       break;
