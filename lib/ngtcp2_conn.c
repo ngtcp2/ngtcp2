@@ -13175,6 +13175,10 @@ int ngtcp2_conn_tls_early_data_rejected(ngtcp2_conn *conn) {
     return conn->callbacks.tls_early_data_rejected(conn, conn->user_data);
   }
 
+  if (conn->early.ckm) {
+    conn_discard_early_key(conn);
+  }
+
   return 0;
 }
 
