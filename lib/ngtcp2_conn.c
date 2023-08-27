@@ -10756,8 +10756,8 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
       datalen = ngtcp2_vec_len(vmsg->stream.data, vmsg->stream.datacnt);
       send_stream = conn_retry_early_payloadlen(conn) == 0;
       if (send_stream) {
-        write_datalen = ngtcp2_min(datalen, NGTCP2_MIN_COALESCED_PAYLOADLEN);
-        write_datalen += NGTCP2_STREAM_OVERHEAD;
+        write_datalen = ngtcp2_min(datalen + NGTCP2_STREAM_OVERHEAD,
+                                   NGTCP2_MIN_COALESCED_PAYLOADLEN);
 
         if (vmsg->stream.flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
           wflags |= NGTCP2_WRITE_PKT_FLAG_MORE;
