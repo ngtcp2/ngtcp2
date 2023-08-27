@@ -3510,6 +3510,50 @@ void test_ngtcp2_conn_handshake(void) {
   CU_ASSERT(spktlen >= 1200);
 
   ngtcp2_conn_del(conn);
+
+  /* Make sure padding is done in 1-RTT packet */
+  setup_handshake_server(&conn);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_initial_pkt(
+      buf, sizeof(buf), &conn->oscid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
+      conn->client_chosen_version, NULL, 0, &fr, 1, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 511);
+
+  ngtcp2_conn_install_rx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == conn->in_pktns->rtb.probe_pkt_left);
+  CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
+
+  /* Check retransmission also pads packet in 1-RTT packet */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+  CU_ASSERT(2 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_handshake_error(void) {
@@ -9109,6 +9153,7 @@ void test_ngtcp2_conn_keep_alive(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen >= 1200);
+  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
 
   last_ts = conn->keep_alive.last_ts;
 
@@ -9152,7 +9197,8 @@ void test_ngtcp2_conn_keep_alive(void) {
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED);
-  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+  /* 1-RTT packet includes PADDING frame. */
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
