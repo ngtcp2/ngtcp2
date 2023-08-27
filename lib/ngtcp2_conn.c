@@ -4337,7 +4337,16 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   if (pkt_empty) {
     assert(rv == 0 || NGTCP2_ERR_NOBUF == rv);
     if (*pfrc == NULL && rv == 0 && stream_blocked &&
+        (write_more || !require_padding) &&
         ngtcp2_conn_get_max_data_left(conn)) {
+      if (write_more) {
+        conn->pkt.pfrc = pfrc;
+        conn->pkt.pkt_empty = pkt_empty;
+        conn->pkt.rtb_entry_flags = rtb_entry_flags;
+        conn->pkt.hd_logged = hd_logged;
+        conn->flags |= NGTCP2_CONN_FLAG_PPE_PENDING;
+      }
+
       return NGTCP2_ERR_STREAM_DATA_BLOCKED;
     }
 
@@ -10745,18 +10754,9 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
     switch (vmsg->type) {
     case NGTCP2_VMSG_TYPE_STREAM:
       datalen = ngtcp2_vec_len(vmsg->stream.data, vmsg->stream.datacnt);
-      send_stream =
-          conn_retry_early_payloadlen(conn) == 0 &&
-          /* 0 length STREAM frame is allowed */
-          (datalen == 0 ||
-           (datalen > 0 &&
-            (vmsg->stream.strm->tx.max_offset - vmsg->stream.strm->tx.offset) &&
-            (conn->tx.max_offset - conn->tx.offset)));
+      send_stream = conn_retry_early_payloadlen(conn) == 0;
       if (send_stream) {
-        write_datalen =
-            conn_enforce_flow_control(conn, vmsg->stream.strm, datalen);
-        write_datalen =
-            ngtcp2_min(write_datalen, NGTCP2_MIN_COALESCED_PAYLOADLEN);
+        write_datalen = ngtcp2_min(datalen, NGTCP2_MIN_COALESCED_PAYLOADLEN);
         write_datalen += NGTCP2_STREAM_OVERHEAD;
 
         if (vmsg->stream.flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
@@ -10825,11 +10825,17 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
 
   early_spktlen = conn_write_pkt(conn, pi, dest, destlen, vmsg, NGTCP2_PKT_0RTT,
                                  wflags, ts);
-
   if (early_spktlen < 0) {
     switch (early_spktlen) {
     case NGTCP2_ERR_STREAM_DATA_BLOCKED:
-      return spktlen;
+      if (!(wflags & NGTCP2_WRITE_PKT_FLAG_MORE)) {
+        if (spktlen) {
+          return spktlen;
+        }
+
+        break;
+      }
+      /* fall through */
     case NGTCP2_ERR_WRITE_MORE:
       conn->pkt.hs_spktlen = spktlen;
       break;
@@ -12512,10 +12518,20 @@ fin:
     res += nwrite;
     return res;
   }
-  /* NGTCP2_CONN_FLAG_PPE_PENDING is set in conn_write_pkt above.
-     ppe_pending cannot be used here. */
-  if (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) {
+
+  switch (nwrite) {
+  case NGTCP2_ERR_STREAM_DATA_BLOCKED:
+    if (!(wflags & NGTCP2_WRITE_PKT_FLAG_MORE)) {
+      if (res) {
+        return res;
+      }
+
+      break;
+    }
+    /* fall through */
+  case NGTCP2_ERR_WRITE_MORE:
     conn->pkt.hs_spktlen = res;
+    break;
   }
 
   return nwrite;
