@@ -12356,8 +12356,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
         }
       }
     }
-    if (conn->state != NGTCP2_CS_POST_HANDSHAKE &&
-        conn->pktns.crypto.tx.ckm == NULL) {
+    if (conn->pktns.crypto.tx.ckm == NULL) {
       return res;
     }
     break;
