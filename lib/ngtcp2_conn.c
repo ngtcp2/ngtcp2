@@ -2770,7 +2770,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
     }
   }
 
-  if (pkt_empty) {
+  if (pkt_empty && !require_padding) {
     return 0;
   }
 
@@ -2782,6 +2782,8 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
           require_padding)) {
     lfr.type = NGTCP2_FRAME_PADDING;
     lfr.padding.len = ngtcp2_ppe_padding(&ppe);
+  } else if (pkt_empty) {
+    return 0;
   } else {
     lfr.type = NGTCP2_FRAME_PADDING;
     lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
