@@ -4716,8 +4716,8 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
-  /* ACK is not generated due to ack delay */
-  CU_ASSERT(0 == spktlen);
+  /* NEW_CONNECTION_ID frame is generated */
+  CU_ASSERT(spktlen > 0);
 
   strm = ngtcp2_conn_find_stream(conn, 4);
 
