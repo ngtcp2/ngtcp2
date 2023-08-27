@@ -10346,7 +10346,6 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
-  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
     nread = conn_read_handshake(conn, path, pi, pkt, pktlen, ts);
     if (nread < 0) {
       return (int)nread;
@@ -10364,7 +10363,6 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
     break;
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-  case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
     if (!ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                       "ignore packet from unknown path during handshake");
@@ -12237,7 +12235,6 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
-  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
     if (!conn_pacing_pkt_tx_allowed(conn, ts)) {
       assert(!ppe_pending);
 
@@ -12273,7 +12270,6 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     break;
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-  case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
     if (!conn_pacing_pkt_tx_allowed(conn, ts)) {
       assert(!ppe_pending);
 
