@@ -3383,6 +3383,7 @@ void test_ngtcp2_conn_handshake(void) {
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
+  ngtcp2_strm *strm;
 
   rcid_init(&rcid);
 
@@ -3551,6 +3552,87 @@ void test_ngtcp2_conn_handshake(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen >= 1200);
+  CU_ASSERT(2 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  ngtcp2_conn_del(conn);
+
+  /* 0-RTT packet contains PADDING even if stream data is blocked */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  strm->tx.max_offset = 0;
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1280, &nwrite,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 10, ++t);
+
+  CU_ASSERT(1280 == spktlen);
+  CU_ASSERT(-1 == nwrite);
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, 23);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1280, &nwrite,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 10, ++t);
+
+  CU_ASSERT(1280 == spktlen);
+  CU_ASSERT(-1 == nwrite);
+  CU_ASSERT(2 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  ngtcp2_conn_del(conn);
+
+  /* 0-RTT packet contains PADDING enve if stream data is blocked with
+     NGTCP2_WRITE_STREAM_FLAG_MORE */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  strm->tx.max_offset = 0;
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1280, &nwrite,
+                                     NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                     null_data, 10, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(-1 == nwrite);
+  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  spktlen =
+      ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1280, NULL,
+                               NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, ++t);
+
+  CU_ASSERT(1280 == spktlen);
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, 23);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1280, &nwrite,
+                                     NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                     null_data, 10, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(-1 == nwrite);
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  spktlen =
+      ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1280, NULL,
+                               NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, ++t);
+
+  CU_ASSERT(1280 == spktlen);
   CU_ASSERT(2 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
 
   ngtcp2_conn_del(conn);
@@ -4990,6 +5072,12 @@ void test_ngtcp2_conn_writev_stream(void) {
   ngtcp2_vec datav = {null_data, 10};
   ngtcp2_ssize datalen;
   size_t left;
+  ngtcp2_strm *strm;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  int64_t pkt_num = 0;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   /* 0 length STREAM should not be written if we supply nonzero length
      data. */
@@ -5107,6 +5195,243 @@ void test_ngtcp2_conn_writev_stream(void) {
 
   /* Make sure that packet is padded */
   CU_ASSERT(1200 == spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* 0RTT: Stream data blocked */
+  setup_early_client(&conn);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL,
+                                      0, ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  strm->tx.max_offset = 0;
+
+  /* This will send STREAM_DATA_BLOCKED */
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(-1 == datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(-1 == datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* 1RTT: Stream data blocked */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  strm->tx.max_offset = 0;
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL,
+                                      0, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  /* This will send STREAM_DATA_BLOCKED */
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(-1 == datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(-1 == datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* 1RTT: Stream data blocked with NGTCP2_WRITE_STREAM_FLAG_MORE */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  strm->tx.max_offset = 0;
+
+  /* This will send STREAM_DATA_BLOCKED */
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(-1 == datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(-1 == datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL,
+                                      0, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  ngtcp2_conn_del(conn);
+
+  /* 1RTT: Stream data blocked when attempting coalescing packet */
+  setup_handshake_server(&conn);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_initial_pkt(
+      buf, sizeof(buf), &conn->oscid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
+      conn->client_chosen_version, NULL, 0, &fr, 1, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 111);
+
+  ngtcp2_conn_install_rx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
+
+  conn->local.uni.max_streams = 1;
+  conn->tx.max_offset = 1000;
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+  CU_ASSERT(-1 == datalen);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(0 == strm->tx.last_blocked_offset);
+
+  rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == conn->in_pktns->rtb.probe_pkt_left);
+  CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+  CU_ASSERT(-1 == datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(-1 == datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* 1RTT: Stream data blocked when attempting coalescing packet with
+     NGTCP2_WRITE_STREAM_FLAG_MORE */
+  setup_handshake_server(&conn);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_initial_pkt(
+      buf, sizeof(buf), &conn->oscid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
+      conn->client_chosen_version, NULL, 0, &fr, 1, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 111);
+
+  ngtcp2_conn_install_rx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
+
+  conn->local.uni.max_streams = 1;
+  conn->tx.max_offset = 1000;
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(-1 == datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL,
+                                      0, ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+  CU_ASSERT(-1 == datalen);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(0 == strm->tx.last_blocked_offset);
+
+  rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == conn->in_pktns->rtb.probe_pkt_left);
+  CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(-1 == datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL,
+                                      0, ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+  CU_ASSERT(-1 == datalen);
 
   ngtcp2_conn_del(conn);
 }
