@@ -674,7 +674,7 @@ int ngtcp2_crypto_picotls_configure_client_session(
     ngtcp2_crypto_picotls_ctx *cptls, ngtcp2_conn *conn) {
   ptls_handshake_properties_t *hsprops = &cptls->handshake_properties;
 
-  hsprops->client.max_early_data_size = calloc(1, sizeof(uint32_t));
+  hsprops->client.max_early_data_size = calloc(1, sizeof(size_t));
   if (hsprops->client.max_early_data_size == NULL) {
     return -1;
   }
