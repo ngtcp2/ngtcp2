@@ -65,7 +65,7 @@ endif()
 
 if(ENABLE_STATIC_LIB)
   # Public static library
-  add_library(ngtcp2_crypto_wolfssl_static ${ngtcp2_crypto_wolfssl_SOURCES})
+  add_library(ngtcp2_crypto_wolfssl_static STATIC ${ngtcp2_crypto_wolfssl_SOURCES})
   set_target_properties(ngtcp2_crypto_wolfssl_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
     ARCHIVE_OUTPUT_NAME ngtcp2_crypto_wolfssl${STATIC_LIB_SUFFIX}

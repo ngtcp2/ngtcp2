@@ -46,7 +46,7 @@ endforeach()
 
 if(ENABLE_STATIC_LIB)
   # Public static library
-  add_library(ngtcp2_crypto_picotls_static ${ngtcp2_crypto_picotls_SOURCES})
+  add_library(ngtcp2_crypto_picotls_static STATIC ${ngtcp2_crypto_picotls_SOURCES})
   set_target_properties(ngtcp2_crypto_picotls_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
     ARCHIVE_OUTPUT_NAME ngtcp2_crypto_picotls${STATIC_LIB_SUFFIX}

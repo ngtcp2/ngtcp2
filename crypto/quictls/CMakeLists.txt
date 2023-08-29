@@ -65,7 +65,7 @@ endif()
 
 if(ENABLE_STATIC_LIB)
   # Public static library
-  add_library(ngtcp2_crypto_quictls_static ${ngtcp2_crypto_quictls_SOURCES})
+  add_library(ngtcp2_crypto_quictls_static STATIC ${ngtcp2_crypto_quictls_SOURCES})
   set_target_properties(ngtcp2_crypto_quictls_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
     VERSION ${CRYPTO_QUICTLS_LT_VERSION}
