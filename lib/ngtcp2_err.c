@@ -137,6 +137,7 @@ uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
   case NGTCP2_ERR_INVALID_ARGUMENT:
   case NGTCP2_ERR_NOMEM:
   case NGTCP2_ERR_CALLBACK_FAILURE:
+  case NGTCP2_ERR_HANDSHAKE_TIMEOUT:
     return NGTCP2_INTERNAL_ERROR;
   case NGTCP2_ERR_STREAM_STATE:
     return NGTCP2_STREAM_STATE_ERROR;
