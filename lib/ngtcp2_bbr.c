@@ -246,7 +246,8 @@ static void bbr_handle_recovery(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
       bbr->packet_conservation = 0;
     }
 
-    if (!in_congestion_recovery(cstat, ack->largest_acked_sent_ts)) {
+    if (ack->largest_pkt_sent_ts != UINT64_MAX &&
+        !in_congestion_recovery(cstat, ack->largest_pkt_sent_ts)) {
       bbr->in_loss_recovery = 0;
       bbr->packet_conservation = 0;
       bbr_restore_cwnd(bbr, cstat);
