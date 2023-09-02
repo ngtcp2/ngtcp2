@@ -58,7 +58,7 @@ directory require at least one of the following TLS backends:
 - `quictls
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1v+quic>`_
 - GnuTLS >= 3.7.5
-- BoringSSL (commit d95b03c315bac8c44d3ce062053d3a5817915d91)
+- BoringSSL (commit 6ca49385b168f47a50e7172d82a590b218f55e4d)
 - Picotls (commit 9a3a311b2db4ebfa91ca365a954177541f02c5b3)
 - wolfSSL >= 5.5.0
 
@@ -99,7 +99,7 @@ Build with BoringSSL
 
    $ git clone https://boringssl.googlesource.com/boringssl
    $ cd boringssl
-   $ git checkout d95b03c315bac8c44d3ce062053d3a5817915d91
+   $ git checkout 6ca49385b168f47a50e7172d82a590b218f55e4d
    $ mkdir build
    $ cd build
    $ cmake ..
