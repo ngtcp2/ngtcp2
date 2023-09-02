@@ -107,10 +107,10 @@ typedef struct ngtcp2_cc_ack {
    */
   uint64_t pkt_delivered;
   /**
-   * :member:`largest_acked_sent_ts` is the time when the largest
-   * acknowledged packet was sent.
+   * :member:`largest_pkt_sent_ts` is the time when the largest
+   * acknowledged packet was sent.  It is UINT64_MAX if it is unknown.
    */
-  ngtcp2_tstamp largest_acked_sent_ts;
+  ngtcp2_tstamp largest_pkt_sent_ts;
   /**
    * :member:`rtt` is the RTT sample.  It is UINT64_MAX if no RTT
    * sample is available.
