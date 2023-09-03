@@ -2615,9 +2615,7 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
       associate_cid(&scids[i], h.get());
     }
 
-    handlers_.emplace(dcid_key, h.get());
-
-    h.release();
+    handlers_.emplace(dcid_key, h.release());
 
     return;
   }
