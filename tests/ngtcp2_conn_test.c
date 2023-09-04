@@ -11200,12 +11200,14 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
                                      null_data, 897, ++t);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
 
   spktlen =
       ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                                NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, t);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
   CU_ASSERT(ngtcp2_pq_empty(&conn->tx.strmq));
 
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
@@ -11243,18 +11245,21 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
                                      null_data, 418, ++t);
 
   CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
 
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
                                      null_data, 1, t);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
 
   spktlen =
       ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                                NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, t);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
   CU_ASSERT(ngtcp2_pq_empty(&conn->tx.strmq));
 
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
@@ -11295,12 +11300,14 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
                                      null_data, 418, ++t);
 
   CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
 
   spktlen =
       ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                                NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, t);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
   CU_ASSERT(ngtcp2_pq_empty(&conn->tx.strmq));
 
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
@@ -11347,18 +11354,21 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
                                      null_data, 317, ++t);
 
   CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
 
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
                                      null_data, 1, t);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
 
   spktlen =
       ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
                                NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, t);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
   CU_ASSERT(ngtcp2_pq_empty(&conn->tx.strmq));
 
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
@@ -11403,6 +11413,7 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
                                      null_data, 1200, ++t);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
   CU_ASSERT(1 == ngtcp2_pq_size(&conn->tx.strmq));
 
   strm = ngtcp2_struct_of(ngtcp2_pq_top(&conn->tx.strmq), ngtcp2_strm, pe);
@@ -11415,6 +11426,7 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
                                      null_data, 1, t);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
   CU_ASSERT(ngtcp2_pq_empty(&conn->tx.strmq));
   CU_ASSERT(strm->tx.max_offset == strm->tx.last_blocked_offset);
 
@@ -11423,6 +11435,7 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
                                NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, t);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
 
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
 
@@ -11436,6 +11449,50 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
   CU_ASSERT(strm->tx.max_offset == frc->fr.stream_data_blocked.offset);
   CU_ASSERT(strm->tx.max_offset == strm->tx.last_blocked_offset);
   CU_ASSERT(NULL == frc->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* Stream is blocked after writing some data.  Next
+     ngtcp2_conn_writev_stream will create empty packet. */
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  strm->tx.offset = strm->tx.max_offset - 417;
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                     null_data, 418, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
+
+  spktlen =
+      ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                               NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                     null_data, 1, t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+
+  spktlen =
+      ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                               NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, t);
+
+  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
 
   ngtcp2_conn_del(conn);
 }

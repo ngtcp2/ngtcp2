@@ -4355,6 +4355,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     if (conn->pktns.rtb.probe_pkt_left == 0 && !keep_alive_expired &&
         !require_padding) {
+      conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
+
       return 0;
     }
   } else if (write_more) {
