@@ -3152,7 +3152,7 @@ int parse_host_port(Address &dest, int af, const char *first,
 
 namespace {
 void print_usage() {
-  std::cerr << "Usage: server [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> "
+  std::cerr << "Usage: qtlsserver [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> "
                "<CERTIFICATE_FILE>"
             << std::endl;
 }
