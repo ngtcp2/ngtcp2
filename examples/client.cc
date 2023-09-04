@@ -2252,7 +2252,7 @@ std::ofstream keylog_file;
 
 namespace {
 void print_usage() {
-  std::cerr << "Usage: client [OPTIONS] <HOST> <PORT> [<URI>...]" << std::endl;
+  std::cerr << "Usage: qtlsclient [OPTIONS] <HOST> <PORT> [<URI>...]" << std::endl;
 }
 } // namespace
 
