@@ -3476,6 +3476,16 @@ static int conn_should_send_data_blocked(ngtcp2_conn *conn) {
 }
 
 /*
+ * conn_reset_ppe_pending clears NGTCP2_CONN_FLAG_PPE_PENDING flag and
+ * nullifies conn->pkt.
+ */
+static void conn_reset_ppe_pending(ngtcp2_conn *conn) {
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
+
+  memset(&conn->pkt, 0, sizeof(conn->pkt));
+}
+
+/*
  * conn_write_pkt writes a protected packet in the buffer pointed by
  * |dest| whose length if |destlen|.  |type| specifies the type of
  * packet.  It can be NGTCP2_PKT_1RTT or NGTCP2_PKT_0RTT.
@@ -4355,7 +4365,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     if (conn->pktns.rtb.probe_pkt_left == 0 && !keep_alive_expired &&
         !require_padding) {
-      conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
+      conn_reset_ppe_pending(conn);
 
       return 0;
     }
@@ -4501,7 +4511,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     conn_handle_tx_ecn(conn, pi, NULL, pktns, hd, ts);
   }
 
-  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
+  conn_reset_ppe_pending(conn);
 
   if (pktns->rtb.probe_pkt_left &&
       (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
@@ -10802,8 +10812,6 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
         ngtcp2_pkt_get_type_long(version, dest[0]) == NGTCP2_PKT_INITIAL) {
       wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
       conn->pkt.require_padding = 1;
-    } else {
-      conn->pkt.require_padding = 0;
     }
   } else {
     assert(!conn->pktns.crypto.rx.ckm);
@@ -12390,7 +12398,6 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
 
   if (ppe_pending) {
     res = conn->pkt.hs_spktlen;
-    conn->pkt.hs_spktlen = 0;
     if (conn->pkt.require_padding) {
       wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
     }
@@ -12510,8 +12517,6 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   }
 
 fin:
-  conn->pkt.hs_spktlen = 0;
-
   if (nwrite >= 0) {
     res += nwrite;
     return res;
