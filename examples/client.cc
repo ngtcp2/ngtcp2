@@ -40,6 +40,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/mman.h>
+#include <libgen.h>
 
 #include <http-parser/http_parser.h>
 
@@ -2251,8 +2252,13 @@ int parse_requests(char **argv, size_t argvlen) {
 std::ofstream keylog_file;
 
 namespace {
+const char *prog = "client";
+} // namespace
+
+namespace {
 void print_usage() {
-  std::cerr << "Usage: client [OPTIONS] <HOST> <PORT> [<URI>...]" << std::endl;
+  std::cerr << "Usage: " << prog << " [OPTIONS] <HOST> <PORT> [<URI>...]"
+            << std::endl;
 }
 } // namespace
 
@@ -2512,6 +2518,10 @@ int main(int argc, char **argv) {
   char *data_path = nullptr;
   const char *private_key_file = nullptr;
   const char *cert_file = nullptr;
+
+  if (argc) {
+    prog = basename(argv[0]);
+  }
 
   for (;;) {
     static int flag = 0;
