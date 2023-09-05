@@ -42,6 +42,7 @@
 #include <sys/mman.h>
 #include <netinet/udp.h>
 #include <net/if.h>
+#include <libgen.h>
 
 #include <http-parser/http_parser.h>
 
@@ -2437,8 +2438,13 @@ int parse_host_port(Address &dest, int af, const char *first,
 } // namespace
 
 namespace {
+const char *prog = "h09server";
+} // namespace
+
+namespace {
 void print_usage() {
-  std::cerr << "Usage: server [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> "
+  std::cerr << "Usage: " << prog
+            << " [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> "
                "<CERTIFICATE_FILE>"
             << std::endl;
 }
@@ -2659,6 +2665,10 @@ std::ofstream keylog_file;
 
 int main(int argc, char **argv) {
   config_set_default(config);
+
+  if (argc) {
+    prog = basename(argv[0]);
+  }
 
   for (;;) {
     static int flag = 0;
