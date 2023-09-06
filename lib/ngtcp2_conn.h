@@ -43,7 +43,7 @@
 #include "ngtcp2_pq.h"
 #include "ngtcp2_cc.h"
 #include "ngtcp2_bbr.h"
-#include "ngtcp2_bbr2.h"
+#include "ngtcp2_bbrv2.h"
 #include "ngtcp2_pv.h"
 #include "ngtcp2_pmtud.h"
 #include "ngtcp2_cid.h"
@@ -675,7 +675,7 @@ struct ngtcp2_conn {
     ngtcp2_cc_reno reno;
     ngtcp2_cc_cubic cubic;
     ngtcp2_cc_bbr bbr;
-    ngtcp2_cc_bbr2 bbr2;
+    ngtcp2_cc_bbrv2 bbrv2;
   };
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */
