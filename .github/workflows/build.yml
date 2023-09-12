@@ -5,7 +5,7 @@ on: [push, pull_request]
 permissions: read-all
 
 env:
-  OPENSSL1_VERSION: 1_1_1v+quic
+  OPENSSL1_VERSION: 1_1_1w+quic
   OPENSSL3_VERSION: 3.1.2+quic
   BORINGSSL_VERSION: 6ca49385b168f47a50e7172d82a590b218f55e4d
   PICOTLS_VERSION: 7ec11a7a62bebaaff91e2d4c15b8966d1b58edb9
