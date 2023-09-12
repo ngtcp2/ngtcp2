@@ -192,7 +192,7 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
     return NULL;
   }
 
-  cipher_id = SSL_CIPHER_get_id(cipher);
+  cipher_id = (uint32_t)SSL_CIPHER_get_id(cipher);
 
   if (!supported_cipher_id(cipher_id)) {
     return NULL;
@@ -821,6 +821,10 @@ static SSL_QUIC_METHOD quic_method = {
     add_handshake_data,
     flush_flight,
     send_alert,
+#ifdef LIBRESSL_VERSION_NUMBER
+    NULL,
+    NULL,
+#endif /* LIBRESSL_VERSION_NUMBER */
 };
 
 static void crypto_quictls_configure_context(SSL_CTX *ssl_ctx) {
