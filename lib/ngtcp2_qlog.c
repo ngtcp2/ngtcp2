@@ -544,16 +544,22 @@ write_stream_data_blocked_frame(uint8_t *p,
 
 static uint8_t *write_streams_blocked_frame(uint8_t *p,
                                             const ngtcp2_streams_blocked *fr) {
-  (void)fr;
-
   /*
-   * {"frame_type":"streams_blocked"}
+   * {"frame_type":"streams_blocked","stream_type":"unidirectional","limit":0000000000000000000}
    */
-#define NGTCP2_QLOG_STREAMS_BLOCKED_FRAME_OVERHEAD 32
+#define NGTCP2_QLOG_STREAMS_BLOCKED_FRAME_OVERHEAD 91
 
-  /* TODO Log stream_type and limit */
+  p = write_verbatim(p, "{\"frame_type\":\"streams_blocked\",\"stream_type\":");
+  if (fr->type == NGTCP2_FRAME_STREAMS_BLOCKED_BIDI) {
+    p = write_string(p, "bidirectional");
+  } else {
+    p = write_string(p, "unidirectional");
+  }
+  *p++ = ',';
+  p = write_pair_number(p, "limit", fr->max_streams);
+  *p++ = '}';
 
-  return write_verbatim(p, "{\"frame_type\":\"streams_blocked\"}");
+  return p;
 }
 
 static uint8_t *
