@@ -531,11 +531,13 @@ static uint8_t *
 write_stream_data_blocked_frame(uint8_t *p,
                                 const ngtcp2_stream_data_blocked *fr) {
   /*
-   * {"frame_type":"stream_data_blocked","limit":0000000000000000000}
+   * {"frame_type":"stream_data_blocked","stream_id":0000000000000000000,"limit":0000000000000000000}
    */
-#define NGTCP2_QLOG_STREAM_DATA_BLOCKED_FRAME_OVERHEAD 64
+#define NGTCP2_QLOG_STREAM_DATA_BLOCKED_FRAME_OVERHEAD 96
 
   p = write_verbatim(p, "{\"frame_type\":\"stream_data_blocked\",");
+  p = write_pair_number(p, "stream_id", (uint64_t)fr->stream_id);
+  *p++ = ',';
   p = write_pair_number(p, "limit", fr->offset);
   *p++ = '}';
 
