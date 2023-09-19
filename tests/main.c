@@ -51,6 +51,7 @@
 #include "ngtcp2_str_test.h"
 #include "ngtcp2_tstamp_test.h"
 #include "ngtcp2_conversion_test.h"
+#include "ngtcp2_qlog_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -362,7 +363,8 @@ int main(void) {
       !CU_add_test(pSuite, "transport_params_convert_to_latest",
                    test_ngtcp2_transport_params_convert_to_latest) ||
       !CU_add_test(pSuite, "transport_params_convert_to_old",
-                   test_ngtcp2_transport_params_convert_to_old)) {
+                   test_ngtcp2_transport_params_convert_to_old) ||
+      !CU_add_test(pSuite, "qlog_write_frame", test_ngtcp2_qlog_write_frame)) {
     CU_cleanup_registry();
     return (int)CU_get_error();
   }
