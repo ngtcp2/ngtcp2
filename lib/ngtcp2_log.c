@@ -414,7 +414,7 @@ static void log_fr_path_response(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 }
 
 static void log_fr_crypto(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                          const ngtcp2_crypto *fr, const char *dir) {
+                          const ngtcp2_stream *fr, const char *dir) {
   log->log_printf(
       log->user_data,
       (NGTCP2_LOG_PKT " CRYPTO(0x%02x) offset=%" PRIu64 " len=%" PRIu64),
@@ -521,7 +521,7 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     log_fr_path_response(log, hd, &fr->path_response, dir);
     break;
   case NGTCP2_FRAME_CRYPTO:
-    log_fr_crypto(log, hd, &fr->crypto, dir);
+    log_fr_crypto(log, hd, &fr->stream, dir);
     break;
   case NGTCP2_FRAME_NEW_TOKEN:
     log_fr_new_token(log, hd, &fr->new_token, dir);

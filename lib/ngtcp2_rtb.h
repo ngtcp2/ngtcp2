@@ -106,10 +106,6 @@ int ngtcp2_bind_frame_chains(ngtcp2_frame_chain *a, ngtcp2_frame_chain *b,
    a ngtcp2_stream can include. */
 #define NGTCP2_MAX_STREAM_DATACNT 256
 
-/* NGTCP2_MAX_CRYPTO_DATACNT is the maximum number of ngtcp2_vec that
-   a ngtcp2_crypto can include. */
-#define NGTCP2_MAX_CRYPTO_DATACNT 8
-
 /*
  * ngtcp2_frame_chain_new allocates ngtcp2_frame_chain object and
  * assigns its pointer to |*pfrc|.
@@ -145,18 +141,6 @@ int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
  * ngtcp2_frame_chain_objalloc_new is called internally.
  */
 int ngtcp2_frame_chain_stream_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
-                                                   size_t datacnt,
-                                                   ngtcp2_objalloc *objalloc,
-                                                   const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain_crypto_datacnt_objalloc_new works like
- * ngtcp2_frame_chain_new, but it allocates enough data to store
- * additional |datacnt| - 1 ngtcp2_vec object after ngtcp2_crypto
- * object.  If no additional space is required,
- * ngtcp2_frame_chain_objalloc_new is called internally.
- */
-int ngtcp2_frame_chain_crypto_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
                                                    size_t datacnt,
                                                    ngtcp2_objalloc *objalloc,
                                                    const ngtcp2_mem *mem);

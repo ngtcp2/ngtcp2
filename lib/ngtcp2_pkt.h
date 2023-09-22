@@ -173,14 +173,20 @@ typedef enum {
   NGTCP2_FRAME_DATAGRAM_LEN = 0x31,
 } ngtcp2_frame_type;
 
+/* ngtcp2_stream represents STREAM and CRYPTO frames. */
 typedef struct ngtcp2_stream {
   uint8_t type;
   /**
    * flags of decoded STREAM frame.  This gets ignored when encoding
-   * STREAM frame.
+   * STREAM frame.  CRYPTO frame does not include this field, and must
+   * set it to 0.
    */
   uint8_t flags;
+  /* CRYPTO frame does not include this field, and must set it to
+     0. */
   uint8_t fin;
+  /* CRYPTO frame does not include this field, and must set it to
+     0. */
   int64_t stream_id;
   uint64_t offset;
   /* datacnt is the number of elements that data contains.  Although
@@ -301,17 +307,6 @@ typedef struct ngtcp2_path_response {
   uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
 } ngtcp2_path_response;
 
-typedef struct ngtcp2_crypto {
-  uint8_t type;
-  uint64_t offset;
-  /* datacnt is the number of elements that data contains.  Although
-     the length of data is 1 in this definition, the library may
-     allocate extra bytes to hold more elements. */
-  size_t datacnt;
-  /* data is the array of ngtcp2_vec which references data. */
-  ngtcp2_vec data[1];
-} ngtcp2_crypto;
-
 typedef struct ngtcp2_new_token {
   uint8_t type;
   uint8_t *token;
@@ -360,7 +355,6 @@ typedef union ngtcp2_frame {
   ngtcp2_stop_sending stop_sending;
   ngtcp2_path_challenge path_challenge;
   ngtcp2_path_response path_response;
-  ngtcp2_crypto crypto;
   ngtcp2_new_token new_token;
   ngtcp2_retire_connection_id retire_connection_id;
   ngtcp2_handshake_done handshake_done;
@@ -772,7 +766,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include CRYPTO frame.
  */
-ngtcp2_ssize ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
+ngtcp2_ssize ngtcp2_pkt_decode_crypto_frame(ngtcp2_stream *dest,
                                             const uint8_t *payload,
                                             size_t payloadlen);
 
@@ -1071,7 +1065,7 @@ ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
  *     Buffer does not have enough capacity to write a frame.
  */
 ngtcp2_ssize ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
-                                            const ngtcp2_crypto *fr);
+                                            const ngtcp2_stream *fr);
 
 /*
  * ngtcp2_pkt_encode_new_token_frame encodes NEW_TOKEN frame |fr| into
