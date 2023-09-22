@@ -96,10 +96,10 @@ struct ngtcp2_strm {
            remote endpoint acknowledges data in out-of-order.  After that,
            acked_offset is used instead. */
         uint64_t cont_acked_offset;
-        /* streamfrq contains STREAM frame for retransmission.  The flow
-           control credits have been paid when they are transmitted first
-           time.  There are no restriction regarding flow control for
-           retransmission. */
+        /* streamfrq contains STREAM or CRYPTO frame for
+           retransmission.  The flow control credits have been paid
+           when they are transmitted first time.  There are no
+           restriction regarding flow control for retransmission. */
         ngtcp2_ksl *streamfrq;
         /* offset is the next offset of outgoing data.  In other words, it
            is the number of bytes sent in this stream without

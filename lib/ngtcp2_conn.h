@@ -294,8 +294,6 @@ typedef struct ngtcp2_pktns {
 
   struct {
     struct {
-      /* frq contains crypto data sorted by their offset. */
-      ngtcp2_ksl frq;
       /* offset is the offset of crypto stream in this packet number
          space. */
       uint64_t offset;

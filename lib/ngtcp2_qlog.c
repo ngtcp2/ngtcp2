@@ -412,7 +412,7 @@ static uint8_t *write_stop_sending_frame(uint8_t *p,
   return p;
 }
 
-static uint8_t *write_crypto_frame(uint8_t *p, const ngtcp2_crypto *fr) {
+static uint8_t *write_crypto_frame(uint8_t *p, const ngtcp2_stream *fr) {
   /*
    * {"frame_type":"crypto","offset":0000000000000000000,"length":0000000000000000000}
    */
@@ -798,7 +798,7 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
     if (ngtcp2_buf_left(&qlog->buf) < NGTCP2_QLOG_CRYPTO_FRAME_OVERHEAD + 1) {
       return;
     }
-    p = write_crypto_frame(p, &fr->crypto);
+    p = write_crypto_frame(p, &fr->stream);
     break;
   case NGTCP2_FRAME_NEW_TOKEN:
     if (ngtcp2_buf_left(&qlog->buf) <

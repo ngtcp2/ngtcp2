@@ -93,23 +93,6 @@ int ngtcp2_frame_chain_stream_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
   return ngtcp2_frame_chain_objalloc_new(pfrc, objalloc);
 }
 
-int ngtcp2_frame_chain_crypto_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
-                                                   size_t datacnt,
-                                                   ngtcp2_objalloc *objalloc,
-                                                   const ngtcp2_mem *mem) {
-  size_t need, avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_crypto);
-
-  if (datacnt > 1) {
-    need = sizeof(ngtcp2_vec) * (datacnt - 1);
-
-    if (need > avail) {
-      return ngtcp2_frame_chain_extralen_new(pfrc, need - avail, mem);
-    }
-  }
-
-  return ngtcp2_frame_chain_objalloc_new(pfrc, objalloc);
-}
-
 int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
                                               const uint8_t *token,
                                               size_t tokenlen,
@@ -166,20 +149,11 @@ void ngtcp2_frame_chain_objalloc_del(ngtcp2_frame_chain *frc,
   }
 
   switch (frc->fr.type) {
+  case NGTCP2_FRAME_CRYPTO:
   case NGTCP2_FRAME_STREAM:
     if (frc->fr.stream.datacnt &&
         sizeof(ngtcp2_vec) * (frc->fr.stream.datacnt - 1) >
             sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream)) {
-      ngtcp2_frame_chain_del(frc, mem);
-
-      return;
-    }
-
-    break;
-  case NGTCP2_FRAME_CRYPTO:
-    if (frc->fr.crypto.datacnt &&
-        sizeof(ngtcp2_vec) * (frc->fr.crypto.datacnt - 1) >
-            sizeof(ngtcp2_frame) - sizeof(ngtcp2_crypto)) {
       ngtcp2_frame_chain_del(frc, mem);
 
       return;
@@ -518,28 +492,27 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
     case NGTCP2_FRAME_CRYPTO:
       /* Don't resend CRYPTO frame if the whole region it contains has
          been acknowledged */
-      gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto, fr->crypto.offset);
+      gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto, fr->stream.offset);
 
-      range.begin = fr->crypto.offset;
-      range.end = fr->crypto.offset +
-                  ngtcp2_vec_len(fr->crypto.data, fr->crypto.datacnt);
+      range.begin = fr->stream.offset;
+      range.end = fr->stream.offset +
+                  ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt);
       range = ngtcp2_range_intersect(&range, &gap);
       if (ngtcp2_range_len(&range) == 0) {
         continue;
       }
 
-      rv = ngtcp2_frame_chain_crypto_datacnt_objalloc_new(
-          &nfrc, fr->crypto.datacnt, rtb->frc_objalloc, rtb->mem);
+      rv = ngtcp2_frame_chain_stream_datacnt_objalloc_new(
+          &nfrc, fr->stream.datacnt, rtb->frc_objalloc, rtb->mem);
       if (rv != 0) {
         return rv;
       }
 
       nfrc->fr = *fr;
-      ngtcp2_vec_copy(nfrc->fr.crypto.data, fr->crypto.data,
-                      fr->crypto.datacnt);
+      ngtcp2_vec_copy(nfrc->fr.stream.data, fr->stream.data,
+                      fr->stream.datacnt);
 
-      rv = ngtcp2_ksl_insert(&pktns->crypto.tx.frq, NULL,
-                             &nfrc->fr.crypto.offset, nfrc);
+      rv = ngtcp2_strm_streamfrq_push(&pktns->crypto.strm, nfrc);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
         ngtcp2_frame_chain_objalloc_del(nfrc, rtb->frc_objalloc, rtb->mem);
@@ -826,8 +799,8 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
     case NGTCP2_FRAME_CRYPTO:
       prev_stream_offset = ngtcp2_strm_get_acked_offset(crypto);
       rv = ngtcp2_strm_ack_data(
-          crypto, frc->fr.crypto.offset,
-          ngtcp2_vec_len(frc->fr.crypto.data, frc->fr.crypto.datacnt));
+          crypto, frc->fr.stream.offset,
+          ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
       if (rv != 0) {
         return rv;
       }
@@ -1539,8 +1512,7 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
       *pfrc = frc->next;
       frc->next = NULL;
 
-      rv = ngtcp2_ksl_insert(&pktns->crypto.tx.frq, NULL,
-                             &frc->fr.crypto.offset, frc);
+      rv = ngtcp2_strm_streamfrq_push(&pktns->crypto.strm, frc);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
         ngtcp2_frame_chain_objalloc_del(frc, rtb->frc_objalloc, rtb->mem);

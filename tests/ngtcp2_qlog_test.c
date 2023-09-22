@@ -203,9 +203,9 @@ void test_ngtcp2_qlog_write_frame(void) {
     memset(&exfr, 0, sizeof(exfr));
 
     fr->type = NGTCP2_FRAME_CRYPTO;
-    fr->crypto.offset = 65000011;
-    fr->crypto.datacnt = 1;
-    fr->crypto.data[0].len = 111187;
+    fr->stream.offset = 65000011;
+    fr->stream.datacnt = 1;
+    fr->stream.data[0].len = 111187;
 
     ngtcp2_qlog_write_frame(&qlog, fr);
 

@@ -524,7 +524,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
     return ngtcp2_pkt_decode_path_response_frame(&dest->path_response, payload,
                                                  payloadlen);
   case NGTCP2_FRAME_CRYPTO:
-    return ngtcp2_pkt_decode_crypto_frame(&dest->crypto, payload, payloadlen);
+    return ngtcp2_pkt_decode_crypto_frame(&dest->stream, payload, payloadlen);
   case NGTCP2_FRAME_NEW_TOKEN:
     return ngtcp2_pkt_decode_new_token_frame(&dest->new_token, payload,
                                              payloadlen);
@@ -1252,7 +1252,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
   return (ngtcp2_ssize)len;
 }
 
-ngtcp2_ssize ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
+ngtcp2_ssize ngtcp2_pkt_decode_crypto_frame(ngtcp2_stream *dest,
                                             const uint8_t *payload,
                                             size_t payloadlen) {
   size_t len = 1 + 1 + 1;
@@ -1295,6 +1295,9 @@ ngtcp2_ssize ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
   p = payload + 1;
 
   dest->type = NGTCP2_FRAME_CRYPTO;
+  dest->flags = 0;
+  dest->fin = 0;
+  dest->stream_id = 0;
   p = ngtcp2_get_uvarint(&dest->offset, p);
   dest->data[0].len = datalen;
   p += ndatalen;
@@ -1504,7 +1507,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
     return ngtcp2_pkt_encode_path_response_frame(out, outlen,
                                                  &fr->path_response);
   case NGTCP2_FRAME_CRYPTO:
-    return ngtcp2_pkt_encode_crypto_frame(out, outlen, &fr->crypto);
+    return ngtcp2_pkt_encode_crypto_frame(out, outlen, &fr->stream);
   case NGTCP2_FRAME_NEW_TOKEN:
     return ngtcp2_pkt_encode_new_token_frame(out, outlen, &fr->new_token);
   case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
@@ -1917,7 +1920,7 @@ ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
 }
 
 ngtcp2_ssize ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
-                                            const ngtcp2_crypto *fr) {
+                                            const ngtcp2_stream *fr) {
   size_t len = 1;
   uint8_t *p;
   size_t i;
