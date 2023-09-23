@@ -47,6 +47,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
     log->scid[0] = '\0';
   }
   log->log_printf = log_printf;
+  log->events = 0xff;
   log->ts = log->last_ts = ts;
   log->user_data = user_data;
 }
@@ -543,7 +544,7 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 void ngtcp2_log_rx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_frame *fr) {
-  if (!log->log_printf) {
+  if (!log->log_printf || !(log->events & NGTCP2_LOG_EVENT_FRM)) {
     return;
   }
 
@@ -552,7 +553,7 @@ void ngtcp2_log_rx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 void ngtcp2_log_tx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_frame *fr) {
-  if (!log->log_printf) {
+  if (!log->log_printf || !(log->events & NGTCP2_LOG_EVENT_FRM)) {
     return;
   }
 
@@ -563,7 +564,7 @@ void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const uint32_t *sv, size_t nsv) {
   size_t i;
 
-  if (!log->log_printf) {
+  if (!log->log_printf || !(log->events & NGTCP2_LOG_EVENT_PKT)) {
     return;
   }
 
@@ -578,7 +579,7 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset *sr) {
   ngtcp2_pkt_hd shd;
   ngtcp2_pkt_hd *hd = &shd;
 
-  if (!log->log_printf) {
+  if (!log->log_printf || !(log->events & NGTCP2_LOG_EVENT_PKT)) {
     return;
   }
 
@@ -605,7 +606,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
   const uint8_t *p;
   uint32_t version;
 
-  if (!log->log_printf) {
+  if (!log->log_printf || !(log->events & NGTCP2_LOG_EVENT_CRY)) {
     return;
   }
 
@@ -749,7 +750,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,
                          uint8_t flags, ngtcp2_tstamp sent_ts) {
-  if (!log->log_printf) {
+  if (!log->log_printf || !(log->events & NGTCP2_LOG_EVENT_RCV)) {
     return;
   }
 
@@ -763,7 +764,7 @@ static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   uint8_t dcid[sizeof(hd->dcid.data) * 2 + 1];
   uint8_t scid[sizeof(hd->scid.data) * 2 + 1];
 
-  if (!log->log_printf) {
+  if (!log->log_printf || !(log->events & NGTCP2_LOG_EVENT_PKT)) {
     return;
   }
 
@@ -798,7 +799,7 @@ void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
   int n;
   char buf[NGTCP2_LOG_BUFLEN];
 
-  if (!log->log_printf) {
+  if (!log->log_printf || !(log->events & ev)) {
     return;
   }
 
