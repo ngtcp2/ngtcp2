@@ -951,8 +951,6 @@ static void bbr_handle_inflight_too_high(ngtcp2_cc_bbrv2 *bbr,
   bbr->bw_probe_samples = 0;
 
   if (!rs->is_app_limited) {
-    bbr->prior_inflight_hi = bbr->inflight_hi;
-
     bbr->inflight_hi = ngtcp2_max(
         rs->tx_in_flight, bbr_target_inflight(bbr, cstat) *
                               NGTCP2_BBR_BETA_NUMER / NGTCP2_BBR_BETA_DENOM);
@@ -1345,6 +1343,7 @@ static void bbr_handle_recovery(ngtcp2_cc_bbrv2 *bbr, ngtcp2_conn_stat *cstat,
     bbr->congestion_recovery_start_ts = UINT64_MAX;
     bbr->packet_conservation = 1;
     bbr->congestion_recovery_next_round_delivered = bbr->rst->delivered;
+    bbr->prior_inflight_hi = bbr->inflight_hi;
     bbr->prior_inflight_lo = bbr->inflight_lo;
     bbr->prior_bw_lo = bbr->bw_lo;
   }
