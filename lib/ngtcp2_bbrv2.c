@@ -276,7 +276,7 @@ static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
                                   ngtcp2_tstamp sent_time);
 
 static void bbr_handle_recovery(ngtcp2_cc_bbrv2 *bbr, ngtcp2_conn_stat *cstat,
-                                const ngtcp2_cc_ack *ack);
+                                const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
 
 static void bbr_on_init(ngtcp2_cc_bbrv2 *bbr, ngtcp2_conn_stat *cstat,
                         ngtcp2_tstamp initial_ts) {
@@ -575,7 +575,6 @@ static void bbr_bound_bw_for_model(ngtcp2_cc_bbrv2 *bbr) {
 static void bbr_update_max_bw(ngtcp2_cc_bbrv2 *bbr, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack) {
   bbr_update_round(bbr, ack);
-  bbr_handle_recovery(bbr, cstat, ack);
 
   if (cstat->delivery_rate_sec >= bbr->max_bw || !bbr->rst->rs.is_app_limited) {
     ngtcp2_window_filter_update(&bbr->max_bw_filter, cstat->delivery_rate_sec,
@@ -951,8 +950,6 @@ static void bbr_handle_inflight_too_high(ngtcp2_cc_bbrv2 *bbr,
   bbr->bw_probe_samples = 0;
 
   if (!rs->is_app_limited) {
-    bbr->prior_inflight_hi = bbr->inflight_hi;
-
     bbr->inflight_hi = ngtcp2_max(
         rs->tx_in_flight, bbr_target_inflight(bbr, cstat) *
                               NGTCP2_BBR_BETA_NUMER / NGTCP2_BBR_BETA_DENOM);
@@ -1318,9 +1315,9 @@ static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
 }
 
 static void bbr_handle_recovery(ngtcp2_cc_bbrv2 *bbr, ngtcp2_conn_stat *cstat,
-                                const ngtcp2_cc_ack *ack) {
+                                const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   if (bbr->in_loss_recovery) {
-    if (ack->pkt_delivered >= bbr->congestion_recovery_next_round_delivered) {
+    if (ts - cstat->congestion_recovery_start_ts >= cstat->smoothed_rtt) {
       bbr->packet_conservation = 0;
     }
 
@@ -1345,6 +1342,7 @@ static void bbr_handle_recovery(ngtcp2_cc_bbrv2 *bbr, ngtcp2_conn_stat *cstat,
     bbr->congestion_recovery_start_ts = UINT64_MAX;
     bbr->packet_conservation = 1;
     bbr->congestion_recovery_next_round_delivered = bbr->rst->delivered;
+    bbr->prior_inflight_hi = bbr->inflight_hi;
     bbr->prior_inflight_lo = bbr->inflight_lo;
     bbr->prior_bw_lo = bbr->bw_lo;
   }
@@ -1412,6 +1410,7 @@ static void bbrv2_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                  const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   ngtcp2_cc_bbrv2 *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbrv2, cc);
 
+  bbr_handle_recovery(bbr, cstat, ack, ts);
   bbr_update_on_ack(bbr, cstat, ack, ts);
 }
 
