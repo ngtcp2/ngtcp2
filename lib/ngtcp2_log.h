@@ -87,6 +87,10 @@ typedef enum ngtcp2_log_event {
    * :enum:`NGTCP2_LOG_EVENT_PTV` is a path validation event.
    */
   NGTCP2_LOG_EVENT_PTV = 0x20,
+  /**
+   * :enum:`NGTCP2_LOG_EVENT_CC` is a congestion controller event.
+   */
+  NGTCP2_LOG_EVENT_CC = 0x40,
 } ngtcp2_log_event;
 
 void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
