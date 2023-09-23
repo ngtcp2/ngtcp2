@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_BBRV2_H
-#define NGTCP2_BBRV2_H
+#ifndef NGTCP2_BBR_H
+#define NGTCP2_BBR_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -36,28 +36,28 @@
 
 typedef struct ngtcp2_rst ngtcp2_rst;
 
-typedef enum ngtcp2_bbrv2_state {
-  NGTCP2_BBRV2_STATE_STARTUP,
-  NGTCP2_BBRV2_STATE_DRAIN,
-  NGTCP2_BBRV2_STATE_PROBE_BW_DOWN,
-  NGTCP2_BBRV2_STATE_PROBE_BW_CRUISE,
-  NGTCP2_BBRV2_STATE_PROBE_BW_REFILL,
-  NGTCP2_BBRV2_STATE_PROBE_BW_UP,
-  NGTCP2_BBRV2_STATE_PROBE_RTT,
-} ngtcp2_bbrv2_state;
+typedef enum ngtcp2_bbr_state {
+  NGTCP2_BBR_STATE_STARTUP,
+  NGTCP2_BBR_STATE_DRAIN,
+  NGTCP2_BBR_STATE_PROBE_BW_DOWN,
+  NGTCP2_BBR_STATE_PROBE_BW_CRUISE,
+  NGTCP2_BBR_STATE_PROBE_BW_REFILL,
+  NGTCP2_BBR_STATE_PROBE_BW_UP,
+  NGTCP2_BBR_STATE_PROBE_RTT,
+} ngtcp2_bbr_state;
 
-typedef enum ngtcp2_bbrv2_ack_phase {
-  NGTCP2_BBRV2_ACK_PHASE_ACKS_PROBE_STARTING,
-  NGTCP2_BBRV2_ACK_PHASE_ACKS_PROBE_STOPPING,
-  NGTCP2_BBRV2_ACK_PHASE_ACKS_PROBE_FEEDBACK,
-  NGTCP2_BBRV2_ACK_PHASE_ACKS_REFILLING,
-} ngtcp2_bbrv2_ack_phase;
+typedef enum ngtcp2_bbr_ack_phase {
+  NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_STARTING,
+  NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_STOPPING,
+  NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_FEEDBACK,
+  NGTCP2_BBR_ACK_PHASE_ACKS_REFILLING,
+} ngtcp2_bbr_ack_phase;
 
 /*
- * ngtcp2_cc_bbrv2 is BBR v2 congestion controller, described in
+ * ngtcp2_cc_bbr is BBR v2 congestion controller, described in
  * https://datatracker.ietf.org/doc/html/draft-cardwell-iccrg-bbr-congestion-control-01
  */
-typedef struct ngtcp2_cc_bbrv2 {
+typedef struct ngtcp2_cc_bbr {
   ngtcp2_cc cc;
 
   uint64_t initial_cwnd;
@@ -102,7 +102,7 @@ typedef struct ngtcp2_cc_bbrv2 {
   /* Pacing rate */
   double pacing_gain;
 
-  ngtcp2_bbrv2_state state;
+  ngtcp2_bbr_state state;
   double cwnd_gain;
 
   int loss_round_start;
@@ -117,7 +117,7 @@ typedef struct ngtcp2_cc_bbrv2 {
   uint64_t offload_budget;
   uint64_t probe_up_cnt;
   ngtcp2_tstamp cycle_stamp;
-  ngtcp2_bbrv2_ack_phase ack_phase;
+  ngtcp2_bbr_ack_phase ack_phase;
   ngtcp2_duration bw_probe_wait;
   int bw_probe_samples;
   size_t bw_probe_up_rounds;
@@ -136,11 +136,11 @@ typedef struct ngtcp2_cc_bbrv2 {
   uint64_t prior_inflight_lo;
   uint64_t prior_inflight_hi;
   uint64_t prior_bw_lo;
-} ngtcp2_cc_bbrv2;
+} ngtcp2_cc_bbr;
 
-void ngtcp2_cc_bbrv2_init(ngtcp2_cc_bbrv2 *bbr, ngtcp2_log *log,
-                          ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
-                          ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
-                          const ngtcp2_rand_ctx *rand_ctx);
+void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *bbr, ngtcp2_log *log,
+                        ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
+                        ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
+                        const ngtcp2_rand_ctx *rand_ctx);
 
-#endif /* NGTCP2_BBRV2_H */
+#endif /* NGTCP2_BBR_H */

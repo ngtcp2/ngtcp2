@@ -1611,9 +1611,9 @@ typedef enum ngtcp2_cc_algo {
    */
   NGTCP2_CC_ALGO_CUBIC = 0x01,
   /**
-   * :enum:`NGTCP2_CC_ALGO_BBR_V2` represents BBR v2.
+   * :enum:`NGTCP2_CC_ALGO_BBR` represents BBR v2.
    */
-  NGTCP2_CC_ALGO_BBR_V2 = 0x03
+  NGTCP2_CC_ALGO_BBR = 0x02
 } ngtcp2_cc_algo;
 
 /**
