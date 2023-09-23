@@ -2452,7 +2452,7 @@ Options:
               specified.
   --disable-early-data
               Disable early data.
-  --cc=(cubic|reno|bbr|bbrv2)
+  --cc=(cubic|reno|bbr)
               The name of congestion controller algorithm.
               Default: )"
             << util::strccalgo(config.cc_algo) << R"(
@@ -2830,11 +2830,7 @@ int main(int argc, char **argv) {
           config.cc_algo = NGTCP2_CC_ALGO_BBR;
           break;
         }
-        if (strcmp("bbrv2", optarg) == 0) {
-          config.cc_algo = NGTCP2_CC_ALGO_BBR_V2;
-          break;
-        }
-        std::cerr << "cc: specify cubic, reno, bbr, or bbrv2" << std::endl;
+        std::cerr << "cc: specify cubic, reno, or bbr" << std::endl;
         exit(EXIT_FAILURE);
       case 28:
         // --exit-on-all-streams-close
