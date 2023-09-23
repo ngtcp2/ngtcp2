@@ -37,6 +37,9 @@ typedef struct ngtcp2_log {
   /* log_printf is a sink to write log.  NULL means no logging
      output. */
   ngtcp2_printf log_printf;
+  /* events is an event filter.  Only events set in this field are
+     emitted. */
+  uint8_t events;
   /* ts is the time point used to write time delta in the log. */
   ngtcp2_tstamp ts;
   /* last_ts is the most recent time point that this object is
@@ -63,27 +66,27 @@ typedef enum ngtcp2_log_event {
   /**
    * :enum:`NGTCP2_LOG_EVENT_CON` is a connection (catch-all) event
    */
-  NGTCP2_LOG_EVENT_CON,
+  NGTCP2_LOG_EVENT_CON = 0x1,
   /**
    * :enum:`NGTCP2_LOG_EVENT_PKT` is a packet event.
    */
-  NGTCP2_LOG_EVENT_PKT,
+  NGTCP2_LOG_EVENT_PKT = 0x2,
   /**
    * :enum:`NGTCP2_LOG_EVENT_FRM` is a QUIC frame event.
    */
-  NGTCP2_LOG_EVENT_FRM,
+  NGTCP2_LOG_EVENT_FRM = 0x4,
   /**
    * :enum:`NGTCP2_LOG_EVENT_RCV` is a congestion and recovery event.
    */
-  NGTCP2_LOG_EVENT_RCV,
+  NGTCP2_LOG_EVENT_RCV = 0x8,
   /**
    * :enum:`NGTCP2_LOG_EVENT_CRY` is a crypto event.
    */
-  NGTCP2_LOG_EVENT_CRY,
+  NGTCP2_LOG_EVENT_CRY = 0x10,
   /**
    * :enum:`NGTCP2_LOG_EVENT_PTV` is a path validation event.
    */
-  NGTCP2_LOG_EVENT_PTV,
+  NGTCP2_LOG_EVENT_PTV = 0x20,
 } ngtcp2_log_event;
 
 void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
