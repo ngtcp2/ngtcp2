@@ -282,8 +282,6 @@ std::string_view strccalgo(ngtcp2_cc_algo cc_algo) {
     return "reno"sv;
   case NGTCP2_CC_ALGO_CUBIC:
     return "cubic"sv;
-  case NGTCP2_CC_ALGO_BBR:
-    return "bbr"sv;
   case NGTCP2_CC_ALGO_BBR_V2:
     return "bbrv2"sv;
   default:
