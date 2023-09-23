@@ -5,7 +5,7 @@ RUN apt-get update && \
         git g++ clang-14 make binutils autoconf automake autotools-dev libtool \
         pkg-config libev-dev libjemalloc-dev \
         ca-certificates mime-support && \
-    git clone --depth 1 -b OpenSSL_1_1_1v+quic https://github.com/quictls/openssl && \
+    git clone --depth 1 -b OpenSSL_1_1_1w+quic https://github.com/quictls/openssl && \
     cd openssl && ./config --openssldir=/etc/ssl && make -j$(nproc) && make install_sw && cd .. && rm -rf openssl && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && autoreconf -i && \
