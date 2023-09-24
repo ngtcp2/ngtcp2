@@ -211,7 +211,7 @@ static const char *strevent(ngtcp2_log_event ev) {
     return "cry";
   case NGTCP2_LOG_EVENT_PTV:
     return "ptv";
-  case NGTCP2_LOG_EVENT_CC:
+  case NGTCP2_LOG_EVENT_CCA:
     return "cca";
   case NGTCP2_LOG_EVENT_NONE:
   default:

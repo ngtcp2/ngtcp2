@@ -88,9 +88,10 @@ typedef enum ngtcp2_log_event {
    */
   NGTCP2_LOG_EVENT_PTV = 0x20,
   /**
-   * :enum:`NGTCP2_LOG_EVENT_CC` is a congestion controller event.
+   * :enum:`NGTCP2_LOG_EVENT_CCA` is a congestion controller algorithm
+   * event.
    */
-  NGTCP2_LOG_EVENT_CC = 0x40,
+  NGTCP2_LOG_EVENT_CCA = 0x40,
 } ngtcp2_log_event;
 
 void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
