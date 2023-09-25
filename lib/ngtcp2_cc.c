@@ -107,7 +107,7 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
   if (cstat->cwnd < cstat->ssthresh) {
     cstat->cwnd += pkt->pktlen;
-    ngtcp2_log_info(reno->cc.log, NGTCP2_LOG_EVENT_CC,
+    ngtcp2_log_info(reno->cc.log, NGTCP2_LOG_EVENT_CCA,
                     "pkn=%" PRId64 " acked, slow start cwnd=%" PRIu64,
                     pkt->pkt_num, cstat->cwnd);
     return;
@@ -137,7 +137,7 @@ void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
   reno->pending_add = 0;
 
-  ngtcp2_log_info(reno->cc.log, NGTCP2_LOG_EVENT_CC,
+  ngtcp2_log_info(reno->cc.log, NGTCP2_LOG_EVENT_CCA,
                   "reduce cwnd because of packet loss cwnd=%" PRIu64,
                   cstat->cwnd);
 }
@@ -173,7 +173,7 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
     reno->target_cwnd = ngtcp2_max(initcwnd, target_cwnd) * 289 / 100;
 
-    ngtcp2_log_info(reno->cc.log, NGTCP2_LOG_EVENT_CC,
+    ngtcp2_log_info(reno->cc.log, NGTCP2_LOG_EVENT_CCA,
                     "target_cwnd=%" PRIu64 " max_delivery_rate_sec=%" PRIu64
                     " smoothed_rtt=%" PRIu64,
                     reno->target_cwnd, max_delivery_rate_sec,
@@ -298,7 +298,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
       cstat->cwnd += pkt->pktlen;
     }
 
-    ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CC,
+    ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                     "pkn=%" PRId64 " acked, slow start cwnd=%" PRIu64,
                     pkt->pkt_num, cstat->cwnd);
 
@@ -316,7 +316,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
       }
 
       if (cubic->current_round_min_rtt >= cubic->last_round_min_rtt + eta) {
-        ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CC,
+        ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                         "HyStart++ exit slow start");
 
         cubic->w_last_max = cstat->cwnd;
@@ -342,7 +342,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
     cubic->w_tcp = cstat->cwnd;
 
-    ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CC,
+    ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                     "cubic-ca epoch_start=%" PRIu64 " k=%" PRIu64
                     " origin_point=%" PRIu64,
                     cubic->epoch_start, cubic->k, cubic->origin_point);
@@ -410,7 +410,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     cstat->cwnd += add;
   }
 
-  ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CC,
+  ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                   "pkn=%" PRId64 " acked, cubic-ca cwnd=%" PRIu64 " t=%" PRIu64
                   " k=%" PRIi64 " time_delta=%" PRIu64 " delta=%" PRIu64
                   " target=%" PRIu64 " w_tcp=%" PRIu64,
@@ -452,7 +452,7 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   cstat->ssthresh = ngtcp2_max(cstat->ssthresh, min_cwnd);
   cstat->cwnd = cstat->ssthresh;
 
-  ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CC,
+  ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                   "reduce cwnd because of packet loss cwnd=%" PRIu64,
                   cstat->cwnd);
 }
@@ -485,7 +485,7 @@ void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *cc,
   cubic->prior.epoch_start = UINT64_MAX;
   cubic->prior.k = 0;
 
-  ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CC,
+  ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                   "spurious congestion is detected and congestion state is "
                   "restored cwnd=%" PRIu64,
                   cstat->cwnd);
@@ -523,7 +523,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
     cubic->target_cwnd = ngtcp2_max(initcwnd, target_cwnd) * 289 / 100;
 
-    ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CC,
+    ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                     "target_cwnd=%" PRIu64 " max_delivery_rate_sec=%" PRIu64
                     " smoothed_rtt=%" PRIu64,
                     cubic->target_cwnd, max_delivery_rate_sec,

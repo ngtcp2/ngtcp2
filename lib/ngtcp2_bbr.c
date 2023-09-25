@@ -382,7 +382,7 @@ static void bbr_check_startup_full_bandwidth(ngtcp2_cc_bbr *bbr) {
   if (bbr->full_bw_count >= 3) {
     bbr->filled_pipe = 1;
 
-    ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CC,
+    ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA,
                     "bbr filled pipe, full_bw=%" PRIu64, bbr->full_bw);
   }
 }
@@ -428,7 +428,7 @@ static void bbr_set_pacing_rate(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
 }
 
 static void bbr_enter_startup(ngtcp2_cc_bbr *bbr) {
-  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CC, "bbr enter Startup");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA, "bbr enter Startup");
 
   bbr->state = NGTCP2_BBR_STATE_STARTUP;
   bbr->pacing_gain = NGTCP2_BBR_STARTUP_PACING_GAIN;
@@ -637,7 +637,7 @@ static void bbr_update_ack_aggregation(ngtcp2_cc_bbr *bbr,
 }
 
 static void bbr_enter_drain(ngtcp2_cc_bbr *bbr) {
-  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CC, "bbr enter Drain");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA, "bbr enter Drain");
 
   bbr->state = NGTCP2_BBR_STATE_DRAIN;
   bbr->pacing_gain = 1. / NGTCP2_BBR_STARTUP_CWND_GAIN;
@@ -657,7 +657,7 @@ static void bbr_enter_probe_bw(ngtcp2_cc_bbr *bbr, ngtcp2_tstamp ts) {
 }
 
 static void bbr_start_probe_bw_down(ngtcp2_cc_bbr *bbr, ngtcp2_tstamp ts) {
-  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CC, "bbr start ProbeBW_DOWN");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA, "bbr start ProbeBW_DOWN");
 
   bbr_reset_congestion_signals(bbr);
 
@@ -676,7 +676,8 @@ static void bbr_start_probe_bw_down(ngtcp2_cc_bbr *bbr, ngtcp2_tstamp ts) {
 }
 
 static void bbr_start_probe_bw_cruise(ngtcp2_cc_bbr *bbr) {
-  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CC, "bbr start ProbeBW_CRUISE");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA,
+                  "bbr start ProbeBW_CRUISE");
 
   bbr->state = NGTCP2_BBR_STATE_PROBE_BW_CRUISE;
   bbr->pacing_gain = 1.0;
@@ -684,7 +685,8 @@ static void bbr_start_probe_bw_cruise(ngtcp2_cc_bbr *bbr) {
 }
 
 static void bbr_start_probe_bw_refill(ngtcp2_cc_bbr *bbr) {
-  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CC, "bbr start ProbeBW_REFILL");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA,
+                  "bbr start ProbeBW_REFILL");
 
   bbr_reset_lower_bounds(bbr);
 
@@ -701,7 +703,7 @@ static void bbr_start_probe_bw_refill(ngtcp2_cc_bbr *bbr) {
 
 static void bbr_start_probe_bw_up(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                                   ngtcp2_tstamp ts) {
-  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CC, "bbr start ProbeBW_UP");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA, "bbr start ProbeBW_UP");
 
   bbr->ack_phase = NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_STARTING;
 
@@ -1014,7 +1016,7 @@ static void bbr_update_min_rtt(ngtcp2_cc_bbr *bbr, const ngtcp2_cc_ack *ack,
     bbr->min_rtt = bbr->probe_rtt_min_delay;
     bbr->min_rtt_stamp = bbr->probe_rtt_min_stamp;
 
-    ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CC,
+    ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA,
                     "bbr update min_rtt=%" PRIu64, bbr->min_rtt);
   }
 }
@@ -1042,7 +1044,7 @@ static void bbr_check_probe_rtt(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 }
 
 static void bbr_enter_probe_rtt(ngtcp2_cc_bbr *bbr) {
-  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CC, "bbr enter ProbeRTT");
+  ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA, "bbr enter ProbeRTT");
 
   bbr->state = NGTCP2_BBR_STATE_PROBE_RTT;
   bbr->pacing_gain = 1;
@@ -1111,7 +1113,7 @@ static void bbr_handle_restart_from_idle(ngtcp2_cc_bbr *bbr,
                                          ngtcp2_conn_stat *cstat,
                                          ngtcp2_tstamp ts) {
   if (cstat->bytes_in_flight == 0 && bbr->rst->app_limited) {
-    ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CC, "bbr restart from idle");
+    ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA, "bbr restart from idle");
 
     bbr->idle_restart = 1;
     bbr->extra_acked_interval_start = ts;
