@@ -76,9 +76,10 @@ typedef enum ngtcp2_log_event {
    */
   NGTCP2_LOG_EVENT_FRM = 0x4,
   /**
-   * :enum:`NGTCP2_LOG_EVENT_RCV` is a congestion and recovery event.
+   * :enum:`NGTCP2_LOG_EVENT_LDC` is a loss detection and congestion
+   * control event.
    */
-  NGTCP2_LOG_EVENT_RCV = 0x8,
+  NGTCP2_LOG_EVENT_LDC = 0x8,
   /**
    * :enum:`NGTCP2_LOG_EVENT_CRY` is a crypto event.
    */

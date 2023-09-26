@@ -68,7 +68,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
  *   Source Connection ID in hex string.
  *
  * <EVENT>:
- *   Event.  pkt=packet, frm=frame, rcv=recovery, cry=crypto,
+ *   Event.  pkt=packet, frm=frame, ldc=loss-detection, cry=crypto,
  *   con=connection(catch all)
  *
  * # Frame event
@@ -205,8 +205,8 @@ static const char *strevent(ngtcp2_log_event ev) {
     return "pkt";
   case NGTCP2_LOG_EVENT_FRM:
     return "frm";
-  case NGTCP2_LOG_EVENT_RCV:
-    return "rcv";
+  case NGTCP2_LOG_EVENT_LDC:
+    return "ldc";
   case NGTCP2_LOG_EVENT_CRY:
     return "cry";
   case NGTCP2_LOG_EVENT_PTV:
@@ -752,11 +752,11 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,
                          uint8_t flags, ngtcp2_tstamp sent_ts) {
-  if (!log->log_printf || !(log->events & NGTCP2_LOG_EVENT_RCV)) {
+  if (!log->log_printf || !(log->events & NGTCP2_LOG_EVENT_LDC)) {
     return;
   }
 
-  ngtcp2_log_info(log, NGTCP2_LOG_EVENT_RCV,
+  ngtcp2_log_info(log, NGTCP2_LOG_EVENT_LDC,
                   "pkn=%" PRId64 " lost type=%s sent_ts=%" PRIu64, pkt_num,
                   strpkttype_type_flags(type, flags), sent_ts);
 }

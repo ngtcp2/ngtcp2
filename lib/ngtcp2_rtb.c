@@ -620,7 +620,7 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
   }
 
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
                     "pkn=%" PRId64 " has already been reclaimed on PTO",
                     ent->hd.pkt_num);
     assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
@@ -1282,7 +1282,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
        */
       if (rtb->pktns_id == NGTCP2_PKTNS_ID_APPLICATION && loss_window > 0) {
         if (loss_window >= congestion_period) {
-          ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+          ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
                           "persistent congestion loss_window=%" PRIu64
                           " congestion_period=%" PRIu64,
                           loss_window, congestion_period);
@@ -1333,7 +1333,7 @@ void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
 
     assert(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED);
 
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
                     "removing stale lost pkn=%" PRId64, ent->hd.pkt_num);
 
     --rtb->num_lost_pkts;
@@ -1373,7 +1373,7 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
       return;
     }
 
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
                     "removing stale lost pkn=%" PRId64, ent->hd.pkt_num);
 
     --rtb->num_lost_pkts;
@@ -1429,7 +1429,7 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   }
 
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE) {
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
                     "pkn=%" PRId64
                     " is a probe packet, no retransmission is necessary",
                     ent->hd.pkt_num);
@@ -1437,7 +1437,7 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   }
 
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE) {
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
                     "pkn=%" PRId64
                     " is a PMTUD probe packet, no retransmission is necessary",
                     ent->hd.pkt_num);
@@ -1451,7 +1451,7 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
       --rtb->num_lost_pmtud_pkts;
     }
 
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
                     "pkn=%" PRId64
                     " was declared lost and has already been retransmitted",
                     ent->hd.pkt_num);
@@ -1459,7 +1459,7 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   }
 
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
                     "pkn=%" PRId64 " has already been reclaimed on PTO",
                     ent->hd.pkt_num);
     return 0;
