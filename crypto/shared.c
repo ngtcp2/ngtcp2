@@ -1063,7 +1063,9 @@ int ngtcp2_crypto_verify_retry_token(
 
   cil = plaintext[0];
 
-  assert(cil == 0 || (cil >= NGTCP2_MIN_CIDLEN && cil <= NGTCP2_MAX_CIDLEN));
+  if (cil != 0 && (cil < NGTCP2_MIN_CIDLEN || cil > NGTCP2_MAX_CIDLEN)) {
+    return -1;
+  }
 
   memcpy(&gen_ts, plaintext + /* cid len = */ 1 + NGTCP2_MAX_CIDLEN,
          sizeof(gen_ts));
