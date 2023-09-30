@@ -3410,25 +3410,14 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       case NGTCP2_FRAME_STOP_SENDING:
         strm =
             ngtcp2_conn_find_stream(conn, (*pfrc)->fr.stop_sending.stream_id);
-        if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD)) {
+        if (strm == NULL ||
+            ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
+             ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset)) {
           frc = *pfrc;
           *pfrc = (*pfrc)->next;
           ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
           continue;
         }
-
-        if (!(strm->flags & NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED)) {
-          strm->flags |= NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED;
-
-          rv = conn_call_stream_stop_sending(
-              conn, (*pfrc)->fr.stop_sending.stream_id,
-              (*pfrc)->fr.stop_sending.app_error_code, strm->stream_user_data);
-          if (rv != 0) {
-            assert(ngtcp2_err_is_fatal(rv));
-            return rv;
-          }
-        }
-
         break;
       case NGTCP2_FRAME_STREAM:
         ngtcp2_unreachable();
@@ -3453,7 +3442,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       case NGTCP2_FRAME_MAX_STREAM_DATA:
         strm = ngtcp2_conn_find_stream(conn,
                                        (*pfrc)->fr.max_stream_data.stream_id);
-        if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) ||
+        if (strm == NULL ||
+            (strm->flags &
+             (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) ||
             (*pfrc)->fr.max_stream_data.max_stream_data < strm->rx.max_offset) {
           frc = *pfrc;
           *pfrc = (*pfrc)->next;
@@ -3625,6 +3616,49 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       for (; !ngtcp2_pq_empty(&conn->tx.strmq);) {
         strm = ngtcp2_conn_tx_strmq_top(conn);
 
+        if (strm->flags & NGTCP2_STRM_FLAG_SEND_STOP_SENDING) {
+          if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
+              ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) {
+            strm->flags &= ~NGTCP2_STRM_FLAG_SEND_STOP_SENDING;
+          } else {
+            rv = conn_call_stream_stop_sending(
+                conn, strm->stream_id, strm->tx.stop_sending_app_error_code,
+                strm->stream_user_data);
+            if (rv != 0) {
+              assert(ngtcp2_err_is_fatal(rv));
+
+              return rv;
+            }
+
+            rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
+            if (rv != 0) {
+              return rv;
+            }
+
+            nfrc->fr.type = NGTCP2_FRAME_STOP_SENDING;
+            nfrc->fr.stop_sending.stream_id = strm->stream_id;
+            nfrc->fr.stop_sending.app_error_code =
+                strm->tx.stop_sending_app_error_code;
+            *pfrc = nfrc;
+
+            strm->flags &= ~NGTCP2_STRM_FLAG_SEND_STOP_SENDING;
+
+            rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd,
+                                             &nfrc->fr);
+            if (rv != 0) {
+              assert(NGTCP2_ERR_NOBUF == rv);
+
+              break;
+            }
+
+            pkt_empty = 0;
+            rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                               NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
+                               NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
+            pfrc = &(*pfrc)->next;
+          }
+        }
+
         if (!(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) &&
             strm_should_send_stream_data_blocked(strm)) {
           rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
@@ -3654,7 +3688,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           pfrc = &(*pfrc)->next;
         }
 
-        if (!(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
+        if (!(strm->flags &
+              (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) &&
             conn_should_send_max_stream_data(conn, strm)) {
           rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
           if (rv != 0) {
@@ -7220,24 +7255,16 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  */
 static int conn_stop_sending(ngtcp2_conn *conn, ngtcp2_strm *strm,
                              uint64_t app_error_code) {
-  int rv;
-  ngtcp2_frame_chain *frc;
-  ngtcp2_pktns *pktns = &conn->pktns;
+  strm->flags |= NGTCP2_STRM_FLAG_SEND_STOP_SENDING;
+  strm->tx.stop_sending_app_error_code = app_error_code;
 
-  rv = ngtcp2_frame_chain_objalloc_new(&frc, &conn->frc_objalloc);
-  if (rv != 0) {
-    return rv;
+  if (ngtcp2_strm_is_tx_queued(strm)) {
+    return 0;
   }
 
-  frc->fr.type = NGTCP2_FRAME_STOP_SENDING;
-  frc->fr.stop_sending.stream_id = strm->stream_id;
-  frc->fr.stop_sending.app_error_code = app_error_code;
+  strm->cycle = conn_tx_strmq_first_cycle(conn);
 
-  /* TODO This prepends STOP_SENDING to pktns->tx.frq. */
-  frc->next = pktns->tx.frq;
-  pktns->tx.frq = frc;
-
-  return 0;
+  return ngtcp2_conn_tx_strmq_push(conn, strm);
 }
 
 /*

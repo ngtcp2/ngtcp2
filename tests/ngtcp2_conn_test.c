@@ -3968,6 +3968,8 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   ngtcp2_frame fr;
   int rv;
   const uint32_t datalen = 1024;
+  uint64_t max_stream_data;
+  ngtcp2_ssize spktlen;
 
   /* MAX_STREAM_DATA should be sent */
   setup_default_server(&conn);
@@ -4056,8 +4058,12 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   CU_ASSERT(0 == rv);
 
   strm = ngtcp2_conn_find_stream(conn, 4);
+  max_stream_data = strm->rx.max_offset;
 
-  CU_ASSERT(!ngtcp2_strm_is_tx_queued(strm));
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(max_stream_data == strm->rx.max_offset);
 
   ngtcp2_conn_del(conn);
 
