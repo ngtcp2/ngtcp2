@@ -4473,8 +4473,11 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * When application uses :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` at
  * least once, it must not call other ngtcp2 API functions
  * (application can still call `ngtcp2_conn_write_connection_close` to
- * handle error from this function), just keep calling this function
- * (or `ngtcp2_conn_writev_datagram`) until it returns 0, a positive
+ * handle error from this function.  It can also call
+ * `ngtcp2_conn_shutdown_stream_read`,
+ * `ngtcp2_conn_shutdown_stream_write`, and
+ * `ngtcp2_conn_shutdown_stream`), just keep calling this function (or
+ * `ngtcp2_conn_writev_datagram`) until it returns 0, a positive
  * number (which indicates a complete packet is ready), or the error
  * codes other than :macro:`NGTCP2_ERR_WRITE_MORE`,
  * :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED`,
@@ -4608,8 +4611,10 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * When application sees :macro:`NGTCP2_ERR_WRITE_MORE`, it must not
  * call other ngtcp2 API functions (application can still call
  * `ngtcp2_conn_write_connection_close` to handle error from this
- * function).  Just keep calling this function (or
- * `ngtcp2_conn_writev_stream`) until it returns a positive number
+ * function.  It can also call `ngtcp2_conn_shutdown_stream_read`,
+ * `ngtcp2_conn_shutdown_stream_write`, and
+ * `ngtcp2_conn_shutdown_stream`).  Just keep calling this function
+ * (or `ngtcp2_conn_writev_stream`) until it returns a positive number
  * (which indicates a complete packet is ready).
  *
  * This function returns the number of bytes written in |dest| if it

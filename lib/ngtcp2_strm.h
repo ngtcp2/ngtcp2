@@ -75,9 +75,12 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
    In this case, without this flag, we are unable to distinguish
    assigned value from unassigned one.  */
 #define NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET 0x100u
-/* NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED is set when
-   stream_stop_sending callback is called. */
-#define NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED 0x200u
+/* NGTCP2_STRM_FLAG_SEND_STOP_SENDING is set when STOP_SENDING frame
+   should be sent. */
+#define NGTCP2_STRM_FLAG_SEND_STOP_SENDING 0x200u
+/* NGTCP2_STRM_FLAG_SEND_RESET_STREAM is set when RESET_STREAM frame
+   should be sent. */
+#define NGTCP2_STRM_FLAG_SEND_RESET_STREAM 0x400u
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 
@@ -126,6 +129,12 @@ struct ngtcp2_strm {
            is counted to loss_count.  It is used to avoid to count
            multiple STREAM frames in one lost packet. */
         int64_t last_lost_pkt_num;
+        /* stop_sending_app_error_code is the application specific
+           error code that is sent along with STOP_SENDING. */
+        uint64_t stop_sending_app_error_code;
+        /* reset_stream_app_error_code is the application specific
+           error code that is sent along with RESET_STREAM. */
+        uint64_t reset_stream_app_error_code;
       } tx;
 
       struct {
