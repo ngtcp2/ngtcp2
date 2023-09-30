@@ -3616,6 +3616,36 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       for (; !ngtcp2_pq_empty(&conn->tx.strmq);) {
         strm = ngtcp2_conn_tx_strmq_top(conn);
 
+        if (strm->flags & NGTCP2_STRM_FLAG_SEND_RESET_STREAM) {
+          rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
+          if (rv != 0) {
+            return rv;
+          }
+
+          nfrc->fr.type = NGTCP2_FRAME_RESET_STREAM;
+          nfrc->fr.reset_stream.stream_id = strm->stream_id;
+          nfrc->fr.reset_stream.app_error_code =
+              strm->tx.reset_stream_app_error_code;
+          nfrc->fr.reset_stream.final_size = strm->tx.offset;
+          *pfrc = nfrc;
+
+          strm->flags &= ~NGTCP2_STRM_FLAG_SEND_RESET_STREAM;
+
+          rv =
+              conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
+          if (rv != 0) {
+            assert(NGTCP2_ERR_NOBUF == rv);
+
+            break;
+          }
+
+          pkt_empty = 0;
+          rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                             NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
+                             NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
+          pfrc = &(*pfrc)->next;
+        }
+
         if (strm->flags & NGTCP2_STRM_FLAG_SEND_STOP_SENDING) {
           if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
               ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) {
@@ -7222,25 +7252,16 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
  */
 static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                              uint64_t app_error_code) {
-  int rv;
-  ngtcp2_frame_chain *frc;
-  ngtcp2_pktns *pktns = &conn->pktns;
+  strm->flags |= NGTCP2_STRM_FLAG_SEND_RESET_STREAM;
+  strm->tx.reset_stream_app_error_code = app_error_code;
 
-  rv = ngtcp2_frame_chain_objalloc_new(&frc, &conn->frc_objalloc);
-  if (rv != 0) {
-    return rv;
+  if (ngtcp2_strm_is_tx_queued(strm)) {
+    return 0;
   }
 
-  frc->fr.type = NGTCP2_FRAME_RESET_STREAM;
-  frc->fr.reset_stream.stream_id = strm->stream_id;
-  frc->fr.reset_stream.app_error_code = app_error_code;
-  frc->fr.reset_stream.final_size = strm->tx.offset;
+  strm->cycle = conn_tx_strmq_first_cycle(conn);
 
-  /* TODO This prepends RESET_STREAM to pktns->tx.frq. */
-  frc->next = pktns->tx.frq;
-  pktns->tx.frq = frc;
-
-  return 0;
+  return ngtcp2_conn_tx_strmq_push(conn, strm);
 }
 
 /*
