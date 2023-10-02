@@ -75,7 +75,7 @@ void test_ngtcp2_transport_params_encode(void) {
   params.preferred_addr_present = 1;
   params.preferred_addr.ipv4_present = 0;
   sa_in6 = &params.preferred_addr.ipv6;
-  sa_in6->sin6_family = AF_INET6;
+  sa_in6->sin6_family = NGTCP2_AF_INET6;
   memset(&sa_in6->sin6_addr, 0xe1, sizeof(sa_in6->sin6_addr));
   sa_in6->sin6_port = ngtcp2_htons(63111);
   params.preferred_addr.ipv6_present = 1;
@@ -260,7 +260,7 @@ void test_ngtcp2_transport_params_decode_new(void) {
   params.ack_delay_exponent = 20;
   params.preferred_addr_present = 1;
   sa_in = &params.preferred_addr.ipv4;
-  sa_in->sin_family = AF_INET;
+  sa_in->sin_family = NGTCP2_AF_INET;
   memset(&sa_in->sin_addr, 0xf1, sizeof(sa_in->sin_addr));
   sa_in->sin_port = ngtcp2_htons(11732);
   params.preferred_addr.ipv4_present = 1;

@@ -397,7 +397,7 @@ ngtcp2_ssize pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 static void addr_init(ngtcp2_sockaddr_in *dest, uint32_t addr, uint16_t port) {
   memset(dest, 0, sizeof(*dest));
 
-  dest->sin_family = AF_INET;
+  dest->sin_family = NGTCP2_AF_INET;
   dest->sin_port = ngtcp2_htons(port);
   dest->sin_addr.s_addr = ngtcp2_htonl(addr);
 }

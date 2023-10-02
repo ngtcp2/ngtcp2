@@ -1086,11 +1086,11 @@ static size_t crypto_generate_regular_token_aad(uint8_t *dest,
   size_t addrlen;
 
   switch (sa->sa_family) {
-  case AF_INET:
+  case NGTCP2_AF_INET:
     addr = (const uint8_t *)&((const ngtcp2_sockaddr_in *)(void *)sa)->sin_addr;
     addrlen = sizeof(((const ngtcp2_sockaddr_in *)(void *)sa)->sin_addr);
     break;
-  case AF_INET6:
+  case NGTCP2_AF_INET6:
     addr =
         (const uint8_t *)&((const ngtcp2_sockaddr_in6 *)(void *)sa)->sin6_addr;
     addrlen = sizeof(((const ngtcp2_sockaddr_in6 *)(void *)sa)->sin6_addr);

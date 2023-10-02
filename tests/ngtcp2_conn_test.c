@@ -6897,7 +6897,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   params.preferred_addr.cid = cid;
 
   /* Set local address of new_path */
-  assert(AF_INET == new_path.path.local.addr->sa_family);
+  assert(NGTCP2_AF_INET == new_path.path.local.addr->sa_family);
 
   params.preferred_addr.ipv4_present = 1;
   memcpy(&params.preferred_addr.ipv4, new_path.path.local.addr,
