@@ -62,19 +62,6 @@
 #  endif /* !WIN32 */
 #endif   /* NGTCP2_USE_GENERIC_SOCKADDR */
 
-#ifdef AF_INET
-#  define NGTCP2_AF_INET AF_INET
-#else /* !AF_INET */
-#  define NGTCP2_AF_INET 2
-#endif /* !AF_INET */
-
-#ifdef AF_INET6
-#  define NGTCP2_AF_INET6 AF_INET6
-#else /* !AF_INET6 */
-#  define NGTCP2_AF_INET6 23
-#  define NGTCP2_USE_GENERIC_IPV6_SOCKADDR
-#endif /* !AF_INET6 */
-
 #include <ngtcp2/version.h>
 
 #ifdef NGTCP2_STATICLIB
@@ -1240,6 +1227,14 @@ typedef struct ngtcp2_pkt_stateless_reset {
 #define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1 0x39u
 
 #ifdef NGTCP2_USE_GENERIC_SOCKADDR
+#  ifndef NGTCP2_AF_INET
+#    error NGTCP2_AF_INET must be defined
+#  endif /* !NGTCP2_AF_INET */
+
+#  ifndef NGTCP2_AF_INET6
+#    error NGTCP2_AF_INET6 must be defined
+#  endif /* !NGTCP2_AF_INET6 */
+
 typedef unsigned short int ngtcp2_sa_family;
 typedef uint16_t ngtcp2_in_port;
 
@@ -1259,8 +1254,23 @@ typedef struct ngtcp2_sockaddr_in {
   uint8_t sin_zero[8];
 } ngtcp2_sockaddr_in;
 
+typedef struct ngtcp2_in6_addr {
+  uint8_t in6_addr[16];
+} ngtcp2_in6_addr;
+
+typedef struct ngtcp2_sockaddr_in6 {
+  ngtcp2_sa_family sin6_family;
+  ngtcp2_in_port sin6_port;
+  uint32_t sin6_flowinfo;
+  ngtcp2_in6_addr sin6_addr;
+  uint32_t sin6_scope_id;
+} ngtcp2_sockaddr_in6;
+
 typedef uint32_t ngtcp2_socklen;
-#else  /* !NGTCP2_USE_GENERIC_SOCKADDR */
+#else /* !NGTCP2_USE_GENERIC_SOCKADDR */
+#  define NGTCP2_AF_INET AF_INET
+#  define NGTCP2_AF_INET6 AF_INET6
+
 /**
  * @typedef
  *
@@ -1280,38 +1290,20 @@ typedef struct sockaddr_in ngtcp2_sockaddr_in;
 /**
  * @typedef
  *
+ * :type:`ngtcp2_sockaddr_in6` is typedefed to struct sockaddr_in6.
+ * If :macro:`NGTCP2_USE_GENERIC_SOCKADDR` is defined, it is typedefed
+ * to the generic struct sockaddr_in6 defined in ngtcp2.h.
+ */
+typedef struct sockaddr_in6 ngtcp2_sockaddr_in6;
+/**
+ * @typedef
+ *
  * :type:`ngtcp2_socklen` is typedefed to socklen_t.  If
  * :macro:`NGTCP2_USE_GENERIC_SOCKADDR` is defined, it is typedefed to
  * uint32_t.
  */
 typedef socklen_t ngtcp2_socklen;
 #endif /* !NGTCP2_USE_GENERIC_SOCKADDR */
-
-#if defined(NGTCP2_USE_GENERIC_SOCKADDR) ||                                    \
-    defined(NGTCP2_USE_GENERIC_IPV6_SOCKADDR)
-typedef struct ngtcp2_in6_addr {
-  uint8_t in6_addr[16];
-} ngtcp2_in6_addr;
-
-typedef struct ngtcp2_sockaddr_in6 {
-  ngtcp2_sa_family sin6_family;
-  ngtcp2_in_port sin6_port;
-  uint32_t sin6_flowinfo;
-  ngtcp2_in6_addr sin6_addr;
-  uint32_t sin6_scope_id;
-} ngtcp2_sockaddr_in6;
-#else  /* !defined(NGTCP2_USE_GENERIC_SOCKADDR) &&                             \
-          !defined(NGTCP2_USE_GENERIC_IPV6_SOCKADDR) */
-/**
- * @typedef
- *
- * :type:`ngtcp2_sockaddr_in6` is typedefed to struct sockaddr_in6.
- * If :macro:`NGTCP2_USE_GENERIC_SOCKADDR` is defined, it is typedefed
- * to the generic struct sockaddr_in6 defined in ngtcp2.h.
- */
-typedef struct sockaddr_in6 ngtcp2_sockaddr_in6;
-#endif /* !defined(NGTCP2_USE_GENERIC_SOCKADDR) &&                             \
-          !defined(NGTCP2_USE_GENERIC_IPV6_SOCKADDR) */
 
 /**
  * @struct

@@ -354,7 +354,7 @@ jobs:
     - name: Enable generic sockaddr
       if: matrix.sockaddr == 'generic-sockaddr'
       run: |
-        CFLAGS="$CFLAGS -DNGTCP2_USE_GENERIC_SOCKADDR"
+        CFLAGS="$CFLAGS -DNGTCP2_USE_GENERIC_SOCKADDR -DNGTCP2_AF_INET=97 -DNGTCP2_AF_INET6=98"
         AUTOTOOLS_OPTS="$AUTOTOOLS_OPTS --enable-lib-only"
 
         echo 'CFLAGS='"$CFLAGS" >> $GITHUB_ENV
