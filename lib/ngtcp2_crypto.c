@@ -666,7 +666,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
 
       if (sa_in->sin_port || memcmp(empty_address, &sa_in->sin_addr,
                                     sizeof(sa_in->sin_addr)) != 0) {
-        sa_in->sin_family = AF_INET;
+        sa_in->sin_family = NGTCP2_AF_INET;
         params->preferred_addr.ipv4_present = 1;
       }
 
@@ -677,7 +677,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
 
       if (sa_in6->sin6_port || memcmp(empty_address, &sa_in6->sin6_addr,
                                       sizeof(sa_in6->sin6_addr)) != 0) {
-        sa_in6->sin6_family = AF_INET6;
+        sa_in6->sin6_family = NGTCP2_AF_INET6;
         params->preferred_addr.ipv6_present = 1;
       }
 

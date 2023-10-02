@@ -62,7 +62,7 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   srcbuf.preferred_addr_present = 1;
   srcbuf.preferred_addr.ipv4_present = 0;
   sa_in6 = &srcbuf.preferred_addr.ipv6;
-  sa_in6->sin6_family = AF_INET6;
+  sa_in6->sin6_family = NGTCP2_AF_INET6;
   memset(&sa_in6->sin6_addr, 0xe1, sizeof(sa_in6->sin6_addr));
   sa_in6->sin6_port = ngtcp2_htons(63111);
   srcbuf.preferred_addr.ipv6_present = 1;
