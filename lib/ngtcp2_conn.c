@@ -8609,9 +8609,10 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
       dcid.bytes_recv = 0;
       dcid.flags &= (uint8_t)~NGTCP2_DCID_FLAG_PATH_VALIDATED;
     }
+
+    ngtcp2_dcid_set_path(&dcid, path);
   }
 
-  ngtcp2_dcid_set_path(&dcid, path);
   dcid.bytes_recv += dgramlen;
 
   pto = conn_compute_pto(conn, &conn->pktns);
