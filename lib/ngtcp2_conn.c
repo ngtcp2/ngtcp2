@@ -5848,30 +5848,31 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
   if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
     if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
-      if (pv->dcid.seq != conn->dcid.current.seq) {
-        assert(conn->dcid.current.cid.datalen);
+      assert(!conn->server);
+      assert(pv->dcid.seq != conn->dcid.current.seq);
+      assert(conn->dcid.current.cid.datalen);
 
-        rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
-        if (rv != 0) {
-          return rv;
-        }
-        ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
+      rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
+      if (rv != 0) {
+        return rv;
       }
+      ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
+
       conn_reset_congestion_state(conn, ts);
       conn_reset_ecn_validation_state(conn);
     }
 
-    if (ngtcp2_path_eq(&pv->dcid.ps.path, &conn->dcid.current.ps.path)) {
-      conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
+    assert(ngtcp2_path_eq(&pv->dcid.ps.path, &conn->dcid.current.ps.path));
 
-      if (!conn->local.settings.no_pmtud) {
-        ngtcp2_conn_stop_pmtud(conn);
+    conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
 
-        if (!(ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED)) {
-          rv = conn_start_pmtud(conn);
-          if (rv != 0) {
-            return rv;
-          }
+    if (!conn->local.settings.no_pmtud) {
+      ngtcp2_conn_stop_pmtud(conn);
+
+      if (!(ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED)) {
+        rv = conn_start_pmtud(conn);
+        if (rv != 0) {
+          return rv;
         }
       }
     }
