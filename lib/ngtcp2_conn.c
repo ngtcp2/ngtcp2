@@ -8637,11 +8637,6 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_COMPARE_FLAG_ADDR |
                                             NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
     conn_reset_congestion_state(conn, ts);
-  } else {
-    /* For NAT rebinding, keep max_udp_payload_size since client most
-       likely does not send a padded PATH_CHALLENGE. */
-    dcid.max_udp_payload_size = ngtcp2_max(
-        dcid.max_udp_payload_size, conn->dcid.current.max_udp_payload_size);
   }
 
   ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
