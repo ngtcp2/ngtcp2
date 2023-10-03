@@ -889,6 +889,25 @@ ngtcp2_duration ngtcp2_conn_compute_pto(ngtcp2_conn *conn,
   return conn_compute_pto(conn, pktns);
 }
 
+/*
+ * conn_compute_pv_timeout_pto returns path validation timeout using
+ * the given |pto|.
+ */
+static ngtcp2_duration conn_compute_pv_timeout_pto(ngtcp2_conn *conn,
+                                                   ngtcp2_duration pto) {
+  ngtcp2_duration initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
+
+  return 3 * ngtcp2_max(pto, initial_pto);
+}
+
+/*
+ * conn_compute_pv_timeout returns path validation timeout.
+ */
+static ngtcp2_duration conn_compute_pv_timeout(ngtcp2_conn *conn) {
+  return conn_compute_pv_timeout_pto(conn,
+                                     conn_compute_pto(conn, &conn->pktns));
+}
+
 static void conn_handle_tx_ecn(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                                uint16_t *prtb_entry_flags, ngtcp2_pktns *pktns,
                                const ngtcp2_pkt_hd *hd, ngtcp2_tstamp ts) {
@@ -4845,7 +4864,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   ngtcp2_tstamp expiry;
   ngtcp2_pv *pv = conn->pv;
   ngtcp2_frame lfr;
-  ngtcp2_duration timeout;
+  ngtcp2_duration timeout, initial_pto;
   uint8_t flags;
   uint64_t tx_left;
   int rv;
@@ -4880,8 +4899,9 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
 
   lfr.type = NGTCP2_FRAME_PATH_CHALLENGE;
 
+  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
   timeout = conn_compute_pto(conn, &conn->pktns);
-  timeout = ngtcp2_max(timeout, 3 * conn->cstat.initial_rtt);
+  timeout = ngtcp2_max(timeout, initial_pto);
   expiry = ts + timeout * (1ULL << pv->round);
 
   destlen = ngtcp2_min(destlen, NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -5812,7 +5832,6 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
                                    ngtcp2_tstamp ts) {
   int rv;
-  ngtcp2_duration pto, timeout;
   ngtcp2_pv *pv = conn->pv, *npv;
   uint8_t ent_flags;
 
@@ -5829,30 +5848,31 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
   if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
     if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
-      if (pv->dcid.seq != conn->dcid.current.seq) {
-        assert(conn->dcid.current.cid.datalen);
+      assert(!conn->server);
+      assert(pv->dcid.seq != conn->dcid.current.seq);
+      assert(conn->dcid.current.cid.datalen);
 
-        rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
-        if (rv != 0) {
-          return rv;
-        }
-        ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
+      rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
+      if (rv != 0) {
+        return rv;
       }
+      ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
+
       conn_reset_congestion_state(conn, ts);
       conn_reset_ecn_validation_state(conn);
     }
 
-    if (ngtcp2_path_eq(&pv->dcid.ps.path, &conn->dcid.current.ps.path)) {
-      conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
+    assert(ngtcp2_path_eq(&pv->dcid.ps.path, &conn->dcid.current.ps.path));
 
-      if (!conn->local.settings.no_pmtud) {
-        ngtcp2_conn_stop_pmtud(conn);
+    conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
 
-        if (!(ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED)) {
-          rv = conn_start_pmtud(conn);
-          if (rv != 0) {
-            return rv;
-          }
+    if (!conn->local.settings.no_pmtud) {
+      ngtcp2_conn_stop_pmtud(conn);
+
+      if (!(ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED)) {
+        rv = conn_start_pmtud(conn);
+        if (rv != 0) {
+          return rv;
         }
       }
     }
@@ -5867,14 +5887,11 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
   }
 
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
-    pto = conn_compute_pto(conn, &conn->pktns);
-    timeout = 3 * ngtcp2_max(pto, pv->fallback_pto);
-
     if (ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED) {
       assert(conn->server);
 
       /* Validate path again */
-      rv = ngtcp2_pv_new(&npv, &pv->dcid, timeout,
+      rv = ngtcp2_pv_new(&npv, &pv->dcid, conn_compute_pv_timeout(conn),
                          NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE, &conn->log,
                          conn->mem);
       if (rv != 0) {
@@ -5885,7 +5902,8 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
       ngtcp2_dcid_copy(&npv->fallback_dcid, &pv->fallback_dcid);
       npv->fallback_pto = pv->fallback_pto;
     } else {
-      rv = ngtcp2_pv_new(&npv, &pv->fallback_dcid, timeout,
+      rv = ngtcp2_pv_new(&npv, &pv->fallback_dcid,
+                         conn_compute_pv_timeout_pto(conn, pv->fallback_pto),
                          NGTCP2_PV_FLAG_DONT_CARE, &conn->log, conn->mem);
       if (rv != 0) {
         return rv;
@@ -8219,7 +8237,6 @@ static int conn_recv_data_blocked(ngtcp2_conn *conn, ngtcp2_data_blocked *fr) {
 static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   ngtcp2_path_storage ps;
   int rv;
-  ngtcp2_duration pto, initial_pto, timeout;
   ngtcp2_pv *pv;
   ngtcp2_dcid *dcid;
 
@@ -8245,12 +8262,8 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused.rb, 0);
   ngtcp2_dcid_set_path(dcid, &ps.path);
 
-  pto = conn_compute_pto(conn, &conn->pktns);
-  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
-  timeout = 3 * ngtcp2_max(pto, initial_pto);
-
-  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_PREFERRED_ADDR,
-                     &conn->log, conn->mem);
+  rv = ngtcp2_pv_new(&pv, dcid, conn_compute_pv_timeout(conn),
+                     NGTCP2_PV_FLAG_PREFERRED_ADDR, &conn->log, conn->mem);
   if (rv != 0) {
     /* TODO Call ngtcp2_dcid_free here if it is introduced */
     return rv;
@@ -8487,7 +8500,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_dcid dcid, *bound_dcid, *last;
   ngtcp2_pv *pv;
   int rv;
-  ngtcp2_duration pto, initial_pto, timeout;
+  ngtcp2_duration pto;
   int require_new_cid;
   int local_addr_eq;
   uint32_t remote_addr_cmp;
@@ -8545,10 +8558,6 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "non-probing packet was received from new remote address");
 
-  pto = conn_compute_pto(conn, &conn->pktns);
-  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
-  timeout = 3 * ngtcp2_max(pto, initial_pto);
-
   len = ngtcp2_ringbuf_len(&conn->dcid.bound.rb);
 
   for (i = 0; i < len; ++i) {
@@ -8600,13 +8609,16 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
       dcid.bytes_recv = 0;
       dcid.flags &= (uint8_t)~NGTCP2_DCID_FLAG_PATH_VALIDATED;
     }
+
+    ngtcp2_dcid_set_path(&dcid, path);
   }
 
-  ngtcp2_dcid_set_path(&dcid, path);
   dcid.bytes_recv += dgramlen;
 
-  rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE,
-                     &conn->log, conn->mem);
+  pto = conn_compute_pto(conn, &conn->pktns);
+
+  rv = ngtcp2_pv_new(&pv, &dcid, conn_compute_pv_timeout_pto(conn, pto),
+                     NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE, &conn->log, conn->mem);
   if (rv != 0) {
     return rv;
   }
@@ -8625,11 +8637,6 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_COMPARE_FLAG_ADDR |
                                             NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
     conn_reset_congestion_state(conn, ts);
-  } else {
-    /* For NAT rebinding, keep max_udp_payload_size since client most
-       likely does not send a padded PATH_CHALLENGE. */
-    dcid.max_udp_payload_size = ngtcp2_max(
-        dcid.max_udp_payload_size, conn->dcid.current.max_udp_payload_size);
   }
 
   ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
@@ -13389,7 +13396,6 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
                                              ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_dcid *dcid;
-  ngtcp2_duration pto, initial_pto, timeout;
   ngtcp2_pv *pv;
 
   assert(!conn->server);
@@ -13424,16 +13430,12 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
   conn_reset_congestion_state(conn, ts);
   conn_reset_ecn_validation_state(conn);
 
-  pto = conn_compute_pto(conn, &conn->pktns);
-  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
-  timeout = 3 * ngtcp2_max(pto, initial_pto);
-
   /* TODO It might be better to add a new flag which indicates that a
      connection should be closed if this path validation failed.  The
      current design allows an application to continue, by migrating
      into yet another path. */
-  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
-                     conn->mem);
+  rv = ngtcp2_pv_new(&pv, dcid, conn_compute_pv_timeout(conn),
+                     NGTCP2_PV_FLAG_NONE, &conn->log, conn->mem);
   if (rv != 0) {
     return rv;
   }
@@ -13447,7 +13449,6 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
                                    ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_dcid *dcid;
-  ngtcp2_duration pto, initial_pto, timeout;
   ngtcp2_pv *pv;
 
   assert(!conn->server);
@@ -13469,12 +13470,8 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused.rb, 0);
   ngtcp2_dcid_set_path(dcid, path);
 
-  pto = conn_compute_pto(conn, &conn->pktns);
-  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
-  timeout = 3 * ngtcp2_max(pto, initial_pto);
-
-  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
-                     conn->mem);
+  rv = ngtcp2_pv_new(&pv, dcid, conn_compute_pv_timeout(conn),
+                     NGTCP2_PV_FLAG_NONE, &conn->log, conn->mem);
   if (rv != 0) {
     return rv;
   }
