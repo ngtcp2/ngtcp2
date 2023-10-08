@@ -74,31 +74,11 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID 
         ${WPICKY_COMMON_OLD}
       )
     endif()
-    if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.5 AND MINGW)
-      list(APPEND WPICKY_ENABLE
-      )
-    endif()
-    if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
-      list(APPEND WPICKY_ENABLE
-      )
-    endif()
-    if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
-      list(APPEND WPICKY_ENABLE
-      )
-    endif()
-    if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0)
-      list(APPEND WPICKY_ENABLE
-      )
-    endif()
     if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
       list(APPEND WPICKY_ENABLE
         # Disable noexcept-type warning of g++-7.  This is not harmful as
         # long as all source files are compiled with the same compiler.
         -Wno-noexcept-type               # clang  5.0  gcc  7.0  appleclang  9.4
-      )
-    endif()
-    if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
-      list(APPEND WPICKY_ENABLE
       )
     endif()
   endif()

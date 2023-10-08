@@ -112,29 +112,9 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER_ID MA
         -Wclobbered                      #             gcc  4.3
       )
     endif()
-    if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 4.5 AND MINGW)
-      list(APPEND WPICKY_ENABLE
-      )
-    endif()
-    if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 4.8)
-      list(APPEND WPICKY_ENABLE
-      )
-    endif()
-    if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 5.0)
-      list(APPEND WPICKY_ENABLE
-      )
-    endif()
-    if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 6.0)
-      list(APPEND WPICKY_ENABLE
-      )
-    endif()
     if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 7.0)
       list(APPEND WPICKY_ENABLE
         -Wduplicated-branches            #             gcc  7.0
-      )
-    endif()
-    if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 10.0)
-      list(APPEND WPICKY_ENABLE
       )
     endif()
   endif()
