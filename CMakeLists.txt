@@ -291,8 +291,8 @@ else()
     extract_valid_c_flags(WARNCXXFLAGS  -Werror)
   endif()
 
-  include(cmake/PickyWarningsC.cmake)
-  include(cmake/PickyWarningsCXX.cmake)
+  include(PickyWarningsC)
+  include(PickyWarningsCXX)
 endif()
 
 if(ENABLE_DEBUG)
