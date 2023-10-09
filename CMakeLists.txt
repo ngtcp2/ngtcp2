@@ -95,7 +95,6 @@ foreach(_build_type "Release" "MinSizeRel" "RelWithDebInfo")
 endforeach()
 
 include(CMakePushCheckState)
-include(ExtractValidFlags)
 
 if(NOT CMAKE_C_COMPILER_ID MATCHES "MSVC")
   if(ENABLE_ASAN)
@@ -286,13 +285,13 @@ if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
     set(WARNCXXFLAGS  /WX)
   endif()
 else()
-  if(ENABLE_WERROR)
-    extract_valid_c_flags(WARNCFLAGS    -Werror)
-    extract_valid_c_flags(WARNCXXFLAGS  -Werror)
-  endif()
-
   include(PickyWarningsC)
   include(PickyWarningsCXX)
+
+  if(ENABLE_WERROR)
+    set(WARNCFLAGS "-Werror ${WARNCFLAGS}")
+    set(WARNCXXFLAGS "-Werror ${WARNCXXFLAGS}")
+  endif()
 endif()
 
 if(ENABLE_DEBUG)
