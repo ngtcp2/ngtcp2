@@ -285,13 +285,13 @@ if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
     set(WARNCXXFLAGS  /WX)
   endif()
 else()
+  if(ENABLE_WERROR)
+    set(WARNCFLAGS   "-Werror")
+    set(WARNCXXFLAGS "-Werror")
+  endif()
+
   include(PickyWarningsC)
   include(PickyWarningsCXX)
-
-  if(ENABLE_WERROR)
-    set(WARNCFLAGS "-Werror ${WARNCFLAGS}")
-    set(WARNCXXFLAGS "-Werror ${WARNCXXFLAGS}")
-  endif()
 endif()
 
 if(ENABLE_DEBUG)

@@ -140,5 +140,5 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER_ID MA
     endif()
   endforeach()
 
-  set(WARNCFLAGS "${_wpicky}")
+  set(WARNCFLAGS "${WARNCFLAGS} ${_wpicky}")
 endif()
