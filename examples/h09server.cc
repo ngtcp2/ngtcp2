@@ -516,6 +516,31 @@ int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
 } // namespace
 
 namespace {
+int stream_reset(ngtcp2_conn *conn, int64_t stream_id, uint64_t final_size,
+                 uint64_t app_error_code, void *user_data,
+                 void *stream_user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  if (h->on_stream_reset(stream_id) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+} // namespace
+
+int Handler::on_stream_reset(int64_t stream_id) {
+  if (ngtcp2_is_bidi_stream(stream_id)) {
+    if (auto rv = ngtcp2_conn_shutdown_stream_write(conn_, 0, stream_id, 0);
+        rv != 0) {
+      std::cerr << "ngtcp2_conn_shutdown_stream_write: " << ngtcp2_strerror(rv)
+                << std::endl;
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+namespace {
 void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
   auto dis = std::uniform_int_distribution<uint8_t>();
   std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
@@ -678,7 +703,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       ::update_key,
       path_validation,
       nullptr, // select_preferred_addr
-      nullptr, // stream_reset
+      ::stream_reset,
       nullptr, // extend_max_remote_streams_bidi
       nullptr, // extend_max_remote_streams_uni
       ::extend_max_stream_data,
