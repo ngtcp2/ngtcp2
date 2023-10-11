@@ -3557,72 +3557,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       }
     }
 
-    /* Write MAX_STREAM_ID after RESET_STREAM so that we can extend stream
-       ID space in one packet. */
-    if (*pfrc == NULL &&
-        conn->remote.bidi.unsent_max_streams > conn->remote.bidi.max_streams) {
-      rv = conn_call_extend_max_remote_streams_bidi(
-          conn, conn->remote.bidi.unsent_max_streams);
-      if (rv != 0) {
-        assert(ngtcp2_err_is_fatal(rv));
-        return rv;
-      }
-
-      rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
-      if (rv != 0) {
-        assert(ngtcp2_err_is_fatal(rv));
-        return rv;
-      }
-      nfrc->fr.type = NGTCP2_FRAME_MAX_STREAMS_BIDI;
-      nfrc->fr.max_streams.max_streams = conn->remote.bidi.unsent_max_streams;
-      *pfrc = nfrc;
-
-      conn->remote.bidi.max_streams = conn->remote.bidi.unsent_max_streams;
-
-      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &(*pfrc)->fr);
-      if (rv != 0) {
-        assert(NGTCP2_ERR_NOBUF == rv);
-      } else {
-        pkt_empty = 0;
-        rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
-                           NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
-                           NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
-        pfrc = &(*pfrc)->next;
-      }
-    }
-
-    if (*pfrc == NULL &&
-        conn->remote.uni.unsent_max_streams > conn->remote.uni.max_streams) {
-      rv = conn_call_extend_max_remote_streams_uni(
-          conn, conn->remote.uni.unsent_max_streams);
-      if (rv != 0) {
-        assert(ngtcp2_err_is_fatal(rv));
-        return rv;
-      }
-
-      rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
-      if (rv != 0) {
-        assert(ngtcp2_err_is_fatal(rv));
-        return rv;
-      }
-      nfrc->fr.type = NGTCP2_FRAME_MAX_STREAMS_UNI;
-      nfrc->fr.max_streams.max_streams = conn->remote.uni.unsent_max_streams;
-      *pfrc = nfrc;
-
-      conn->remote.uni.max_streams = conn->remote.uni.unsent_max_streams;
-
-      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &(*pfrc)->fr);
-      if (rv != 0) {
-        assert(NGTCP2_ERR_NOBUF == rv);
-      } else {
-        pkt_empty = 0;
-        rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
-                           NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
-                           NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
-        pfrc = &(*pfrc)->next;
-      }
-    }
-
     if (*pfrc == NULL) {
       for (; !ngtcp2_pq_empty(&conn->tx.strmq);) {
         strm = ngtcp2_conn_tx_strmq_top(conn);
@@ -3845,6 +3779,72 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           assert(ngtcp2_err_is_fatal(rv));
           return rv;
         }
+      }
+    }
+
+    /* Write MAX_STREAMS after RESET_STREAM so that we can extend
+       stream ID space in one packet. */
+    if (*pfrc == NULL &&
+        conn->remote.bidi.unsent_max_streams > conn->remote.bidi.max_streams) {
+      rv = conn_call_extend_max_remote_streams_bidi(
+          conn, conn->remote.bidi.unsent_max_streams);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+        return rv;
+      }
+
+      rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+        return rv;
+      }
+      nfrc->fr.type = NGTCP2_FRAME_MAX_STREAMS_BIDI;
+      nfrc->fr.max_streams.max_streams = conn->remote.bidi.unsent_max_streams;
+      *pfrc = nfrc;
+
+      conn->remote.bidi.max_streams = conn->remote.bidi.unsent_max_streams;
+
+      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &(*pfrc)->fr);
+      if (rv != 0) {
+        assert(NGTCP2_ERR_NOBUF == rv);
+      } else {
+        pkt_empty = 0;
+        rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                           NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
+                           NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
+        pfrc = &(*pfrc)->next;
+      }
+    }
+
+    if (*pfrc == NULL &&
+        conn->remote.uni.unsent_max_streams > conn->remote.uni.max_streams) {
+      rv = conn_call_extend_max_remote_streams_uni(
+          conn, conn->remote.uni.unsent_max_streams);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+        return rv;
+      }
+
+      rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+        return rv;
+      }
+      nfrc->fr.type = NGTCP2_FRAME_MAX_STREAMS_UNI;
+      nfrc->fr.max_streams.max_streams = conn->remote.uni.unsent_max_streams;
+      *pfrc = nfrc;
+
+      conn->remote.uni.max_streams = conn->remote.uni.unsent_max_streams;
+
+      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &(*pfrc)->fr);
+      if (rv != 0) {
+        assert(NGTCP2_ERR_NOBUF == rv);
+      } else {
+        pkt_empty = 0;
+        rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                           NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
+                           NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
+        pfrc = &(*pfrc)->next;
       }
     }
 
