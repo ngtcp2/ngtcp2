@@ -382,6 +382,7 @@ jobs:
         echo 'NGTCP2_BUILD_DIR='"$PWD" >> $GITHUB_ENV
 
         cmake $CMAKE_OPTS \
+          -DENABLE_WERROR=ON \
           -DENABLE_GNUTLS=ON \
           -DENABLE_BORINGSSL=ON \
           -DBORINGSSL_LIBRARIES="$BORINGSSL_LIBS" \
@@ -517,7 +518,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows ..
+        cmake -DENABLE_WERROR=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows ..
     - name: Build ngtcp2
       run: |
         cmake --build build
