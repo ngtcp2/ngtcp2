@@ -1,8 +1,7 @@
-The ngtcp2 programmers' guide for early adopters
-================================================
+The ngtcp2 programmers' guide
+=============================
 
-This document is written for early adopters of ngtcp2 library.  It
-describes a brief introduction of programming ngtcp2.
+This document describes a brief introduction of programming ngtcp2.
 
 Prerequisites
 -------------
