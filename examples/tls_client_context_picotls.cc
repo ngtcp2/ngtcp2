@@ -91,7 +91,7 @@ TLSClientContext::TLSClientContext()
           .key_exchanges = key_exchanges,
           .cipher_suites = cipher_suites,
           .require_dhe_on_psk = 1,
-      } {}
+      }, sign_cert_{} {}
 
 TLSClientContext::~TLSClientContext() {
   if (sign_cert_.key) {

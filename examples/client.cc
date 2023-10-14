@@ -1281,6 +1281,7 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
 
   remote_addr.len = rp->ai_addrlen;
   memcpy(&remote_addr.su, rp->ai_addr, rp->ai_addrlen);
+  remote_addr.ifindex = 0;
 
   return fd;
 }
