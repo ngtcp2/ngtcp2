@@ -108,7 +108,10 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
 
     memcpy(key_name, static_key_name.data(), static_key_name.size());
 
-    EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(), iv);
+    if (!EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(),
+                            iv)) {
+      return 0;
+    }
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
     std::array<OSSL_PARAM, 3> params{
         OSSL_PARAM_construct_octet_string(
@@ -124,8 +127,10 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
       return 0;
     }
 #else  // OPENSSL_VERSION_NUMBER < 0x30000000L
-    HMAC_Init_ex(hctx, static_hmac_key.data(), static_hmac_key.size(),
-                 ticket_hmac, nullptr);
+    if (!HMAC_Init_ex(hctx, static_hmac_key.data(), static_hmac_key.size(),
+                      ticket_hmac, nullptr)) {
+      return 0;
+    }
 #endif // OPENSSL_VERSION_NUMBER < 0x30000000L
 
     return 1;
@@ -135,7 +140,10 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
     return 0;
   }
 
-  EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(), iv);
+  if (!EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(),
+                          iv)) {
+    return 0;
+  }
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   std::array<OSSL_PARAM, 3> params{
       OSSL_PARAM_construct_octet_string(
@@ -151,8 +159,10 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
     return 0;
   }
 #else  // OPENSSL_VERSION_NUMBER < 0x30000000L
-  HMAC_Init_ex(hctx, static_hmac_key.data(), static_hmac_key.size(),
-               ticket_hmac, nullptr);
+  if (!HMAC_Init_ex(hctx, static_hmac_key.data(), static_hmac_key.size(),
+                    ticket_hmac, nullptr)) {
+    return 0;
+  }
 #endif // OPENSSL_VERSION_NUMBER < 0x30000000L
 
   return 1;
