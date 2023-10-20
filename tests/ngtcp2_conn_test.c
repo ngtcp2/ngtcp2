@@ -40,6 +40,7 @@
 #include "ngtcp2_addr.h"
 #include "ngtcp2_net.h"
 #include "ngtcp2_tstamp.h"
+#include "ngtcp2_frame_chain.h"
 
 static void qlog_write(void *user_data, uint32_t flags, const void *data,
                        size_t datalen) {

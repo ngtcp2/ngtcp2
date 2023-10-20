@@ -30,6 +30,7 @@
 #include "ngtcp2_rtb.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_vec.h"
+#include "ngtcp2_frame_chain.h"
 
 static int offset_less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
   return *(int64_t *)lhs < *(int64_t *)rhs;

@@ -43,6 +43,7 @@ set(ngtcp2_SOURCES
   ngtcp2_range.c
   ngtcp2_acktr.c
   ngtcp2_rtb.c
+  ngtcp2_frame_chain.c
   ngtcp2_strm.c
   ngtcp2_idtr.c
   ngtcp2_gaptr.c

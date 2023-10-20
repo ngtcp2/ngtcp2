@@ -33,6 +33,7 @@
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_mem.h"
 #include "ngtcp2_pkt.h"
+#include "ngtcp2_frame_chain.h"
 
 static void conn_stat_init(ngtcp2_conn_stat *cstat) {
   memset(cstat, 0, sizeof(*cstat));
