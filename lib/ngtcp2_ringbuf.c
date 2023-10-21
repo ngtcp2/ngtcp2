@@ -33,7 +33,7 @@
 
 #if defined(_MSC_VER) && !defined(__clang__) &&                                \
     (defined(_M_ARM) || defined(_M_ARM64))
-unsigned int __popcnt(unsigned int x) {
+static unsigned int __popcnt(unsigned int x) {
   unsigned int c = 0;
   for (; x; ++c) {
     x &= x - 1;
