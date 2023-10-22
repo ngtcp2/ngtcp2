@@ -60,9 +60,9 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 /* NGTCP2_STRM_FLAG_STOP_SENDING indicates that STOP_SENDING is sent
    from the local endpoint. */
 #define NGTCP2_STRM_FLAG_STOP_SENDING 0x10u
-/* NGTCP2_STRM_FLAG_RST_ACKED indicates that the outgoing RST_STREAM
-   is acknowledged by peer. */
-#define NGTCP2_STRM_FLAG_RST_ACKED 0x20u
+/* NGTCP2_STRM_FLAG_RESET_STREAM_ACKED indicates that the outgoing
+   RESET_STREAM is acknowledged by peer. */
+#define NGTCP2_STRM_FLAG_RESET_STREAM_ACKED 0x20u
 /* NGTCP2_STRM_FLAG_FIN_ACKED indicates that a STREAM with FIN bit set
    is acknowledged by a remote endpoint. */
 #define NGTCP2_STRM_FLAG_FIN_ACKED 0x40u

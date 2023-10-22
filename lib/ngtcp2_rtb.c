@@ -642,7 +642,7 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
       if (strm == NULL) {
         break;
       }
-      strm->flags |= NGTCP2_STRM_FLAG_RST_ACKED;
+      strm->flags |= NGTCP2_STRM_FLAG_RESET_STREAM_ACKED;
       rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
       if (rv != 0) {
         return rv;

@@ -12565,7 +12565,7 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
       ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) ||
        ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) &&
       (((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) &&
-        (strm->flags & NGTCP2_STRM_FLAG_RST_ACKED)) ||
+        (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_ACKED)) ||
        ngtcp2_strm_is_all_tx_data_fin_acked(strm))) {
     return ngtcp2_conn_close_stream(conn, strm);
   }
