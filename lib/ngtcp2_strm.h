@@ -49,10 +49,10 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 #define NGTCP2_STRM_FLAG_SHUT_WR 0x02u
 #define NGTCP2_STRM_FLAG_SHUT_RDWR                                             \
   (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_SHUT_WR)
-/* NGTCP2_STRM_FLAG_SENT_RST indicates that RST_STREAM is sent from
-   the local endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_WR is also
-   set. */
-#define NGTCP2_STRM_FLAG_SENT_RST 0x04u
+/* NGTCP2_STRM_FLAG_RESET_STREAM indicates that RESET_STREAM is sent
+   from the local endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_WR is
+   also set. */
+#define NGTCP2_STRM_FLAG_RESET_STREAM 0x04u
 /* NGTCP2_STRM_FLAG_SENT_RST indicates that RST_STREAM is received
    from the remote endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_RD
    is also set. */
