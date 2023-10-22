@@ -1635,7 +1635,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
 
-  CU_ASSERT(!(strm->flags & NGTCP2_STRM_FLAG_SENT_RST));
+  CU_ASSERT(!(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM));
 
   spktlen =
       ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -1691,7 +1691,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   strm = ngtcp2_conn_find_stream(conn, 4);
 
   CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
-  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_RECV_RST);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
 
   ngtcp2_conn_del(conn);
 
@@ -2224,7 +2224,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   strm = ngtcp2_conn_find_stream(conn, stream_id);
 
   CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
-  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SENT_RST);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM);
   CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SEND_RESET_STREAM);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -2253,7 +2253,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   strm = ngtcp2_conn_find_stream(conn, stream_id);
 
   CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
-  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SENT_RST);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM);
   CU_ASSERT(!(strm->flags & NGTCP2_STRM_FLAG_SEND_RESET_STREAM));
 
   ngtcp2_conn_del(conn);

@@ -7161,7 +7161,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         return NGTCP2_ERR_FINAL_SIZE;
       }
 
-      if (strm->flags & NGTCP2_STRM_FLAG_RECV_RST) {
+      if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
         return 0;
       }
 
@@ -7187,7 +7187,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return 0;
     }
 
-    if (strm->flags & NGTCP2_STRM_FLAG_RECV_RST) {
+    if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
       return 0;
     }
   }
@@ -7424,7 +7424,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
     return NGTCP2_ERR_FINAL_SIZE;
   }
 
-  if (strm->flags & NGTCP2_STRM_FLAG_RECV_RST) {
+  if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
     return 0;
   }
 
@@ -7455,7 +7455,8 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   ngtcp2_conn_extend_max_offset(conn, datalen);
 
   strm->rx.last_offset = fr->final_size;
-  strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RECV_RST;
+  strm->flags |=
+      NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RESET_STREAM_RECVED;
 
   ngtcp2_strm_set_app_error_code(strm, fr->app_error_code);
 
@@ -7544,14 +7545,14 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   /* No RESET_STREAM is required if we have sent FIN and all data have
      been acknowledged. */
   if (!ngtcp2_strm_is_all_tx_data_fin_acked(strm) &&
-      !(strm->flags & NGTCP2_STRM_FLAG_SENT_RST)) {
+      !(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM)) {
     rv = conn_reset_stream(conn, strm, fr->app_error_code);
     if (rv != 0) {
       return rv;
     }
   }
 
-  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_SENT_RST;
+  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_RESET_STREAM;
 
   if (ngtcp2_strm_is_tx_queued(strm) && !ngtcp2_strm_streamfrq_empty(strm)) {
     assert(conn->tx.strmq_nretrans);
@@ -12561,10 +12562,10 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
                                           ngtcp2_strm *strm) {
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RDWR) ==
           NGTCP2_STRM_FLAG_SHUT_RDWR &&
-      ((strm->flags & NGTCP2_STRM_FLAG_RECV_RST) ||
+      ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) ||
        ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) &&
-      (((strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&
-        (strm->flags & NGTCP2_STRM_FLAG_RST_ACKED)) ||
+      (((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) &&
+        (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_ACKED)) ||
        ngtcp2_strm_is_all_tx_data_fin_acked(strm))) {
     return ngtcp2_conn_close_stream(conn, strm);
   }
@@ -12585,14 +12586,14 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                       uint64_t app_error_code) {
   ngtcp2_strm_set_app_error_code(strm, app_error_code);
 
-  if ((strm->flags & NGTCP2_STRM_FLAG_SENT_RST) ||
+  if ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) ||
       ngtcp2_strm_is_all_tx_data_fin_acked(strm)) {
     return 0;
   }
 
   /* Set this flag so that we don't accidentally send DATA to this
      stream. */
-  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_SENT_RST;
+  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_RESET_STREAM;
 
   ngtcp2_strm_streamfrq_clear(strm);
 
@@ -12623,8 +12624,8 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
   /* Extend connection flow control window for the amount of data
      which are not passed to application. */
-  if (!(strm->flags &
-        (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RECV_RST))) {
+  if (!(strm->flags & (NGTCP2_STRM_FLAG_STOP_SENDING |
+                       NGTCP2_STRM_FLAG_RESET_STREAM_RECVED))) {
     ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
                                             ngtcp2_strm_rx_offset(strm));
   }
