@@ -13243,7 +13243,7 @@ int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   return ngtcp2_pq_push(&conn->tx.strmq, &strm->pe);
 }
 
-static int conn_has_uncommited_preferred_addr_cid(ngtcp2_conn *conn) {
+static int conn_has_uncommitted_preferred_addr_cid(ngtcp2_conn *conn) {
   return conn->server &&
          !(conn->flags & NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED) &&
          conn->oscid.datalen &&
@@ -13257,7 +13257,7 @@ size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest) {
 
   if (dest == NULL) {
     return ngtcp2_ksl_len(&conn->scid.set) +
-           (size_t)conn_has_uncommited_preferred_addr_cid(conn);
+           (size_t)conn_has_uncommitted_preferred_addr_cid(conn);
   }
 
   for (it = ngtcp2_ksl_begin(&conn->scid.set); !ngtcp2_ksl_it_end(&it);
@@ -13266,7 +13266,7 @@ size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest) {
     *dest++ = scid->cid;
   }
 
-  if (conn_has_uncommited_preferred_addr_cid(conn)) {
+  if (conn_has_uncommitted_preferred_addr_cid(conn)) {
     *dest++ = conn->local.transport_params.preferred_addr.cid;
   }
 
