@@ -1691,7 +1691,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   strm = ngtcp2_conn_find_stream(conn, 4);
 
   CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
-  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_RECV_RST);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
 
   ngtcp2_conn_del(conn);
 
