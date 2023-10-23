@@ -94,6 +94,9 @@ foreach(_build_type "Release" "MinSizeRel" "RelWithDebInfo")
   endforeach()
 endforeach()
 
+include(CheckCCompilerFlag)
+include(CheckCXXCompilerFlag)
+
 include(CMakePushCheckState)
 
 if(NOT CMAKE_C_COMPILER_ID MATCHES "MSVC")
