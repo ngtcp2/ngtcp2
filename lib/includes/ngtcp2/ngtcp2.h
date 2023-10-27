@@ -4545,6 +4545,19 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
 /**
  * @function
  *
+ * `ngtcp2_conn_write_datagram` is just like
+ * `ngtcp2_conn_writev_datagram`.  The only difference is that it
+ * conveniently accepts a single buffer.
+ */
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_datagram_versioned(
+    ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
+    ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, int *paccepted,
+    uint32_t flags, uint64_t dgram_id, const uint8_t *data, size_t datalen,
+    ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_writev_datagram` writes a packet containing unreliable
  * data in DATAGRAM frame.  The buffer of the packet is pointed by
  * |dest| of length |destlen|.  This function performs QUIC handshake
@@ -5717,6 +5730,17 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
   ngtcp2_conn_writev_stream_versioned(                                         \
       (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),        \
       (PDATALEN), (FLAGS), (STREAM_ID), (DATAV), (DATAVCNT), (TS))
+
+/*
+ * `ngtcp2_conn_write_datagram` is a wrapper around
+ * `ngtcp2_conn_write_datagram_versioned` to set the correct struct
+ * version.
+ */
+#define ngtcp2_conn_write_datagram(CONN, PATH, PI, DEST, DESTLEN, PACCEPTED,  \
+                                    FLAGS, DGRAM_ID, DATAV, DATAVCNT, TS)      \
+  ngtcp2_conn_write_datagram_versioned(                                       \
+      (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),        \
+      (PACCEPTED), (FLAGS), (DGRAM_ID), (DATA), (DATALEN), (TS))
 
 /*
  * `ngtcp2_conn_writev_datagram` is a wrapper around
