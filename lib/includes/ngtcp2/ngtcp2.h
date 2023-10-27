@@ -5736,9 +5736,9 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  * `ngtcp2_conn_write_datagram_versioned` to set the correct struct
  * version.
  */
-#define ngtcp2_conn_write_datagram(CONN, PATH, PI, DEST, DESTLEN, PACCEPTED,  \
+#define ngtcp2_conn_write_datagram(CONN, PATH, PI, DEST, DESTLEN, PACCEPTED,   \
                                     FLAGS, DGRAM_ID, DATAV, DATAVCNT, TS)      \
-  ngtcp2_conn_write_datagram_versioned(                                       \
+  ngtcp2_conn_write_datagram_versioned(                                        \
       (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),        \
       (PACCEPTED), (FLAGS), (DGRAM_ID), (DATA), (DATALEN), (TS))
 
