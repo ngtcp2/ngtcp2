@@ -6,7 +6,7 @@ permissions: read-all
 
 env:
   OPENSSL1_VERSION: 1_1_1w+quic
-  OPENSSL3_VERSION: 3.1.3+quic
+  OPENSSL3_VERSION: 3.1.4+quic
   BORINGSSL_VERSION: 8d71d244c0debac4079beeb02b5802fde59b94bd
   PICOTLS_VERSION: ffb2cda165db04a561c2dfab38e1f6d38c7d1f4b
   WOLFSSL_VERSION: v5.6.3-stable
