@@ -264,7 +264,7 @@ typedef struct ngtcp2_mem {
  * @macro
  *
  * :macro:`NGTCP2_PROTO_VER_MAX` is the highest QUIC version that this
- * library supports.
+ * library supports.  Deprecated since v1.1.0.
  */
 #define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_V1
 
@@ -272,7 +272,7 @@ typedef struct ngtcp2_mem {
  * @macro
  *
  * :macro:`NGTCP2_PROTO_VER_MIN` is the lowest QUIC version that this
- * library supports.
+ * library supports.  Deprecated since v1.1.0.
  */
 #define NGTCP2_PROTO_VER_MIN NGTCP2_PROTO_VER_V1
 
