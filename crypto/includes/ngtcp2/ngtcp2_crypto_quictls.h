@@ -125,6 +125,21 @@ ngtcp2_crypto_quictls_configure_server_context(SSL_CTX *ssl_ctx);
 NGTCP2_EXTERN int
 ngtcp2_crypto_quictls_configure_client_context(SSL_CTX *ssl_ctx);
 
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_quictls_init` initializes libngtcp2_crypto_quictls
+ * library.  This initialization is optional.  For quictls >= 3.0, it
+ * is highly recommended to call this function before any use of
+ * libngtcp2_crypto library API to workaround the performance
+ * regression.  Note that calling this function does not solve all
+ * performance issues introduced in 3.x.  For quictls 1.1.1, this
+ * function does nothing, and always succeeds.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_quictls_init(void);
+
 #ifdef __cplusplus
 }
 #endif
