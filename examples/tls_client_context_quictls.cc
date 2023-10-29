@@ -25,6 +25,7 @@
 #include "tls_client_context_quictls.h"
 
 #include <cstring>
+#include <cassert>
 #include <iostream>
 #include <fstream>
 #include <limits>
@@ -35,6 +36,17 @@
 
 #include "client_base.h"
 #include "template.h"
+
+namespace {
+auto _ = []() {
+  if (ngtcp2_crypto_quictls_init() != 0) {
+    assert(0);
+    abort();
+  }
+
+  return 0;
+}();
+} // namespace
 
 extern Config config;
 
