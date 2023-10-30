@@ -5737,7 +5737,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  * version.
  */
 #define ngtcp2_conn_write_datagram(CONN, PATH, PI, DEST, DESTLEN, PACCEPTED,   \
-                                    FLAGS, DGRAM_ID, DATAV, DATAVCNT, TS)      \
+                                    FLAGS, DGRAM_ID, DATA, DATALEN, TS)      \
   ngtcp2_conn_write_datagram_versioned(                                        \
       (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),        \
       (PACCEPTED), (FLAGS), (DGRAM_ID), (DATA), (DATALEN), (TS))
