@@ -53,10 +53,19 @@ TLSClientSession::~TLSClientSession() {
 }
 
 namespace {
-auto negotiated_protocols = std::array<ptls_iovec_t, 1>{{
+auto negotiated_protocols_h3 = std::array<ptls_iovec_t, 1>{{
     {
         .base = const_cast<uint8_t *>(&H3_ALPN_V1[1]),
         .len = H3_ALPN_V1[0],
+    },
+}};
+} // namespace
+
+namespace {
+auto negotiated_protocols_hq = std::array<ptls_iovec_t, 1>{{
+    {
+        .base = const_cast<uint8_t *>(&HQ_ALPN_V1[1]),
+        .len = HQ_ALPN_V1[0],
     },
 }};
 } // namespace
@@ -90,8 +99,18 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
     return -1;
   }
 
-  hsprops.client.negotiated_protocols.list = negotiated_protocols.data();
-  hsprops.client.negotiated_protocols.count = negotiated_protocols.size();
+  switch (app_proto) {
+  case AppProtocol::H3:
+    hsprops.client.negotiated_protocols.list = negotiated_protocols_h3.data();
+    hsprops.client.negotiated_protocols.count = negotiated_protocols_h3.size();
+
+    break;
+  case AppProtocol::HQ:
+    hsprops.client.negotiated_protocols.list = negotiated_protocols_hq.data();
+    hsprops.client.negotiated_protocols.count = negotiated_protocols_hq.size();
+
+    break;
+  }
 
   if (util::numeric_host(remote_addr)) {
     // If remote host is numeric address, just send "localhost" as SNI
