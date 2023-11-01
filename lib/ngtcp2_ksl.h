@@ -263,12 +263,14 @@ void ngtcp2_ksl_clear(ngtcp2_ksl *ksl);
 #define ngtcp2_ksl_nth_node(KSL, BLK, N)                                       \
   ((ngtcp2_ksl_node *)(void *)((BLK)->nodes + (KSL)->nodelen * (N)))
 
+#ifndef WIN32
 /*
  * ngtcp2_ksl_print prints its internal state in stderr.  It assumes
  * that the key is of type int64_t.  This function should be used for
  * the debugging purpose only.
  */
 void ngtcp2_ksl_print(ngtcp2_ksl *ksl);
+#endif /* !WIN32 */
 
 /*
  * ngtcp2_ksl_it_init initializes |it|.
