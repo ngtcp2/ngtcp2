@@ -716,6 +716,24 @@ void ngtcp2_ksl_update_key(ngtcp2_ksl *ksl, const ngtcp2_ksl_key *old_key,
   }
 }
 
+size_t ngtcp2_ksl_len(ngtcp2_ksl *ksl) { return ksl->n; }
+
+void ngtcp2_ksl_clear(ngtcp2_ksl *ksl) {
+  if (!ksl->head) {
+    return;
+  }
+
+#ifdef NOMEMPOOL
+  ksl_free_blk(ksl, ksl->head);
+#endif /* NOMEMPOOL */
+
+  ksl->front = ksl->back = ksl->head = NULL;
+  ksl->n = 0;
+
+  ngtcp2_objalloc_clear(&ksl->blkalloc);
+}
+
+#ifndef WIN32
 static void ksl_print(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t level) {
   size_t i;
   ngtcp2_ksl_node *node;
@@ -736,23 +754,6 @@ static void ksl_print(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t level) {
   }
 }
 
-size_t ngtcp2_ksl_len(ngtcp2_ksl *ksl) { return ksl->n; }
-
-void ngtcp2_ksl_clear(ngtcp2_ksl *ksl) {
-  if (!ksl->head) {
-    return;
-  }
-
-#ifdef NOMEMPOOL
-  ksl_free_blk(ksl, ksl->head);
-#endif /* NOMEMPOOL */
-
-  ksl->front = ksl->back = ksl->head = NULL;
-  ksl->n = 0;
-
-  ngtcp2_objalloc_clear(&ksl->blkalloc);
-}
-
 void ngtcp2_ksl_print(ngtcp2_ksl *ksl) {
   if (!ksl->head) {
     return;
@@ -760,6 +761,7 @@ void ngtcp2_ksl_print(ngtcp2_ksl *ksl) {
 
   ksl_print(ksl, ksl->head, 0);
 }
+#endif /* !WIN32 */
 
 ngtcp2_ksl_it ngtcp2_ksl_begin(const ngtcp2_ksl *ksl) {
   ngtcp2_ksl_it it;
