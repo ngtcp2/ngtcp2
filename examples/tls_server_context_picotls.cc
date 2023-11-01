@@ -41,8 +41,8 @@
 extern Config config;
 
 namespace {
-int on_client_hello_cb(ptls_on_client_hello_t *self, ptls_t *ptls,
-                       ptls_on_client_hello_parameters_t *params) {
+int on_client_hello_h3_cb(ptls_on_client_hello_t *self, ptls_t *ptls,
+                          ptls_on_client_hello_parameters_t *params) {
   auto &negprotos = params->negotiated_protocols;
 
   for (size_t i = 0; i < negprotos.count; ++i) {
@@ -61,7 +61,31 @@ int on_client_hello_cb(ptls_on_client_hello_t *self, ptls_t *ptls,
   return PTLS_ALERT_NO_APPLICATION_PROTOCOL;
 }
 
-ptls_on_client_hello_t on_client_hello = {on_client_hello_cb};
+ptls_on_client_hello_t on_client_hello_h3 = {on_client_hello_h3_cb};
+} // namespace
+
+namespace {
+int on_client_hello_hq_cb(ptls_on_client_hello_t *self, ptls_t *ptls,
+                          ptls_on_client_hello_parameters_t *params) {
+  auto &negprotos = params->negotiated_protocols;
+
+  for (size_t i = 0; i < negprotos.count; ++i) {
+    auto &proto = negprotos.list[i];
+    if (HQ_ALPN_V1[0] == proto.len &&
+        memcmp(&HQ_ALPN_V1[1], proto.base, proto.len) == 0) {
+      if (ptls_set_negotiated_protocol(
+              ptls, reinterpret_cast<char *>(proto.base), proto.len) != 0) {
+        return -1;
+      }
+
+      return 0;
+    }
+  }
+
+  return PTLS_ALERT_NO_APPLICATION_PROTOCOL;
+}
+
+ptls_on_client_hello_t on_client_hello_hq = {on_client_hello_hq_cb};
 } // namespace
 
 namespace {
@@ -253,7 +277,6 @@ TLSServerContext::TLSServerContext()
           .get_time = &ptls_get_time,
           .key_exchanges = key_exchanges,
           .cipher_suites = cipher_suites,
-          .on_client_hello =  &on_client_hello,
           .ticket_lifetime = 86400,
           .require_dhe_on_psk = 1,
           .server_cipher_preference = 1,
@@ -277,6 +300,17 @@ ptls_context_t *TLSServerContext::get_native_handle() { return &ctx_; }
 
 int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                            AppProtocol app_proto) {
+  switch (app_proto) {
+  case AppProtocol::H3:
+    ctx_.on_client_hello = &on_client_hello_h3;
+
+    break;
+  case AppProtocol::HQ:
+    ctx_.on_client_hello = &on_client_hello_hq;
+
+    break;
+  };
+
   if (ngtcp2_crypto_picotls_configure_server_context(&ctx_) != 0) {
     std::cerr << "ngtcp2_crypto_picotls_configure_server_context failed"
               << std::endl;
