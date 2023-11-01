@@ -557,14 +557,7 @@ int recv_new_token(ngtcp2_conn *conn, const uint8_t *token, size_t tokenlen,
     return 0;
   }
 
-  auto f = BIO_new_file(config.token_file.data(), "w");
-  if (f == nullptr) {
-    std::cerr << "Could not write token in " << config.token_file << std::endl;
-    return 0;
-  }
-
-  PEM_write_bio(f, "QUIC TOKEN", "", token, tokenlen);
-  BIO_free(f);
+  util::write_token(config.token_file, token, tokenlen);
 
   return 0;
 }
