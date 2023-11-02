@@ -177,7 +177,7 @@ AC_PROG_MKDIR_P
 
 PKG_PROG_PKG_CONFIG([0.20])
 
-AX_CXX_COMPILE_STDCXX([20], [noext], [optional])
+AX_CXX_COMPILE_STDCXX([20], [], [optional])
 
 case "${build}" in
   *-apple-darwin*)
