@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #ifdef HAVE_UNISTD_H
 #  include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -38,6 +39,19 @@ void ngtcp2_unreachable_fail(const char *file, int line, const char *func) {
   char *buf;
   size_t buflen;
   int rv;
+  const char *sep;
+
+  sep = strrchr(file, '/');
+  if (sep != NULL) {
+    file = sep + 1;
+  }
+
+#ifdef WIN32
+  sep = strrchr(file, '\\');
+  if (sep != NULL) {
+    file = sep + 1;
+  }
+#endif /* WIN32 */
 
 #define NGTCP2_UNREACHABLE_TEMPLATE "%s:%d %s: Unreachable.\n"
 
