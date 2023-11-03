@@ -1414,8 +1414,8 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       stream_close,
       nullptr, // recv_stateless_reset
       nullptr, // recv_retry
-      nullptr, // extend_max_streams_bidi
-      nullptr, // extend_max_streams_uni
+      nullptr, // extend_max_local_streams_bidi
+      nullptr, // extend_max_local_streams_uni
       rand,
       get_new_connection_id,
       remove_connection_id,
