@@ -404,8 +404,8 @@ int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
 } // namespace
 
 namespace {
-int extend_max_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
-                            void *user_data) {
+int extend_max_local_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
+                                  void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
   if (c->on_extend_max_streams() != 0) {
@@ -610,8 +610,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       stream_close,
       nullptr, // recv_stateless_reset
       ngtcp2_crypto_recv_retry_cb,
-      extend_max_streams_bidi,
-      nullptr, // extend_max_streams_uni
+      extend_max_local_streams_bidi,
+      nullptr, // extend_max_local_streams_uni
       rand,
       get_new_connection_id,
       nullptr, // remove_connection_id
