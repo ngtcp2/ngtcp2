@@ -2926,8 +2926,16 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
 static size_t conn_required_num_new_connection_id(ngtcp2_conn *conn) {
   uint64_t n;
   size_t len = ngtcp2_ksl_len(&conn->scid.set);
+  size_t lim;
 
   if (len >= NGTCP2_MAX_SCID_POOL_SIZE) {
+    return 0;
+  }
+
+  assert(NGTCP2_MAX_SCID_POOL_SIZE >= conn->scid.num_in_flight);
+
+  lim = NGTCP2_MAX_SCID_POOL_SIZE - conn->scid.num_in_flight;
+  if (lim == 0) {
     return 0;
   }
 
@@ -2940,7 +2948,9 @@ static size_t conn_required_num_new_connection_id(ngtcp2_conn *conn) {
   n = conn->remote.transport_params->active_connection_id_limit +
       conn->scid.num_retired;
 
-  return (size_t)ngtcp2_min(NGTCP2_MAX_SCID_POOL_SIZE, n) - len;
+  n = ngtcp2_min(NGTCP2_MAX_SCID_POOL_SIZE, n) - len;
+
+  return (size_t)ngtcp2_min(lim, n);
 }
 
 /*
@@ -3012,6 +3022,10 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
            sizeof(token));
     nfrc->next = pktns->tx.frq;
     pktns->tx.frq = nfrc;
+
+    assert(NGTCP2_MAX_SCID_POOL_SIZE > conn->scid.num_in_flight);
+
+    ++conn->scid.num_in_flight;
   }
 
   return 0;
