@@ -418,6 +418,9 @@ struct ngtcp2_conn {
     /* num_retired is the number of retired Connection ID still
        included in set. */
     size_t num_retired;
+    /* num_in_flight is the number of NEW_CONNECTION_ID frames that
+       are in-flight and not acknowledged yet. */
+    size_t num_in_flight;
   } scid;
 
   struct {

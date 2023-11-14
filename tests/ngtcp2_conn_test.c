@@ -11630,6 +11630,102 @@ void test_ngtcp2_conn_send_data_blocked(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_send_new_connection_id(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  ngtcp2_ssize spktlen;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  int64_t pkt_num = 0;
+  int rv;
+  uint64_t seq;
+
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(7 == conn->scid.num_in_flight);
+
+  /* Retire 1 Connection ID */
+  fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
+  fr.retire_connection_id.seq = conn->scid.last_seq;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == conn->scid.num_retired);
+
+  t += ngtcp2_conn_get_pto(conn);
+
+  rv = ngtcp2_conn_handle_expiry(conn, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(8 == conn->scid.num_in_flight);
+  CU_ASSERT(0 == conn->scid.num_retired);
+
+  seq = conn->scid.last_seq;
+
+  /* Retire another Connection ID */
+  fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
+  fr.retire_connection_id.seq = conn->scid.last_seq - 2;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == conn->scid.num_retired);
+
+  t += ngtcp2_conn_get_pto(conn);
+
+  rv = ngtcp2_conn_handle_expiry(conn, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  /* We do not send NEW_CONNECTION_ID frame because the number of
+     in-flight NEW_CONNECTION_ID frame reached maximum limit. */
+  CU_ASSERT(8 == conn->scid.num_in_flight);
+  CU_ASSERT(seq == conn->scid.last_seq);
+  CU_ASSERT(0 == conn->scid.num_retired);
+
+  /* Acknowledge first packet */
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == conn->scid.num_in_flight);
+
+  /* Now NEW_CONNECTION_ID can be sent. */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(2 == conn->scid.num_in_flight);
+  CU_ASSERT(seq + 1 == conn->scid.last_seq);
+
+  ngtcp2_conn_del(conn);
+}
+
 typedef struct failmalloc {
   size_t nmalloc;
   size_t fail_start;

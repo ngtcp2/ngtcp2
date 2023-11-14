@@ -652,6 +652,12 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
       ngtcp2_conn_untrack_retired_dcid_seq(conn,
                                            frc->fr.retire_connection_id.seq);
       break;
+    case NGTCP2_FRAME_NEW_CONNECTION_ID:
+      assert(conn->scid.num_in_flight);
+
+      --conn->scid.num_in_flight;
+
+      break;
     case NGTCP2_FRAME_DATAGRAM:
     case NGTCP2_FRAME_DATAGRAM_LEN:
       if (!conn->callbacks.ack_datagram) {
