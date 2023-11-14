@@ -546,7 +546,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
     /* For frame types > 0xff, use ngtcp2_get_uvarintlen and
        ngtcp2_get_uvarint to get a frame type, and then switch over
        it.  Verify that payloadlen >= ngtcp2_get_uvarintlen(payload)
-       before calling ngtcp2_get_uvarintlen(payload). */
+       before calling ngtcp2_get_uvarint(payload). */
 
     return NGTCP2_ERR_FRAME_ENCODING;
   }
