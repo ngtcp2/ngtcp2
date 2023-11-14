@@ -173,7 +173,7 @@ typedef struct ngtcp2_pkt_retry {
 
 /* ngtcp2_stream represents STREAM and CRYPTO frames. */
 typedef struct ngtcp2_stream {
-  uint8_t type;
+  uint64_t type;
   /**
    * flags of decoded STREAM frame.  This gets ignored when encoding
    * STREAM frame.  CRYPTO frame does not include this field, and must
@@ -201,7 +201,7 @@ typedef struct ngtcp2_ack_range {
 } ngtcp2_ack_range;
 
 typedef struct ngtcp2_ack {
-  uint8_t type;
+  uint64_t type;
   int64_t largest_ack;
   uint64_t ack_delay;
   /**
@@ -220,7 +220,7 @@ typedef struct ngtcp2_ack {
 } ngtcp2_ack;
 
 typedef struct ngtcp2_padding {
-  uint8_t type;
+  uint64_t type;
   /**
    * The length of contiguous PADDING frames.
    */
@@ -228,14 +228,14 @@ typedef struct ngtcp2_padding {
 } ngtcp2_padding;
 
 typedef struct ngtcp2_reset_stream {
-  uint8_t type;
+  uint64_t type;
   int64_t stream_id;
   uint64_t app_error_code;
   uint64_t final_size;
 } ngtcp2_reset_stream;
 
 typedef struct ngtcp2_connection_close {
-  uint8_t type;
+  uint64_t type;
   uint64_t error_code;
   uint64_t frame_type;
   size_t reasonlen;
@@ -243,7 +243,7 @@ typedef struct ngtcp2_connection_close {
 } ngtcp2_connection_close;
 
 typedef struct ngtcp2_max_data {
-  uint8_t type;
+  uint64_t type;
   /**
    * max_data is Maximum Data.
    */
@@ -251,38 +251,38 @@ typedef struct ngtcp2_max_data {
 } ngtcp2_max_data;
 
 typedef struct ngtcp2_max_stream_data {
-  uint8_t type;
+  uint64_t type;
   int64_t stream_id;
   uint64_t max_stream_data;
 } ngtcp2_max_stream_data;
 
 typedef struct ngtcp2_max_streams {
-  uint8_t type;
+  uint64_t type;
   uint64_t max_streams;
 } ngtcp2_max_streams;
 
 typedef struct ngtcp2_ping {
-  uint8_t type;
+  uint64_t type;
 } ngtcp2_ping;
 
 typedef struct ngtcp2_data_blocked {
-  uint8_t type;
+  uint64_t type;
   uint64_t offset;
 } ngtcp2_data_blocked;
 
 typedef struct ngtcp2_stream_data_blocked {
-  uint8_t type;
+  uint64_t type;
   int64_t stream_id;
   uint64_t offset;
 } ngtcp2_stream_data_blocked;
 
 typedef struct ngtcp2_streams_blocked {
-  uint8_t type;
+  uint64_t type;
   uint64_t max_streams;
 } ngtcp2_streams_blocked;
 
 typedef struct ngtcp2_new_connection_id {
-  uint8_t type;
+  uint64_t type;
   uint64_t seq;
   uint64_t retire_prior_to;
   ngtcp2_cid cid;
@@ -290,38 +290,38 @@ typedef struct ngtcp2_new_connection_id {
 } ngtcp2_new_connection_id;
 
 typedef struct ngtcp2_stop_sending {
-  uint8_t type;
+  uint64_t type;
   int64_t stream_id;
   uint64_t app_error_code;
 } ngtcp2_stop_sending;
 
 typedef struct ngtcp2_path_challenge {
-  uint8_t type;
+  uint64_t type;
   uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
 } ngtcp2_path_challenge;
 
 typedef struct ngtcp2_path_response {
-  uint8_t type;
+  uint64_t type;
   uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
 } ngtcp2_path_response;
 
 typedef struct ngtcp2_new_token {
-  uint8_t type;
+  uint64_t type;
   uint8_t *token;
   size_t tokenlen;
 } ngtcp2_new_token;
 
 typedef struct ngtcp2_retire_connection_id {
-  uint8_t type;
+  uint64_t type;
   uint64_t seq;
 } ngtcp2_retire_connection_id;
 
 typedef struct ngtcp2_handshake_done {
-  uint8_t type;
+  uint64_t type;
 } ngtcp2_handshake_done;
 
 typedef struct ngtcp2_datagram {
-  uint8_t type;
+  uint64_t type;
   /* dgram_id is an opaque identifier chosen by an application. */
   uint64_t dgram_id;
   /* datacnt is the number of elements that data contains. */
@@ -336,7 +336,7 @@ typedef struct ngtcp2_datagram {
 } ngtcp2_datagram;
 
 typedef union ngtcp2_frame {
-  uint8_t type;
+  uint64_t type;
   ngtcp2_stream stream;
   ngtcp2_ack ack;
   ngtcp2_padding padding;

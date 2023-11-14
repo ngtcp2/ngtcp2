@@ -542,6 +542,12 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
     if ((type & ~(NGTCP2_FRAME_STREAM - 1)) == NGTCP2_FRAME_STREAM) {
       return ngtcp2_pkt_decode_stream_frame(&dest->stream, payload, payloadlen);
     }
+
+    /* For frame types > 0xff, use ngtcp2_get_uvarintlen and
+       ngtcp2_get_uvarint to get a frame type, and then switch over
+       it.  Verify that payloadlen >= ngtcp2_get_uvarintlen(payload)
+       before calling ngtcp2_get_uvarintlen(payload). */
+
     return NGTCP2_ERR_FRAME_ENCODING;
   }
 }
@@ -1607,7 +1613,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = fr->type;
+  *p++ = (uint8_t)fr->type;
   p = ngtcp2_put_uvarint(p, (uint64_t)fr->largest_ack);
   p = ngtcp2_put_uvarint(p, fr->ack_delay);
   p = ngtcp2_put_uvarint(p, fr->rangecnt);
@@ -1681,7 +1687,7 @@ ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = fr->type;
+  *p++ = (uint8_t)fr->type;
   p = ngtcp2_put_uvarint(p, fr->error_code);
   if (fr->type == NGTCP2_FRAME_CONNECTION_CLOSE) {
     p = ngtcp2_put_uvarint(p, fr->frame_type);
@@ -1748,7 +1754,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_max_streams_frame(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = fr->type;
+  *p++ = (uint8_t)fr->type;
   p = ngtcp2_put_uvarint(p, fr->max_streams);
 
   assert((size_t)(p - out) == len);
@@ -1822,7 +1828,7 @@ ngtcp2_pkt_encode_streams_blocked_frame(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = fr->type;
+  *p++ = (uint8_t)fr->type;
   p = ngtcp2_put_uvarint(p, fr->max_streams);
 
   assert((size_t)(p - out) == len);
@@ -2032,7 +2038,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_datagram_frame(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = fr->type;
+  *p++ = (uint8_t)fr->type;
   if (fr->type == NGTCP2_FRAME_DATAGRAM_LEN) {
     p = ngtcp2_put_uvarint(p, datalen);
   }
