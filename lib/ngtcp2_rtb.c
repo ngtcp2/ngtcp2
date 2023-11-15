@@ -561,6 +561,10 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 
   for (frc = ent->frc; frc; frc = frc->next) {
     if (frc->binder) {
+      if (frc->binder->flags & NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK) {
+        continue;
+      }
+
       frc->binder->flags |= NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK;
     }
 
