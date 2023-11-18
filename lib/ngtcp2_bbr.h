@@ -100,10 +100,10 @@ typedef struct ngtcp2_cc_bbr {
   size_t full_bw_count;
 
   /* Pacing rate */
-  double pacing_gain;
+  uint64_t pacing_gain_h;
 
   ngtcp2_bbr_state state;
-  double cwnd_gain;
+  uint64_t cwnd_gain_h;
 
   int loss_round_start;
   uint64_t loss_round_delivered;

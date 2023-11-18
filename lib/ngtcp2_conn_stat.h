@@ -115,12 +115,13 @@ typedef struct ngtcp2_conn_stat {
    */
   uint64_t delivery_rate_sec;
   /**
-   * :member:`pacing_rate` is the current packet sending rate computed
-   * by a congestion controller.  0 if a congestion controller does
-   * not set pacing rate.  Even if this value is set to 0, the library
-   * paces packets.
+   * :member:`pacing_interval` is the inverse of pacing rate, which is
+   * the current packet sending rate computed by a congestion
+   * controller.  0 if a congestion controller does not set pacing
+   * interval.  Even if this value is set to 0, the library paces
+   * packets.
    */
-  double pacing_rate;
+  ngtcp2_duration pacing_interval;
   /**
    * :member:`send_quantum` is the maximum size of a data aggregate
    * scheduled and transmitted together.

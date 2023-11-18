@@ -38,11 +38,11 @@
 
 #define NGTCP2_BBR_EXTRA_ACKED_FILTERLEN 10
 
-#define NGTCP2_BBR_STARTUP_PACING_GAIN ((double)2.77)
+#define NGTCP2_BBR_STARTUP_PACING_GAIN_H 277
 
-#define NGTCP2_BBR_STARTUP_CWND_GAIN 2
+#define NGTCP2_BBR_STARTUP_CWND_GAIN_H 200
 
-#define NGTCP2_BBR_PROBE_RTT_CWND_GAIN ((double)0.5)
+#define NGTCP2_BBR_PROBE_RTT_CWND_GAIN_H 50
 
 #define NGTCP2_BBR_BETA_NUMER 7
 #define NGTCP2_BBR_BETA_DENOM 10
@@ -78,7 +78,7 @@ static void bbr_init_pacing_rate(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat);
 
 static void bbr_set_pacing_rate_with_gain(ngtcp2_cc_bbr *bbr,
                                           ngtcp2_conn_stat *cstat,
-                                          double pacing_gain);
+                                          uint64_t pacing_gain_h);
 
 static void bbr_set_pacing_rate(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat);
 
@@ -227,14 +227,15 @@ static void bbr_handle_restart_from_idle(ngtcp2_cc_bbr *bbr,
                                          ngtcp2_conn_stat *cstat,
                                          ngtcp2_tstamp ts);
 
-static uint64_t bbr_bdp_multiple(ngtcp2_cc_bbr *bbr, uint64_t bw, double gain);
+static uint64_t bbr_bdp_multiple(ngtcp2_cc_bbr *bbr, uint64_t bw,
+                                 uint64_t gain_h);
 
 static uint64_t bbr_quantization_budget(ngtcp2_cc_bbr *bbr,
                                         ngtcp2_conn_stat *cstat,
                                         uint64_t inflight);
 
 static uint64_t bbr_inflight(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
-                             uint64_t bw, double gain);
+                             uint64_t bw, uint64_t gain_h);
 
 static void bbr_update_max_inflight(ngtcp2_cc_bbr *bbr,
                                     ngtcp2_conn_stat *cstat);
@@ -406,33 +407,37 @@ static void bbr_check_startup_high_loss(ngtcp2_cc_bbr *bbr,
 }
 
 static void bbr_init_pacing_rate(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
-  double nominal_bandwidth = (double)bbr->initial_cwnd;
-
-  cstat->pacing_rate = NGTCP2_BBR_STARTUP_PACING_GAIN * nominal_bandwidth /
-                       (double)NGTCP2_MILLISECONDS;
+  cstat->pacing_interval = NGTCP2_MILLISECONDS * 100 /
+                           NGTCP2_BBR_STARTUP_PACING_GAIN_H / bbr->initial_cwnd;
 }
 
 static void bbr_set_pacing_rate_with_gain(ngtcp2_cc_bbr *bbr,
                                           ngtcp2_conn_stat *cstat,
-                                          double pacing_gain) {
-  double rate = pacing_gain * (double)bbr->bw *
-                (100 - NGTCP2_BBR_PACING_MARGIN_PERCENT) / 100 / NGTCP2_SECONDS;
+                                          uint64_t pacing_gain_h) {
+  ngtcp2_duration interval;
 
-  if (bbr->filled_pipe || rate > cstat->pacing_rate) {
-    cstat->pacing_rate = rate;
+  if (bbr->bw == 0) {
+    return;
+  }
+
+  interval = NGTCP2_SECONDS * 100 * 100 / pacing_gain_h / bbr->bw /
+             (100 - NGTCP2_BBR_PACING_MARGIN_PERCENT);
+
+  if (bbr->filled_pipe || interval < cstat->pacing_interval) {
+    cstat->pacing_interval = interval;
   }
 }
 
 static void bbr_set_pacing_rate(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
-  bbr_set_pacing_rate_with_gain(bbr, cstat, bbr->pacing_gain);
+  bbr_set_pacing_rate_with_gain(bbr, cstat, bbr->pacing_gain_h);
 }
 
 static void bbr_enter_startup(ngtcp2_cc_bbr *bbr) {
   ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA, "bbr enter Startup");
 
   bbr->state = NGTCP2_BBR_STATE_STARTUP;
-  bbr->pacing_gain = NGTCP2_BBR_STARTUP_PACING_GAIN;
-  bbr->cwnd_gain = NGTCP2_BBR_STARTUP_CWND_GAIN;
+  bbr->pacing_gain_h = NGTCP2_BBR_STARTUP_PACING_GAIN_H;
+  bbr->cwnd_gain_h = NGTCP2_BBR_STARTUP_CWND_GAIN_H;
 }
 
 static void bbr_check_startup_done(ngtcp2_cc_bbr *bbr,
@@ -640,14 +645,14 @@ static void bbr_enter_drain(ngtcp2_cc_bbr *bbr) {
   ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA, "bbr enter Drain");
 
   bbr->state = NGTCP2_BBR_STATE_DRAIN;
-  bbr->pacing_gain = 1. / NGTCP2_BBR_STARTUP_CWND_GAIN;
-  bbr->cwnd_gain = NGTCP2_BBR_STARTUP_CWND_GAIN;
+  bbr->pacing_gain_h = 100 * 100 / NGTCP2_BBR_STARTUP_CWND_GAIN_H;
+  bbr->cwnd_gain_h = NGTCP2_BBR_STARTUP_CWND_GAIN_H;
 }
 
 static void bbr_check_drain(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                             ngtcp2_tstamp ts) {
   if (bbr->state == NGTCP2_BBR_STATE_DRAIN &&
-      cstat->bytes_in_flight <= bbr_inflight(bbr, cstat, bbr->bw, 1.0)) {
+      cstat->bytes_in_flight <= bbr_inflight(bbr, cstat, bbr->bw, 100)) {
     bbr_enter_probe_bw(bbr, ts);
   }
 }
@@ -671,8 +676,8 @@ static void bbr_start_probe_bw_down(ngtcp2_cc_bbr *bbr, ngtcp2_tstamp ts) {
   bbr_start_round(bbr);
 
   bbr->state = NGTCP2_BBR_STATE_PROBE_BW_DOWN;
-  bbr->pacing_gain = 0.9;
-  bbr->cwnd_gain = 2;
+  bbr->pacing_gain_h = 90;
+  bbr->cwnd_gain_h = 200;
 }
 
 static void bbr_start_probe_bw_cruise(ngtcp2_cc_bbr *bbr) {
@@ -680,8 +685,8 @@ static void bbr_start_probe_bw_cruise(ngtcp2_cc_bbr *bbr) {
                   "bbr start ProbeBW_CRUISE");
 
   bbr->state = NGTCP2_BBR_STATE_PROBE_BW_CRUISE;
-  bbr->pacing_gain = 1.0;
-  bbr->cwnd_gain = 2;
+  bbr->pacing_gain_h = 100;
+  bbr->cwnd_gain_h = 200;
 }
 
 static void bbr_start_probe_bw_refill(ngtcp2_cc_bbr *bbr) {
@@ -697,8 +702,8 @@ static void bbr_start_probe_bw_refill(ngtcp2_cc_bbr *bbr) {
   bbr_start_round(bbr);
 
   bbr->state = NGTCP2_BBR_STATE_PROBE_BW_REFILL;
-  bbr->pacing_gain = 1.0;
-  bbr->cwnd_gain = 2;
+  bbr->pacing_gain_h = 100;
+  bbr->cwnd_gain_h = 200;
 }
 
 static void bbr_start_probe_bw_up(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
@@ -711,8 +716,8 @@ static void bbr_start_probe_bw_up(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 
   bbr->cycle_stamp = ts;
   bbr->state = NGTCP2_BBR_STATE_PROBE_BW_UP;
-  bbr->pacing_gain = 1.25;
-  bbr->cwnd_gain = 2.25;
+  bbr->pacing_gain_h = 125;
+  bbr->cwnd_gain_h = 225;
 
   bbr_raise_inflight_hi_slope(bbr, cstat);
 }
@@ -757,7 +762,7 @@ static void bbr_update_probe_bw_cycle_phase(ngtcp2_cc_bbr *bbr,
     break;
   case NGTCP2_BBR_STATE_PROBE_BW_UP:
     if (bbr_has_elapsed_in_phase(bbr, bbr->min_rtt, ts) &&
-        cstat->bytes_in_flight > bbr_inflight(bbr, cstat, bbr->max_bw, 1.25)) {
+        cstat->bytes_in_flight > bbr_inflight(bbr, cstat, bbr->max_bw, 125)) {
       bbr_start_probe_bw_down(bbr, ts);
     }
 
@@ -775,7 +780,7 @@ static int bbr_check_time_to_cruise(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
     return 0;
   }
 
-  if (cstat->bytes_in_flight <= bbr_inflight(bbr, cstat, bbr->max_bw, 1.0)) {
+  if (cstat->bytes_in_flight <= bbr_inflight(bbr, cstat, bbr->max_bw, 100)) {
     return 1;
   }
 
@@ -896,8 +901,8 @@ static void bbr_pick_probe_wait(ngtcp2_cc_bbr *bbr) {
 
   bbr->rand(&rand, 1, &bbr->rand_ctx);
 
-  bbr->bw_probe_wait = 2 * NGTCP2_SECONDS +
-                       (ngtcp2_tstamp)((double)rand / 255. * NGTCP2_SECONDS);
+  bbr->bw_probe_wait =
+      2 * NGTCP2_SECONDS + (ngtcp2_tstamp)(NGTCP2_SECONDS * rand / 255);
 }
 
 static int bbr_is_reno_coexistence_probe_time(ngtcp2_cc_bbr *bbr,
@@ -910,7 +915,7 @@ static int bbr_is_reno_coexistence_probe_time(ngtcp2_cc_bbr *bbr,
 
 static uint64_t bbr_target_inflight(ngtcp2_cc_bbr *bbr,
                                     ngtcp2_conn_stat *cstat) {
-  uint64_t bdp = bbr_inflight(bbr, cstat, bbr->bw, 1.0);
+  uint64_t bdp = bbr_inflight(bbr, cstat, bbr->bw, 100);
 
   return ngtcp2_min(bdp, cstat->cwnd);
 }
@@ -1047,8 +1052,8 @@ static void bbr_enter_probe_rtt(ngtcp2_cc_bbr *bbr) {
   ngtcp2_log_info(bbr->cc.log, NGTCP2_LOG_EVENT_CCA, "bbr enter ProbeRTT");
 
   bbr->state = NGTCP2_BBR_STATE_PROBE_RTT;
-  bbr->pacing_gain = 1;
-  bbr->cwnd_gain = NGTCP2_BBR_PROBE_RTT_CWND_GAIN;
+  bbr->pacing_gain_h = 100;
+  bbr->cwnd_gain_h = NGTCP2_BBR_PROBE_RTT_CWND_GAIN_H;
 }
 
 static void bbr_handle_probe_rtt(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
@@ -1119,14 +1124,15 @@ static void bbr_handle_restart_from_idle(ngtcp2_cc_bbr *bbr,
     bbr->extra_acked_interval_start = ts;
 
     if (bbr_is_in_probe_bw_state(bbr)) {
-      bbr_set_pacing_rate_with_gain(bbr, cstat, 1);
+      bbr_set_pacing_rate_with_gain(bbr, cstat, 100);
     } else if (bbr->state == NGTCP2_BBR_STATE_PROBE_RTT) {
       bbr_check_probe_rtt_done(bbr, cstat, ts);
     }
   }
 }
 
-static uint64_t bbr_bdp_multiple(ngtcp2_cc_bbr *bbr, uint64_t bw, double gain) {
+static uint64_t bbr_bdp_multiple(ngtcp2_cc_bbr *bbr, uint64_t bw,
+                                 uint64_t gain_h) {
   uint64_t bdp;
 
   if (bbr->min_rtt == UINT64_MAX) {
@@ -1135,7 +1141,7 @@ static uint64_t bbr_bdp_multiple(ngtcp2_cc_bbr *bbr, uint64_t bw, double gain) {
 
   bdp = bw * bbr->min_rtt / NGTCP2_SECONDS;
 
-  return (uint64_t)(gain * (double)bdp);
+  return (uint64_t)(bdp * gain_h / 100);
 }
 
 static uint64_t min_pipe_cwnd(size_t max_udp_payload_size) {
@@ -1159,8 +1165,8 @@ static uint64_t bbr_quantization_budget(ngtcp2_cc_bbr *bbr,
 }
 
 static uint64_t bbr_inflight(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
-                             uint64_t bw, double gain) {
-  uint64_t inflight = bbr_bdp_multiple(bbr, bw, gain);
+                             uint64_t bw, uint64_t gain_h) {
+  uint64_t inflight = bbr_bdp_multiple(bbr, bw, gain_h);
 
   return bbr_quantization_budget(bbr, cstat, inflight);
 }
@@ -1172,7 +1178,8 @@ static void bbr_update_max_inflight(ngtcp2_cc_bbr *bbr,
   /* Not documented */
   /* bbr_update_aggregation_budget(bbr); */
 
-  inflight = bbr_bdp_multiple(bbr, bbr->bw, bbr->cwnd_gain) + bbr->extra_acked;
+  inflight =
+      bbr_bdp_multiple(bbr, bbr->bw, bbr->cwnd_gain_h) + bbr->extra_acked;
   bbr->max_inflight = bbr_quantization_budget(bbr, cstat, inflight);
 }
 
@@ -1219,7 +1226,7 @@ static void bbr_restore_cwnd(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
 static uint64_t bbr_probe_rtt_cwnd(ngtcp2_cc_bbr *bbr,
                                    ngtcp2_conn_stat *cstat) {
   uint64_t probe_rtt_cwnd =
-      bbr_bdp_multiple(bbr, bbr->bw, NGTCP2_BBR_PROBE_RTT_CWND_GAIN);
+      bbr_bdp_multiple(bbr, bbr->bw, NGTCP2_BBR_PROBE_RTT_CWND_GAIN_H);
   uint64_t mpcwnd = min_pipe_cwnd(cstat->max_tx_udp_payload_size);
 
   return ngtcp2_max(probe_rtt_cwnd, mpcwnd);
@@ -1283,15 +1290,19 @@ static void bbr_set_send_quantum(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
   size_t floor, send_quantum;
   (void)bbr;
 
-  if (cstat->pacing_rate < 1.2 * 1024 * 1024 / 8 / NGTCP2_SECONDS) {
+  if (cstat->pacing_interval > (NGTCP2_SECONDS * 8 * 10 / 12) >> 20) {
     floor = cstat->max_tx_udp_payload_size;
   } else {
     floor = 2 * cstat->max_tx_udp_payload_size;
   }
 
-  send_quantum = (size_t)(cstat->pacing_rate * NGTCP2_MILLISECONDS);
+  if (cstat->pacing_interval) {
+    send_quantum = (size_t)(NGTCP2_MILLISECONDS / cstat->pacing_interval);
+    send_quantum = ngtcp2_min(send_quantum, 64 * 1024);
+  } else {
+    send_quantum = 64 * 1024;
+  }
 
-  send_quantum = ngtcp2_min(send_quantum, 64 * 1024);
   cstat->send_quantum = ngtcp2_max(send_quantum, floor);
 }
 
