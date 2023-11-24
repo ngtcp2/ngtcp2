@@ -11720,7 +11720,6 @@ static ngtcp2_ssize conn_write_vmsg_wrapper(ngtcp2_conn *conn,
                                             ngtcp2_tstamp ts) {
   ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_ssize nwrite;
-  int undersized;
 
   nwrite = ngtcp2_conn_write_vmsg(conn, path, pkt_info_version, pi, dest,
                                   destlen, vmsg, ts);
@@ -11732,21 +11731,11 @@ static ngtcp2_ssize conn_write_vmsg_wrapper(ngtcp2_conn *conn,
     conn->rst.is_cwnd_limited = 1;
   }
 
-  if (vmsg == NULL && cstat->bytes_in_flight < cstat->cwnd &&
-      conn->tx.strmq_nretrans == 0) {
-    if (conn->local.settings.no_tx_udp_payload_size_shaping) {
-      undersized =
-          (size_t)nwrite < conn->local.settings.max_tx_udp_payload_size;
-    } else {
-      undersized = (size_t)nwrite < conn->dcid.current.max_udp_payload_size;
-    }
+  if (nwrite == 0 && cstat->bytes_in_flight < cstat->cwnd) {
+    conn->rst.app_limited = conn->rst.delivered + cstat->bytes_in_flight;
 
-    if (undersized) {
-      conn->rst.app_limited = conn->rst.delivered + cstat->bytes_in_flight;
-
-      if (conn->rst.app_limited == 0) {
-        conn->rst.app_limited = cstat->max_tx_udp_payload_size;
-      }
+    if (conn->rst.app_limited == 0) {
+      conn->rst.app_limited = cstat->max_tx_udp_payload_size;
     }
   }
 
