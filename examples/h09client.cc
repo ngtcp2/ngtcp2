@@ -1839,7 +1839,6 @@ void config_set_default(Config &config) {
   config.http_method = "GET"sv;
   config.max_data = 15_m;
   config.max_stream_data_bidi_local = 6_m;
-  config.max_stream_data_bidi_remote = 6_m;
   config.max_stream_data_uni = 6_m;
   config.max_window = 24_m;
   config.max_stream_window = 16_m;
@@ -1990,11 +1989,13 @@ Options:
               Default: )"
             << util::format_uint_iec(config.max_stream_data_uni) << R"(
   --max-streams-bidi=<N>
-              The number of the concurrent bidirectional streams.
+              The number of the  concurrent bidirectional streams that
+              the remote endpoint initiates.
               Default: )"
             << config.max_streams_bidi << R"(
   --max-streams-uni=<N>
-              The number of the concurrent unidirectional streams.
+              The number of the concurrent unidirectional streams that
+              the remote endpoint initiates.
               Default: )"
             << config.max_streams_uni << R"(
   --exit-on-first-stream-close

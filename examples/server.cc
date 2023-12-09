@@ -3191,7 +3191,6 @@ void config_set_default(Config &config) {
   }
   config.mime_types_file = "/etc/mime.types"sv;
   config.max_data = 1_m;
-  config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;
   config.max_stream_data_uni = 256_k;
   config.max_window = 6_m;
@@ -3297,11 +3296,13 @@ Options:
               Default: )"
             << util::format_uint_iec(config.max_stream_data_uni) << R"(
   --max-streams-bidi=<N>
-              The number of the concurrent bidirectional streams.
+              The number of the  concurrent bidirectional streams that
+              the remote endpoint initiates.
               Default: )"
             << config.max_streams_bidi << R"(
   --max-streams-uni=<N>
-              The number of the concurrent unidirectional streams.
+              The number of the concurrent unidirectional streams that
+              the remote endpoint initiates.
               Default: )"
             << config.max_streams_uni << R"(
   --max-dyn-length=<SIZE>
