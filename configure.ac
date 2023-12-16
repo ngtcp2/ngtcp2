@@ -252,12 +252,11 @@ if test "x${request_openssl}" != "xno"; then
     CFLAGS="$OPENSSL_CFLAGS $CFLAGS"
     LIBS="$OPENSSL_LIBS $LIBS"
 
-    AC_MSG_CHECKING([for SSL_is_quic])
+    AC_MSG_CHECKING([for SSL_provide_quic_data])
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
       #include <openssl/ssl.h>
     ]], [[
-      SSL *ssl = NULL;
-      SSL_is_quic(ssl);
+      SSL_provide_quic_data(NULL, 0, NULL, 0);
     ]])],
     [AC_MSG_RESULT([yes]); have_openssl_quic=yes],
     [AC_MSG_RESULT([no]); have_openssl_quic=no])
