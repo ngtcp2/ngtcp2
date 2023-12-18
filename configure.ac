@@ -255,6 +255,9 @@ if test "x${request_openssl}" != "xno"; then
     AC_MSG_CHECKING([for SSL_provide_quic_data])
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
       #include <openssl/ssl.h>
+      #if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
+      #  error This is boringssl.
+      #endif /* OPENSSL_IS_BORINGSSL || OPENSSL_IS_AWSLC */
     ]], [[
       SSL_provide_quic_data(NULL, 0, NULL, 0);
     ]])],
