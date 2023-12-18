@@ -25,9 +25,9 @@ if [ "$ROLE" == "client" ]; then
     REQS=($REQUESTS)
     SERVER=$(echo ${REQS[0]} | sed -re 's|^https://([^/:]+)(:[0-9]+)?/.*$|\1|')
     if [ "$TESTCASE" == "http3" ]; then
-        CLIENT_BIN="/usr/local/bin/qtlsclient"
+        CLIENT_BIN="/usr/local/bin/wsslclient"
     else
-        CLIENT_BIN="/usr/local/bin/h09qtlsclient"
+        CLIENT_BIN="/usr/local/bin/h09wsslclient"
     fi
     CLIENT_ARGS="$SERVER 443 --download /downloads -s --no-quic-dump --no-http-dump --exit-on-all-streams-close --qlog-dir $QLOGDIR --cc bbr --initial-rtt 100ms"
     if [ "$TESTCASE" == "versionnegotiation" ]; then
@@ -69,9 +69,9 @@ if [ "$ROLE" == "client" ]; then
     fi
 elif [ "$ROLE" == "server" ]; then
     if [ "$TESTCASE" == "http3" ]; then
-        SERVER_BIN="/usr/local/bin/qtlsserver"
+        SERVER_BIN="/usr/local/bin/wsslserver"
     else
-        SERVER_BIN="/usr/local/bin/h09qtlsserver"
+        SERVER_BIN="/usr/local/bin/h09wsslserver"
     fi
     SERVER_ARGS="/certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR --cc bbr --initial-rtt 100ms"
     case "$TESTCASE" in

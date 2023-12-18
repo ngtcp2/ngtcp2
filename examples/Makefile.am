@@ -64,7 +64,7 @@ CLIENT_SRCS = \
 noinst_PROGRAMS =
 
 if ENABLE_EXAMPLE_QUICTLS
-noinst_PROGRAMS += qtlsclient qtlsserver h09qtlsclient h09qtlsserver \
+noinst_PROGRAMS += qtlsclient qtlsserver \
 	qtlssimpleclient
 
 qtlssimpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
@@ -90,22 +90,6 @@ qtlsclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 qtlsserver_CPPFLAGS = ${qtlsclient_CPPFLAGS}
 qtlsserver_LDADD = ${qtlsclient_LDADD}
 qtlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
-	tls_server_context_quictls.cc tls_server_context_quictls.h \
-	tls_server_session_quictls.cc tls_server_session_quictls.h \
-	tls_session_base_quictls.cc tls_session_base_quictls.h \
-	util_openssl.cc
-
-h09qtlsclient_CPPFLAGS = ${qtlsclient_CPPFLAGS}
-h09qtlsclient_LDADD = ${qtlsclient_LDADD}
-h09qtlsclient_SOURCES = h09client.cc h09client.h ${CLIENT_SRCS} \
-	tls_client_context_quictls.cc tls_client_context_quictls.h \
-	tls_client_session_quictls.cc tls_client_session_quictls.h \
-	tls_session_base_quictls.cc tls_session_base_quictls.h \
-	util_openssl.cc
-
-h09qtlsserver_CPPFLAGS = ${qtlsclient_CPPFLAGS}
-h09qtlsserver_LDADD = ${qtlsclient_LDADD}
-h09qtlsserver_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
 	tls_server_context_quictls.cc tls_server_context_quictls.h \
 	tls_server_session_quictls.cc tls_server_session_quictls.h \
 	tls_session_base_quictls.cc tls_session_base_quictls.h \
@@ -196,7 +180,7 @@ ptlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 endif # ENABLE_EXAMPLE_PICOTLS
 
 if ENABLE_EXAMPLE_WOLFSSL
-noinst_PROGRAMS += wsslclient wsslserver
+noinst_PROGRAMS += wsslclient wsslserver h09wsslclient h09wsslserver
 
 wsslclient_CPPFLAGS = ${AM_CPPFLAGS} @WOLFSSL_CFLAGS@ -DWITH_EXAMPLE_WOLFSSL
 wsslclient_LDADD = ${LDADD} \
@@ -212,6 +196,22 @@ wsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 wsslserver_CPPFLAGS = ${wsslclient_CPPFLAGS}
 wsslserver_LDADD = ${wsslclient_LDADD}
 wsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
+	tls_server_context_wolfssl.cc tls_server_context_wolfssl.h \
+	tls_server_session_wolfssl.cc tls_server_session_wolfssl.h \
+	tls_session_base_wolfssl.cc tls_session_base_wolfssl.h \
+	util_wolfssl.cc
+
+h09wsslclient_CPPFLAGS = ${wsslclient_CPPFLAGS}
+h09wsslclient_LDADD = ${wsslclient_LDADD}
+h09wsslclient_SOURCES = h09client.cc h09client.h ${CLIENT_SRCS} \
+	tls_client_context_wolfssl.cc tls_client_context_wolfssl.h \
+	tls_client_session_wolfssl.cc tls_client_session_wolfssl.h \
+	tls_session_base_wolfssl.cc tls_session_base_wolfssl.h \
+	util_wolfssl.cc
+
+h09wsslserver_CPPFLAGS = ${wsslclient_CPPFLAGS}
+h09wsslserver_LDADD = ${wsslclient_LDADD}
+h09wsslserver_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
 	tls_server_context_wolfssl.cc tls_server_context_wolfssl.h \
 	tls_server_session_wolfssl.cc tls_server_session_wolfssl.h \
 	tls_session_base_wolfssl.cc tls_session_base_wolfssl.h \
