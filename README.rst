@@ -142,15 +142,15 @@ The notable options are:
 
 - ``-V``, ``--validate-addr``: Enforce stateless address validation.
 
-H09qtlsclient/H09qtlsserver
+H09wsslclient/H09wsslserver
 ---------------------------
 
-There are h09qtlsclient and h09qtlsserver which speak HTTP/0.9.  They
+There are h09wsslclient and h09wsslserver which speak HTTP/0.9.  They
 are written just for `quic-interop-runner
 <https://github.com/marten-seemann/quic-interop-runner>`_.  They share
 the basic functionalities with HTTP/3 client and server but have less
-functions (e.g., h09qtlsclient does not have a capability to send
-request body, and h09qtlsserver does not understand numeric request
+functions (e.g., h09wsslclient does not have a capability to send
+request body, and h09wsslserver does not understand numeric request
 path, like /1000).
 
 Resumption and 0-RTT
