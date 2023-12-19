@@ -21,6 +21,7 @@ for which we provide crypto helper libraries:
 * `quictls <https://github.com/quictls/openssl>`_
 * GnuTLS
 * BoringSSL
+* aws-lc
 * Picotls
 * wolfSSL
 
@@ -168,7 +169,7 @@ supported TLS stack:
   * `ngtcp2_crypto_quictls_configure_client_context`
   * `ngtcp2_crypto_quictls_configure_server_context`
 
-- BoringSSL
+- BoringSSL and aws-lc
 
   * `ngtcp2_crypto_boringssl_configure_client_context`
   * `ngtcp2_crypto_boringssl_configure_server_context`

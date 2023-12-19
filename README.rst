@@ -58,7 +58,8 @@ directory require at least one of the following TLS backends:
 - `quictls
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1w+quic>`_
 - GnuTLS >= 3.7.5
-- BoringSSL (commit 8d71d244c0debac4079beeb02b5802fde59b94bd)
+- BoringSSL (commit 8d71d244c0debac4079beeb02b5802fde59b94bd);
+  or aws-lc >= 1.19.0
 - Picotls (commit ffb2cda165db04a561c2dfab38e1f6d38c7d1f4b)
 - wolfSSL >= 5.5.0
 
@@ -111,6 +112,32 @@ Build with BoringSSL
    $ ln -s ../build/crypto/libcrypto.a
    $ cd ../../ngtcp2
    $ ./configure --with-boringssl BORINGSSL_LIBS="$PWD/../boringssl/lib/libssl.a $PWD/../boringssl/lib/libcrypto.a" BORINGSSL_CFLAGS="-I$PWD/../boringssl/include" PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig
+   $ make -j$(nproc) check
+
+Build with aws-lc
+-----------------
+
+.. code-block:: shell
+
+   $ git clone --depth 1 -b v1.19.0 https://github.com/aws/aws-lc
+   $ cd aws-lc
+   $ cmake -B build -DDISABLE_GO=ON
+   $ make -j$(nproc) -C build
+   $ cd ..
+   $ git clone https://github.com/ngtcp2/nghttp3
+   $ cd nghttp3
+   $ autoreconf -i
+   $ ./configure --prefix=$PWD/build --enable-lib-only
+   $ make -j$(nproc) check
+   $ make install
+   $ cd ..
+   $ git clone https://github.com/ngtcp2/ngtcp2
+   $ cd ngtcp2
+   $ autoreconf -i
+   $ ./configure PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig \
+       BORINGSSL_CFLAGS="-I$PWD/../aws-lc/include" \
+       BORINGSSL_LIBS="-L$PWD/../aws-lc/build/ssl -lssl -L$PWD/../aws-lc/build/crypto -lcrypto" \
+       --with-boringssl
    $ make -j$(nproc) check
 
 Client/Server
@@ -194,7 +221,7 @@ available crypto helper libraries are:
 
 - libngtcp2_crypto_quictls: Use quictls as TLS backend
 - libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
-- libngtcp2_crypto_boringssl: Use BoringSSL as TLS backend
+- libngtcp2_crypto_boringssl: Use BoringSSL and aws-lc as TLS backend
 - libngtcp2_crypto_picotls: Use Picotls as TLS backend
 - libngtcp2_crypto_wolfssl: Use wolfSSL as TLS backend
 
@@ -211,8 +238,8 @@ if their corresponding crypto helper library is built:
 - qtlsserver: quictls server
 - gtlsclient: GnuTLS client
 - gtlsserver: GnuTLS server
-- bsslclient: BoringSSL client
-- bsslserver: BoringSSL server
+- bsslclient: BoringSSL(aws-lc) client
+- bsslserver: BoringSSL(aws-lc) server
 - ptlsclient: Picotls client
 - ptlsserver: Picotls server
 - wsslclient: wolfSSL client
