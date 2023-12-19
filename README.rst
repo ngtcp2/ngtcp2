@@ -62,17 +62,18 @@ directory require at least one of the following TLS backends:
 - Picotls (commit ffb2cda165db04a561c2dfab38e1f6d38c7d1f4b)
 - wolfSSL >= 5.5.0
 
-Build from git
---------------
+Build with wolfSSL
+------------------
 
 .. code-block:: shell
 
-   $ git clone --depth 1 -b OpenSSL_1_1_1w+quic https://github.com/quictls/openssl
-   $ cd openssl
+   $ git clone --depth 1 -b v5.6.4-stable https://github.com/wolfSSL/wolfssl
+   $ cd wolfssl
    $ # For Linux
-   $ ./config enable-tls1_3 --prefix=$PWD/build
+   $ ./configure --prefix=$PWD/build \
+       --enable-all --enable-quic --enable-aesni --enable-harden
    $ make -j$(nproc)
-   $ make install_sw
+   $ make install
    $ cd ..
    $ git clone https://github.com/ngtcp2/nghttp3
    $ cd nghttp3
@@ -87,9 +88,8 @@ Build from git
    $ # For Mac users who have installed libev with MacPorts, append
    $ # ',-L/opt/local/lib' to LDFLAGS, and also pass
    $ # CPPFLAGS="-I/opt/local/include" to ./configure.
-   $ # For OpenSSL >= v3.0.0, replace "openssl/build/lib" with
-   $ # "openssl/build/lib64".
-   $ ./configure PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig LDFLAGS="-Wl,-rpath,$PWD/../openssl/build/lib"
+   $ ./configure PKG_CONFIG_PATH=$PWD/../wolfssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig \
+       --with-wolfssl
    $ make -j$(nproc) check
 
 Build with BoringSSL
@@ -124,7 +124,7 @@ Client
 
 .. code-block:: shell
 
-   $ examples/qtlsclient [OPTIONS] <HOST> <PORT> [<URI>...]
+   $ examples/wsslclient [OPTIONS] <HOST> <PORT> [<URI>...]
 
 The notable options are:
 
@@ -136,7 +136,7 @@ Server
 
 .. code-block:: shell
 
-   $ examples/qtlsserver [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> <CERTIFICATE_FILE>
+   $ examples/wsslserver [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> <CERTIFICATE_FILE>
 
 The notable options are:
 
@@ -158,11 +158,11 @@ Resumption and 0-RTT
 
 In order to resume a session, a session ticket, and a transport
 parameters must be fetched from server.  First, run
-examples/qtlsclient with --session-file, and --tp-file options which
+examples/wsslclient with --session-file, and --tp-file options which
 specify a path to session ticket, and transport parameter files
 respectively to save them locally.
 
-Once these files are available, run examples/qtlsclient with the same
+Once these files are available, run examples/wsslclient with the same
 arguments again.  You will see that session is resumed in your log if
 resumption succeeds.  Resuming session makes server's first Handshake
 packet pretty small because it does not send its certificates.
@@ -178,7 +178,7 @@ established.  Client can send this token in subsequent connection to
 the server.  Server verifies the token and if it succeeds, the address
 validation completes and lifts some restrictions on server which might
 speed up transfer.  In order to save and/or load a token,
-use --token-file option of examples/qtlsclient.  The given file is
+use --token-file option of examples/wsslclient.  The given file is
 overwritten if it already exists when storing a token.
 
 Crypto helper library
