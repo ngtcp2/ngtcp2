@@ -48,7 +48,9 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
 
   SSL_set_app_data(ssl_, handler->conn_ref());
   SSL_set_accept_state(ssl_);
+#ifndef LIBRESSL_VERSION_NUMBER
   SSL_set_quic_early_data_enabled(ssl_, 1);
+#endif // !LIBRESSL_VERSION_NUMBER
 
   return 0;
 }
