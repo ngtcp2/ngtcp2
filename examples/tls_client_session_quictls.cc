@@ -91,11 +91,14 @@ int TLSClientSession::init(bool &early_data_enabled,
       } else {
         if (!SSL_set_session(ssl_, session)) {
           std::cerr << "Could not set session" << std::endl;
-        } else if (!config.disable_early_data &&
-                   SSL_SESSION_get_max_early_data(session)) {
+        }
+#ifndef LIBRESSL_VERSION_NUMBER
+        else if (!config.disable_early_data &&
+                 SSL_SESSION_get_max_early_data(session)) {
           early_data_enabled = true;
           SSL_set_quic_early_data_enabled(ssl_, 1);
         }
+#endif // !LIBRESSL_VERSION_NUMBER
         SSL_SESSION_free(session);
       }
     }

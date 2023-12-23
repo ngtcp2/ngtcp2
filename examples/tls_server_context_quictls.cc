@@ -152,6 +152,7 @@ int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
 }
 } // namespace
 
+#ifndef LIBRESSL_VERSION_NUMBER
 namespace {
 int gen_ticket_cb(SSL *ssl, void *arg) {
   auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
@@ -218,6 +219,7 @@ SSL_TICKET_RETURN decrypt_ticket_cb(SSL *ssl, SSL_SESSION *session,
   }
 }
 } // namespace
+#endif // !LIBRESSL_VERSION_NUMBER
 
 int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                            AppProtocol app_proto) {
@@ -240,8 +242,11 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
 
   constexpr auto ssl_opts = (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
                             SSL_OP_SINGLE_ECDH_USE |
-                            SSL_OP_CIPHER_SERVER_PREFERENCE |
-                            SSL_OP_NO_ANTI_REPLAY;
+                            SSL_OP_CIPHER_SERVER_PREFERENCE
+#ifndef LIBRESSL_VERSION_NUMBER
+                            | SSL_OP_NO_ANTI_REPLAY
+#endif // !LIBRESSL_VERSION_NUMBER
+      ;
 
   SSL_CTX_set_options(ssl_ctx_, ssl_opts);
 
@@ -297,8 +302,10 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                        verify_cb);
   }
 
+#ifndef LIBRESSL_VERSION_NUMBER
   SSL_CTX_set_session_ticket_cb(ssl_ctx_, gen_ticket_cb, decrypt_ticket_cb,
                                 nullptr);
+#endif // !LIBRESSL_VERSION_NUMBER
 
   return 0;
 }
