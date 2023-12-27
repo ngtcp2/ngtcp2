@@ -235,11 +235,13 @@ std::pair<FileEntry, int> Stream::open_file(const std::string &path) {
   } else {
     fe.fd = fd;
     fe.len = st.st_size;
-    fe.map = mmap(nullptr, fe.len, PROT_READ, MAP_SHARED, fd, 0);
-    if (fe.map == MAP_FAILED) {
-      std::cerr << "mmap: " << strerror(errno) << std::endl;
-      close(fd);
-      return {{}, -1};
+    if (fe.len) {
+      fe.map = mmap(nullptr, fe.len, PROT_READ, MAP_SHARED, fd, 0);
+      if (fe.map == MAP_FAILED) {
+        std::cerr << "mmap: " << strerror(errno) << std::endl;
+        close(fd);
+        return {{}, -1};
+      }
     }
   }
 
