@@ -8,7 +8,7 @@ RUN apt-get update && \
     git clone --depth 1 -b v5.6.4-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
     ./configure --enable-static --enable-all --enable-quic --enable-aesni \
-        --enable-harden --disable-sha224 --disable-dsa --disable-md5 && \
+        --enable-harden && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf wolfssl && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && autoreconf -i && \

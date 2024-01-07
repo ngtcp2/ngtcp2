@@ -8,8 +8,7 @@ RUN apt-get update && \
         llvm-12 libasan5 libubsan1 && \
     git clone --depth 1 -b v5.6.4-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
-    ./configure --enable-all --enable-quic --enable-aesni --enable-harden \
-        --disable-sha224 --disable-dsa --disable-md5 && \
+    ./configure --enable-all --enable-quic --enable-aesni --enable-harden && \
     make -j$(nproc) && make install && cd .. && rm -rf wolfssl && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && autoreconf -i && \

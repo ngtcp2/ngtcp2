@@ -72,8 +72,7 @@ Build with wolfSSL
    $ cd wolfssl
    $ # For Linux
    $ ./configure --prefix=$PWD/build \
-       --enable-all --enable-quic --enable-aesni --enable-harden \
-       --disable-sha224 --disable-dsa --disable-md5
+       --enable-all --enable-quic --enable-aesni --enable-harden
    $ make -j$(nproc)
    $ make install
    $ cd ..
