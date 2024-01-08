@@ -759,6 +759,9 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
           NGTCP2_LOG_TP_HD_FIELDS, i >> 2, version);
     }
   }
+
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " reliable_stream_reset=%d"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->reliable_stream_reset);
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,

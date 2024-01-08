@@ -1378,7 +1378,8 @@ typedef struct ngtcp2_version_info {
 } ngtcp2_version_info;
 
 #define NGTCP2_TRANSPORT_PARAMS_V1 1
-#define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_V1
+#define NGTCP2_TRANSPORT_PARAMS_V2 2
+#define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_V2
 
 /**
  * @struct
@@ -1544,6 +1545,14 @@ typedef struct ngtcp2_transport_params {
    * this field.
    */
   uint8_t version_info_present;
+  /* The following fields have been added since
+     NGTCP2_TRANSPORT_PARAMS_V2. */
+  /**
+   * :member:`reliable_stream_reset` is nonzero if sender willingly
+   * accepts RESET_STREAM_AT frame.  See
+   * https://datatracker.ietf.org/doc/html/draft-ietf-quic-reliable-stream-reset.
+   */
+  uint8_t reliable_stream_reset;
 } ngtcp2_transport_params;
 
 #define NGTCP2_CONN_INFO_V1 1
