@@ -1088,6 +1088,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(server || !params->retry_scid_present);
   assert(params->max_idle_timeout != UINT64_MAX);
   assert(params->max_ack_delay < (1 << 14) * NGTCP2_MILLISECONDS);
+  assert(params->min_ack_delay == 0 ||
+         params->min_ack_delay >= NGTCP2_MICROSECONDS);
+  assert(params->min_ack_delay <= params->max_ack_delay);
   assert(server || callbacks->client_initial);
   assert(!server || callbacks->recv_client_initial);
   assert(callbacks->recv_crypto_data);
@@ -10915,6 +10918,10 @@ int ngtcp2_conn_set_remote_transport_params(
   }
 
   if (params->max_udp_payload_size < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
+    return NGTCP2_ERR_TRANSPORT_PARAM;
+  }
+
+  if (params->max_ack_delay < params->min_ack_delay) {
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
