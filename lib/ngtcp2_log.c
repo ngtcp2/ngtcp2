@@ -719,6 +719,10 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
         i >> 2, version);
     }
   }
+
+  ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_CRY,
+                       NGTCP2_LOG_TP " reset_stream_at=%d",
+                       params->reset_stream_at);
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,
