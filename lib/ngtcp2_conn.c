@@ -4507,6 +4507,10 @@ static int conn_retire_dcid_seq(ngtcp2_conn *conn, uint64_t seq) {
   ngtcp2_frame_chain *nfrc;
   int rv;
 
+  if (ngtcp2_conn_check_retired_dcid_tracked(conn, seq)) {
+    return 0;
+  }
+
   rv = ngtcp2_conn_track_retired_dcid_seq(conn, seq);
   if (rv != 0) {
     return rv;
@@ -13571,18 +13575,9 @@ size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_track_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq) {
-  size_t i;
-
   if (conn->dcid.retire_unacked.len >=
       ngtcp2_arraylen(conn->dcid.retire_unacked.seqs)) {
     return NGTCP2_ERR_CONNECTION_ID_LIMIT;
-  }
-
-  /* Make sure that we do not have a duplicate */
-  for (i = 0; i < conn->dcid.retire_unacked.len; ++i) {
-    if (conn->dcid.retire_unacked.seqs[i] == seq) {
-      ngtcp2_unreachable();
-    }
   }
 
   conn->dcid.retire_unacked.seqs[conn->dcid.retire_unacked.len++] = seq;
@@ -13607,6 +13602,18 @@ void ngtcp2_conn_untrack_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq) {
 
     return;
   }
+}
+
+int ngtcp2_conn_check_retired_dcid_tracked(ngtcp2_conn *conn, uint64_t seq) {
+  size_t i;
+
+  for (i = 0; i < conn->dcid.retire_unacked.len; ++i) {
+    if (conn->dcid.retire_unacked.seqs[i] == seq) {
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 size_t ngtcp2_conn_get_stream_loss_count(ngtcp2_conn *conn, int64_t stream_id) {

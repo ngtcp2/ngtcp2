@@ -6303,6 +6303,22 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_uint64(NGTCP2_FRAME_RETIRE_CONNECTION_ID, ==, frc->fr.type);
   assert_null(frc->next);
 
+  /* Make sure that dup check works */
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_uint64(2, ==, conn->dcid.current.seq);
+  assert_uint64(2, ==, conn->dcid.retire_prior_to);
+
+  frc = conn->pktns.tx.frq;
+
+  assert_uint64(NGTCP2_FRAME_RETIRE_CONNECTION_ID, ==, frc->fr.type);
+  assert_null(frc->next);
+
   ngtcp2_conn_del(conn);
 
   /* ngtcp2_pv contains DCIDs that should be retired. */
