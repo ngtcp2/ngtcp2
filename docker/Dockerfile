@@ -5,9 +5,9 @@ RUN apt-get update && \
         git g++ clang-14 make binutils autoconf automake autotools-dev libtool \
         pkg-config libev-dev libjemalloc-dev \
         ca-certificates mime-support && \
-    git clone --depth 1 -b v5.6.4-stable https://github.com/wolfSSL/wolfssl && \
+    git clone --depth 1 -b v5.6.6-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
-    ./configure --enable-static --enable-all --enable-quic --enable-aesni \
+    ./configure --enable-static --enable-all --enable-aesni \
         --enable-harden --enable-keylog-export && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf wolfssl && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
