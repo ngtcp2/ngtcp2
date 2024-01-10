@@ -128,6 +128,9 @@ typedef struct ngtcp2_acktr {
   /* rx_npkt is the number of ACK eliciting packets received without
      sending ACK. */
   size_t rx_npkt;
+  /* largest_ack is the largest packet number acknowledged by the
+     local endpoint. */
+  int64_t largest_ack;
 } ngtcp2_acktr;
 
 /*
