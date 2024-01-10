@@ -68,12 +68,11 @@ Build with wolfSSL
 
 .. code-block:: shell
 
-   $ git clone --depth 1 -b v5.6.4-stable https://github.com/wolfSSL/wolfssl
+   $ git clone --depth 1 -b v5.6.6-stable https://github.com/wolfSSL/wolfssl
    $ cd wolfssl
-   $ # For Linux
+   $ # For wolfSSL < v5.6.6, append --enable-quic.
    $ ./configure --prefix=$PWD/build \
-       --enable-all --enable-quic --enable-aesni --enable-harden \
-       --enable-keylog-export
+       --enable-all --enable-aesni --enable-harden --enable-keylog-export
    $ make -j$(nproc)
    $ make install
    $ cd ..
