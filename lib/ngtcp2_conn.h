@@ -197,6 +197,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR is set when the local
    endpoint has initiated key update. */
 #define NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR 0x10000u
+/* NGTCP2_CONN_FLAG_ACK_FREQ_IN_FLIGHT is set when ACK_FREQUENCY frame
+   is in-flight and not acknowledged yet. */
+#define NGTCP2_CONN_FLAG_ACK_FREQ_IN_FLIGHT 0x20000u
 
 typedef struct ngtcp2_pktns {
   struct {
@@ -593,6 +596,58 @@ struct ngtcp2_conn {
        available_versions field. */
     size_t available_versionslen;
   } vneg;
+
+  struct {
+    struct {
+      /* last_ts is the timestamp when the last ACK_FREQUENCY frame is
+         sent. */
+      ngtcp2_tstamp last_ts;
+      /* last_seq is the sequence number sent in the last
+         ACK_FREQUENCY frame. */
+      int64_t last_seq;
+      /* ack_eliciting_thresh is the ACK-Eliciting Threshold sent in
+         the last ACK_FREQUENCY frame. */
+      uint64_t ack_eliciting_thresh;
+      /* req_max_ack_delay is the Requested Max Ack Delay sent in the
+         last ACK_FREQUENCY frame. */
+      ngtcp2_duration req_max_ack_delay;
+      /* reordering_thresh is the Reordering Threshold sent in the
+         last ACK_FREQUENCY frame. */
+      uint64_t reordering_thresh;
+    } tx;
+
+    struct {
+      /* last_seq is the largest sequence number received in
+         ACK_FREQUENCY frame. */
+      int64_t last_seq;
+      /* reordering_thresh is the Reordering Threshold received in the
+         last ACK_FREQUENCY frame. */
+      uint64_t reordering_thresh;
+      /* last_immediate_ack_ts is the timestamp when the last
+         IMMEDIATE_ACK is received and processed. */
+      ngtcp2_tstamp last_immediate_ack_ts;
+    } rx;
+
+    struct {
+      /* ack_thresh is the minimum number of the received ACK
+         eliciting packets that trigger the immediate acknowledgement
+         from the local endpoint.  The initial value is taken from
+         local settings.  By the definition of the settings, this
+         value is ack_eliciting_thresh in ACK_FREQUENCY frame plus
+         1. */
+      uint64_t ack_thresh;
+      /* max_ack_delay is the max_ack_delay of a local endpoint.  The
+         initial value is taken from local transport parameters. */
+      ngtcp2_duration max_ack_delay;
+    } local;
+
+    struct {
+      /* max_ack_delay is the max_ack_delay of a remote endpoint
+         currently in effect.  The initial value is taken from remote
+         transport parameters. */
+      ngtcp2_duration max_ack_delay;
+    } remote;
+  } ack_freq;
 
   ngtcp2_map strms;
   ngtcp2_conn_stat cstat;
