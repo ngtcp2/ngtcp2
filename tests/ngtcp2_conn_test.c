@@ -6635,6 +6635,24 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   CU_ASSERT(&ud == conn->pv->dcid.ps.path.user_data);
   CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->pv->dcid.cid));
 
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 < spktlen);
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == conn->pv);
+  CU_ASSERT(ngtcp2_path_eq(&to_path.path, &conn->dcid.current.ps.path));
+  CU_ASSERT(&ud == conn->dcid.current.ps.path.user_data);
+  CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
+
   ngtcp2_conn_del(conn);
 
   /* migrate after successful path validation */

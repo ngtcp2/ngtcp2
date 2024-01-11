@@ -5789,9 +5789,8 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
   }
 
   if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
-    if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
+    if (pv->dcid.seq != conn->dcid.current.seq) {
       assert(!conn->server);
-      assert(pv->dcid.seq != conn->dcid.current.seq);
       assert(conn->dcid.current.cid.datalen);
 
       rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
