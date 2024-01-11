@@ -31,6 +31,7 @@
 
 #include "tls_server_context_boringssl.h"
 #include "server_base.h"
+#include "debug.h"
 
 extern Config config;
 
@@ -44,8 +45,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
 
   ssl_ = SSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
+    debug::print("SSL_new: {}\n", ERR_error_string(ERR_get_error(), nullptr));
     return -1;
   }
 
@@ -67,14 +67,14 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   auto quic_early_data_ctxlen = ngtcp2_transport_params_encode(
       quic_early_data_ctx.data(), quic_early_data_ctx.size(), &params);
   if (quic_early_data_ctxlen < 0) {
-    std::cerr << "ngtcp2_transport_params_encode: "
-              << ngtcp2_strerror(quic_early_data_ctxlen) << std::endl;
+    debug::print("ngtcp2_transport_params_encode: {}\n",
+                 ngtcp2_strerror(quic_early_data_ctxlen));
     return -1;
   }
 
   if (SSL_set_quic_early_data_context(ssl_, quic_early_data_ctx.data(),
                                       quic_early_data_ctxlen) != 1) {
-    std::cerr << "SSL_set_quic_early_data_context failed" << std::endl;
+    debug::print("SSL_set_quic_early_data_context failed\n");
     return -1;
   }
 

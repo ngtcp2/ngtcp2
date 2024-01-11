@@ -36,9 +36,13 @@
 
 #include <cinttypes>
 #include <string_view>
+#include <utility>
+#include <iostream>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
+
+#include "format_compat.h"
 
 namespace ngtcp2 {
 
@@ -54,34 +58,6 @@ void print_crypto_data(ngtcp2_encryption_level encryption_level,
                        const uint8_t *data, size_t datalen);
 
 void print_stream_data(int64_t stream_id, const uint8_t *data, size_t datalen);
-
-void print_initial_secret(const uint8_t *data, size_t len);
-
-void print_client_in_secret(const uint8_t *data, size_t len);
-void print_server_in_secret(const uint8_t *data, size_t len);
-
-void print_handshake_secret(const uint8_t *data, size_t len);
-
-void print_client_hs_secret(const uint8_t *data, size_t len);
-void print_server_hs_secret(const uint8_t *data, size_t len);
-
-void print_client_0rtt_secret(const uint8_t *data, size_t len);
-
-void print_client_1rtt_secret(const uint8_t *data, size_t len);
-void print_server_1rtt_secret(const uint8_t *data, size_t len);
-
-void print_client_pp_key(const uint8_t *data, size_t len);
-void print_server_pp_key(const uint8_t *data, size_t len);
-
-void print_client_pp_iv(const uint8_t *data, size_t len);
-void print_server_pp_iv(const uint8_t *data, size_t len);
-
-void print_client_pp_hp(const uint8_t *data, size_t len);
-void print_server_pp_hp(const uint8_t *data, size_t len);
-
-void print_secrets(const uint8_t *secret, size_t secretlen, const uint8_t *key,
-                   size_t keylen, const uint8_t *iv, size_t ivlen,
-                   const uint8_t *hp, size_t hplen);
 
 void print_secrets(const uint8_t *secret, size_t secretlen, const uint8_t *key,
                    size_t keylen, const uint8_t *iv, size_t ivlen);
@@ -118,6 +94,13 @@ void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
 void print_http_settings(const nghttp3_settings *settings);
 
 std::string_view secret_title(ngtcp2_encryption_level level);
+
+template <class... Args>
+void print(std::format_string<Args...> fmt, Args &&...args) {
+  std::format_to(std::ostreambuf_iterator<char>(std::cerr),
+                 std::forward<decltype(fmt)>(fmt),
+                 std::forward<decltype(args)>(args)...);
+}
 
 } // namespace debug
 

@@ -36,6 +36,7 @@
 
 #include "server_base.h"
 #include "template.h"
+#include "debug.h"
 
 namespace {
 auto _ = []() {
@@ -80,8 +81,7 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
     break;
   default:
     if (!config.quiet) {
-      std::cerr << "Unexpected quic protocol version: " << std::hex << "0x"
-                << version << std::dec << std::endl;
+      debug::print("Unexpected quic protocol version: {:#010x}\n", version);
     }
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
@@ -95,7 +95,8 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
   }
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << &alpn[1] << std::endl;
+    debug::print("Client did not present ALPN {}\n",
+                 reinterpret_cast<const char *>(&alpn[1]));
   }
 
   return SSL_TLSEXT_ERR_ALERT_FATAL;
@@ -122,8 +123,7 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
     break;
   default:
     if (!config.quiet) {
-      std::cerr << "Unexpected quic protocol version: " << std::hex << "0x"
-                << version << std::dec << std::endl;
+      debug::print("Unexpected quic protocol version: {:#010x}\n", version);
     }
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
@@ -137,7 +137,8 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
   }
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << &alpn[1] << std::endl;
+    debug::print("Client did not present ALPN {}\n",
+                 reinterpret_cast<const char *>(&alpn[1]));
   }
 
   return SSL_TLSEXT_ERR_ALERT_FATAL;
@@ -227,14 +228,13 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
 
   ssl_ctx_ = SSL_CTX_new(TLS_server_method());
   if (!ssl_ctx_) {
-    std::cerr << "SSSL_CTX_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
+    debug::print("SSL_CTX_new: {}\n",
+                 ERR_error_string(ERR_get_error(), nullptr));
     return -1;
   }
 
   if (ngtcp2_crypto_quictls_configure_server_context(ssl_ctx_) != 0) {
-    std::cerr << "ngtcp2_crypto_quictls_configure_server_context failed"
-              << std::endl;
+    debug::print("ngtcp2_crypto_quictls_configure_server_context failed\n");
     return -1;
   }
 
@@ -251,13 +251,13 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   SSL_CTX_set_options(ssl_ctx_, ssl_opts);
 
   if (SSL_CTX_set_ciphersuites(ssl_ctx_, config.ciphers) != 1) {
-    std::cerr << "SSL_CTX_set_ciphersuites: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    debug::print("SSL_CTX_set_ciphersuites: {}\n",
+                 ERR_error_string(ERR_get_error(), nullptr));
     return -1;
   }
 
   if (SSL_CTX_set1_groups_list(ssl_ctx_, config.groups) != 1) {
-    std::cerr << "SSL_CTX_set1_groups_list failed" << std::endl;
+    debug::print("SSL_CTX_set1_groups_list failed\n");
     return -1;
   }
 
@@ -276,20 +276,20 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
 
   if (SSL_CTX_use_PrivateKey_file(ssl_ctx_, private_key_file,
                                   SSL_FILETYPE_PEM) != 1) {
-    std::cerr << "SSL_CTX_use_PrivateKey_file: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    debug::print("SSL_CTX_use_PrivateKey_file: {}\n",
+                 ERR_error_string(ERR_get_error(), nullptr));
     return -1;
   }
 
   if (SSL_CTX_use_certificate_chain_file(ssl_ctx_, cert_file) != 1) {
-    std::cerr << "SSL_CTX_use_certificate_chain_file: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    debug::print("SSL_CTX_use_certificate_chain_file: {}\n",
+                 ERR_error_string(ERR_get_error(), nullptr));
     return -1;
   }
 
   if (SSL_CTX_check_private_key(ssl_ctx_) != 1) {
-    std::cerr << "SSL_CTX_check_private_key: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    debug::print("SSL_CTX_check_private_key: {}\n",
+                 ERR_error_string(ERR_get_error(), nullptr));
     return -1;
   }
 

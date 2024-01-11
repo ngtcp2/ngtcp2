@@ -35,6 +35,7 @@
 #include <wolfssl/openssl/pem.h>
 
 #include "template.h"
+#include "debug.h"
 
 namespace ngtcp2 {
 
@@ -81,7 +82,7 @@ std::optional<std::string> read_pem(const std::string_view &filename,
                                     const std::string_view &type) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "r");
   if (f == nullptr) {
-    std::cerr << "Could not open " << name << " file " << filename << std::endl;
+    debug::print("Could not open {} file {}\n", name, filename);
     return {};
   }
 
@@ -92,7 +93,7 @@ std::optional<std::string> read_pem(const std::string_view &filename,
   long datalen;
 
   if (wolfSSL_PEM_read_bio(f, &pem_type, &header, &data, &datalen) != 1) {
-    std::cerr << "Could not read " << name << " file " << filename << std::endl;
+    debug::print("Could not read {} file {}\n", name, filename);
     return {};
   }
 
@@ -101,8 +102,7 @@ std::optional<std::string> read_pem(const std::string_view &filename,
   auto data_d = defer(wolfSSL_OPENSSL_free, data);
 
   if (type != pem_type) {
-    std::cerr << name << " file " << filename << " contains unexpected type"
-              << std::endl;
+    debug::print("{} file {} contains unexpected type\n", name, filename);
     return {};
   }
 
@@ -114,7 +114,7 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
               size_t datalen) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "w");
   if (f == nullptr) {
-    std::cerr << "Could not write " << name << " in " << filename << std::endl;
+    debug::print("Could not write {} in {}\n", name, filename);
     return -1;
   }
 

@@ -32,6 +32,7 @@
 #include "tls_server_context_picotls.h"
 #include "server_base.h"
 #include "util.h"
+#include "debug.h"
 
 using namespace ngtcp2;
 
@@ -44,7 +45,7 @@ TLSServerSession::~TLSServerSession() {}
 int TLSServerSession::init(TLSServerContext &tls_ctx, HandlerBase *handler) {
   cptls_.ptls = ptls_server_new(tls_ctx.get_native_handle());
   if (!cptls_.ptls) {
-    std::cerr << "ptls_server_new failed" << std::endl;
+    debug::print("ptls_server_new failed\n");
     return -1;
   }
 
@@ -61,8 +62,7 @@ int TLSServerSession::init(TLSServerContext &tls_ctx, HandlerBase *handler) {
       };
 
   if (ngtcp2_crypto_picotls_configure_server_session(&cptls_) != 0) {
-    std::cerr << "ngtcp2_crypto_picotls_configure_server_session failed"
-              << std::endl;
+    debug::print("ngtcp2_crypto_picotls_configure_server_session failed\n");
     return -1;
   }
 

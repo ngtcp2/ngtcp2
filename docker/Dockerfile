@@ -5,13 +5,17 @@ ARG NGTCP2_BRANCH=main
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         git g++ clang-15 make binutils autoconf automake autotools-dev libtool \
-        pkg-config libev-dev libjemalloc-dev \
+        pkg-config libev-dev libjemalloc-dev cmake cmake-data \
         ca-certificates mime-support && \
     git clone --depth 1 -b v5.6.6-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
     ./configure --enable-static --enable-all --enable-aesni \
         --enable-harden --enable-keylog-export && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf wolfssl && \
+    git clone --depth 1 -b 10.2.1 https://github.com/fmtlib/fmt && \
+    cd fmt && cmake -B build -DCMAKE_CXX_COMPILER=clang++-15 && \
+    make -j$(nproc) -C build && cmake --install build && \
+    cd .. && rm -rf fmt && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && autoreconf -i && \
     ./configure --enable-lib-only CC=clang-15 CXX=clang++-15 && \
@@ -23,6 +27,7 @@ RUN apt-get update && \
         CXX=clang++-15 \
         LIBTOOL_LDFLAGS="-static-libtool-libs" \
         LIBEV_LIBS="-l:libev.a" \
+        FMT_LIBS="-l:libfmt.a" \
         JEMALLOC_LIBS="-l:libjemalloc.a -lm" \
         --with-wolfssl && \
     make -j$(nproc) && \

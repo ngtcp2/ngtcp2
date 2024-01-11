@@ -228,13 +228,14 @@ jobs:
           libgnutls28-dev \
           cmake \
           cmake-data \
-          python3-pytest
+          python3-pytest \
+          libfmt-dev
 
         echo 'NPROC='"$(nproc)" >> $GITHUB_ENV
     - name: MacOS setup
       if: runner.os == 'macOS'
       run: |
-        brew install libev gnutls cunit autoconf automake pkg-config libtool
+        brew install libev gnutls cunit autoconf automake pkg-config libtool fmt
 
         echo 'NPROC='"$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
     - name: Setup clang (Linux)

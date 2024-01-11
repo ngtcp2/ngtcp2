@@ -28,6 +28,7 @@
 
 #include "server_base.h"
 #include "template.h"
+#include "debug.h"
 
 // Based on https://github.com/ueno/ngtcp2-gnutls-examples
 
@@ -69,29 +70,29 @@ gnutls_anti_replay_t TLSServerContext::get_anti_replay() const {
 int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                            AppProtocol app_proto) {
   if (auto rv = gnutls_certificate_allocate_credentials(&cred_); rv != 0) {
-    std::cerr << "gnutls_certificate_allocate_credentials failed: "
-              << gnutls_strerror(rv) << std::endl;
+    debug::print("gnutls_certificate_allocate_credentials failed: {}\n",
+                 gnutls_strerror(rv));
     return -1;
   }
 
   if (auto rv = gnutls_certificate_set_x509_system_trust(cred_); rv < 0) {
-    std::cerr << "gnutls_certificate_set_x509_system_trust failed: "
-              << gnutls_strerror(rv) << std::endl;
+    debug::print("gnutls_certificate_set_x509_system_trust failed: {}\n",
+                 gnutls_strerror(rv));
     return -1;
   }
 
   if (auto rv = gnutls_certificate_set_x509_key_file(
           cred_, cert_file, private_key_file, GNUTLS_X509_FMT_PEM);
       rv != 0) {
-    std::cerr << "gnutls_certificate_set_x509_key_file failed: "
-              << gnutls_strerror(rv) << std::endl;
+    debug::print("gnutls_certificate_set_x509_key_file failed: {}\n",
+                 gnutls_strerror(rv));
     return -1;
   }
 
   if (auto rv = gnutls_session_ticket_key_generate(&session_ticket_key_);
       rv != 0) {
-    std::cerr << "gnutls_session_ticket_key_generate failed: "
-              << gnutls_strerror(rv) << std::endl;
+    debug::print("gnutls_session_ticket_key_generate failed: {}\n",
+                 gnutls_strerror(rv));
     return -1;
   }
 

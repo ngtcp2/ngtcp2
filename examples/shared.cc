@@ -51,6 +51,7 @@
 #endif // HAVE_LINUX_RTNETLINK_H
 
 #include "template.h"
+#include "debug.h"
 
 namespace ngtcp2 {
 
@@ -92,13 +93,13 @@ void fd_set_recv_ecn(int fd, int family) {
   case AF_INET:
     if (setsockopt(fd, IPPROTO_IP, IP_RECVTOS, &tos,
                    static_cast<socklen_t>(sizeof(tos))) == -1) {
-      std::cerr << "setsockopt: " << strerror(errno) << std::endl;
+      debug::print("setsockopt: {}\n", strerror(errno));
     }
     break;
   case AF_INET6:
     if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVTCLASS, &tos,
                    static_cast<socklen_t>(sizeof(tos))) == -1) {
-      std::cerr << "setsockopt: " << strerror(errno) << std::endl;
+      debug::print("setsockopt: {}\n", strerror(errno));
     }
     break;
   }
@@ -113,16 +114,14 @@ void fd_set_ip_mtu_discover(int fd, int family) {
     val = IP_PMTUDISC_DO;
     if (setsockopt(fd, IPPROTO_IP, IP_MTU_DISCOVER, &val,
                    static_cast<socklen_t>(sizeof(val))) == -1) {
-      std::cerr << "setsockopt: IP_MTU_DISCOVER: " << strerror(errno)
-                << std::endl;
+      debug::print("setsockopt: IP_MTU_DISCOVER: {}\n", strerror(errno));
     }
     break;
   case AF_INET6:
     val = IPV6_PMTUDISC_DO;
     if (setsockopt(fd, IPPROTO_IPV6, IPV6_MTU_DISCOVER, &val,
                    static_cast<socklen_t>(sizeof(val))) == -1) {
-      std::cerr << "setsockopt: IPV6_MTU_DISCOVER: " << strerror(errno)
-                << std::endl;
+      debug::print("setsockopt: IPV6_MTU_DISCOVER: {}\n", strerror(errno));
     }
     break;
   }
@@ -137,14 +136,13 @@ void fd_set_ip_dontfrag(int fd, int family) {
   case AF_INET:
     if (setsockopt(fd, IPPROTO_IP, IP_DONTFRAG, &val,
                    static_cast<socklen_t>(sizeof(val))) == -1) {
-      std::cerr << "setsockopt: IP_DONTFRAG: " << strerror(errno) << std::endl;
+      debug::print("setsockopt: IP_DONTFRAG: {}\n", strerror(errno));
     }
     break;
   case AF_INET6:
     if (setsockopt(fd, IPPROTO_IPV6, IPV6_DONTFRAG, &val,
                    static_cast<socklen_t>(sizeof(val))) == -1) {
-      std::cerr << "setsockopt: IPV6_DONTFRAG: " << strerror(errno)
-                << std::endl;
+      debug::print("setsockopt: IPV6_DONTFRAG: {}\n", strerror(errno));
     }
     break;
   }
@@ -157,7 +155,7 @@ void fd_set_udp_gro(int fd) {
 
   if (setsockopt(fd, IPPROTO_UDP, UDP_GRO, &val,
                  static_cast<socklen_t>(sizeof(val))) == -1) {
-    std::cerr << "setsockopt: UDP_GRO: " << strerror(errno) << std::endl;
+    debug::print("setsockopt: UDP_GRO: {}\n", strerror(errno));
   }
 #endif // UDP_GRO
 }
@@ -284,8 +282,8 @@ int send_netlink_msg(int fd, const Address &remote_addr, uint32_t seq) {
   } while (nwrite == -1 && errno == EINTR);
 
   if (nwrite == -1) {
-    std::cerr << "sendmsg: Could not write netlink message: " << strerror(errno)
-              << std::endl;
+    debug::print("sendmsg: Could not write netlink message: {}\n",
+                 strerror(errno));
     return -1;
   }
 
@@ -312,8 +310,8 @@ int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
   } while (nread == -1 && errno == EINTR);
 
   if (nread == -1) {
-    std::cerr << "recvmsg: Could not receive netlink message: "
-              << strerror(errno) << std::endl;
+    debug::print("recvmsg: Could not receive netlink message: {}\n",
+                 strerror(errno));
     return -1;
   }
 
@@ -322,26 +320,26 @@ int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
   for (auto hdr = reinterpret_cast<nlmsghdr *>(buf.data());
        NLMSG_OK(hdr, nread); hdr = NLMSG_NEXT(hdr, nread)) {
     if (seq != hdr->nlmsg_seq) {
-      std::cerr << "netlink: unexpected sequence number " << hdr->nlmsg_seq
-                << " while expecting " << seq << std::endl;
+      debug::print(
+          "netlink: unexpected sequence number {} while expecting {}\n",
+          hdr->nlmsg_seq, seq);
       return -1;
     }
 
     if (hdr->nlmsg_flags & NLM_F_MULTI) {
-      std::cerr << "netlink: unexpected NLM_F_MULTI flag set" << std::endl;
+      debug::print("netlink: unexpected NLM_F_MULTI flag set\n");
       return -1;
     }
 
     switch (hdr->nlmsg_type) {
     case NLMSG_DONE:
-      std::cerr << "netlink: unexpected NLMSG_DONE" << std::endl;
+      debug::print("netlink: unexpected NLMSG_DONE\n");
       return -1;
     case NLMSG_NOOP:
       continue;
     case NLMSG_ERROR:
-      std::cerr << "netlink: "
-                << strerror(-static_cast<nlmsgerr *>(NLMSG_DATA(hdr))->error)
-                << std::endl;
+      debug::print("netlink: {}\n",
+                   strerror(-static_cast<nlmsgerr *>(NLMSG_DATA(hdr))->error));
       return -1;
     }
 
@@ -396,8 +394,8 @@ int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
   } while (nread == -1 && errno == EINTR);
 
   if (nread == -1) {
-    std::cerr << "recvmsg: Could not receive netlink message: "
-              << strerror(errno) << std::endl;
+    debug::print("recvmsg: Could not receive netlink message: {}\n",
+                 strerror(errno));
     return -1;
   }
 
@@ -406,19 +404,20 @@ int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
   for (auto hdr = reinterpret_cast<nlmsghdr *>(buf.data());
        NLMSG_OK(hdr, nread); hdr = NLMSG_NEXT(hdr, nread)) {
     if (seq != hdr->nlmsg_seq) {
-      std::cerr << "netlink: unexpected sequence number " << hdr->nlmsg_seq
-                << " while expecting " << seq << std::endl;
+      debug::print(
+          "netlink: unexpected sequence number {} while expecting {}\n",
+          hdr->nlmsg_seq, seq);
       return -1;
     }
 
     if (hdr->nlmsg_flags & NLM_F_MULTI) {
-      std::cerr << "netlink: unexpected NLM_F_MULTI flag set" << std::endl;
+      debug::print("netlink: unexpected NLM_F_MULTI flag set\n");
       return -1;
     }
 
     switch (hdr->nlmsg_type) {
     case NLMSG_DONE:
-      std::cerr << "netlink: unexpected NLMSG_DONE" << std::endl;
+      debug::print("netlink: unexpected NLMSG_DONE\n");
       return -1;
     case NLMSG_NOOP:
       continue;
@@ -428,7 +427,7 @@ int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
         break;
       }
 
-      std::cerr << "netlink: " << strerror(error) << std::endl;
+      debug::print("netlink: {}\n", strerror(error));
 
       return -1;
     }
@@ -448,16 +447,15 @@ int get_local_addr(in_addr_union &iau, const Address &remote_addr) {
 
   auto fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
   if (fd == -1) {
-    std::cerr << "socket: Could not create netlink socket: " << strerror(errno)
-              << std::endl;
+    debug::print("socket: Could not create netlink socket: {}\n",
+                 strerror(errno));
     return -1;
   }
 
   auto fd_d = defer(close, fd);
 
   if (bind(fd, reinterpret_cast<sockaddr *>(&sa), sizeof(sa)) == -1) {
-    std::cerr << "bind: Could not bind netlink socket: " << strerror(errno)
-              << std::endl;
+    debug::print("bind: Could not bind netlink socket: {}\n", strerror(errno));
     return -1;
   }
 

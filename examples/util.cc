@@ -47,6 +47,7 @@
 #include <charconv>
 
 #include "template.h"
+#include "debug.h"
 
 using namespace std::literals;
 
@@ -266,7 +267,7 @@ std::string straddr(const sockaddr *sa, socklen_t salen) {
   auto rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
                         port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
   if (rv != 0) {
-    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
+    debug::print("getnameinfo: {}\n", gai_strerror(rv));
     return "";
   }
   std::string res = "[";

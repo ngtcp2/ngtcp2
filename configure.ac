@@ -163,6 +163,9 @@ AC_ARG_VAR([JEMALLOC_CFLAGS],
            [C compiler flags for jemalloc, skipping any checks])
 AC_ARG_VAR([JEMALLOC_LIBS], [linker flags for jemalloc, skipping any checks])
 
+AC_ARG_VAR([FMT_CFLAGS], [C compiler flags for fmt])
+AC_ARG_VAR([FMT_LIBS], [linker flags for fmt])
+
 AC_ARG_VAR([LIBTOOL_LDFLAGS],
            [libtool specific flags (e.g., -static-libtool-libs)])
 
@@ -461,12 +464,43 @@ if test "x${lib_only}" = "xno" &&
   AC_MSG_WARN([C++ compiler is not capable of C++20.  Examples will not be built.])
 fi
 
+if test "x${HAVE_CXX20}" = "x1"; then
+  AC_LANG_PUSH(C++)
+
+  AC_MSG_CHECKING([whether C++20 std::format is available])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+  [[
+    #include <format>
+  ]],
+  [[
+    std::format("Hello {}\n", "ngtcp2");
+  ]])],
+  [AC_MSG_RESULT([yes]); have_std_format=yes],
+  [AC_MSG_RESULT([no]); have_std_format=no])
+
+  AC_LANG_POP()
+
+  if test "x${have_std_format}" == "xyes"; then
+    AC_DEFINE([HAVE_STD_FORMAT], [1],
+              [Define to 1 if you have the C++20 `std::format`.])
+  else
+    PKG_CHECK_MODULES([FMT], [fmt >= 8.1.1], [have_fmt=yes], [have_fmt=no])
+    if test "x${have_fmt}" != "xyes"; then
+      AC_MSG_NOTICE($FMT_PKG_ERRORS)
+      AC_MSG_WARN([C++ compiler does not support C++20 std::format and fmt library was not found.  Examples will not be built.])
+    else
+      AC_DEFINE([HAVE_FMT], [1], [Define to 1 if you have `fmt` library.])
+    fi
+  fi
+fi
+
 enable_examples=no
 if test "x${lib_only}" = "xno" &&
    test "x${have_libnghttp3}" = "xyes" &&
    test "x${have_crypto}" = "xyes" &&
    test "x${have_libev}" = "xyes" &&
-   test "x${HAVE_CXX20}" = "x1"; then
+   (test "x${have_std_format}" = "xyes" ||
+    test "x${have_fmt}" = "xyes"); then
   enable_examples=yes
 
   if test "x${have_openssl}" = "xyes"; then
@@ -782,5 +816,6 @@ AC_MSG_NOTICE([summary of build options:
       BoringSSL:      ${have_boringssl} (CFLAGS='${BORINGSSL_CFLAGS}' LIBS='${BORINGSSL_LIBS}')
       Picotls:        ${have_picotls} (CFLAGS='${PICOTLS_CFLAGS}' LIBS='${PICOTLS_LIBS}')
       wolfSSL:        ${have_wolfssl} (CFLAGS='${WOLFSSL_CFLAGS}' LIBS='${WOLFSSL_LIBS}')
+      fmt:            ${have_fmt} (CFLAGS='${FMT_CFLAGS}' LIBS='${FMT_LIBS}')
     Examples:         ${enable_examples}
 ])

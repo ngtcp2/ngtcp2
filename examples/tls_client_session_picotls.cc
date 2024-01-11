@@ -39,6 +39,7 @@
 #include "client_base.h"
 #include "template.h"
 #include "util.h"
+#include "debug.h"
 
 using namespace std::literals;
 
@@ -75,7 +76,7 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
                            uint32_t quic_version, AppProtocol app_proto) {
   cptls_.ptls = ptls_client_new(tls_ctx.get_native_handle());
   if (!cptls_.ptls) {
-    std::cerr << "ptls_client_new failed" << std::endl;
+    debug::print("ptls_client_new failed\n");
     return -1;
   }
 
@@ -94,8 +95,7 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
   };
 
   if (ngtcp2_crypto_picotls_configure_client_session(&cptls_, conn) != 0) {
-    std::cerr << "ngtcp2_crypto_picotls_configure_client_session failed"
-              << std::endl;
+    debug::print("ngtcp2_crypto_picotls_configure_client_session failed\n");
     return -1;
   }
 
@@ -123,8 +123,7 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
   if (config.session_file) {
     auto f = BIO_new_file(config.session_file, "r");
     if (f == nullptr) {
-      std::cerr << "Could not read TLS session file " << config.session_file
-                << std::endl;
+      debug::print("Could not read TLS session file {}\n", config.session_file);
     } else {
       auto f_d = defer(BIO_free, f);
 
@@ -133,12 +132,11 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
       long datalen;
 
       if (PEM_read_bio(f, &name, &header, &data, &datalen) != 1) {
-        std::cerr << "Could not read TLS session file " << config.session_file
-                  << std::endl;
+        debug::print("Could not read TLS session file {}\n",
+                     config.session_file);
       } else {
         if ("PICOTLS SESSION PARAMETERS"sv != name) {
-          std::cerr << "TLS session file contains unexpected name: " << name
-                    << std::endl;
+          debug::print("TLS session file contains unexpected name: {}\n", name);
         } else {
           hsprops.client.session_ticket.base = new uint8_t[datalen];
           hsprops.client.session_ticket.len = datalen;

@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2024 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,34 +22,25 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "tls_server_session_wolfssl.h"
+#ifndef FORMAT_COMPAT_H
+#define FORMAT_COMPAT_H
 
-#include <iostream>
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif // HAVE_CONFIG_H
 
-#include "tls_server_context_wolfssl.h"
-#include "server_base.h"
-#include "debug.h"
+#ifdef HAVE_STD_FORMAT
+#  include <format>
+#endif // HAVE_STD_FORMAT
 
-TLSServerSession::TLSServerSession() {}
+#ifdef HAVE_FMT
+#  include <fmt/format.h>
 
-TLSServerSession::~TLSServerSession() {}
+namespace std {
+using fmt::format;
+using fmt::format_string;
+using fmt::format_to;
+} // namespace std
+#endif // HAVE_FMT
 
-int TLSServerSession::init(const TLSServerContext &tls_ctx,
-                           HandlerBase *handler) {
-  auto ssl_ctx = tls_ctx.get_native_handle();
-
-  ssl_ = wolfSSL_new(ssl_ctx);
-  if (!ssl_) {
-    debug::print("wolfSSL_new: {}\n",
-                 wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr));
-    return -1;
-  }
-
-  wolfSSL_set_app_data(ssl_, handler->conn_ref());
-  wolfSSL_set_accept_state(ssl_);
-#ifdef WOLFSSL_EARLY_DATA
-  wolfSSL_set_quic_early_data_enabled(ssl_, 1);
-#endif
-
-  return 0;
-}
+#endif // FORMAT_COMPAT_H

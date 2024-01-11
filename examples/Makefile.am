@@ -31,6 +31,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/third-party \
 	@LIBEV_CFLAGS@ \
 	@LIBNGHTTP3_CFLAGS@ \
+	@FMT_CFLAGS@ \
 	@DEFS@ \
 	@EXTRA_DEFS@
 AM_LDFLAGS = -no-install \
@@ -38,7 +39,8 @@ AM_LDFLAGS = -no-install \
 LDADD = $(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/libhttp-parser.la \
 	@LIBEV_LIBS@ \
-	@LIBNGHTTP3_LIBS@
+	@LIBNGHTTP3_LIBS@ \
+	@FMT_LIBS@
 
 SERVER_SRCS = \
 	server_base.cc server_base.h \
@@ -49,6 +51,7 @@ SERVER_SRCS = \
 	util.cc util.h \
 	shared.cc shared.h \
 	http.cc http.h \
+	format_compat.h \
 	network.h
 
 CLIENT_SRCS = \
@@ -59,6 +62,7 @@ CLIENT_SRCS = \
 	debug.cc debug.h \
 	util.cc util.h \
 	shared.cc shared.h \
+	format_compat.h \
 	network.h
 
 noinst_PROGRAMS =

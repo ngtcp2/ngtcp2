@@ -41,3 +41,9 @@
 /* Define WORDS_BIGENDIAN to 1 if target architecture is big
    endian. */
 #cmakedefine WORDS_BIGENDIAN 1
+
+/* Define to 1 if you have the C++20 `std::format`. */
+#cmakedefine HAVE_STD_FORMAT 1
+
+/* Define to 1 if you have `fmt` library. */
+#cmakedefine HAVE_FMT 1

@@ -30,6 +30,7 @@
 
 #include "tls_server_context_quictls.h"
 #include "server_base.h"
+#include "debug.h"
 
 TLSServerSession::TLSServerSession() {}
 
@@ -41,8 +42,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
 
   ssl_ = SSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
+    debug::print("SSL_new: {}\n", ERR_error_string(ERR_get_error(), nullptr));
     return -1;
   }
 

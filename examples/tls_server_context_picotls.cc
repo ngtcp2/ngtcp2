@@ -37,6 +37,7 @@
 #include "server_base.h"
 #include "tls_shared_picotls.h"
 #include "template.h"
+#include "debug.h"
 
 extern Config config;
 
@@ -312,13 +313,12 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   };
 
   if (ngtcp2_crypto_picotls_configure_server_context(&ctx_) != 0) {
-    std::cerr << "ngtcp2_crypto_picotls_configure_server_context failed"
-              << std::endl;
+    debug::print("ngtcp2_crypto_picotls_configure_server_context failed\n");
     return -1;
   }
 
   if (ptls_load_certificates(&ctx_, cert_file) != 0) {
-    std::cerr << "ptls_load_certificates failed" << std::endl;
+    debug::print("ptls_load_certificates failed\n");
     return -1;
   }
 
@@ -336,8 +336,8 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
 int TLSServerContext::load_private_key(const char *private_key_file) {
   auto fp = fopen(private_key_file, "rb");
   if (fp == nullptr) {
-    std::cerr << "Could not open private key file " << private_key_file << ": "
-              << strerror(errno) << std::endl;
+    debug::print("Could not open private key file {}: {}\n", private_key_file,
+                 strerror(errno));
     return -1;
   }
 
@@ -345,15 +345,14 @@ int TLSServerContext::load_private_key(const char *private_key_file) {
 
   auto pkey = PEM_read_PrivateKey(fp, nullptr, nullptr, nullptr);
   if (pkey == nullptr) {
-    std::cerr << "Could not read private key file " << private_key_file
-              << std::endl;
+    debug::print("Could not read private key file {}\n", private_key_file);
     return -1;
   }
 
   auto pkey_d = defer(EVP_PKEY_free, pkey);
 
   if (ptls_openssl_init_sign_certificate(&sign_cert_, pkey) != 0) {
-    std::cerr << "ptls_openssl_init_sign_certificate failed" << std::endl;
+    debug::print("ptls_openssl_init_sign_certificate failed\n");
     return -1;
   }
 

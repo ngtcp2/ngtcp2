@@ -34,6 +34,7 @@
 #include <gnutls/crypto.h>
 
 #include "template.h"
+#include "debug.h"
 
 // Based on https://github.com/ueno/ngtcp2-gnutls-examples
 
@@ -73,7 +74,7 @@ std::optional<std::string> read_pem(const std::string_view &filename,
                                     const std::string_view &type) {
   auto f = std::ifstream(filename.data());
   if (!f) {
-    std::cerr << "Could not read " << name << " file " << filename << std::endl;
+    debug::print("Could not read {} file {}\n", name, filename);
     return {};
   }
 
@@ -89,7 +90,7 @@ std::optional<std::string> read_pem(const std::string_view &filename,
 
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_decode2(type.data(), &s, &d); rv < 0) {
-    std::cerr << "Could not read " << name << " file " << filename << std::endl;
+    debug::print("Could not read {} file {}\n", name, filename);
     return {};
   }
 
@@ -105,7 +106,7 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
               size_t datalen) {
   auto f = std::ofstream(filename.data());
   if (!f) {
-    std::cerr << "Could not write " << name << " in " << filename << std::endl;
+    debug::print("Could not write {} in {}\n", name, filename);
     return -1;
   }
 
@@ -115,7 +116,7 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
 
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_encode2(type.data(), &s, &d); rv < 0) {
-    std::cerr << "Could not encode " << name << " in " << filename << std::endl;
+    debug::print("Could not encode {} in {}\n", name, filename);
     return -1;
   }
 

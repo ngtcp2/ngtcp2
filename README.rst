@@ -52,6 +52,11 @@ required:
 - libev
 - `nghttp3 <https://github.com/ngtcp2/nghttp3>`_ for HTTP/3
 
+In addition to the above the libraries, if C++ compiler/library does
+not support C++20 std::format, the following library is required:
+
+- libfmt-dev >= 8.1.1
+
 ngtcp2 crypto helper library, and client and server under examples
 directory require at least one of the following TLS backends:
 

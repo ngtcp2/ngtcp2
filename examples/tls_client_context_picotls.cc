@@ -34,6 +34,7 @@
 #include "client_base.h"
 #include "tls_shared_picotls.h"
 #include "template.h"
+#include "debug.h"
 
 extern Config config;
 
@@ -47,14 +48,13 @@ int save_ticket_cb(ptls_save_ticket_t *self, ptls_t *ptls, ptls_iovec_t input) {
 
   auto f = BIO_new_file(config.session_file, "w");
   if (f == nullptr) {
-    std::cerr << "Could not write TLS session in " << config.session_file
-              << std::endl;
+    debug::print("Could not write TLS session in {}\n", config.session_file);
     return 0;
   }
 
   if (!PEM_write_bio(f, "PICOTLS SESSION PARAMETERS", "", input.base,
                      input.len)) {
-    std::cerr << "Unable to write TLS session to file" << std::endl;
+    debug::print("Unable to write TLS session to file\n");
   }
 
   BIO_free(f);
@@ -109,8 +109,7 @@ ptls_context_t *TLSClientContext::get_native_handle() { return &ctx_; }
 int TLSClientContext::init(const char *private_key_file,
                            const char *cert_file) {
   if (ngtcp2_crypto_picotls_configure_client_context(&ctx_) != 0) {
-    std::cerr << "ngtcp2_crypto_picotls_configure_client_context failed"
-              << std::endl;
+    debug::print("ngtcp2_crypto_picotls_configure_client_context failed\n");
     return -1;
   }
 
@@ -120,7 +119,7 @@ int TLSClientContext::init(const char *private_key_file,
 
   if (private_key_file && cert_file) {
     if (ptls_load_certificates(&ctx_, cert_file) != 0) {
-      std::cerr << "ptls_load_certificates failed" << std::endl;
+      debug::print("ptls_load_certificates failed\n");
       return -1;
     }
 
@@ -135,8 +134,8 @@ int TLSClientContext::init(const char *private_key_file,
 int TLSClientContext::load_private_key(const char *private_key_file) {
   auto fp = fopen(private_key_file, "rb");
   if (fp == nullptr) {
-    std::cerr << "Could not open private key file " << private_key_file << ": "
-              << strerror(errno) << std::endl;
+    debug::print("Could not open private key file {}: {}\n", private_key_file,
+                 strerror(errno));
     return -1;
   }
 
@@ -144,15 +143,14 @@ int TLSClientContext::load_private_key(const char *private_key_file) {
 
   auto pkey = PEM_read_PrivateKey(fp, nullptr, nullptr, nullptr);
   if (pkey == nullptr) {
-    std::cerr << "Could not read private key file " << private_key_file
-              << std::endl;
+    debug::print("Could not read private key file {}\n", private_key_file);
     return -1;
   }
 
   auto pkey_d = defer(EVP_PKEY_free, pkey);
 
   if (ptls_openssl_init_sign_certificate(&sign_cert_, pkey) != 0) {
-    std::cerr << "ptls_openssl_init_sign_certificate failed" << std::endl;
+    debug::print("ptls_openssl_init_sign_certificate failed\n");
     return -1;
   }
 

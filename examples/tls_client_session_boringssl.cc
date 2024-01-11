@@ -31,6 +31,7 @@
 #include "client_base.h"
 #include "template.h"
 #include "util.h"
+#include "debug.h"
 
 TLSClientSession::TLSClientSession() {}
 
@@ -48,8 +49,7 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   ssl_ = SSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
+    debug::print("SSL_new: {}\n", ERR_error_string(ERR_get_error(), nullptr));
     return -1;
   }
 
@@ -78,17 +78,16 @@ int TLSClientSession::init(bool &early_data_enabled,
   if (config.session_file) {
     auto f = BIO_new_file(config.session_file, "r");
     if (f == nullptr) {
-      std::cerr << "Could not read TLS session file " << config.session_file
-                << std::endl;
+      debug::print("Could not read TLS session file {}\n", config.session_file);
     } else {
       auto session = PEM_read_bio_SSL_SESSION(f, nullptr, 0, nullptr);
       BIO_free(f);
       if (session == nullptr) {
-        std::cerr << "Could not read TLS session file " << config.session_file
-                  << std::endl;
+        debug::print("Could not read TLS session file {}\n",
+                     config.session_file);
       } else {
         if (!SSL_set_session(ssl_, session)) {
-          std::cerr << "Could not set session" << std::endl;
+          debug::print("Could not set session\n");
         } else if (!config.disable_early_data &&
                    SSL_SESSION_early_data_capable(session)) {
           early_data_enabled = true;

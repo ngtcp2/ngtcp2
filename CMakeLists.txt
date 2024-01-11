@@ -136,6 +136,17 @@ if(HAVE_CUNIT)
   add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 endif()
 
+cmake_push_check_state()
+set(CMAKE_REQUIRED_FLAGS "-std=c++20")
+check_cxx_source_compiles("
+#include <format>
+int main() { std::format(\"Hello, {}\", \"ngtcp2\"); }" HAVE_STD_FORMAT)
+cmake_pop_check_state()
+if(NOT HAVE_STD_FORMAT)
+  find_package(fmt 8.1.1)
+  set(HAVE_FMT ${FMT_FOUND})
+endif()
+
 # OpenSSL (required for libngtcp2_crypto_quictls,
 # libngtcp2_crypto_picotls and examples)
 include(CheckSymbolExists)
@@ -370,4 +381,5 @@ message(STATUS "summary of build options:
       Picotls:        ${HAVE_PICOTLS} (LIBS='${PICOTLS_LIBRARIES}')
       wolfSSL:        ${HAVE_WOLFSSL} (LIBS='${WOLFSSL_LIBRARIES}')
       Jemalloc:       ${HAVE_JEMALLOC} (LIBS='${JEMALLOC_LIBRARIES}')
+      fmt:            ${HAVE_FMT} (LIBS='${FMT_LIBRARIES}')
 ")

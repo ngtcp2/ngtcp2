@@ -37,6 +37,7 @@
 #include "client_base.h"
 #include "template.h"
 #include "util.h"
+#include "debug.h"
 
 // Based on https://github.com/ueno/ngtcp2-gnutls-examples
 
@@ -58,8 +59,8 @@ int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
 
     gnutls_datum_t data;
     if (auto rv = gnutls_session_get_data2(session, &data); rv != 0) {
-      std::cerr << "gnutls_session_get_data2 failed: " << gnutls_strerror(rv)
-                << std::endl;
+      debug::print("gnutls_session_get_data2 failed: {}\n",
+                   gnutls_strerror(rv));
       return rv;
     }
     auto f = std::ofstream(config.session_file);
@@ -71,14 +72,13 @@ int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
     if (auto rv =
             gnutls_pem_base64_encode2("GNUTLS SESSION PARAMETERS", &data, &d);
         rv < 0) {
-      std::cerr << "Could not encode session in " << config.session_file
-                << std::endl;
+      debug::print("Could not encode session in {}\n", config.session_file);
       return -1;
     }
 
     f.write(reinterpret_cast<const char *>(d.data), d.size);
     if (!f) {
-      std::cerr << "Unable to write TLS session to file" << std::endl;
+      debug::print("Unable to write TLS session to file\n");
     }
     gnutls_free(d.data);
     gnutls_free(data.data);
@@ -98,7 +98,7 @@ int TLSClientSession::init(bool &early_data_enabled,
           gnutls_init(&session_, GNUTLS_CLIENT | GNUTLS_ENABLE_EARLY_DATA |
                                      GNUTLS_NO_END_OF_EARLY_DATA);
       rv != 0) {
-    std::cerr << "gnutls_init failed: " << gnutls_strerror(rv) << std::endl;
+    debug::print("gnutls_init failed: {}\n", gnutls_strerror(rv));
     return -1;
   }
 
@@ -109,8 +109,8 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   if (auto rv = gnutls_priority_set_direct(session_, priority.c_str(), nullptr);
       rv != 0) {
-    std::cerr << "gnutls_priority_set_direct failed: " << gnutls_strerror(rv)
-              << std::endl;
+    debug::print("gnutls_priority_set_direct failed: {}\n",
+                 gnutls_strerror(rv));
     return -1;
   }
 
@@ -118,8 +118,7 @@ int TLSClientSession::init(bool &early_data_enabled,
                                      GNUTLS_HOOK_POST, hook_func);
 
   if (ngtcp2_crypto_gnutls_configure_client_session(session_) != 0) {
-    std::cerr << "ngtcp2_crypto_gnutls_configure_client_session failed"
-              << std::endl;
+    debug::print("ngtcp2_crypto_gnutls_configure_client_session failed\n");
     return -1;
   }
 
@@ -141,8 +140,7 @@ int TLSClientSession::init(bool &early_data_enabled,
       if (auto rv =
               gnutls_pem_base64_decode2("GNUTLS SESSION PARAMETERS", &s, &d);
           rv < 0) {
-        std::cerr << "Could not read session in " << config.session_file
-                  << std::endl;
+        debug::print("Could not read session in {}\n", config.session_file);
         return -1;
       }
 
@@ -150,8 +148,8 @@ int TLSClientSession::init(bool &early_data_enabled,
 
       if (auto rv = gnutls_session_set_data(session_, d.data, d.size);
           rv != 0) {
-        std::cerr << "gnutls_session_set_data failed: " << gnutls_strerror(rv)
-                  << std::endl;
+        debug::print("gnutls_session_set_data failed: {}\n",
+                     gnutls_strerror(rv));
         return -1;
       }
 
@@ -166,8 +164,7 @@ int TLSClientSession::init(bool &early_data_enabled,
   if (auto rv = gnutls_credentials_set(session_, GNUTLS_CRD_CERTIFICATE,
                                        tls_ctx.get_native_handle());
       rv != 0) {
-    std::cerr << "gnutls_credentials_set failed: " << gnutls_strerror(rv)
-              << std::endl;
+    debug::print("gnutls_credentials_set failed: {}\n", gnutls_strerror(rv));
     return -1;
   }
 

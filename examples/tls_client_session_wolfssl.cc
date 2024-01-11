@@ -32,6 +32,7 @@
 #include "client_base.h"
 #include "template.h"
 #include "util.h"
+#include "debug.h"
 
 using namespace std::literals;
 
@@ -40,14 +41,6 @@ TLSClientSession::TLSClientSession() {}
 TLSClientSession::~TLSClientSession() {}
 
 extern Config config;
-
-namespace {
-int wolfssl_session_ticket_cb(WOLFSSL *ssl, const unsigned char *ticket,
-                              int ticketSz, void *cb_ctx) {
-  std::cerr << "session ticket callback invoked" << std::endl;
-  return 0;
-}
-} // namespace
 
 int TLSClientSession::init(bool &early_data_enabled,
                            const TLSClientContext &tls_ctx,
@@ -59,8 +52,8 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   ssl_ = wolfSSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "wolfSSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
+    debug::print("wolfSSL_new: {}\n",
+                 ERR_error_string(ERR_get_error(), nullptr));
     return -1;
   }
 
@@ -93,8 +86,7 @@ int TLSClientSession::init(bool &early_data_enabled,
 #ifdef HAVE_SESSION_TICKET
     auto f = wolfSSL_BIO_new_file(config.session_file, "r");
     if (f == nullptr) {
-      std::cerr << "Could not open TLS session file " << config.session_file
-                << std::endl;
+      debug::print("Could not open TLS session file {}\n", config.session_file);
     } else {
       char *name, *header;
       unsigned char *data;
@@ -104,23 +96,22 @@ int TLSClientSession::init(bool &early_data_enabled,
       WOLFSSL_SESSION *session;
 
       if (wolfSSL_PEM_read_bio(f, &name, &header, &data, &datalen) != 1) {
-        std::cerr << "Could not read TLS session file " << config.session_file
-                  << std::endl;
+        debug::print("Could not read TLS session file {}\n",
+                     config.session_file);
       } else {
         if ("WOLFSSL SESSION PARAMETERS"sv != name) {
-          std::cerr << "TLS session file contains unexpected name: " << name
-                    << std::endl;
+          debug::print("TLS session file contains unexpected name: {}\n", name);
         } else {
           pdata = data;
           session = wolfSSL_d2i_SSL_SESSION(nullptr, &pdata, datalen);
           if (session == nullptr) {
-            std::cerr << "Could not parse TLS session from file "
-                      << config.session_file << std::endl;
+            debug::print("Could not parse TLS session from file {}\n",
+                         config.session_file);
           } else {
             ret = wolfSSL_set_session(ssl_, session);
             if (ret != WOLFSSL_SUCCESS) {
-              std::cerr << "Could not install TLS session from file "
-                        << config.session_file << std::endl;
+              debug::print("Could not install TLS session from file {}\n",
+                           config.session_file);
             } else {
               if (!config.disable_early_data &&
                   wolfSSL_SESSION_get_max_early_data(session)) {
@@ -139,9 +130,8 @@ int TLSClientSession::init(bool &early_data_enabled,
       wolfSSL_BIO_free(f);
     }
     wolfSSL_UseSessionTicket(ssl_);
-    wolfSSL_set_SessionTicket_cb(ssl_, wolfssl_session_ticket_cb, nullptr);
 #else
-    std::cerr << "TLS session im-/export not enabled in wolfSSL" << std::endl;
+    debug::print("TLS session im-/export not enabled in wolfSSL\n");
 #endif
   }
 
