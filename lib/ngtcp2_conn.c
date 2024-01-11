@@ -6605,14 +6605,8 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   pktns_increase_ecn_counts(pktns, pi);
 
-  /* TODO Initial and Handshake are always acknowledged without
-     delay. */
-  if (require_ack &&
-      (++pktns->acktr.rx_npkt >= conn->local.settings.ack_thresh ||
-       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
-  }
-
+  /* Initial and Handshake are always acknowledged without delay.  No
+     need to call ngtcp2_acktr_immediate_ack(). */
   rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack,
                              pkt_ts);
   if (rv != 0) {
@@ -8732,12 +8726,8 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
 
   pktns_increase_ecn_counts(pktns, pi);
 
-  if (require_ack &&
-      (++pktns->acktr.rx_npkt >= conn->local.settings.ack_thresh ||
-       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
-  }
-
+  /* Initial and Handshake are always acknowledged without delay.  No
+     need to call ngtcp2_acktr_immediate_ack(). */
   rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd->pkt_num, require_ack,
                              pkt_ts);
   if (rv != 0) {
