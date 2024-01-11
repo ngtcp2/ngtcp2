@@ -2139,9 +2139,9 @@ int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, const uint8_t *payload,
 }
 
 int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
-                                  size_t n) {
+                                  size_t pkt_numlen) {
   int64_t expected = max_pkt_num + 1;
-  int64_t win = (int64_t)1 << n;
+  int64_t win = (int64_t)1 << (pkt_numlen * 8);
   int64_t hwin = win / 2;
   int64_t mask = win - 1;
   int64_t cand = (expected & ~mask) | pkt_num;
