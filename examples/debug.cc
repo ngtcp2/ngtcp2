@@ -290,6 +290,19 @@ void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
   }
 }
 
+void print_http_settings(const nghttp3_settings *settings) {
+  fprintf(outfile,
+          "http: remote settings\n"
+          "http: SETTINGS_MAX_FIELD_SECTION_SIZE=%" PRIu64 "\n"
+          "http: SETTINGS_QPACK_MAX_TABLE_CAPACITY=%zu\n"
+          "http: SETTINGS_QPACK_BLOCKED_STREAMS=%zu\n"
+          "http: SETTINGS_ENABLE_CONNECT_PROTOCOL=%d\n"
+          "http: SETTINGS_H3_DATAGRAM=%d\n",
+          settings->max_field_section_size, settings->qpack_max_dtable_capacity,
+          settings->qpack_blocked_streams, settings->enable_connect_protocol,
+          settings->h3_datagram);
+}
+
 std::string_view secret_title(ngtcp2_encryption_level level) {
   switch (level) {
   case NGTCP2_ENCRYPTION_LEVEL_0RTT:
