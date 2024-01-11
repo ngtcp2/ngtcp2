@@ -2040,6 +2040,17 @@ int Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
   return 0;
 }
 
+namespace {
+int http_recv_settings(nghttp3_conn *conn, const nghttp3_settings *settings,
+                       void *conn_user_data) {
+  if (!config.quiet) {
+    debug::print_http_settings(settings);
+  }
+
+  return 0;
+}
+} // namespace
+
 int Client::setup_httpconn() {
   if (httpconn_) {
     return 0;
@@ -2066,6 +2077,7 @@ int Client::setup_httpconn() {
       nullptr, // end_stream
       ::http_reset_stream,
       nullptr, // shutdown
+      ::http_recv_settings,
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);
