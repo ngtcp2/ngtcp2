@@ -6384,10 +6384,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     break;
   default:
-    /* unknown packet type */
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                    "packet was ignored because of unknown packet type");
-    return (ngtcp2_ssize)pktlen;
+    ngtcp2_unreachable();
   }
 
   hp_mask = conn->callbacks.hp_mask;
