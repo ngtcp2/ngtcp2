@@ -5329,7 +5329,6 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
   num_acked = ngtcp2_rtb_recv_ack(&pktns->rtb, fr, &conn->cstat, conn, pktns,
                                   pkt_ts, ts);
   if (num_acked < 0) {
-    /* TODO assert this */
     assert(ngtcp2_err_is_fatal((int)num_acked));
     return (int)num_acked;
   }
@@ -6001,9 +6000,7 @@ static int conn_verify_fixed_bit(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd) {
     case NGTCP2_PKT_INITIAL:
     case NGTCP2_PKT_0RTT:
     case NGTCP2_PKT_HANDSHAKE:
-      /* TODO we cannot determine whether a token comes from NEW_TOKEN
-         frame or Retry packet.  RFC 9287 requires that a token from
-         NEW_TOKEN. */
+      /* RFC 9287 requires that a token from NEW_TOKEN. */
       if (!(conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) &&
           (conn->local.settings.token_type != NGTCP2_TOKEN_TYPE_NEW_TOKEN ||
            !conn->local.settings.tokenlen)) {
@@ -6126,7 +6123,8 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     return NGTCP2_ERR_DISCARD_PKT;
   }
 
-  if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
+  switch (hd.type) {
+  case NGTCP2_PKT_VERSION_NEGOTIATION:
     hdpktlen = (size_t)nread;
 
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
@@ -6162,7 +6160,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
     return NGTCP2_ERR_RECV_VERSION_NEGOTIATION;
-  } else if (hd.type == NGTCP2_PKT_RETRY) {
+  case NGTCP2_PKT_RETRY:
     hdpktlen = (size_t)nread;
 
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
@@ -6383,10 +6381,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     break;
   default:
-    /* unknown packet type */
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                    "packet was ignored because of unknown packet type");
-    return (ngtcp2_ssize)pktlen;
+    ngtcp2_unreachable();
   }
 
   hp_mask = conn->callbacks.hp_mask;
@@ -7032,7 +7027,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     if (strm == NULL) {
       return NGTCP2_ERR_NOMEM;
     }
-    /* TODO Perhaps, call new_stream callback? */
+
     rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
       ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
