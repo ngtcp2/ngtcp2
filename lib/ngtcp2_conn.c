@@ -5872,25 +5872,6 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 }
 
 /*
- * pkt_num_bits returns the number of bits available when packet
- * number is encoded in |pkt_numlen| bytes.
- */
-static size_t pkt_num_bits(size_t pkt_numlen) {
-  switch (pkt_numlen) {
-  case 1:
-    return 8;
-  case 2:
-    return 16;
-  case 3:
-    return 24;
-  case 4:
-    return 32;
-  default:
-    ngtcp2_unreachable();
-  }
-}
-
-/*
  * pktns_pkt_num_is_duplicate returns nonzero if |pkt_num| is
  * duplicated packet number.
  */
@@ -6438,7 +6419,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   payloadlen = hd.len - hd.pkt_numlen;
 
   hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->rx.max_pkt_num, hd.pkt_num,
-                                         pkt_num_bits(hd.pkt_numlen));
+                                         hd.pkt_numlen);
   if (hd.pkt_num > NGTCP2_MAX_PKT_NUM) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "pkn=%" PRId64 " is greater than maximum pkn", hd.pkt_num);
@@ -9020,7 +9001,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   payloadlen = pktlen - hdpktlen;
 
   hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->rx.max_pkt_num, hd.pkt_num,
-                                         pkt_num_bits(hd.pkt_numlen));
+                                         hd.pkt_numlen);
   if (hd.pkt_num > NGTCP2_MAX_PKT_NUM) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "pkn=%" PRId64 " is greater than maximum pkn", hd.pkt_num);

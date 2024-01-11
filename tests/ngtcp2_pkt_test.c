@@ -1421,19 +1421,19 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
 
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
-            ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));
+            ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 2));
 
-  CU_ASSERT(0xff == ngtcp2_pkt_adjust_pkt_num(0x0100, 0xff, 8));
-  CU_ASSERT(0x01ff == ngtcp2_pkt_adjust_pkt_num(0x01ff, 0xff, 8));
-  CU_ASSERT(0x0fff == ngtcp2_pkt_adjust_pkt_num(0x1000, 0xff, 8));
-  CU_ASSERT(0x80 == ngtcp2_pkt_adjust_pkt_num(0x00, 0x80, 8));
+  CU_ASSERT(0xff == ngtcp2_pkt_adjust_pkt_num(0x0100, 0xff, 1));
+  CU_ASSERT(0x01ff == ngtcp2_pkt_adjust_pkt_num(0x01ff, 0xff, 1));
+  CU_ASSERT(0x0fff == ngtcp2_pkt_adjust_pkt_num(0x1000, 0xff, 1));
+  CU_ASSERT(0x80 == ngtcp2_pkt_adjust_pkt_num(0x00, 0x80, 1));
   CU_ASSERT(0x3fffffffffffffabllu ==
-            ngtcp2_pkt_adjust_pkt_num(NGTCP2_MAX_PKT_NUM, 0xab, 8));
+            ngtcp2_pkt_adjust_pkt_num(NGTCP2_MAX_PKT_NUM, 0xab, 1));
   CU_ASSERT(0x4000000000000000llu ==
-            ngtcp2_pkt_adjust_pkt_num(NGTCP2_MAX_PKT_NUM, 0x00, 8));
-  CU_ASSERT(250 == ngtcp2_pkt_adjust_pkt_num(255, 250, 8));
-  CU_ASSERT(8 == ngtcp2_pkt_adjust_pkt_num(50, 8, 8));
-  CU_ASSERT(0 == ngtcp2_pkt_adjust_pkt_num(-1, 0, 8));
+            ngtcp2_pkt_adjust_pkt_num(NGTCP2_MAX_PKT_NUM, 0x00, 1));
+  CU_ASSERT(250 == ngtcp2_pkt_adjust_pkt_num(255, 250, 1));
+  CU_ASSERT(8 == ngtcp2_pkt_adjust_pkt_num(50, 8, 1));
+  CU_ASSERT(0 == ngtcp2_pkt_adjust_pkt_num(-1, 0, 1));
 }
 
 void test_ngtcp2_pkt_validate_ack(void) {
