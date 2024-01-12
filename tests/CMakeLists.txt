@@ -55,6 +55,7 @@ if(HAVE_CUNIT)
     ngtcp2_conversion_test.c
     ngtcp2_cc_test.c
     ngtcp2_qlog_test.c
+    ngtcp2_window_filter_test.c
   )
 
   add_executable(main EXCLUDE_FROM_ALL

@@ -51,6 +51,7 @@ OBJECTS = \
 	ngtcp2_conversion_test.c \
 	ngtcp2_cc_test.c \
 	ngtcp2_qlog_test.c \
+	ngtcp2_window_filter_test.c \
 	ngtcp2_test_helper.c
 HFILES= \
 	ngtcp2_pkt_test.h \
@@ -75,6 +76,7 @@ HFILES= \
 	ngtcp2_conversion_test.h \
 	ngtcp2_cc_test.h \
 	ngtcp2_qlog_test.h \
+	ngtcp2_window_filter_test.h \
 	ngtcp2_test_helper.h
 
 main_SOURCES = $(HFILES) $(OBJECTS)
