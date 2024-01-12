@@ -558,7 +558,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
   uint8_t type;
   size_t len = 1 + 1;
   const uint8_t *p;
-  size_t datalen;
+  size_t datalen = 0;
   size_t ndatalen = 0;
   size_t n;
   uint64_t vi;
