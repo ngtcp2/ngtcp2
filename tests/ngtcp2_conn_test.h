@@ -104,6 +104,7 @@ void test_ngtcp2_conn_grease_quic_bit(void);
 void test_ngtcp2_conn_send_stream_data_blocked(void);
 void test_ngtcp2_conn_send_data_blocked(void);
 void test_ngtcp2_conn_send_new_connection_id(void);
+void test_ngtcp2_conn_persistent_congestion(void);
 void test_ngtcp2_conn_new_failmalloc(void);
 void test_ngtcp2_accept(void);
 void test_ngtcp2_select_version(void);
