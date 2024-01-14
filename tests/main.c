@@ -331,6 +331,8 @@ int main(void) {
                    test_ngtcp2_conn_send_data_blocked) ||
       !CU_add_test(pSuite, "conn_send_new_connection_id",
                    test_ngtcp2_conn_send_new_connection_id) ||
+      !CU_add_test(pSuite, "conn_persistent_congestion",
+                   test_ngtcp2_conn_persistent_congestion) ||
       !CU_add_test(pSuite, "conn_new_failmalloc",
                    test_ngtcp2_conn_new_failmalloc) ||
       !CU_add_test(pSuite, "accept", test_ngtcp2_accept) ||

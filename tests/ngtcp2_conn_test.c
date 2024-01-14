@@ -790,6 +790,7 @@ setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
   (*pconn)->local.uni.max_streams = remote_params.initial_max_streams_uni;
   (*pconn)->tx.max_offset = remote_params.initial_max_data;
   (*pconn)->negotiated_version = (*pconn)->client_chosen_version;
+  (*pconn)->pktns.rtb.persistent_congestion_start_ts = 0;
 }
 
 static void setup_default_server(ngtcp2_conn **pconn) {
@@ -857,6 +858,7 @@ setup_default_client_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
 
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_TOKEN_PRESENT;
   memset((*pconn)->dcid.current.token, 0xf1, NGTCP2_STATELESS_RESET_TOKENLEN);
+  (*pconn)->pktns.rtb.persistent_congestion_start_ts = 0;
 }
 
 static void setup_default_client(ngtcp2_conn **pconn) {
@@ -11740,6 +11742,100 @@ void test_ngtcp2_conn_send_new_connection_id(void) {
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(2 == conn->scid.num_in_flight);
   CU_ASSERT(seq + 1 == conn->scid.last_seq);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_persistent_congestion(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  ngtcp2_ssize spktlen;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  int rv;
+  ngtcp2_ksl_it it;
+  int64_t stream_id;
+  ngtcp2_strm *strm;
+
+  setup_default_client(&conn);
+
+  spktlen =
+      ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                               NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, t);
+
+  CU_ASSERT(spktlen > 0);
+
+  spktlen =
+      ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                               NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, t);
+
+  CU_ASSERT(0 == spktlen);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
+
+  CU_ASSERT(0 == rv);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  t += 10 * NGTCP2_MILLISECONDS;
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 10, t);
+
+  CU_ASSERT(spktlen > 0);
+
+  t += (conn->cstat.smoothed_rtt +
+        ngtcp2_max(4 * conn->cstat.rttvar, NGTCP2_GRANULARITY) +
+        25 * NGTCP2_MILLISECONDS) *
+       NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 10, t);
+
+  CU_ASSERT(spktlen > 0);
+
+  t += 10 * NGTCP2_MILLISECONDS;
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 10, t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 1, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(2 == strm->tx.loss_count);
+  /* Persistent congestion resets min_rtt */
+  CU_ASSERT(UINT64_MAX == conn->cstat.min_rtt);
 
   ngtcp2_conn_del(conn);
 }
