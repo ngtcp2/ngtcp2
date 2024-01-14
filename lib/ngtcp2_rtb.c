@@ -1019,6 +1019,17 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
       start_ts = ngtcp2_max(rtb->persistent_congestion_start_ts,
                             cstat->first_rtt_sample_ts);
 
+      if (ent->hd.pkt_num >= pktns->tx.ecn.start_pkt_num &&
+          (ent->flags & NGTCP2_RTB_ENTRY_FLAG_ECN)) {
+        ++ecn_pkt_lost;
+      }
+
+      bytes_lost += rtb_on_remove(rtb, ent, cstat);
+      rv = rtb_on_pkt_lost(rtb, &it, ent, cstat, conn, pktns, ts);
+      if (rv != 0) {
+        return rv;
+      }
+
       for (; !ngtcp2_ksl_it_end(&it);) {
         ent = ngtcp2_ksl_it_get(&it);
 
