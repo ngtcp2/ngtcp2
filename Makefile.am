@@ -47,7 +47,7 @@ EXTRA_DIST = \
 	cmake/Version.cmake
 
 # Format source files using clang-format.  Don't format source files
-# under third-party directory since we are not responsible for thier
+# under third-party directory since we are not responsible for their
 # coding style.
 clang-format:
 	CLANGFORMAT=`git config --get clangformat.binary`; \

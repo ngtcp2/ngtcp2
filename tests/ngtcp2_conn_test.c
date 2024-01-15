@@ -4210,7 +4210,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   ngtcp2_conn_del(conn);
 
   /* 2 identical STREAM frames with FIN bit set are received.  The
-     recv_stream_data callback should not be called for sencond STREAM
+     recv_stream_data callback should not be called for second STREAM
      frame. */
   setup_default_server(&conn);
   conn->callbacks.recv_stream_data = recv_stream_data;
@@ -6523,7 +6523,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Server starts PMTUD after succcessful path validation. */
+  /* Server starts PMTUD after successful path validation. */
   setup_default_server(&conn);
 
   /* This will send NEW_CONNECTION_ID frames */
