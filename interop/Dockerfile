@@ -1,7 +1,7 @@
 FROM martenseemann/quic-network-simulator-endpoint:latest
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         git gcc clang-12 make binutils autoconf automake autotools-dev libtool \
         pkg-config libev-dev libjemalloc-dev \
         libev4 libjemalloc2 ca-certificates mime-support \
