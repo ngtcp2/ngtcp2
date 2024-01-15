@@ -30,3 +30,4 @@ jobs:
         context: interop
         push: true
         tags: ghcr.io/ngtcp2/ngtcp2-interop:latest
+        build-args: NGTCP2_BRANCH=${{ github.ref_name }}
