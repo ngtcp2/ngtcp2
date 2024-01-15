@@ -44,7 +44,7 @@ extern Config config;
 namespace {
 int wolfssl_session_ticket_cb(WOLFSSL *ssl, const unsigned char *ticket,
                               int ticketSz, void *cb_ctx) {
-  std::cerr << "session ticket calback invoked" << std::endl;
+  std::cerr << "session ticket callback invoked" << std::endl;
   return 0;
 }
 } // namespace
