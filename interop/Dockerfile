@@ -1,7 +1,9 @@
 FROM martenseemann/quic-network-simulator-endpoint:latest
 
+ARG NGTCP2_BRANCH main
+
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         git gcc clang-12 make binutils autoconf automake autotools-dev libtool \
         pkg-config libev-dev libjemalloc-dev \
         libev4 libjemalloc2 ca-certificates mime-support \
@@ -19,7 +21,7 @@ RUN apt-get update && \
         LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
         CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" && \
     make -j$(nproc) && make install && cd .. && rm -rf nghttp3 && \
-    git clone --depth 1 https://github.com/ngtcp2/ngtcp2 && \
+    git clone --depth 1 -b $NGTCP2_BRANCH https://github.com/ngtcp2/ngtcp2 && \
     cd ngtcp2 && autoreconf -i && \
     ./configure \
         CC=clang-12 \
