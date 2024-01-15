@@ -1,5 +1,7 @@
 FROM debian:12 as build
 
+ARG NGTCP2_BRANCH main
+
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         git g++ clang-15 make binutils autoconf automake autotools-dev libtool \
@@ -14,7 +16,7 @@ RUN apt-get update && \
     cd nghttp3 && autoreconf -i && \
     ./configure --enable-lib-only CC=clang-15 CXX=clang++-15 && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf nghttp3 && \
-    git clone --depth 1 https://github.com/ngtcp2/ngtcp2 && \
+    git clone --depth 1 -b $NGTCP2_BRANCH https://github.com/ngtcp2/ngtcp2 && \
     cd ngtcp2 && autoreconf -i && \
     ./configure \
         CC=clang-15 \
