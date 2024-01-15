@@ -1,6 +1,6 @@
 FROM debian:12 as build
 
-ARG NGTCP2_BRANCH main
+ARG NGTCP2_BRANCH=main
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
