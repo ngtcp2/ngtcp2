@@ -211,6 +211,8 @@ int main(void) {
                    test_ngtcp2_conn_tx_flow_control) ||
       !CU_add_test(pSuite, "conn_shutdown_stream_write",
                    test_ngtcp2_conn_shutdown_stream_write) ||
+      !CU_add_test(pSuite, "conn_shutdown_stream_read",
+                   test_ngtcp2_conn_shutdown_stream_read) ||
       !CU_add_test(pSuite, "conn_recv_reset_stream",
                    test_ngtcp2_conn_recv_reset_stream) ||
       !CU_add_test(pSuite, "conn_recv_stop_sending",
