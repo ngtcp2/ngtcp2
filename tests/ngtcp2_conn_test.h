@@ -39,6 +39,7 @@ void test_ngtcp2_conn_rx_flow_control(void);
 void test_ngtcp2_conn_rx_flow_control_error(void);
 void test_ngtcp2_conn_tx_flow_control(void);
 void test_ngtcp2_conn_shutdown_stream_write(void);
+void test_ngtcp2_conn_shutdown_stream_read(void);
 void test_ngtcp2_conn_recv_reset_stream(void);
 void test_ngtcp2_conn_recv_stop_sending(void);
 void test_ngtcp2_conn_recv_stream_data_blocked(void);

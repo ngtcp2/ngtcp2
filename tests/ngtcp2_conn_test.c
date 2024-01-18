@@ -1648,6 +1648,153 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_shutdown_stream_read(void) {
+  ngtcp2_conn *conn;
+  int64_t stream_id;
+  int rv;
+  ngtcp2_strm *strm;
+  uint8_t buf[2048];
+  ngtcp2_ssize spktlen;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_frame_chain *frc;
+  ngtcp2_frame fr;
+  ngtcp2_tstamp t = 0;
+  size_t pktlen;
+
+  /* Stream not found */
+  setup_default_server(&conn);
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, 4, NGTCP2_APP_ERR01);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Do not multiple STOP_SENDINGs */
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, stream_id, NGTCP2_APP_ERR01);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(NULL != strm);
+  CU_ASSERT(NGTCP2_APP_ERR01 == strm->app_error_code);
+  CU_ASSERT(NGTCP2_APP_ERR01 == strm->tx.stop_sending_app_error_code);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SEND_STOP_SENDING);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
+
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  CU_ASSERT(stream_id == frc->fr.stop_sending.stream_id);
+  CU_ASSERT(NGTCP2_APP_ERR01 == frc->fr.stop_sending.app_error_code);
+  CU_ASSERT(NULL == frc->next);
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, stream_id, NGTCP2_APP_ERR02);
+
+  CU_ASSERT(0 == rv);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
+
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  CU_ASSERT(stream_id == frc->fr.stop_sending.stream_id);
+  CU_ASSERT(NGTCP2_APP_ERR01 == frc->fr.stop_sending.app_error_code);
+  CU_ASSERT(NULL == frc->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* Do not send STOP_SENDING if RESET_STREAM has been received */
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM;
+  fr.reset_stream.stream_id = stream_id;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 1;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 1, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, stream_id, NGTCP2_APP_ERR02);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(NGTCP2_APP_ERR01 == strm->app_error_code);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
+  CU_ASSERT(!(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING));
+  CU_ASSERT(!(strm->flags & NGTCP2_STRM_FLAG_SEND_STOP_SENDING));
+
+  ngtcp2_conn_del(conn);
+
+  /* Do not send STOP_SENDING if all data has been received */
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = stream_id;
+  fr.stream.fin = 1;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 77;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 1, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, stream_id, NGTCP2_APP_ERR01);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(NGTCP2_APP_ERR01 == strm->app_error_code);
+  CU_ASSERT(!(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING));
+  CU_ASSERT(!(strm->flags & NGTCP2_STRM_FLAG_SEND_STOP_SENDING));
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_conn_recv_reset_stream(void) {
   ngtcp2_conn *conn;
   int rv;
