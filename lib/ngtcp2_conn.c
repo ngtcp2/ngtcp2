@@ -7433,7 +7433,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
       return 0;
     }
 
-    /* Frame is received reset before we create ngtcp2_strm
+    /* STOP_SENDING frame is received before we create ngtcp2_strm
        object. */
     strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
     if (strm == NULL) {
