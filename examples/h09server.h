@@ -140,7 +140,6 @@ public:
                  const uint8_t *current_tx_secret, size_t secretlen);
 
   Stream *find_stream(int64_t stream_id);
-  int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   void shutdown_read(int64_t stream_id, int app_error_code);
 
