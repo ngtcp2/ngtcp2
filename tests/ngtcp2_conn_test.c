@@ -2226,6 +2226,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   strm = ngtcp2_conn_find_stream(conn, stream_id);
 
   CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING_RECVED);
   CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM);
   CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SEND_RESET_STREAM);
 
