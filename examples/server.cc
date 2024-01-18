@@ -854,17 +854,6 @@ int Handler::on_stream_reset(int64_t stream_id) {
       return -1;
     }
   }
-
-  if (ngtcp2_is_bidi_stream(stream_id)) {
-    if (auto rv = ngtcp2_conn_shutdown_stream_write(conn_, 0, stream_id,
-                                                    NGHTTP3_H3_NO_ERROR);
-        rv != 0) {
-      std::cerr << "ngtcp2_conn_shutdown_stream_write: " << ngtcp2_strerror(rv)
-                << std::endl;
-      return -1;
-    }
-  }
-
   return 0;
 }
 
