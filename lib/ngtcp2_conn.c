@@ -7451,6 +7451,10 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
     }
   }
 
+  if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING_RECVED) {
+    return 0;
+  }
+
   ngtcp2_strm_set_app_error_code(strm, fr->app_error_code);
 
   /* No RESET_STREAM is required if we have sent FIN and all data have
@@ -7463,7 +7467,9 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
     }
   }
 
-  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_RESET_STREAM;
+  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR |
+                 NGTCP2_STRM_FLAG_STOP_SENDING_RECVED |
+                 NGTCP2_STRM_FLAG_RESET_STREAM;
 
   ngtcp2_strm_streamfrq_clear(strm);
 
