@@ -89,6 +89,9 @@ int TLSClientSession::init(bool &early_data_enabled,
                    strlen(remote_addr));
   }
 
+  // Just use QUIC v1
+  wolfSSL_set_quic_transport_version(ssl_, 0x39);
+
   if (config.session_file) {
 #ifdef HAVE_SESSION_TICKET
     auto f = wolfSSL_BIO_new_file(config.session_file, "r");

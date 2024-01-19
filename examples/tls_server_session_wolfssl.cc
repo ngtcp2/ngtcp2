@@ -50,6 +50,8 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
 #ifdef WOLFSSL_EARLY_DATA
   wolfSSL_set_quic_early_data_enabled(ssl_, 1);
 #endif
+  // Just use QUIC v1
+  wolfSSL_set_quic_transport_version(ssl_, 0x39);
 
   return 0;
 }
