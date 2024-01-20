@@ -10,7 +10,7 @@ RUN apt-get update && \
     git clone --depth 1 -b v5.6.6-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
     ./configure --enable-static --enable-all --enable-aesni \
-        --enable-harden --enable-keylog-export && \
+        --enable-harden --enable-keylog-export --disable-ech && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf wolfssl && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && autoreconf -i && \
