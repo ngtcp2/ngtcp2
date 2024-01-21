@@ -5352,6 +5352,11 @@ NGTCP2_EXTERN void ngtcp2_ccerr_set_application_error(ngtcp2_ccerr *ccerr,
  * CONNECTION_CLOSE (type 0x1d) frame.  Otherwise, it does not produce
  * any data, and returns 0.
  *
+ * |destlen| could be shorten by some factors (e.g., server side
+ * amplification limit).  This function returns
+ * :macro:`NGTCP2_ERR_NOBUF` if the resulting buffer is too small even
+ * if the given buffer has enough space.
+ *
  * This function must not be called from inside the callback
  * functions.
  *
