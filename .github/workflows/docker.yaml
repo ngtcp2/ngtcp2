@@ -4,6 +4,8 @@ on:
   push:
     paths:
     - docker/Dockerfile
+    branches:
+    - '**'
 
 permissions: read-all
 
