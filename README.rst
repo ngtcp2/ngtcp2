@@ -102,17 +102,23 @@ Build with BoringSSL
    $ git clone https://boringssl.googlesource.com/boringssl
    $ cd boringssl
    $ git checkout f42be90d665b6a376177648ccbb76fbbd6497c13
-   $ mkdir build
-   $ cd build
-   $ cmake ..
-   $ make
+   $ cmake -B build -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+   $ make -j$(nproc) -C build
    $ cd ..
-   $ mkdir lib
-   $ cd lib
-   $ ln -s ../build/ssl/libssl.a
-   $ ln -s ../build/crypto/libcrypto.a
-   $ cd ../../ngtcp2
-   $ ./configure --with-boringssl BORINGSSL_LIBS="$PWD/../boringssl/lib/libssl.a $PWD/../boringssl/lib/libcrypto.a" BORINGSSL_CFLAGS="-I$PWD/../boringssl/include" PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig
+   $ git clone https://github.com/ngtcp2/nghttp3
+   $ cd nghttp3
+   $ autoreconf -i
+   $ ./configure --prefix=$PWD/build --enable-lib-only
+   $ make -j$(nproc) check
+   $ make install
+   $ cd ..
+   $ git clone https://github.com/ngtcp2/ngtcp2
+   $ cd ngtcp2
+   $ autoreconf -i
+   $ ./configure PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig \
+       BORINGSSL_LIBS="-L$PWD/../boringssl/build/ssl -lssl -L$PWD/../boringssl/build/crypto -lcrypto" \
+       BORINGSSL_CFLAGS="-I$PWD/../boringssl/include" \
+       --with-boringssl
    $ make -j$(nproc) check
 
 Build with aws-lc
