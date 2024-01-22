@@ -418,12 +418,10 @@ jobs:
         VERSION=$(grep PACKAGE_VERSION config.h | cut -d' ' -f3 | tr -d '"')
         tar xf ngtcp2-$VERSION.tar.gz
         cd ngtcp2-$VERSION
-        mkdir build
-        cd build
 
-        echo 'NGTCP2_BUILD_DIR='"$PWD" >> $GITHUB_ENV
+        echo 'NGTCP2_BUILD_DIR='"$PWD/build" >> $GITHUB_ENV
 
-        cmake $CMAKE_OPTS \
+        cmake -B build $CMAKE_OPTS \
           -DENABLE_WERROR=ON \
           -DENABLE_GNUTLS=ON \
           -DENABLE_BORINGSSL=ON \
@@ -432,7 +430,7 @@ jobs:
           -DENABLE_PICOTLS=ON \
           -DPICOTLS_LIBRARIES="$PICOTLS_LIBS" \
           -DPICOTLS_INCLUDE_DIR="$PICOTLS_PREFIX/include/" \
-          -DENABLE_WOLFSSL=ON ..
+          -DENABLE_WOLFSSL=ON
     - name: Build ngtcp2
       if: matrix.buildtool != 'distcheck'
       run: |
@@ -558,9 +556,7 @@ jobs:
         vcpkg --triplet=${{ matrix.arch }}-windows install cunit
     - name: Configure cmake
       run: |
-        mkdir build
-        cd build
-        cmake -DENABLE_WERROR=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows ..
+        cmake -B build -DENABLE_WERROR=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows
     - name: Build ngtcp2
       run: |
         cmake --build build
