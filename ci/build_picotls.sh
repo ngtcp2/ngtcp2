@@ -7,10 +7,13 @@ else
     WORKSPACE=picotls-openssl3
 fi
 
-git clone https://github.com/h2o/picotls/ "${WORKSPACE}"
+mkdir "${WORKSPACE}"
 cd "${WORKSPACE}"
+git init
+git remote add origin https://github.com/h2o/picotls
+git fetch origin --depth 1 "${PICOTLS_VERSION}"
 git checkout "${PICOTLS_VERSION}"
-git submodule update --init
+git submodule update --init --depth 1
 mkdir build
 cd build
 if [ "${OPENSSL}" = "openssl1" ]; then
