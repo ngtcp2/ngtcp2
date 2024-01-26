@@ -7145,7 +7145,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         return rv;
       }
     }
-  } else if (fr->datacnt) {
+  } else if (fr->datacnt && !(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING)) {
     rv = ngtcp2_strm_recv_reordering(strm, fr->data[0].base, fr->data[0].len,
                                      fr->offset);
     if (rv != 0) {
@@ -12533,13 +12533,14 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
   /* Extend connection flow control window for the amount of data
      which are not passed to application. */
-  if (!(strm->flags & (NGTCP2_STRM_FLAG_STOP_SENDING |
-                       NGTCP2_STRM_FLAG_RESET_STREAM_RECVED))) {
+  if (!(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED)) {
     ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
                                             ngtcp2_strm_rx_offset(strm));
   }
 
   strm->flags |= NGTCP2_STRM_FLAG_STOP_SENDING;
+
+  ngtcp2_strm_discard_reordered_data(strm);
 
   return conn_stop_sending(conn, strm, app_error_code);
 }

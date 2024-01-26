@@ -32,5 +32,6 @@
 void test_ngtcp2_strm_streamfrq_pop(void);
 void test_ngtcp2_strm_streamfrq_unacked_offset(void);
 void test_ngtcp2_strm_streamfrq_unacked_pop(void);
+void test_ngtcp2_strm_discard_reordered_data(void);
 
 #endif /* NGTCP2_STRM_TEST_H */

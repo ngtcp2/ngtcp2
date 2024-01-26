@@ -576,3 +576,35 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
 
   ngtcp2_objalloc_free(&frc_objalloc);
 }
+
+void test_ngtcp2_strm_discard_reordered_data(void) {
+  ngtcp2_strm strm;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+
+  /* No reordered data has been received. */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, NULL, mem);
+
+  ngtcp2_strm_update_rx_offset(&strm, 1000000007);
+  ngtcp2_strm_discard_reordered_data(&strm);
+
+  CU_ASSERT(NULL == strm.rx.rob);
+  CU_ASSERT(1000000007 == ngtcp2_strm_rx_offset(&strm));
+
+  ngtcp2_strm_free(&strm);
+
+  /* Discard reordered data */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, NULL, mem);
+
+  ngtcp2_strm_update_rx_offset(&strm, 1000000007);
+  ngtcp2_strm_recv_reordering(&strm, nulldata, 117, 1000000008);
+
+  CU_ASSERT(NULL != strm.rx.rob);
+  CU_ASSERT(1000000007 == ngtcp2_strm_rx_offset(&strm));
+
+  ngtcp2_strm_discard_reordered_data(&strm);
+
+  CU_ASSERT(NULL == strm.rx.rob);
+  CU_ASSERT(1000000007 == ngtcp2_strm_rx_offset(&strm));
+
+  ngtcp2_strm_free(&strm);
+}

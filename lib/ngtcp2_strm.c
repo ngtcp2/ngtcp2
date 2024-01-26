@@ -158,6 +158,18 @@ void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset) {
   ngtcp2_rob_remove_prefix(strm->rx.rob, offset);
 }
 
+void ngtcp2_strm_discard_reordered_data(ngtcp2_strm *strm) {
+  if (strm->rx.rob == NULL) {
+    return;
+  }
+
+  strm->rx.cont_offset = ngtcp2_strm_rx_offset(strm);
+
+  ngtcp2_rob_free(strm->rx.rob);
+  ngtcp2_mem_free(strm->mem, strm->rx.rob);
+  strm->rx.rob = NULL;
+}
+
 void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags) {
   strm->flags |= flags & NGTCP2_STRM_FLAG_SHUT_RDWR;
 }

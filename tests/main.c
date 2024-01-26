@@ -360,6 +360,8 @@ int main(void) {
                    test_ngtcp2_strm_streamfrq_unacked_offset) ||
       !CU_add_test(pSuite, "strm_streamfrq_unacked_pop",
                    test_ngtcp2_strm_streamfrq_unacked_pop) ||
+      !CU_add_test(pSuite, "strm_discard_reordered_data",
+                   test_ngtcp2_strm_discard_reordered_data) ||
       !CU_add_test(pSuite, "pv_add_entry", test_ngtcp2_pv_add_entry) ||
       !CU_add_test(pSuite, "pv_validate", test_ngtcp2_pv_validate) ||
       !CU_add_test(pSuite, "pmtud_probe", test_ngtcp2_pmtud_probe) ||
