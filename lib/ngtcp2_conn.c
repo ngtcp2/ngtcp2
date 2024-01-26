@@ -7280,6 +7280,8 @@ static int conn_max_data_violated(ngtcp2_conn *conn, uint64_t datalen) {
   return conn->rx.max_offset - conn->rx.offset < datalen;
 }
 
+static int conn_finalize_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm);
+
 /*
  * conn_recv_stream is called when STREAM frame |fr| is received.
  *
@@ -7464,11 +7466,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
       return 0;
     }
 
-    if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
-      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-        return NGTCP2_ERR_INTERNAL;
-      }
-
+    if ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) &&
+        ngtcp2_strm_rx_offset(strm) >= strm->rx.reliable_offset) {
       return 0;
     }
   }
@@ -7514,6 +7513,11 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
     rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
     if (rv != 0) {
       return rv;
+    }
+
+    if ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) &&
+        ngtcp2_strm_rx_offset(strm) >= strm->rx.reliable_offset) {
+      return conn_finalize_reset_stream(conn, strm);
     }
   } else if (fr->datacnt && !(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING)) {
     nwrite = ngtcp2_strm_recv_reordering(strm, fr->data[0].base,
@@ -7632,6 +7636,11 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   uint64_t datalen;
   ngtcp2_idtr *idtr;
   int rv;
+  uint64_t rx_offset;
+
+  if (fr->final_size < fr->reliable_size) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
 
   /* TODO share this piece of code */
   if (bidi) {
@@ -7689,7 +7698,9 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
       return NGTCP2_ERR_FLOW_CONTROL;
     }
 
-    /* Stream is reset before we create ngtcp2_strm object. */
+    /* Stream is reset before we create ngtcp2_strm object.  We need
+       to receive at least fr->reliable_size bytes.  Create a new
+       stream and let application deal with it. */
     strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
     if (strm == NULL) {
       return NGTCP2_ERR_NOMEM;
@@ -7715,11 +7726,25 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   }
 
   if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
-    if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-      return NGTCP2_ERR_INTERNAL;
+    if (strm->rx.final_offset != fr->final_size) {
+      return NGTCP2_ERR_STREAM_STATE;
     }
 
-    return 0;
+    rx_offset = ngtcp2_strm_rx_offset(strm);
+
+    if (strm->rx.reliable_offset <= rx_offset) {
+      return 0;
+    }
+
+    if (strm->rx.reliable_offset > fr->reliable_size) {
+      strm->rx.reliable_offset = fr->reliable_size;
+    }
+
+    if (strm->rx.reliable_offset > rx_offset) {
+      return 0;
+    }
+
+    return conn_finalize_reset_stream(conn, strm);
   }
 
   if (strm->rx.max_offset < fr->final_size) {
@@ -7732,8 +7757,25 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
     return NGTCP2_ERR_FLOW_CONTROL;
   }
 
-  rv = conn_call_stream_reset(conn, fr->stream_id, fr->final_size,
-                              fr->app_error_code, strm->stream_user_data);
+  strm->rx.final_offset = fr->final_size;
+  strm->rx.reliable_offset = fr->reliable_size;
+  strm->flags |= NGTCP2_STRM_FLAG_RESET_STREAM_RECVED;
+
+  ngtcp2_strm_set_app_error_code(strm, fr->app_error_code);
+
+  if (strm->rx.reliable_offset > ngtcp2_strm_rx_offset(strm)) {
+    return 0;
+  }
+
+  return conn_finalize_reset_stream(conn, strm);
+}
+
+static int conn_finalize_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
+  int rv;
+  uint64_t datalen = strm->rx.final_offset - strm->rx.last_offset;
+
+  rv = conn_call_stream_reset(conn, strm->stream_id, strm->rx.final_offset,
+                              strm->app_error_code, strm->stream_user_data);
   if (rv != 0) {
     return rv;
   }
@@ -7748,11 +7790,9 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   conn->rx.offset += datalen;
   ngtcp2_conn_extend_max_offset(conn, datalen);
 
-  strm->rx.last_offset = fr->final_size;
+  strm->rx.last_offset = strm->rx.final_offset;
   strm->flags |=
     NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RESET_STREAM_RECVED;
-
-  ngtcp2_strm_set_app_error_code(strm, fr->app_error_code);
 
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
 }
@@ -9529,6 +9569,11 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       non_probing_pkt = 1;
       break;
+    case NGTCP2_FRAME_RESET_STREAM_AT:
+      if (!conn->local.transport_params.reset_stream_at) {
+        return NGTCP2_ERR_FRAME_ENCODING;
+      }
+      /* fall through */
     case NGTCP2_FRAME_RESET_STREAM:
       rv = conn_recv_reset_stream(conn, &fr.reset_stream, ts);
       if (rv != 0) {
@@ -12749,10 +12794,13 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
 
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
                                           ngtcp2_strm *strm) {
+  uint64_t rx_offset = ngtcp2_strm_rx_offset(strm);
+
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RDWR) ==
         NGTCP2_STRM_FLAG_SHUT_RDWR &&
-      ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) ||
-       ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) &&
+      (((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) &&
+        rx_offset >= strm->rx.reliable_offset) ||
+       rx_offset == strm->rx.last_offset) &&
       (((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) &&
         (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_ACKED)) ||
        ngtcp2_strm_is_all_tx_data_fin_acked(strm))) {
@@ -12801,20 +12849,30 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
  */
 static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                      uint64_t app_error_code) {
+  uint64_t rx_offset;
+
   ngtcp2_strm_set_app_error_code(strm, app_error_code);
 
-  if (strm->flags &
-      (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RESET_STREAM_RECVED)) {
+  if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
     return 0;
   }
+
+  rx_offset = ngtcp2_strm_rx_offset(strm);
+
+  if ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) &&
+      rx_offset >= strm->rx.reliable_offset) {
+    return 0;
+  }
+
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-      ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) {
+      rx_offset == strm->rx.last_offset) {
     return 0;
   }
 
   /* Extend connection flow control window for the amount of data
      which are not passed to application. */
-  if (!(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED)) {
+  if (!(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) ||
+      rx_offset < strm->rx.reliable_offset) {
     ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
                                           ngtcp2_strm_rx_offset(strm));
   }
