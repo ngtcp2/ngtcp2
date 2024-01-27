@@ -218,6 +218,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
   ngtcp2_frame *fr;
   ngtcp2_strm *strm;
   ngtcp2_range gap, range;
+  uint64_t acked_offset;
   size_t num_reclaimed = 0;
   int rv;
 
@@ -236,15 +237,27 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
     switch (frc->fr.hd.type) {
     case NGTCP2_FRAME_STREAM:
       strm = ngtcp2_conn_find_stream(conn, fr->stream.stream_id);
-      if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM)) {
+      if (strm == NULL) {
+        continue;
+      }
+
+      acked_offset = ngtcp2_strm_get_acked_offset(strm);
+
+      range = (ngtcp2_range){
+        .begin = fr->stream.offset,
+        .end = fr->stream.offset +
+               ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt),
+      };
+
+      if ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) &&
+          (strm->tx.reset_stream_at <= acked_offset ||
+           range.begin >= strm->tx.reset_stream_at ||
+           range.end <= acked_offset)) {
         continue;
       }
 
       gap = ngtcp2_strm_get_unacked_range_after(strm, fr->stream.offset);
 
-      range.begin = fr->stream.offset;
-      range.end =
-        fr->stream.offset + ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt);
       range = ngtcp2_range_intersect(&range, &gap);
 
       if (ngtcp2_range_len(&range) == 0 && !fr->stream.fin &&
@@ -362,6 +375,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
     case NGTCP2_FRAME_DATAGRAM_LEN:
       continue;
     case NGTCP2_FRAME_RESET_STREAM:
+    case NGTCP2_FRAME_RESET_STREAM_AT:
       strm = ngtcp2_conn_find_stream(conn, fr->reset_stream.stream_id);
       if (strm == NULL || !ngtcp2_strm_require_retransmit_reset_stream(strm)) {
         continue;
@@ -678,6 +692,7 @@ static int process_acked_pkt(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn,
 
       break;
     case NGTCP2_FRAME_RESET_STREAM:
+    case NGTCP2_FRAME_RESET_STREAM_AT:
       strm = ngtcp2_conn_find_stream(conn, frc->fr.reset_stream.stream_id);
       if (strm == NULL) {
         break;

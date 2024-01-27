@@ -142,6 +142,9 @@ struct ngtcp2_strm {
         /* reset_stream_app_error_code is the application specific
            error code that is sent along with RESET_STREAM. */
         uint64_t reset_stream_app_error_code;
+        /* reset_stream_at is an offset, and stream data up to the
+           offset must be acknowledged before closing the stream. */
+        uint64_t reset_stream_at;
       } tx;
 
       struct {
