@@ -306,6 +306,7 @@ typedef struct ngtcp2_early_transport_params {
   uint64_t initial_max_data;
   uint64_t active_connection_id_limit;
   uint64_t max_datagram_frame_size;
+  uint8_t reset_stream_at;
 } ngtcp2_early_transport_params;
 
 ngtcp2_static_ringbuf_def(path_challenge, 4,
