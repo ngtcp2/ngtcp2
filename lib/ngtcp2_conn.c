@@ -3583,11 +3583,16 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
             return rv;
           }
 
-          nfrc->fr.type = NGTCP2_FRAME_RESET_STREAM;
+          if (conn->remote.transport_params->reliable_stream_reset) {
+            nfrc->fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+          } else {
+            nfrc->fr.type = NGTCP2_FRAME_RESET_STREAM;
+          }
           nfrc->fr.reset_stream.stream_id = strm->stream_id;
           nfrc->fr.reset_stream.app_error_code =
               strm->tx.reset_stream_app_error_code;
           nfrc->fr.reset_stream.final_size = strm->tx.offset;
+          nfrc->fr.reset_stream.reliable_size = strm->tx.reset_stream_at;
           *pfrc = nfrc;
 
           strm->flags &= ~NGTCP2_STRM_FLAG_SEND_RESET_STREAM;
@@ -7191,10 +7196,17 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                             uint64_t app_error_code) {
+static int conn_reset_stream(ngtcp2_conn *conn, uint32_t flags,
+                             ngtcp2_strm *strm, uint64_t app_error_code) {
   strm->flags |= NGTCP2_STRM_FLAG_SEND_RESET_STREAM;
   strm->tx.reset_stream_app_error_code = app_error_code;
+
+  assert(conn->remote.transport_params);
+
+  if (conn->remote.transport_params->reliable_stream_reset &&
+      (flags & NGTCP2_SHUT_STREAM_FLAG_FLUSH)) {
+    strm->tx.reset_stream_at = strm->tx.offset;
+  }
 
   if (ngtcp2_strm_is_tx_queued(strm)) {
     return 0;
@@ -7522,7 +7534,8 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
       !(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM)) {
     strm->flags |= NGTCP2_STRM_FLAG_RESET_STREAM;
 
-    rv = conn_reset_stream(conn, strm, fr->app_error_code);
+    rv = conn_reset_stream(conn, NGTCP2_SHUT_STREAM_FLAG_NONE, strm,
+                           fr->app_error_code);
     if (rv != 0) {
       return rv;
     }
@@ -9232,6 +9245,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       case NGTCP2_FRAME_PADDING:
       case NGTCP2_FRAME_PING:
       case NGTCP2_FRAME_RESET_STREAM:
+      case NGTCP2_FRAME_RESET_STREAM_AT:
       case NGTCP2_FRAME_STOP_SENDING:
       case NGTCP2_FRAME_STREAM:
       case NGTCP2_FRAME_MAX_DATA:
@@ -12546,6 +12560,7 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
         rx_offset >= strm->rx.reliable_offset) ||
        rx_offset == strm->rx.last_offset) &&
       (((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) &&
+        ngtcp2_strm_get_acked_offset(strm) >= strm->tx.reset_stream_at &&
         (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_ACKED)) ||
        ngtcp2_strm_is_all_tx_data_fin_acked(strm))) {
     return ngtcp2_conn_close_stream(conn, strm);
@@ -12563,7 +12578,8 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
+static int conn_shutdown_stream_write(ngtcp2_conn *conn, uint32_t flags,
+                                      ngtcp2_strm *strm,
                                       uint64_t app_error_code) {
   ngtcp2_strm_set_app_error_code(strm, app_error_code);
 
@@ -12576,9 +12592,12 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
      stream. */
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_RESET_STREAM;
 
-  ngtcp2_strm_streamfrq_clear(strm);
+  if (!conn->remote.transport_params->reliable_stream_reset ||
+      !(flags & NGTCP2_SHUT_STREAM_FLAG_FLUSH)) {
+    ngtcp2_strm_streamfrq_clear(strm);
+  }
 
-  return conn_reset_stream(conn, strm, app_error_code);
+  return conn_reset_stream(conn, flags, strm, app_error_code);
 }
 
 /*
@@ -12647,7 +12666,7 @@ int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, uint32_t flags,
   }
 
   if (bidi_stream(stream_id) || conn_local_stream(conn, stream_id)) {
-    rv = conn_shutdown_stream_write(conn, strm, app_error_code);
+    rv = conn_shutdown_stream_write(conn, flags, strm, app_error_code);
     if (rv != 0) {
       return rv;
     }
@@ -12671,7 +12690,7 @@ int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, uint32_t flags,
     return 0;
   }
 
-  return conn_shutdown_stream_write(conn, strm, app_error_code);
+  return conn_shutdown_stream_write(conn, flags, strm, app_error_code);
 }
 
 int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, uint32_t flags,
