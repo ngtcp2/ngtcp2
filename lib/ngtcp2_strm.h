@@ -220,6 +220,12 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
 void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset);
 
 /*
+ * ngtcp2_strm_discard_reordered_data discards all buffered reordered
+ * data.
+ */
+void ngtcp2_strm_discard_reordered_data(ngtcp2_strm *strm);
+
+/*
  * ngtcp2_strm_shutdown shutdowns |strm|.  |flags| should be
  * NGTCP2_STRM_FLAG_SHUT_RD, and/or NGTCP2_STRM_FLAG_SHUT_WR.
  */
