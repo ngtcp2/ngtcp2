@@ -15732,7 +15732,7 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   ngtcp2_conn *conn;
   uint8_t buf[256];
   ngtcp2_ssize slen;
-  ngtcp2_transport_params params, early_params;
+  ngtcp2_transport_params params, remote_params, early_params;
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_cid rcid, scid;
@@ -15743,7 +15743,14 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   conn_options opts;
 
   /* client side */
-  setup_default_client(&conn);
+  client_default_remote_transport_params(&remote_params);
+  remote_params.reset_stream_at = 1;
+
+  opts = (conn_options){
+    .remote_params = &remote_params,
+  };
+
+  setup_default_client_with_options(&conn, opts);
 
   slen = ngtcp2_conn_encode_0rtt_transport_params(conn, buf, sizeof(buf));
 
@@ -15760,6 +15767,7 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   assert_uint64(64 * 1024, ==, early_params.initial_max_stream_data_uni);
   assert_uint64(64 * 1024, ==, early_params.initial_max_data);
   assert_uint64(8, ==, early_params.active_connection_id_limit);
+  assert_true(early_params.reset_stream_at);
 
   ngtcp2_conn_del(conn);
 
@@ -15799,12 +15807,15 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
                 conn->remote.transport_params->initial_max_data);
   assert_uint64(early_params.active_connection_id_limit, ==,
                 conn->remote.transport_params->active_connection_id_limit);
+  assert_uint8(early_params.reset_stream_at, ==,
+               conn->remote.transport_params->reset_stream_at);
 
   ngtcp2_conn_del(conn);
 
   /* server side */
   server_default_transport_params(&params);
   params.disable_active_migration = 1;
+  params.reset_stream_at = 1;
 
   opts = (conn_options){
     .params = &params,
@@ -15837,6 +15848,7 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
                 early_params.max_udp_payload_size);
   assert_uint8(params.disable_active_migration, ==,
                early_params.disable_active_migration);
+  assert_uint8(params.reset_stream_at, ==, early_params.reset_stream_at);
 
   ngtcp2_conn_del(conn);
 }
