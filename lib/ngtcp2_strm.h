@@ -162,6 +162,9 @@ struct ngtcp2_strm {
            This field is eventually passed to ngtcp2_stream_close2
            callback as tx_app_error_code parameter. */
         uint64_t reset_stream_app_error_code;
+        /* reset_stream_at is an offset, and stream data up to the
+           offset must be acknowledged before closing the stream. */
+        uint64_t reset_stream_at;
       } tx;
 
       struct {
