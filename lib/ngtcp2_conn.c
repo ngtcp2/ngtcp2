@@ -10143,7 +10143,9 @@ static int conn_validate_early_transport_params_limits(ngtcp2_conn *conn) {
       conn->early.transport_params.initial_max_streams_uni >
           params->initial_max_streams_uni ||
       conn->early.transport_params.max_datagram_frame_size >
-          params->max_datagram_frame_size) {
+          params->max_datagram_frame_size ||
+      conn->early.transport_params.reliable_stream_reset >
+          params->reliable_stream_reset) {
     return NGTCP2_ERR_PROTO;
   }
 
@@ -11484,6 +11486,7 @@ ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params(ngtcp2_conn *conn,
   params.initial_max_data = src->initial_max_data;
   params.active_connection_id_limit = src->active_connection_id_limit;
   params.max_datagram_frame_size = src->max_datagram_frame_size;
+  params.reliable_stream_reset = src->reliable_stream_reset;
 
   if (conn->server) {
     params.max_idle_timeout = src->max_idle_timeout;
@@ -11538,6 +11541,7 @@ int ngtcp2_conn_set_0rtt_remote_transport_params(
       ngtcp2_max_uint64(NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT,
                         params->active_connection_id_limit);
   p->max_datagram_frame_size = params->max_datagram_frame_size;
+  p->reliable_stream_reset = params->reliable_stream_reset;
 
   /* we might hit garbage, then set the sane default. */
   if (params->max_udp_payload_size) {
@@ -11563,6 +11567,8 @@ int ngtcp2_conn_set_0rtt_remote_transport_params(
       params->active_connection_id_limit;
   conn->early.transport_params.max_datagram_frame_size =
       params->max_datagram_frame_size;
+  conn->early.transport_params.reliable_stream_reset =
+      params->reliable_stream_reset;
 
   conn_sync_stream_id_limit(conn);
 
