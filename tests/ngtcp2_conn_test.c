@@ -2086,8 +2086,12 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, 0));
-  CU_ASSERT(4 == conn->remote.bidi.unsent_max_streams);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  CU_ASSERT(1999 == strm->rx.last_offset);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
+  CU_ASSERT(3 == conn->remote.bidi.unsent_max_streams);
 
   ngtcp2_conn_del(conn);
 
