@@ -237,7 +237,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
     switch (frc->fr.type) {
     case NGTCP2_FRAME_STREAM:
       strm = ngtcp2_conn_find_stream(conn, fr->stream.stream_id);
-      if (strm == NULL) {
+      if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM)) {
         continue;
       }
 
