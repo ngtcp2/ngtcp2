@@ -708,3 +708,25 @@ void ngtcp2_strm_set_app_error_code(ngtcp2_strm *strm,
   strm->flags |= NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET;
   strm->app_error_code = app_error_code;
 }
+
+int ngtcp2_strm_require_retransmit_reset_stream(ngtcp2_strm *strm) {
+  return !ngtcp2_strm_is_all_tx_data_fin_acked(strm);
+}
+
+int ngtcp2_strm_require_retransmit_stop_sending(ngtcp2_strm *strm) {
+  return !(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) ||
+         ngtcp2_strm_rx_offset(strm) != strm->rx.last_offset;
+}
+
+int ngtcp2_strm_require_retransmit_max_stream_data(ngtcp2_strm *strm,
+                                                   ngtcp2_max_stream_data *fr) {
+  return fr->max_stream_data == strm->rx.max_offset &&
+         !(strm->flags &
+           (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING));
+}
+
+int ngtcp2_strm_require_retransmit_stream_data_blocked(
+    ngtcp2_strm *strm, ngtcp2_stream_data_blocked *fr) {
+  return fr->offset == strm->tx.max_offset &&
+         !(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
+}
