@@ -7469,15 +7469,16 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
      been acknowledged. */
   if (!ngtcp2_strm_is_all_tx_data_fin_acked(strm) &&
       !(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM)) {
+    strm->flags |= NGTCP2_STRM_FLAG_RESET_STREAM;
+
     rv = conn_reset_stream(conn, strm, fr->app_error_code);
     if (rv != 0) {
       return rv;
     }
   }
 
-  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR |
-                 NGTCP2_STRM_FLAG_STOP_SENDING_RECVED |
-                 NGTCP2_STRM_FLAG_RESET_STREAM;
+  strm->flags |=
+      NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_STOP_SENDING_RECVED;
 
   ngtcp2_strm_streamfrq_clear(strm);
 
