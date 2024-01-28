@@ -63,6 +63,7 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   ngtcp2_version_cid vc;
   int rv;
   uint8_t *p;
+  size_t i;
 
   /* Supported QUIC version */
   p = buf;
@@ -82,6 +83,13 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   CU_ASSERT(NGTCP2_MAX_CIDLEN - 1 == vc.scidlen);
   CU_ASSERT(&buf[6 + NGTCP2_MAX_CIDLEN + 1] == vc.scid);
 
+  /* Fail if header is truncated. */
+  for (i = 1; i < (size_t)(p - buf); ++i) {
+    rv = ngtcp2_pkt_decode_version_cid(&vc, buf, i, 0);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
+
   /* Unsupported QUIC version */
   memset(buf, 0, sizeof(buf));
   p = buf;
@@ -90,7 +98,7 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   *p++ = NGTCP2_MAX_CIDLEN;
   p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN);
   *p++ = NGTCP2_MAX_CIDLEN - 1;
-  ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN - 1);
+  p = ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN - 1);
 
   rv = ngtcp2_pkt_decode_version_cid(&vc, buf, sizeof(buf), 0);
 
@@ -100,6 +108,13 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   CU_ASSERT(&buf[6] == vc.dcid);
   CU_ASSERT(NGTCP2_MAX_CIDLEN - 1 == vc.scidlen);
   CU_ASSERT(&buf[6 + NGTCP2_MAX_CIDLEN + 1] == vc.scid);
+
+  /* Fail if header is truncated. */
+  for (i = 1; i < (size_t)(p - buf); ++i) {
+    rv = ngtcp2_pkt_decode_version_cid(&vc, buf, i, 0);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
 
   /* Unsupported QUIC version with UDP payload size < 1200 */
   p = buf;
@@ -164,6 +179,13 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   CU_ASSERT(NGTCP2_MAX_CIDLEN - 1 == vc.scidlen);
   CU_ASSERT(&buf[6 + NGTCP2_MAX_CIDLEN + 1] == vc.scid);
 
+  /* Fail if header is truncated. */
+  for (i = 1; i < (size_t)(p - buf); ++i) {
+    rv = ngtcp2_pkt_decode_version_cid(&vc, buf, i, 0);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
+
   /* VN with long CID */
   p = buf;
   *p++ = NGTCP2_HEADER_FORM_BIT;
@@ -211,16 +233,12 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   CU_ASSERT(NULL == vc.scid);
   CU_ASSERT(0 == vc.scidlen);
 
-  /* Malformed Short packet */
-  p = buf;
-  *p++ = 0;
-  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN);
-  --p;
+  /* Fail if header is truncated. */
+  for (i = 1; i < (size_t)(p - buf); ++i) {
+    rv = ngtcp2_pkt_decode_version_cid(&vc, buf, i, NGTCP2_MAX_CIDLEN);
 
-  rv = ngtcp2_pkt_decode_version_cid(&vc, buf, (size_t)(p - buf),
-                                     NGTCP2_MAX_CIDLEN);
-
-  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
 }
 
 void test_ngtcp2_pkt_decode_hd_long(void) {
@@ -229,6 +247,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   ngtcp2_ssize rv;
   ngtcp2_cid dcid, scid;
   size_t len;
+  size_t i;
 
   dcid_init(&dcid);
   scid_init(&scid);
@@ -255,6 +274,13 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   CU_ASSERT(hd.version == nhd.version);
   CU_ASSERT(hd.len == nhd.len);
 
+  /* Fail if header is truncated. */
+  for (i = 0; i < len; ++i) {
+    rv = pkt_decode_hd_long(&nhd, buf, i);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
+
   /* Handshake without Fixed Bit set */
   ngtcp2_pkt_hd_init(
       &hd, NGTCP2_PKT_FLAG_LONG_FORM | NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
@@ -279,6 +305,13 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   CU_ASSERT(hd.version == nhd.version);
   CU_ASSERT(hd.len == nhd.len);
 
+  /* Fail if header is truncated. */
+  for (i = 0; i < len; ++i) {
+    rv = pkt_decode_hd_long(&nhd, buf, i);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
+
   /* VN */
   /* Set random packet type */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
@@ -302,6 +335,13 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   CU_ASSERT(hd.pkt_num == nhd.pkt_num);
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(hd.len == nhd.len);
+
+  /* Fail if header is truncated. */
+  for (i = 0; i < len; ++i) {
+    rv = pkt_decode_hd_long(&nhd, buf, i);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
 }
 
 void test_ngtcp2_pkt_decode_hd_short(void) {
@@ -310,6 +350,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   ngtcp2_ssize rv;
   size_t expectedlen;
   ngtcp2_cid dcid, zcid;
+  size_t i;
 
   dcid_init(&dcid);
   ngtcp2_cid_zero(&zcid);
@@ -337,6 +378,13 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
 
+  /* Fail if header is truncated. */
+  for (i = 0; i < expectedlen; ++i) {
+    rv = pkt_decode_hd_short(&nhd, buf, i, dcid.datalen);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
+
   /* 4 bytes packet number without Fixed Bit set */
   ngtcp2_pkt_hd_init(
       &hd, NGTCP2_PKT_FLAG_NONE | NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
@@ -361,6 +409,13 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
 
+  /* Fail if header is truncated. */
+  for (i = 0; i < expectedlen; ++i) {
+    rv = pkt_decode_hd_short(&nhd, buf, i, dcid.datalen);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
+
   /* 2 bytes packet number */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
                      0xe1e2e3e4u, 2, 0xd1d2d3d4u, 0);
@@ -383,6 +438,13 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
 
+  /* Fail if header is truncated. */
+  for (i = 0; i < expectedlen; ++i) {
+    rv = pkt_decode_hd_short(&nhd, buf, i, dcid.datalen);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
+
   /* 1 byte packet number */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
                      0xe1e2e3e4u, 1, 0xd1d2d3d4u, 0);
@@ -404,6 +466,13 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
+
+  /* Fail if header is truncated. */
+  for (i = 0; i < expectedlen; ++i) {
+    rv = pkt_decode_hd_short(&nhd, buf, i, dcid.datalen);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
 
   /* With Key Phase */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_KEY_PHASE, NGTCP2_PKT_1RTT, &dcid,
@@ -429,6 +498,13 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
 
+  /* Fail if header is truncated. */
+  for (i = 0; i < expectedlen; ++i) {
+    rv = pkt_decode_hd_short(&nhd, buf, i, dcid.datalen);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
+
   /* With empty DCID */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, NULL, NULL,
                      0xe1e2e3e4u, 4, 0xd1d2d3d4u, 0);
@@ -450,6 +526,13 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
+
+  /* Fail if header is truncated. */
+  for (i = 0; i < expectedlen; ++i) {
+    rv = pkt_decode_hd_short(&nhd, buf, i, dcid.datalen);
+
+    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  }
 }
 
 void test_ngtcp2_pkt_decode_frame(void) {
