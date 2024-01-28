@@ -7312,27 +7312,20 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
     }
 
     /* Stream is reset before we create ngtcp2_strm object. */
-    conn->rx.offset += fr->final_size;
-    ngtcp2_conn_extend_max_offset(conn, fr->final_size);
-
-    rv = conn_call_stream_reset(conn, fr->stream_id, fr->final_size,
-                                fr->app_error_code, NULL);
+    strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
+    if (strm == NULL) {
+      return NGTCP2_ERR_NOMEM;
+    }
+    rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
+      ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
       return rv;
     }
 
-    /* There will be no activity in this stream because we got
-       RESET_STREAM and don't write stream data any further.  This
-       effectively allows another new stream for peer. */
-    if (bidi) {
-      handle_max_remote_streams_extension(&conn->remote.bidi.unsent_max_streams,
-                                          1);
-    } else {
-      handle_max_remote_streams_extension(&conn->remote.uni.unsent_max_streams,
-                                          1);
+    rv = conn_call_stream_open(conn, strm);
+    if (rv != 0) {
+      return rv;
     }
-
-    return 0;
   }
 
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD)) {
