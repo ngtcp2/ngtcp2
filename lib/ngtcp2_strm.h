@@ -36,6 +36,7 @@
 #include "ngtcp2_gaptr.h"
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pq.h"
+#include "ngtcp2_pkt.h"
 
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
@@ -325,5 +326,31 @@ int ngtcp2_strm_ack_data(ngtcp2_strm *strm, uint64_t offset, uint64_t len);
  * already set, this function does nothing.
  */
 void ngtcp2_strm_set_app_error_code(ngtcp2_strm *strm, uint64_t app_error_code);
+
+/*
+ * ngtcp2_strm_require_retransmit_reset_stream returns nonzero if
+ * RESET_STREAM frame should be retransmitted.
+ */
+int ngtcp2_strm_require_retransmit_reset_stream(ngtcp2_strm *strm);
+
+/*
+ * ngtcp2_strm_require_retransmit_stop_sending returns nonzero if
+ * STOP_SENDING frame should be retransmitted.
+ */
+int ngtcp2_strm_require_retransmit_stop_sending(ngtcp2_strm *strm);
+
+/*
+ * ngtcp2_strm_require_retransmit_max_stream_data returns nonzero if
+ * MAX_STREAM_DATA frame should be retransmitted.
+ */
+int ngtcp2_strm_require_retransmit_max_stream_data(ngtcp2_strm *strm,
+                                                   ngtcp2_max_stream_data *fr);
+
+/*
+ * ngtcp2_strm_require_retransmit_stream_data_blocked returns nonzero
+ * if STREAM_DATA_BLOCKED frame frame should be retransmitted.
+ */
+int ngtcp2_strm_require_retransmit_stream_data_blocked(
+    ngtcp2_strm *strm, ngtcp2_stream_data_blocked *fr);
 
 #endif /* NGTCP2_STRM_H */
