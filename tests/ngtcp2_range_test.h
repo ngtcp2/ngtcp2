@@ -29,8 +29,14 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_range_intersect(void);
-void test_ngtcp2_range_cut(void);
-void test_ngtcp2_range_not_after(void);
+#define MUNIT_ENABLE_ASSERT_ALIASES
+
+#include "munit.h"
+
+extern const MunitSuite range_suite;
+
+munit_void_test_decl(test_ngtcp2_range_intersect);
+munit_void_test_decl(test_ngtcp2_range_cut);
+munit_void_test_decl(test_ngtcp2_range_not_after);
 
 #endif /* NGTCP2_RANGE_TEST_H */

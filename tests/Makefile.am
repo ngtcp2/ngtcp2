@@ -21,9 +21,7 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-EXTRA_DIST = CMakeLists.txt
-
-if HAVE_CUNIT
+EXTRA_DIST = CMakeLists.txt munit/COPYING munit/munitxx.h
 
 check_PROGRAMS = main
 
@@ -52,7 +50,9 @@ OBJECTS = \
 	ngtcp2_cc_test.c \
 	ngtcp2_qlog_test.c \
 	ngtcp2_window_filter_test.c \
-	ngtcp2_test_helper.c
+	ngtcp2_test_helper.c \
+	munit/munit.c
+
 HFILES= \
 	ngtcp2_pkt_test.h \
 	ngtcp2_range_test.h \
@@ -88,17 +88,15 @@ main_LDADD = ${top_builddir}/lib/.libs/*.o
 else
 main_LDADD = ${top_builddir}/lib/.libs/libngtcp2.la
 endif
-main_LDADD += @CUNIT_LIBS@
 main_LDFLAGS = -static
 
 AM_CFLAGS = $(WARNCFLAGS) \
 	-I${top_srcdir}/lib \
 	-I${top_srcdir}/lib/includes \
+	-I${top_srcdir}/tests/munit \
 	-I${top_builddir}/lib/includes \
 	-DBUILDING_NGTCP2 \
-	@CUNIT_CFLAGS@ @DEFS@
+	@DEFS@
 AM_LDFLAGS = -no-install
 
 TESTS = main
-
-endif # HAVE_CUNIT

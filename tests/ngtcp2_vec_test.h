@@ -29,8 +29,14 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_vec_split(void);
-void test_ngtcp2_vec_merge(void);
-void test_ngtcp2_vec_len_varint(void);
+#define MUNIT_ENABLE_ASSERT_ALIASES
+
+#include "munit.h"
+
+extern const MunitSuite vec_suite;
+
+munit_void_test_decl(test_ngtcp2_vec_split);
+munit_void_test_decl(test_ngtcp2_vec_merge);
+munit_void_test_decl(test_ngtcp2_vec_len_varint);
 
 #endif /* NGTCP2_VEC_TEST_H */

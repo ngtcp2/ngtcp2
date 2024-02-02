@@ -42,10 +42,6 @@ The following packages are required to configure the build system:
 - autotools-dev
 - libtool
 
-libngtcp2 uses cunit for its unit test frame work:
-
-- cunit >= 2.1
-
 To build sources under the examples directory, libev and nghttp3 are
 required:
 
@@ -62,6 +58,15 @@ directory require at least one of the following TLS backends:
   or aws-lc >= 1.19.0
 - Picotls (commit eb013f761bf1dc3da244322d8569f57b33a95178)
 - wolfSSL >= 5.5.0
+
+Before building from git
+------------------------
+
+When build from git, run the following command to pull submodules:
+
+.. code-block:: shell
+
+   $ git submodule update --init
 
 Build with wolfSSL
 ------------------

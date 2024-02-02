@@ -29,7 +29,13 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_transport_params_encode(void);
-void test_ngtcp2_transport_params_decode_new(void);
+#define MUNIT_ENABLE_ASSERT_ALIASES
+
+#include "munit.h"
+
+extern const MunitSuite crypto_suite;
+
+munit_void_test_decl(test_ngtcp2_transport_params_encode);
+munit_void_test_decl(test_ngtcp2_transport_params_decode_new);
 
 #endif /* NGTCP2_CRYPTO_TEST_H */

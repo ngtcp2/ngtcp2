@@ -26,11 +26,19 @@
 
 #include <stdio.h>
 
-#include <CUnit/CUnit.h>
-
 #include "ngtcp2_conversion.h"
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_net.h"
+
+static const MunitTest tests[] = {
+    munit_void_test(test_ngtcp2_transport_params_convert_to_latest),
+    munit_void_test(test_ngtcp2_transport_params_convert_to_old),
+    munit_test_end(),
+};
+
+const MunitSuite conversion_suite = {
+    "/conversion", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+};
 
 void test_ngtcp2_transport_params_convert_to_latest(void) {
   ngtcp2_transport_params *src, srcbuf, paramsbuf;
@@ -93,52 +101,56 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   dest = ngtcp2_transport_params_convert_to_latest(
       &paramsbuf, NGTCP2_TRANSPORT_PARAMS_V1, src);
 
-  CU_ASSERT(dest == src);
-  CU_ASSERT(srcbuf.initial_max_stream_data_bidi_local ==
-            dest->initial_max_stream_data_bidi_local);
-  CU_ASSERT(srcbuf.initial_max_stream_data_bidi_remote ==
-            dest->initial_max_stream_data_bidi_remote);
-  CU_ASSERT(srcbuf.initial_max_stream_data_uni ==
-            dest->initial_max_stream_data_uni);
-  CU_ASSERT(srcbuf.initial_max_data == dest->initial_max_data);
-  CU_ASSERT(srcbuf.initial_max_streams_bidi == dest->initial_max_streams_bidi);
-  CU_ASSERT(srcbuf.initial_max_streams_uni == dest->initial_max_streams_uni);
-  CU_ASSERT(srcbuf.max_idle_timeout == dest->max_idle_timeout);
-  CU_ASSERT(srcbuf.max_udp_payload_size == dest->max_udp_payload_size);
-  CU_ASSERT(0 == memcmp(srcbuf.stateless_reset_token,
-                        dest->stateless_reset_token,
-                        sizeof(srcbuf.stateless_reset_token)));
-  CU_ASSERT(srcbuf.ack_delay_exponent == dest->ack_delay_exponent);
-  CU_ASSERT(srcbuf.preferred_addr_present == dest->preferred_addr_present);
-  CU_ASSERT(0 == memcmp(&srcbuf.preferred_addr.ipv4, &dest->preferred_addr.ipv4,
-                        sizeof(srcbuf.preferred_addr.ipv4)));
-  CU_ASSERT(srcbuf.preferred_addr.ipv4_present ==
-            dest->preferred_addr.ipv4_present);
-  CU_ASSERT(0 == memcmp(&srcbuf.preferred_addr.ipv6, &dest->preferred_addr.ipv6,
-                        sizeof(srcbuf.preferred_addr.ipv6)));
-  CU_ASSERT(srcbuf.preferred_addr.ipv6_present ==
-            dest->preferred_addr.ipv6_present);
-  CU_ASSERT(
+  assert_ptr_equal(dest, src);
+  assert_uint64(srcbuf.initial_max_stream_data_bidi_local, ==,
+                dest->initial_max_stream_data_bidi_local);
+  assert_uint64(srcbuf.initial_max_stream_data_bidi_remote, ==,
+                dest->initial_max_stream_data_bidi_remote);
+  assert_uint64(srcbuf.initial_max_stream_data_uni, ==,
+                dest->initial_max_stream_data_uni);
+  assert_uint64(srcbuf.initial_max_data, ==, dest->initial_max_data);
+  assert_uint64(srcbuf.initial_max_streams_bidi, ==,
+                dest->initial_max_streams_bidi);
+  assert_uint64(srcbuf.initial_max_streams_uni, ==,
+                dest->initial_max_streams_uni);
+  assert_uint64(srcbuf.max_idle_timeout, ==, dest->max_idle_timeout);
+  assert_uint64(srcbuf.max_udp_payload_size, ==, dest->max_udp_payload_size);
+  assert_memory_equal(sizeof(srcbuf.stateless_reset_token),
+                      srcbuf.stateless_reset_token,
+                      dest->stateless_reset_token);
+  assert_uint64(srcbuf.ack_delay_exponent, ==, dest->ack_delay_exponent);
+  assert_uint8(srcbuf.preferred_addr_present, ==, dest->preferred_addr_present);
+  assert_memory_equal(sizeof(srcbuf.preferred_addr.ipv4),
+                      &srcbuf.preferred_addr.ipv4, &dest->preferred_addr.ipv4);
+  assert_uint8(srcbuf.preferred_addr.ipv4_present, ==,
+               dest->preferred_addr.ipv4_present);
+  assert_memory_equal(sizeof(srcbuf.preferred_addr.ipv6),
+                      &srcbuf.preferred_addr.ipv6, &dest->preferred_addr.ipv6);
+  assert_uint8(srcbuf.preferred_addr.ipv6_present, ==,
+               dest->preferred_addr.ipv6_present);
+  assert_true(
       ngtcp2_cid_eq(&srcbuf.preferred_addr.cid, &dest->preferred_addr.cid));
-  CU_ASSERT(0 == memcmp(srcbuf.preferred_addr.stateless_reset_token,
-                        dest->preferred_addr.stateless_reset_token,
-                        sizeof(srcbuf.preferred_addr.stateless_reset_token)));
-  CU_ASSERT(srcbuf.disable_active_migration == dest->disable_active_migration);
-  CU_ASSERT(srcbuf.max_ack_delay == dest->max_ack_delay);
-  CU_ASSERT(srcbuf.retry_scid_present == dest->retry_scid_present);
-  CU_ASSERT(ngtcp2_cid_eq(&srcbuf.retry_scid, &dest->retry_scid));
-  CU_ASSERT(ngtcp2_cid_eq(&srcbuf.initial_scid, &dest->initial_scid));
-  CU_ASSERT(ngtcp2_cid_eq(&srcbuf.original_dcid, &dest->original_dcid));
-  CU_ASSERT(srcbuf.active_connection_id_limit ==
-            dest->active_connection_id_limit);
-  CU_ASSERT(srcbuf.max_datagram_frame_size == dest->max_datagram_frame_size);
-  CU_ASSERT(srcbuf.grease_quic_bit == dest->grease_quic_bit);
-  CU_ASSERT(srcbuf.version_info_present == dest->version_info_present);
-  CU_ASSERT(srcbuf.version_info.chosen_version ==
-            dest->version_info.chosen_version);
-  CU_ASSERT(0 == memcmp(srcbuf.version_info.available_versions,
-                        dest->version_info.available_versions,
-                        srcbuf.version_info.available_versionslen));
+  assert_memory_equal(sizeof(srcbuf.preferred_addr.stateless_reset_token),
+                      srcbuf.preferred_addr.stateless_reset_token,
+                      dest->preferred_addr.stateless_reset_token);
+  assert_uint8(srcbuf.disable_active_migration, ==,
+               dest->disable_active_migration);
+  assert_uint64(srcbuf.max_ack_delay, ==, dest->max_ack_delay);
+  assert_uint8(srcbuf.retry_scid_present, ==, dest->retry_scid_present);
+  assert_true(ngtcp2_cid_eq(&srcbuf.retry_scid, &dest->retry_scid));
+  assert_true(ngtcp2_cid_eq(&srcbuf.initial_scid, &dest->initial_scid));
+  assert_true(ngtcp2_cid_eq(&srcbuf.original_dcid, &dest->original_dcid));
+  assert_uint64(srcbuf.active_connection_id_limit, ==,
+                dest->active_connection_id_limit);
+  assert_uint64(srcbuf.max_datagram_frame_size, ==,
+                dest->max_datagram_frame_size);
+  assert_uint8(srcbuf.grease_quic_bit, ==, dest->grease_quic_bit);
+  assert_uint8(srcbuf.version_info_present, ==, dest->version_info_present);
+  assert_uint32(srcbuf.version_info.chosen_version, ==,
+                dest->version_info.chosen_version);
+  assert_memory_equal(srcbuf.version_info.available_versionslen,
+                      srcbuf.version_info.available_versions,
+                      dest->version_info.available_versions);
 
   free(src);
 }

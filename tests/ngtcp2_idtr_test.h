@@ -29,6 +29,12 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_idtr_open(void);
+#define MUNIT_ENABLE_ASSERT_ALIASES
+
+#include "munit.h"
+
+extern const MunitSuite idtr_suite;
+
+munit_void_test_decl(test_ngtcp2_idtr_open);
 
 #endif /* NGTCP2_IDTR_TEST_H */

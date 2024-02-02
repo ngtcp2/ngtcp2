@@ -29,6 +29,12 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_qlog_write_frame(void);
+#define MUNIT_ENABLE_ASSERT_ALIASES
+
+#include "munit.h"
+
+extern const MunitSuite qlog_suite;
+
+munit_void_test_decl(test_ngtcp2_qlog_write_frame);
 
 #endif /* NGTCP2_QLOG_TEST_H */

@@ -1,0 +1,3 @@
+[submodule "tests/munit"]
+	path = tests/munit
+	url = https://github.com/ngtcp2/munit

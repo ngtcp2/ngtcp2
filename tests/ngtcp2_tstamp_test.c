@@ -26,24 +26,31 @@
 
 #include <stdio.h>
 
-#include <CUnit/CUnit.h>
-
 #include "ngtcp2_tstamp.h"
 #include "ngtcp2_test_helper.h"
 
+static const MunitTest tests[] = {
+    munit_void_test(test_ngtcp2_tstamp_elapsed),
+    munit_test_end(),
+};
+
+const MunitSuite tstamp_suite = {
+    "/tstamp", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+};
+
 void test_ngtcp2_tstamp_elapsed(void) {
-  CU_ASSERT(0 == ngtcp2_tstamp_elapsed(UINT64_MAX, 0, 0));
-  CU_ASSERT(0 == ngtcp2_tstamp_not_elapsed(UINT64_MAX, 0, 0));
+  assert_false(ngtcp2_tstamp_elapsed(UINT64_MAX, 0, 0));
+  assert_false(ngtcp2_tstamp_not_elapsed(UINT64_MAX, 0, 0));
 
-  CU_ASSERT(0 == ngtcp2_tstamp_elapsed(1, UINT64_MAX - 1, UINT64_MAX - 1));
-  CU_ASSERT(1 == ngtcp2_tstamp_not_elapsed(1, UINT64_MAX - 1, UINT64_MAX - 1));
+  assert_false(ngtcp2_tstamp_elapsed(1, UINT64_MAX - 1, UINT64_MAX - 1));
+  assert_true(ngtcp2_tstamp_not_elapsed(1, UINT64_MAX - 1, UINT64_MAX - 1));
 
-  CU_ASSERT(1 == ngtcp2_tstamp_elapsed(1, UINT64_MAX - 2, UINT64_MAX - 1));
-  CU_ASSERT(0 == ngtcp2_tstamp_not_elapsed(1, UINT64_MAX - 2, UINT64_MAX - 1));
+  assert_true(ngtcp2_tstamp_elapsed(1, UINT64_MAX - 2, UINT64_MAX - 1));
+  assert_false(ngtcp2_tstamp_not_elapsed(1, UINT64_MAX - 2, UINT64_MAX - 1));
 
-  CU_ASSERT(0 == ngtcp2_tstamp_elapsed(2, UINT64_MAX - 1, UINT64_MAX - 1));
-  CU_ASSERT(1 == ngtcp2_tstamp_not_elapsed(2, UINT64_MAX - 1, UINT64_MAX - 1));
+  assert_false(ngtcp2_tstamp_elapsed(2, UINT64_MAX - 1, UINT64_MAX - 1));
+  assert_true(ngtcp2_tstamp_not_elapsed(2, UINT64_MAX - 1, UINT64_MAX - 1));
 
-  CU_ASSERT(0 == ngtcp2_tstamp_elapsed(0, UINT64_MAX, UINT64_MAX - 1));
-  CU_ASSERT(1 == ngtcp2_tstamp_not_elapsed(0, UINT64_MAX, UINT64_MAX - 1));
+  assert_false(ngtcp2_tstamp_elapsed(0, UINT64_MAX, UINT64_MAX - 1));
+  assert_true(ngtcp2_tstamp_not_elapsed(0, UINT64_MAX, UINT64_MAX - 1));
 }

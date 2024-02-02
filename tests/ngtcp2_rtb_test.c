@@ -27,13 +27,24 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include <CUnit/CUnit.h>
-
 #include "ngtcp2_rtb.h"
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_mem.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_frame_chain.h"
+
+static const MunitTest tests[] = {
+    munit_void_test(test_ngtcp2_rtb_add),
+    munit_void_test(test_ngtcp2_rtb_recv_ack),
+    munit_void_test(test_ngtcp2_rtb_lost_pkt_ts),
+    munit_void_test(test_ngtcp2_rtb_remove_expired_lost_pkt),
+    munit_void_test(test_ngtcp2_rtb_remove_excessive_lost_pkt),
+    munit_test_end(),
+};
+
+const MunitSuite rtb_suite = {
+    "/rtb", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+};
 
 static void conn_stat_init(ngtcp2_conn_stat *cstat) {
   memset(cstat, 0, sizeof(*cstat));
@@ -76,7 +87,7 @@ void test_ngtcp2_rtb_add(void) {
   rv = ngtcp2_rtb_entry_objalloc_new(
       &ent, &hd, NULL, 10, 0, NGTCP2_RTB_ENTRY_FLAG_NONE, &rtb_entry_objalloc);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   ngtcp2_rtb_add(&rtb, ent, &cstat);
 
@@ -86,7 +97,7 @@ void test_ngtcp2_rtb_add(void) {
   rv = ngtcp2_rtb_entry_objalloc_new(
       &ent, &hd, NULL, 9, 0, NGTCP2_RTB_ENTRY_FLAG_NONE, &rtb_entry_objalloc);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   ngtcp2_rtb_add(&rtb, ent, &cstat);
 
@@ -96,7 +107,7 @@ void test_ngtcp2_rtb_add(void) {
   rv = ngtcp2_rtb_entry_objalloc_new(
       &ent, &hd, NULL, 11, 0, NGTCP2_RTB_ENTRY_FLAG_NONE, &rtb_entry_objalloc);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   ngtcp2_rtb_add(&rtb, ent, &cstat);
 
@@ -104,21 +115,21 @@ void test_ngtcp2_rtb_add(void) {
   ent = ngtcp2_ksl_it_get(&it);
 
   /* Check the top of the queue */
-  CU_ASSERT(1000000009 == ent->hd.pkt_num);
+  assert_int64(1000000009, ==, ent->hd.pkt_num);
 
   ngtcp2_ksl_it_next(&it);
   ent = ngtcp2_ksl_it_get(&it);
 
-  CU_ASSERT(1000000008 == ent->hd.pkt_num);
+  assert_int64(1000000008, ==, ent->hd.pkt_num);
 
   ngtcp2_ksl_it_next(&it);
   ent = ngtcp2_ksl_it_get(&it);
 
-  CU_ASSERT(1000000007 == ent->hd.pkt_num);
+  assert_int64(1000000007, ==, ent->hd.pkt_num);
 
   ngtcp2_ksl_it_next(&it);
 
-  CU_ASSERT(ngtcp2_ksl_it_end(&it));
+  assert_true(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_rtb_free(&rtb);
   ngtcp2_strm_free(&crypto);
@@ -162,7 +173,7 @@ static void assert_rtb_entry_not_found(ngtcp2_rtb *rtb, int64_t pkt_num) {
 
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
     ent = ngtcp2_ksl_it_get(&it);
-    CU_ASSERT(ent->hd.pkt_num != pkt_num);
+    assert_int64(ent->hd.pkt_num, !=, pkt_num);
   }
 }
 
@@ -200,7 +211,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
                   &rtb_entry_objalloc, &frc_objalloc, mem);
   setup_rtb_fixture(&rtb, &cstat, &rtb_entry_objalloc);
 
-  CU_ASSERT(67 == ngtcp2_ksl_len(&rtb.ents));
+  assert_size(67, ==, ngtcp2_ksl_len(&rtb.ents));
 
   fr->largest_ack = 446;
   fr->first_ack_range = 1;
@@ -209,8 +220,8 @@ void test_ngtcp2_rtb_recv_ack(void) {
   num_acked =
       ngtcp2_rtb_recv_ack(&rtb, fr, &cstat, NULL, NULL, 1000000009, 1000000009);
 
-  CU_ASSERT(2 == num_acked);
-  CU_ASSERT(65 == ngtcp2_ksl_len(&rtb.ents));
+  assert_ptrdiff(2, ==, num_acked);
+  assert_size(65, ==, ngtcp2_ksl_len(&rtb.ents));
   assert_rtb_entry_not_found(&rtb, 446);
   assert_rtb_entry_not_found(&rtb, 445);
 
@@ -235,9 +246,9 @@ void test_ngtcp2_rtb_recv_ack(void) {
   num_acked =
       ngtcp2_rtb_recv_ack(&rtb, fr, &cstat, NULL, NULL, 1000000009, 1000000009);
 
-  CU_ASSERT(4 == num_acked);
-  CU_ASSERT(63 == ngtcp2_ksl_len(&rtb.ents));
-  CU_ASSERT(441 == rtb.largest_acked_tx_pkt_num);
+  assert_ptrdiff(4, ==, num_acked);
+  assert_size(63, ==, ngtcp2_ksl_len(&rtb.ents));
+  assert_int64(441, ==, rtb.largest_acked_tx_pkt_num);
   assert_rtb_entry_not_found(&rtb, 441);
   assert_rtb_entry_not_found(&rtb, 440);
   assert_rtb_entry_not_found(&rtb, 183);
@@ -261,7 +272,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   num_acked =
       ngtcp2_rtb_recv_ack(&rtb, fr, &cstat, NULL, NULL, 1000000009, 1000000009);
 
-  CU_ASSERT(1 == num_acked);
+  assert_ptrdiff(1, ==, num_acked);
   assert_rtb_entry_not_found(&rtb, 0);
 
   ngtcp2_rtb_free(&rtb);
@@ -280,7 +291,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   num_acked =
       ngtcp2_rtb_recv_ack(&rtb, fr, &cstat, NULL, NULL, 1000000009, 1000000009);
 
-  CU_ASSERT(1 == num_acked);
+  assert_ptrdiff(1, ==, num_acked);
   assert_rtb_entry_not_found(&rtb, 0);
 
   ngtcp2_rtb_free(&rtb);
@@ -301,7 +312,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   num_acked =
       ngtcp2_rtb_recv_ack(&rtb, fr, &cstat, NULL, NULL, 1000000009, 1000000009);
 
-  CU_ASSERT(1 == num_acked);
+  assert_ptrdiff(1, ==, num_acked);
   assert_rtb_entry_not_found(&rtb, 0);
 
   ngtcp2_rtb_free(&rtb);
@@ -340,7 +351,7 @@ void test_ngtcp2_rtb_lost_pkt_ts(void) {
 
   add_rtb_entry_range(&rtb, 0, 1, &cstat, &rtb_entry_objalloc);
 
-  CU_ASSERT(UINT64_MAX == ngtcp2_rtb_lost_pkt_ts(&rtb));
+  assert_uint64(UINT64_MAX, ==, ngtcp2_rtb_lost_pkt_ts(&rtb));
 
   it = ngtcp2_ksl_end(&rtb.ents);
   ngtcp2_ksl_it_prev(&it);
@@ -348,7 +359,7 @@ void test_ngtcp2_rtb_lost_pkt_ts(void) {
   ent->flags |= NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED;
   ent->lost_ts = 16777217;
 
-  CU_ASSERT(16777217 == ngtcp2_rtb_lost_pkt_ts(&rtb));
+  assert_uint64(16777217, ==, ngtcp2_rtb_lost_pkt_ts(&rtb));
 
   ngtcp2_rtb_free(&rtb);
   ngtcp2_strm_free(&crypto);
@@ -398,11 +409,11 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
 
   ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777219);
 
-  CU_ASSERT(5 == ngtcp2_ksl_len(&rtb.ents));
+  assert_size(5, ==, ngtcp2_ksl_len(&rtb.ents));
 
   ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777223);
 
-  CU_ASSERT(2 == ngtcp2_ksl_len(&rtb.ents));
+  assert_size(2, ==, ngtcp2_ksl_len(&rtb.ents));
 
   ngtcp2_rtb_free(&rtb);
   ngtcp2_strm_free(&crypto);
@@ -453,7 +464,7 @@ void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
 
   ngtcp2_rtb_remove_excessive_lost_pkt(&rtb, 2);
 
-  CU_ASSERT(4 == ngtcp2_ksl_len(&rtb.ents));
+  assert_size(4, ==, ngtcp2_ksl_len(&rtb.ents));
 
   ngtcp2_rtb_free(&rtb);
   ngtcp2_strm_free(&crypto);

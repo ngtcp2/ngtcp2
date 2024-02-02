@@ -26,10 +26,19 @@
 
 #include <stdio.h>
 
-#include <CUnit/CUnit.h>
-
 #include "ngtcp2_range.h"
 #include "ngtcp2_test_helper.h"
+
+static const MunitTest tests[] = {
+    munit_void_test(test_ngtcp2_range_intersect),
+    munit_void_test(test_ngtcp2_range_cut),
+    munit_void_test(test_ngtcp2_range_not_after),
+    munit_test_end(),
+};
+
+const MunitSuite range_suite = {
+    "/range", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+};
 
 void test_ngtcp2_range_intersect(void) {
   ngtcp2_range a, b, c;
@@ -38,29 +47,29 @@ void test_ngtcp2_range_intersect(void) {
   ngtcp2_range_init(&b, 0, 1000000007);
   c = ngtcp2_range_intersect(&a, &b);
 
-  CU_ASSERT(0 == c.begin);
-  CU_ASSERT(1000000007 == c.end);
+  assert_uint64(0, ==, c.begin);
+  assert_uint64(1000000007, ==, c.end);
 
   ngtcp2_range_init(&a, 1000000007, UINT64_MAX);
   ngtcp2_range_init(&b, 0, UINT64_MAX);
   c = ngtcp2_range_intersect(&a, &b);
 
-  CU_ASSERT(1000000007 == c.begin);
-  CU_ASSERT(UINT64_MAX == c.end);
+  assert_uint64(1000000007, ==, c.begin);
+  assert_uint64(UINT64_MAX, ==, c.end);
 
   ngtcp2_range_init(&a, 0, UINT64_MAX);
   ngtcp2_range_init(&b, 33333, 55555);
   c = ngtcp2_range_intersect(&a, &b);
 
-  CU_ASSERT(33333 == c.begin);
-  CU_ASSERT(55555 == c.end);
+  assert_uint64(33333, ==, c.begin);
+  assert_uint64(55555, ==, c.end);
 
   ngtcp2_range_init(&a, 0, 1000000009);
   ngtcp2_range_init(&b, 1000000007, UINT64_MAX);
   c = ngtcp2_range_intersect(&a, &b);
 
-  CU_ASSERT(1000000007 == c.begin);
-  CU_ASSERT(1000000009 == c.end);
+  assert_uint64(1000000007, ==, c.begin);
+  assert_uint64(1000000009, ==, c.end);
 }
 
 void test_ngtcp2_range_cut(void) {
@@ -70,26 +79,26 @@ void test_ngtcp2_range_cut(void) {
   ngtcp2_range_init(&b, 1000000007, 1000000009);
   ngtcp2_range_cut(&l, &r, &a, &b);
 
-  CU_ASSERT(0 == l.begin);
-  CU_ASSERT(1000000007 == l.end);
-  CU_ASSERT(1000000009 == r.begin);
-  CU_ASSERT(UINT64_MAX == r.end);
+  assert_uint64(0, ==, l.begin);
+  assert_uint64(1000000007, ==, l.end);
+  assert_uint64(1000000009, ==, r.begin);
+  assert_uint64(UINT64_MAX, ==, r.end);
 
   ngtcp2_range_init(&a, 0, UINT64_MAX);
   ngtcp2_range_init(&b, 0, 1000000007);
   ngtcp2_range_cut(&l, &r, &a, &b);
 
-  CU_ASSERT(0 == ngtcp2_range_len(&l));
-  CU_ASSERT(1000000007 == r.begin);
-  CU_ASSERT(UINT64_MAX == r.end);
+  assert_uint64(0, ==, ngtcp2_range_len(&l));
+  assert_uint64(1000000007, ==, r.begin);
+  assert_uint64(UINT64_MAX, ==, r.end);
 
   ngtcp2_range_init(&a, 0, UINT64_MAX);
   ngtcp2_range_init(&b, 1000000009, UINT64_MAX);
   ngtcp2_range_cut(&l, &r, &a, &b);
 
-  CU_ASSERT(0 == l.begin);
-  CU_ASSERT(1000000009 == l.end);
-  CU_ASSERT(0 == ngtcp2_range_len(&r));
+  assert_uint64(0, ==, l.begin);
+  assert_uint64(1000000009, ==, l.end);
+  assert_uint64(0, ==, ngtcp2_range_len(&r));
 }
 
 void test_ngtcp2_range_not_after(void) {
@@ -98,10 +107,10 @@ void test_ngtcp2_range_not_after(void) {
   ngtcp2_range_init(&a, 1, 1000000007);
   ngtcp2_range_init(&b, 0, 1000000007);
 
-  CU_ASSERT(ngtcp2_range_not_after(&a, &b));
+  assert_true(ngtcp2_range_not_after(&a, &b));
 
   ngtcp2_range_init(&a, 1, 1000000008);
   ngtcp2_range_init(&b, 0, 1000000007);
 
-  CU_ASSERT(!ngtcp2_range_not_after(&a, &b));
+  assert_false(ngtcp2_range_not_after(&a, &b));
 }

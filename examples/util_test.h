@@ -29,16 +29,22 @@
 #  include "config.h"
 #endif // HAVE_CONFIG_H
 
+#define MUNIT_ENABLE_ASSERT_ALIASES
+
+#include "munitxx.h"
+
 namespace ngtcp2 {
 
-void test_util_format_durationf();
-void test_util_format_uint();
-void test_util_format_uint_iec();
-void test_util_format_duration();
-void test_util_parse_uint();
-void test_util_parse_uint_iec();
-void test_util_parse_duration();
-void test_util_normalize_path();
+extern const MunitSuite util_suite;
+
+munit_void_test_decl(test_util_format_durationf);
+munit_void_test_decl(test_util_format_uint);
+munit_void_test_decl(test_util_format_uint_iec);
+munit_void_test_decl(test_util_format_duration);
+munit_void_test_decl(test_util_parse_uint);
+munit_void_test_decl(test_util_parse_uint_iec);
+munit_void_test_decl(test_util_parse_duration);
+munit_void_test_decl(test_util_normalize_path);
 
 } // namespace ngtcp2
 

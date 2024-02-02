@@ -18,7 +18,8 @@ RUN apt-get update && \
     ./configure --enable-lib-only CC=clang-15 CXX=clang++-15 && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf nghttp3 && \
     git clone --depth 1 -b $NGTCP2_BRANCH https://github.com/ngtcp2/ngtcp2 && \
-    cd ngtcp2 && autoreconf -i && \
+    cd ngtcp2 && \
+    git submodule update --init --depth 1 && autoreconf -i && \
     ./configure \
         CC=clang-15 \
         CXX=clang++-15 \

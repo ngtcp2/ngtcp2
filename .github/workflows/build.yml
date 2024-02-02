@@ -237,7 +237,6 @@ jobs:
           autotools-dev \
           libtool \
           pkg-config \
-          libcunit1-dev \
           libssl-dev \
           libev-dev \
           libgnutls28-dev \
@@ -249,7 +248,7 @@ jobs:
     - name: MacOS setup
       if: runner.os == 'macOS'
       run: |
-        brew install libev gnutls cunit autoconf automake pkg-config libtool
+        brew install libev gnutls autoconf automake pkg-config libtool
 
         echo 'NPROC='"$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
     - name: Setup clang (Linux)
@@ -401,6 +400,9 @@ jobs:
 
         echo 'CFLAGS='"$CFLAGS" >> $GITHUB_ENV
         echo 'AUTOTOOLS_OPTS='"$AUTOTOOLS_OPTS" >> $GITHUB_ENV
+    - name: git submodule
+      run: |
+        git submodule update --init --depth 1
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
@@ -510,23 +512,17 @@ jobs:
     - name: Build OpenSSL v1.1.1
       run: |
         ./ci/build_openssl1_cross.sh
-    - name: Build CUnit
-      run: |
-        curl -LO https://jaist.dl.sourceforge.net/project/cunit/CUnit/2.1-3/CUnit-2.1-3.tar.bz2
-        tar xf CUnit-2.1-3.tar.bz2
-        cd CUnit-2.1-3
-        ./bootstrap
-        ./configure --disable-shared --host="$HOST" --prefix="$PWD/build"
-        make -j$(nproc) install
     - name: Setup environment variables
       run: |
-        PKG_CONFIG_PATH="$PWD/openssl/build/lib/pkgconfig:$PWD/CUnit-2.1-3/build/lib/pkgconfig"
+        PKG_CONFIG_PATH="$PWD/openssl/build/lib/pkgconfig"
 
         echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
     - name: Configure autotools
       run: |
+        git submodule update --init --depth 1
         autoreconf -i && \
-        ./configure --enable-werror --with-openssl --with-cunit --host="$HOST"
+        ./configure --enable-werror --with-openssl --host="$HOST" \
+          LIBS="-pthread"
     - name: Build ngtcp2
       run: |
         make -j$(nproc)
@@ -534,6 +530,7 @@ jobs:
     - name: Run tests
       if: matrix.host == 'x86_64-w64-mingw32'
       run: |
+        export WINEPATH=/usr/x86_64-w64-mingw32/lib
         cd tests
         wine main.exe
 
@@ -552,10 +549,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: microsoft/setup-msbuild@v1
-    - run: |
-        vcpkg --triplet=${{ matrix.arch }}-windows install cunit
     - name: Configure cmake
       run: |
+        git submodule update --init --depth 1
         cmake -B build -DENABLE_WERROR=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows
     - name: Build ngtcp2
       run: |

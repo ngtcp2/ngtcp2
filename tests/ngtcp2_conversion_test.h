@@ -29,7 +29,13 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_transport_params_convert_to_latest(void);
-void test_ngtcp2_transport_params_convert_to_old(void);
+#define MUNIT_ENABLE_ASSERT_ALIASES
+
+#include "munit.h"
+
+extern const MunitSuite conversion_suite;
+
+munit_void_test_decl(test_ngtcp2_transport_params_convert_to_latest);
+munit_void_test_decl(test_ngtcp2_transport_params_convert_to_old);
 
 #endif /* NGTCP2_CONVERSION_TEST_H */
