@@ -13,7 +13,8 @@ RUN apt-get update && \
         --enable-harden --enable-keylog-export --disable-ech && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf wolfssl && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
-    cd nghttp3 && autoreconf -i && \
+    cd nghttp3 && \
+    git submodule update --init --depth 1 && autoreconf -i && \
     ./configure --enable-lib-only CC=clang-15 CXX=clang++-15 && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf nghttp3 && \
     git clone --depth 1 -b $NGTCP2_BRANCH https://github.com/ngtcp2/ngtcp2 && \
