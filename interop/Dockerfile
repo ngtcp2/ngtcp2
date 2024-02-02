@@ -14,7 +14,8 @@ RUN apt-get update && \
         --enable-keylog-export --disable-ech && \
     make -j$(nproc) && make install && cd .. && rm -rf wolfssl && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
-    cd nghttp3 && autoreconf -i && \
+    cd nghttp3 && \
+    git submodule update --init --depth 1 && autoreconf -i && \
     ./configure --enable-lib-only \
         CC=clang-12 \
         CXX=clang++-12 \

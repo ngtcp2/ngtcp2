@@ -79,6 +79,7 @@ Build with wolfSSL
    $ cd ..
    $ git clone https://github.com/ngtcp2/nghttp3
    $ cd nghttp3
+   $ git submodule update --init
    $ autoreconf -i
    $ ./configure --prefix=$PWD/build --enable-lib-only
    $ make -j$(nproc) check
@@ -107,6 +108,7 @@ Build with BoringSSL
    $ cd ..
    $ git clone https://github.com/ngtcp2/nghttp3
    $ cd nghttp3
+   $ git submodule update --init
    $ autoreconf -i
    $ ./configure --prefix=$PWD/build --enable-lib-only
    $ make -j$(nproc) check
@@ -133,6 +135,7 @@ Build with aws-lc
    $ cd ..
    $ git clone https://github.com/ngtcp2/nghttp3
    $ cd nghttp3
+   $ git submodule update --init
    $ autoreconf -i
    $ ./configure --prefix=$PWD/build --enable-lib-only
    $ make -j$(nproc) check
