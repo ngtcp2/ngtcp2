@@ -41,9 +41,15 @@ const MunitSuite cc_suite = {
 
 void test_ngtcp2_cbrt(void) {
   uint64_t n;
+  uint64_t i;
 
-  assert_uint64(2, ==, ngtcp2_cbrt(9));
+  for (i = 1; i <= 2642245; ++i) {
+    n = i * i * i;
 
-  n = 104031;
-  assert_uint64(n, ==, ngtcp2_cbrt(n * n * n));
+    assert_uint64(i, ==, ngtcp2_cbrt(n));
+    assert_uint64(i - 1, ==, ngtcp2_cbrt(n - 1));
+  }
+
+  assert_uint64(2642245, ==, ngtcp2_cbrt(UINT64_MAX));
+  assert_uint64(0, ==, ngtcp2_cbrt(0));
 }
