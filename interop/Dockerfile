@@ -23,7 +23,8 @@ RUN apt-get update && \
         CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" && \
     make -j$(nproc) && make install && cd .. && rm -rf nghttp3 && \
     git clone --depth 1 -b $NGTCP2_BRANCH https://github.com/ngtcp2/ngtcp2 && \
-    cd ngtcp2 && autoreconf -i && \
+    cd ngtcp2 && \
+    git submodule update --init --depth 1 && autoreconf -i && \
     ./configure \
         CC=clang-12 \
         CXX=clang++-12 \

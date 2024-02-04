@@ -26,13 +26,21 @@
 
 #include <stdio.h>
 
-#include <CUnit/CUnit.h>
-
 #include "ngtcp2_crypto.h"
 #include "ngtcp2_cid.h"
 #include "ngtcp2_conv.h"
 #include "ngtcp2_net.h"
 #include "ngtcp2_test_helper.h"
+
+static const MunitTest tests[] = {
+    munit_void_test(test_ngtcp2_transport_params_encode),
+    munit_void_test(test_ngtcp2_transport_params_decode_new),
+    munit_test_end(),
+};
+
+const MunitSuite crypto_suite = {
+    "/crypto", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+};
 
 static size_t varint_paramlen(ngtcp2_transport_param_id id, uint64_t value) {
   size_t valuelen = ngtcp2_put_uvarintlen(value);
@@ -158,71 +166,74 @@ void test_ngtcp2_transport_params_encode(void) {
 
   nwrite = ngtcp2_transport_params_encode(NULL, 0, &params);
 
-  CU_ASSERT((ngtcp2_ssize)len == nwrite);
+  assert_ptrdiff((ngtcp2_ssize)len, ==, nwrite);
 
   for (i = 0; i < len; ++i) {
     nwrite = ngtcp2_transport_params_encode(buf, i, &params);
 
-    CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
+    assert_ptrdiff(NGTCP2_ERR_NOBUF, ==, nwrite);
   }
   nwrite = ngtcp2_transport_params_encode(buf, i, &params);
 
-  CU_ASSERT((ngtcp2_ssize)i == nwrite);
+  assert_ptrdiff((ngtcp2_ssize)i, ==, nwrite);
 
   rv = ngtcp2_transport_params_decode(&nparams, buf, (size_t)nwrite);
 
-  CU_ASSERT(0 == rv);
-  CU_ASSERT(params.initial_max_stream_data_bidi_local ==
-            nparams.initial_max_stream_data_bidi_local);
-  CU_ASSERT(params.initial_max_stream_data_bidi_remote ==
-            nparams.initial_max_stream_data_bidi_remote);
-  CU_ASSERT(params.initial_max_stream_data_uni ==
-            nparams.initial_max_stream_data_uni);
-  CU_ASSERT(params.initial_max_data == nparams.initial_max_data);
-  CU_ASSERT(params.initial_max_streams_bidi ==
-            nparams.initial_max_streams_bidi);
-  CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
-  CU_ASSERT(params.max_idle_timeout == nparams.max_idle_timeout);
-  CU_ASSERT(params.max_udp_payload_size == nparams.max_udp_payload_size);
-  CU_ASSERT(0 == memcmp(params.stateless_reset_token,
-                        nparams.stateless_reset_token,
-                        sizeof(params.stateless_reset_token)));
-  CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
-  CU_ASSERT(params.preferred_addr_present == nparams.preferred_addr_present);
-  CU_ASSERT(0 == memcmp(&params.preferred_addr.ipv4,
-                        &nparams.preferred_addr.ipv4,
-                        sizeof(params.preferred_addr.ipv4)));
-  CU_ASSERT(params.preferred_addr.ipv4_present ==
-            nparams.preferred_addr.ipv4_present);
-  CU_ASSERT(0 == memcmp(&params.preferred_addr.ipv6,
-                        &nparams.preferred_addr.ipv6,
-                        sizeof(params.preferred_addr.ipv6)));
-  CU_ASSERT(params.preferred_addr.ipv6_present ==
-            nparams.preferred_addr.ipv6_present);
-  CU_ASSERT(
+  assert_int(0, ==, rv);
+  assert_uint64(params.initial_max_stream_data_bidi_local, ==,
+                nparams.initial_max_stream_data_bidi_local);
+  assert_uint64(params.initial_max_stream_data_bidi_remote, ==,
+                nparams.initial_max_stream_data_bidi_remote);
+  assert_uint64(params.initial_max_stream_data_uni, ==,
+                nparams.initial_max_stream_data_uni);
+  assert_uint64(params.initial_max_data, ==, nparams.initial_max_data);
+  assert_uint64(params.initial_max_streams_bidi, ==,
+                nparams.initial_max_streams_bidi);
+  assert_uint64(params.initial_max_streams_uni, ==,
+                nparams.initial_max_streams_uni);
+  assert_uint64(params.max_idle_timeout, ==, nparams.max_idle_timeout);
+  assert_uint64(params.max_udp_payload_size, ==, nparams.max_udp_payload_size);
+  assert_memory_equal(sizeof(params.stateless_reset_token),
+                      params.stateless_reset_token,
+                      nparams.stateless_reset_token);
+  assert_uint64(params.ack_delay_exponent, ==, nparams.ack_delay_exponent);
+  assert_uint8(params.preferred_addr_present, ==,
+               nparams.preferred_addr_present);
+  assert_memory_equal(sizeof(params.preferred_addr.ipv4),
+                      &params.preferred_addr.ipv4,
+                      &nparams.preferred_addr.ipv4);
+  assert_uint8(params.preferred_addr.ipv4_present, ==,
+               nparams.preferred_addr.ipv4_present);
+  assert_memory_equal(sizeof(params.preferred_addr.ipv6),
+                      &params.preferred_addr.ipv6,
+                      &nparams.preferred_addr.ipv6);
+  assert_uint8(params.preferred_addr.ipv6_present, ==,
+               nparams.preferred_addr.ipv6_present);
+  assert_true(
       ngtcp2_cid_eq(&params.preferred_addr.cid, &nparams.preferred_addr.cid));
-  CU_ASSERT(0 == memcmp(params.preferred_addr.stateless_reset_token,
-                        nparams.preferred_addr.stateless_reset_token,
-                        sizeof(params.preferred_addr.stateless_reset_token)));
-  CU_ASSERT(params.disable_active_migration ==
-            nparams.disable_active_migration);
-  CU_ASSERT(params.max_ack_delay == nparams.max_ack_delay);
-  CU_ASSERT(params.retry_scid_present == nparams.retry_scid_present);
-  CU_ASSERT(ngtcp2_cid_eq(&params.retry_scid, &nparams.retry_scid));
-  CU_ASSERT(ngtcp2_cid_eq(&params.initial_scid, &nparams.initial_scid));
-  CU_ASSERT(params.initial_scid_present == nparams.initial_scid_present);
-  CU_ASSERT(ngtcp2_cid_eq(&params.original_dcid, &nparams.original_dcid));
-  CU_ASSERT(params.original_dcid_present == nparams.original_dcid_present);
-  CU_ASSERT(params.active_connection_id_limit ==
-            nparams.active_connection_id_limit);
-  CU_ASSERT(params.max_datagram_frame_size == nparams.max_datagram_frame_size);
-  CU_ASSERT(params.grease_quic_bit == nparams.grease_quic_bit);
-  CU_ASSERT(params.version_info_present == nparams.version_info_present);
-  CU_ASSERT(params.version_info.chosen_version ==
-            nparams.version_info.chosen_version);
-  CU_ASSERT(0 == memcmp(params.version_info.available_versions,
-                        nparams.version_info.available_versions,
-                        params.version_info.available_versionslen));
+  assert_memory_equal(sizeof(params.preferred_addr.stateless_reset_token),
+                      params.preferred_addr.stateless_reset_token,
+                      nparams.preferred_addr.stateless_reset_token);
+  assert_uint8(params.disable_active_migration, ==,
+               nparams.disable_active_migration);
+  assert_uint64(params.max_ack_delay, ==, nparams.max_ack_delay);
+  assert_uint8(params.retry_scid_present, ==, nparams.retry_scid_present);
+  assert_true(ngtcp2_cid_eq(&params.retry_scid, &nparams.retry_scid));
+  assert_true(ngtcp2_cid_eq(&params.initial_scid, &nparams.initial_scid));
+  assert_uint8(params.initial_scid_present, ==, nparams.initial_scid_present);
+  assert_true(ngtcp2_cid_eq(&params.original_dcid, &nparams.original_dcid));
+  assert_uint8(params.original_dcid_present, ==, nparams.original_dcid_present);
+  assert_uint64(params.active_connection_id_limit, ==,
+                nparams.active_connection_id_limit);
+  assert_uint64(params.max_datagram_frame_size, ==,
+                nparams.max_datagram_frame_size);
+  assert_uint8(params.grease_quic_bit, ==, nparams.grease_quic_bit);
+  assert_uint8(params.version_info_present, ==, nparams.version_info_present);
+  assert_uint32(params.version_info.chosen_version, ==,
+                nparams.version_info.chosen_version);
+  assert_memory_equal(params.version_info.available_versionslen,
+                      params.version_info.available_versions,
+                      nparams.version_info.available_versions);
 }
 
 void test_ngtcp2_transport_params_decode_new(void) {
@@ -344,62 +355,66 @@ void test_ngtcp2_transport_params_decode_new(void) {
 
   nwrite = ngtcp2_transport_params_encode(buf, sizeof(buf), &params);
 
-  CU_ASSERT((ngtcp2_ssize)len == nwrite);
+  assert_ptrdiff((ngtcp2_ssize)len, ==, nwrite);
 
   rv = ngtcp2_transport_params_decode_new(&nparams, buf, (size_t)nwrite, NULL);
 
-  CU_ASSERT(0 == rv);
-  CU_ASSERT(params.initial_max_stream_data_bidi_local ==
-            nparams->initial_max_stream_data_bidi_local);
-  CU_ASSERT(params.initial_max_stream_data_bidi_remote ==
-            nparams->initial_max_stream_data_bidi_remote);
-  CU_ASSERT(params.initial_max_stream_data_uni ==
-            nparams->initial_max_stream_data_uni);
-  CU_ASSERT(params.initial_max_data == nparams->initial_max_data);
-  CU_ASSERT(params.initial_max_streams_bidi ==
-            nparams->initial_max_streams_bidi);
-  CU_ASSERT(params.initial_max_streams_uni == nparams->initial_max_streams_uni);
-  CU_ASSERT(params.max_idle_timeout == nparams->max_idle_timeout);
-  CU_ASSERT(params.max_udp_payload_size == nparams->max_udp_payload_size);
-  CU_ASSERT(0 == memcmp(params.stateless_reset_token,
-                        nparams->stateless_reset_token,
-                        sizeof(params.stateless_reset_token)));
-  CU_ASSERT(params.ack_delay_exponent == nparams->ack_delay_exponent);
-  CU_ASSERT(params.preferred_addr_present == nparams->preferred_addr_present);
-  CU_ASSERT(0 == memcmp(&params.preferred_addr.ipv4,
-                        &nparams->preferred_addr.ipv4,
-                        sizeof(params.preferred_addr.ipv4)));
-  CU_ASSERT(params.preferred_addr.ipv4_present ==
-            nparams->preferred_addr.ipv4_present);
-  CU_ASSERT(0 == memcmp(&params.preferred_addr.ipv6,
-                        &nparams->preferred_addr.ipv6,
-                        sizeof(params.preferred_addr.ipv6)));
-  CU_ASSERT(params.preferred_addr.ipv6_present ==
-            nparams->preferred_addr.ipv6_present);
-  CU_ASSERT(
+  assert_int(0, ==, rv);
+  assert_uint64(params.initial_max_stream_data_bidi_local, ==,
+                nparams->initial_max_stream_data_bidi_local);
+  assert_uint64(params.initial_max_stream_data_bidi_remote, ==,
+                nparams->initial_max_stream_data_bidi_remote);
+  assert_uint64(params.initial_max_stream_data_uni, ==,
+                nparams->initial_max_stream_data_uni);
+  assert_uint64(params.initial_max_data, ==, nparams->initial_max_data);
+  assert_uint64(params.initial_max_streams_bidi, ==,
+                nparams->initial_max_streams_bidi);
+  assert_uint64(params.initial_max_streams_uni, ==,
+                nparams->initial_max_streams_uni);
+  assert_uint64(params.max_idle_timeout, ==, nparams->max_idle_timeout);
+  assert_uint64(params.max_udp_payload_size, ==, nparams->max_udp_payload_size);
+  assert_memory_equal(sizeof(params.stateless_reset_token),
+                      params.stateless_reset_token,
+                      nparams->stateless_reset_token);
+  assert_uint64(params.ack_delay_exponent, ==, nparams->ack_delay_exponent);
+  assert_uint8(params.preferred_addr_present, ==,
+               nparams->preferred_addr_present);
+  assert_memory_equal(sizeof(params.preferred_addr.ipv4),
+                      &params.preferred_addr.ipv4,
+                      &nparams->preferred_addr.ipv4);
+  assert_uint8(params.preferred_addr.ipv4_present, ==,
+               nparams->preferred_addr.ipv4_present);
+  assert_memory_equal(sizeof(params.preferred_addr.ipv6),
+                      &params.preferred_addr.ipv6,
+                      &nparams->preferred_addr.ipv6);
+  assert_uint8(params.preferred_addr.ipv6_present, ==,
+               nparams->preferred_addr.ipv6_present);
+  assert_true(
       ngtcp2_cid_eq(&params.preferred_addr.cid, &nparams->preferred_addr.cid));
-  CU_ASSERT(0 == memcmp(params.preferred_addr.stateless_reset_token,
-                        nparams->preferred_addr.stateless_reset_token,
-                        sizeof(params.preferred_addr.stateless_reset_token)));
-  CU_ASSERT(params.disable_active_migration ==
-            nparams->disable_active_migration);
-  CU_ASSERT(params.max_ack_delay == nparams->max_ack_delay);
-  CU_ASSERT(params.retry_scid_present == nparams->retry_scid_present);
-  CU_ASSERT(ngtcp2_cid_eq(&params.retry_scid, &nparams->retry_scid));
-  CU_ASSERT(ngtcp2_cid_eq(&params.initial_scid, &nparams->initial_scid));
-  CU_ASSERT(params.initial_scid_present == nparams->initial_scid_present);
-  CU_ASSERT(ngtcp2_cid_eq(&params.original_dcid, &nparams->original_dcid));
-  CU_ASSERT(params.original_dcid_present == nparams->original_dcid_present);
-  CU_ASSERT(params.active_connection_id_limit ==
-            nparams->active_connection_id_limit);
-  CU_ASSERT(params.max_datagram_frame_size == nparams->max_datagram_frame_size);
-  CU_ASSERT(params.grease_quic_bit == nparams->grease_quic_bit);
-  CU_ASSERT(params.version_info_present == nparams->version_info_present);
-  CU_ASSERT(params.version_info.chosen_version ==
-            nparams->version_info.chosen_version);
-  CU_ASSERT(0 == memcmp(params.version_info.available_versions,
-                        nparams->version_info.available_versions,
-                        params.version_info.available_versionslen));
+  assert_memory_equal(sizeof(params.preferred_addr.stateless_reset_token),
+                      params.preferred_addr.stateless_reset_token,
+                      nparams->preferred_addr.stateless_reset_token);
+  assert_uint8(params.disable_active_migration, ==,
+               nparams->disable_active_migration);
+  assert_uint64(params.max_ack_delay, ==, nparams->max_ack_delay);
+  assert_uint8(params.retry_scid_present, ==, nparams->retry_scid_present);
+  assert_true(ngtcp2_cid_eq(&params.retry_scid, &nparams->retry_scid));
+  assert_true(ngtcp2_cid_eq(&params.initial_scid, &nparams->initial_scid));
+  assert_uint8(params.initial_scid_present, ==, nparams->initial_scid_present);
+  assert_true(ngtcp2_cid_eq(&params.original_dcid, &nparams->original_dcid));
+  assert_uint8(params.original_dcid_present, ==,
+               nparams->original_dcid_present);
+  assert_uint64(params.active_connection_id_limit, ==,
+                nparams->active_connection_id_limit);
+  assert_uint64(params.max_datagram_frame_size, ==,
+                nparams->max_datagram_frame_size);
+  assert_uint8(params.grease_quic_bit, ==, nparams->grease_quic_bit);
+  assert_uint8(params.version_info_present, ==, nparams->version_info_present);
+  assert_uint32(params.version_info.chosen_version, ==,
+                nparams->version_info.chosen_version);
+  assert_memory_equal(params.version_info.available_versionslen,
+                      params.version_info.available_versions,
+                      nparams->version_info.available_versions);
 
   ngtcp2_transport_params_del(nparams, NULL);
 }

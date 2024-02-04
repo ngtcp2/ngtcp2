@@ -29,6 +29,12 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_cbrt(void);
+#define MUNIT_ENABLE_ASSERT_ALIASES
+
+#include "munit.h"
+
+extern const MunitSuite cc_suite;
+
+munit_void_test_decl(test_ngtcp2_cbrt);
 
 #endif /* NGTCP2_CC_TEST_H */

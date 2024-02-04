@@ -38,7 +38,6 @@ EXTRA_DIST = \
 	cmakeconfig.h.in \
 	CMakeLists.txt \
 	CMakeOptions.txt \
-	cmake/FindCUnit.cmake \
 	cmake/FindLibev.cmake \
 	cmake/FindLibnghttp3.cmake \
 	cmake/Findwolfssl.cmake \

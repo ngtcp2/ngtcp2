@@ -26,11 +26,25 @@
 
 #include <limits>
 
-#include <CUnit/CUnit.h>
-
 #include "util.h"
 
 namespace ngtcp2 {
+
+static const MunitTest tests[] = {
+    munit_void_test(test_util_format_durationf),
+    munit_void_test(test_util_format_uint),
+    munit_void_test(test_util_format_uint_iec),
+    munit_void_test(test_util_format_duration),
+    munit_void_test(test_util_parse_uint),
+    munit_void_test(test_util_parse_uint_iec),
+    munit_void_test(test_util_parse_duration),
+    munit_void_test(test_util_normalize_path),
+    munit_test_end(),
+};
+
+const MunitSuite util_suite = {
+    "/util", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+};
 
 namespace util {
 std::optional<std::string> read_pem(const std::string_view &filename,
@@ -49,205 +63,208 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
 } // namespace util
 
 void test_util_format_durationf() {
-  CU_ASSERT("0ns" == util::format_durationf(0));
-  CU_ASSERT("999ns" == util::format_durationf(999));
-  CU_ASSERT("1.00us" == util::format_durationf(1000));
-  CU_ASSERT("1.00us" == util::format_durationf(1004));
-  CU_ASSERT("1.00us" == util::format_durationf(1005));
-  CU_ASSERT("1.02us" == util::format_durationf(1015));
-  CU_ASSERT("2.00us" == util::format_durationf(1999));
-  CU_ASSERT("1.00ms" == util::format_durationf(999999));
-  CU_ASSERT("3.50ms" == util::format_durationf(3500111));
-  CU_ASSERT("9999.99s" == util::format_durationf(9999990000000llu));
+  assert_stdstring_equal("0ns", util::format_durationf(0));
+  assert_stdstring_equal("999ns", util::format_durationf(999));
+  assert_stdstring_equal("1.00us", util::format_durationf(1000));
+  assert_stdstring_equal("1.00us", util::format_durationf(1004));
+  assert_stdstring_equal("1.00us", util::format_durationf(1005));
+  assert_stdstring_equal("1.02us", util::format_durationf(1015));
+  assert_stdstring_equal("2.00us", util::format_durationf(1999));
+  assert_stdstring_equal("1.00ms", util::format_durationf(999999));
+  assert_stdstring_equal("3.50ms", util::format_durationf(3500111));
+  assert_stdstring_equal("9999.99s", util::format_durationf(9999990000000llu));
 }
 
 void test_util_format_uint() {
-  CU_ASSERT("0" == util::format_uint(0));
-  CU_ASSERT("18446744073709551615" ==
-            util::format_uint(18446744073709551615ull));
+  assert_stdstring_equal("0", util::format_uint(0));
+  assert_stdstring_equal("18446744073709551615",
+                         util::format_uint(18446744073709551615ull));
 }
 
 void test_util_format_uint_iec() {
-  CU_ASSERT("0" == util::format_uint_iec(0));
-  CU_ASSERT("1023" == util::format_uint_iec((1 << 10) - 1));
-  CU_ASSERT("1K" == util::format_uint_iec(1 << 10));
-  CU_ASSERT("1M" == util::format_uint_iec(1 << 20));
-  CU_ASSERT("1G" == util::format_uint_iec(1 << 30));
-  CU_ASSERT("18446744073709551615" ==
-            util::format_uint_iec(std::numeric_limits<uint64_t>::max()));
-  CU_ASSERT("1025K" == util::format_uint_iec((1 << 20) + (1 << 10)));
+  assert_stdstring_equal("0", util::format_uint_iec(0));
+  assert_stdstring_equal("1023", util::format_uint_iec((1 << 10) - 1));
+  assert_stdstring_equal("1K", util::format_uint_iec(1 << 10));
+  assert_stdstring_equal("1M", util::format_uint_iec(1 << 20));
+  assert_stdstring_equal("1G", util::format_uint_iec(1 << 30));
+  assert_stdstring_equal(
+      "18446744073709551615",
+      util::format_uint_iec(std::numeric_limits<uint64_t>::max()));
+  assert_stdstring_equal("1025K", util::format_uint_iec((1 << 20) + (1 << 10)));
 }
 
 void test_util_format_duration() {
-  CU_ASSERT("0ns" == util::format_duration(0));
-  CU_ASSERT("999ns" == util::format_duration(999));
-  CU_ASSERT("1us" == util::format_duration(1000));
-  CU_ASSERT("1ms" == util::format_duration(1000000));
-  CU_ASSERT("1s" == util::format_duration(1000000000));
-  CU_ASSERT("1m" == util::format_duration(60000000000ull));
-  CU_ASSERT("1h" == util::format_duration(3600000000000ull));
-  CU_ASSERT("18446744073709551615ns" ==
-            util::format_duration(std::numeric_limits<uint64_t>::max()));
-  CU_ASSERT("61s" == util::format_duration(61000000000ull));
+  assert_stdstring_equal("0ns", util::format_duration(0));
+  assert_stdstring_equal("999ns", util::format_duration(999));
+  assert_stdstring_equal("1us", util::format_duration(1000));
+  assert_stdstring_equal("1ms", util::format_duration(1000000));
+  assert_stdstring_equal("1s", util::format_duration(1000000000));
+  assert_stdstring_equal("1m", util::format_duration(60000000000ull));
+  assert_stdstring_equal("1h", util::format_duration(3600000000000ull));
+  assert_stdstring_equal(
+      "18446744073709551615ns",
+      util::format_duration(std::numeric_limits<uint64_t>::max()));
+  assert_stdstring_equal("61s", util::format_duration(61000000000ull));
 }
 
 void test_util_parse_uint() {
   {
     auto res = util::parse_uint("0");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(0 == *res);
+    assert_true(res.has_value());
+    assert_uint64(0, ==, *res);
   }
   {
     auto res = util::parse_uint("1");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(1 == *res);
+    assert_true(res.has_value());
+    assert_uint64(1, ==, *res);
   }
   {
     auto res = util::parse_uint("18446744073709551615");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(18446744073709551615ull == *res);
+    assert_true(res.has_value());
+    assert_uint64(18446744073709551615ull, ==, *res);
   }
   {
     auto res = util::parse_uint("18446744073709551616");
-    CU_ASSERT(!res.has_value());
+    assert_false(res.has_value());
   }
   {
     auto res = util::parse_uint("a");
-    CU_ASSERT(!res.has_value());
+    assert_false(res.has_value());
   }
   {
     auto res = util::parse_uint("1a");
-    CU_ASSERT(!res.has_value());
+    assert_false(res.has_value());
   }
 }
 
 void test_util_parse_uint_iec() {
   {
     auto res = util::parse_uint_iec("0");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(0 == *res);
+    assert_true(res.has_value());
+    assert_uint64(0, ==, *res);
   }
   {
     auto res = util::parse_uint_iec("1023");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(1023 == *res);
+    assert_true(res.has_value());
+    assert_uint64(1023, ==, *res);
   }
   {
     auto res = util::parse_uint_iec("1K");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(1 << 10 == *res);
+    assert_true(res.has_value());
+    assert_uint64(1 << 10, ==, *res);
   }
   {
     auto res = util::parse_uint_iec("1M");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(1 << 20 == *res);
+    assert_true(res.has_value());
+    assert_uint64(1 << 20, ==, *res);
   }
   {
     auto res = util::parse_uint_iec("1G");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(1 << 30 == *res);
+    assert_true(res.has_value());
+    assert_uint64(1 << 30, ==, *res);
   }
   {
     auto res = util::parse_uint_iec("11G");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT((1ull << 30) * 11 == *res);
+    assert_true(res.has_value());
+    assert_uint64((1ull << 30) * 11, ==, *res);
   }
   {
     auto res = util::parse_uint_iec("18446744073709551616");
-    CU_ASSERT(!res.has_value());
+    assert_false(res.has_value());
   }
   {
     auto res = util::parse_uint_iec("1x");
-    CU_ASSERT(!res.has_value());
+    assert_false(res.has_value());
   }
   {
     auto res = util::parse_uint_iec("1Gx");
-    CU_ASSERT(!res.has_value());
+    assert_false(res.has_value());
   }
 }
 
 void test_util_parse_duration() {
   {
     auto res = util::parse_duration("0");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(0 == *res);
+    assert_true(res.has_value());
+    assert_uint64(0, ==, *res);
   }
   {
     auto res = util::parse_duration("1");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(NGTCP2_SECONDS == *res);
+    assert_true(res.has_value());
+    assert_uint64(NGTCP2_SECONDS, ==, *res);
   }
   {
     auto res = util::parse_duration("0ns");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(0 == *res);
+    assert_true(res.has_value());
+    assert_uint64(0, ==, *res);
   }
   {
     auto res = util::parse_duration("1ns");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(1 == *res);
+    assert_true(res.has_value());
+    assert_uint64(1, ==, *res);
   }
   {
     auto res = util::parse_duration("1us");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(NGTCP2_MICROSECONDS == *res);
+    assert_true(res.has_value());
+    assert_uint64(NGTCP2_MICROSECONDS, ==, *res);
   }
   {
     auto res = util::parse_duration("1ms");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(NGTCP2_MILLISECONDS == *res);
+    assert_true(res.has_value());
+    assert_uint64(NGTCP2_MILLISECONDS, ==, *res);
   }
   {
     auto res = util::parse_duration("1s");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(NGTCP2_SECONDS == *res);
+    assert_true(res.has_value());
+    assert_uint64(NGTCP2_SECONDS, ==, *res);
   }
   {
     auto res = util::parse_duration("1m");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(60 * NGTCP2_SECONDS == *res);
+    assert_true(res.has_value());
+    assert_uint64(60 * NGTCP2_SECONDS, ==, *res);
   }
   {
     auto res = util::parse_duration("1h");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(3600 * NGTCP2_SECONDS == *res);
+    assert_true(res.has_value());
+    assert_uint64(3600 * NGTCP2_SECONDS, ==, *res);
   }
   {
     auto res = util::parse_duration("2h");
-    CU_ASSERT(res.has_value());
-    CU_ASSERT(2 * 3600 * NGTCP2_SECONDS == *res);
+    assert_true(res.has_value());
+    assert_uint64(2 * 3600 * NGTCP2_SECONDS, ==, *res);
   }
   {
     auto res = util::parse_duration("18446744073709551616");
-    CU_ASSERT(!res.has_value());
+    assert_false(res.has_value());
   }
   {
     auto res = util::parse_duration("1x");
-    CU_ASSERT(!res.has_value());
+    assert_false(res.has_value());
   }
   {
     auto res = util::parse_duration("1mx");
-    CU_ASSERT(!res.has_value());
+    assert_false(res.has_value());
   }
   {
     auto res = util::parse_duration("1mxy");
-    CU_ASSERT(!res.has_value());
+    assert_false(res.has_value());
   }
 }
 
 void test_util_normalize_path() {
-  CU_ASSERT("/" == util::normalize_path("/"));
-  CU_ASSERT("/" == util::normalize_path("//"));
-  CU_ASSERT("/foo" == util::normalize_path("/foo"));
-  CU_ASSERT("/foo/bar/" == util::normalize_path("/foo/bar/"));
-  CU_ASSERT("/foo/bar/" == util::normalize_path("/foo/abc/../bar/"));
-  CU_ASSERT("/foo/bar/" == util::normalize_path("/../foo/abc/../bar/"));
-  CU_ASSERT("/foo/bar/" ==
-            util::normalize_path("/./foo/././abc///.././bar/./"));
-  CU_ASSERT("/foo/" == util::normalize_path("/foo/."));
-  CU_ASSERT("/foo/bar" == util::normalize_path("/foo/./bar"));
-  CU_ASSERT("/bar" == util::normalize_path("/foo/./../bar"));
-  CU_ASSERT("/bar" == util::normalize_path("/../../bar"));
+  assert_stdstring_equal("/", util::normalize_path("/"));
+  assert_stdstring_equal("/", util::normalize_path("//"));
+  assert_stdstring_equal("/foo", util::normalize_path("/foo"));
+  assert_stdstring_equal("/foo/bar/", util::normalize_path("/foo/bar/"));
+  assert_stdstring_equal("/foo/bar/", util::normalize_path("/foo/abc/../bar/"));
+  assert_stdstring_equal("/foo/bar/",
+                         util::normalize_path("/../foo/abc/../bar/"));
+  assert_stdstring_equal("/foo/bar/",
+                         util::normalize_path("/./foo/././abc///.././bar/./"));
+  assert_stdstring_equal("/foo/", util::normalize_path("/foo/."));
+  assert_stdstring_equal("/foo/bar", util::normalize_path("/foo/./bar"));
+  assert_stdstring_equal("/bar", util::normalize_path("/foo/./../bar"));
+  assert_stdstring_equal("/bar", util::normalize_path("/../../bar"));
 }
 
 } // namespace ngtcp2

@@ -29,8 +29,14 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_encode_ipv4(void);
-void test_ngtcp2_encode_ipv6(void);
-void test_ngtcp2_get_bytes(void);
+#define MUNIT_ENABLE_ASSERT_ALIASES
+
+#include "munit.h"
+
+extern const MunitSuite str_suite;
+
+munit_void_test_decl(test_ngtcp2_encode_ipv4);
+munit_void_test_decl(test_ngtcp2_encode_ipv6);
+munit_void_test_decl(test_ngtcp2_get_bytes);
 
 #endif /* NGTCP2_STR_TEST_H */

@@ -90,21 +90,19 @@ if(ENABLE_SHARED_LIB)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
-if(HAVE_CUNIT OR ENABLE_STATIC_LIB)
-  # Static library (for unittests because of symbol visibility)
-  add_library(ngtcp2_static STATIC ${ngtcp2_SOURCES})
-  set_target_properties(ngtcp2_static PROPERTIES
-    COMPILE_FLAGS "${WARNCFLAGS}"
-    VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
-    ARCHIVE_OUTPUT_NAME ngtcp2${STATIC_LIB_SUFFIX}
-    C_VISIBILITY_PRESET hidden
-  )
-  target_compile_definitions(ngtcp2_static PUBLIC "-DNGTCP2_STATICLIB")
-  target_include_directories(ngtcp2_static PUBLIC ${ngtcp2_INCLUDE_DIRS})
-  if(ENABLE_STATIC_LIB)
-    install(TARGETS ngtcp2_static
-      DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-  endif()
+# Static library (for unittests because of symbol visibility)
+add_library(ngtcp2_static STATIC ${ngtcp2_SOURCES})
+set_target_properties(ngtcp2_static PROPERTIES
+  COMPILE_FLAGS "${WARNCFLAGS}"
+  VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
+  ARCHIVE_OUTPUT_NAME ngtcp2${STATIC_LIB_SUFFIX}
+  C_VISIBILITY_PRESET hidden
+)
+target_compile_definitions(ngtcp2_static PUBLIC "-DNGTCP2_STATICLIB")
+target_include_directories(ngtcp2_static PUBLIC ${ngtcp2_INCLUDE_DIRS})
+if(ENABLE_STATIC_LIB)
+  install(TARGETS ngtcp2_static
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif()
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libngtcp2.pc"

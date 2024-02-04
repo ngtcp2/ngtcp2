@@ -218,12 +218,12 @@ h09wsslserver_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
 	util_wolfssl.cc
 endif # ENABLE_EXAMPLE_WOLFSSL
 
-if HAVE_CUNIT
 check_PROGRAMS = examplestest
 examplestest_SOURCES = examplestest.cc \
-	util_test.cc util_test.h util.cc util.h
-examplestest_CPPFLAGS = ${AM_CPPFLAGS} @JEMALLOC_CFLAGS@
-examplestest_LDADD = ${LDADD} @CUNIT_LIBS@ @JEMALLOC_LIBS@
+	util_test.cc util_test.h util.cc util.h \
+	$(top_srcdir)/tests/munit/munit.c $(top_srcdir)/tests/munit/munit.h
+examplestest_CPPFLAGS = ${AM_CPPFLAGS} -I$(top_srcdir)/tests/munit \
+	@JEMALLOC_CFLAGS@
+examplestest_LDADD = ${LDADD} @JEMALLOC_LIBS@
 
 TESTS = examplestest
-endif # HAVE_CUNIT

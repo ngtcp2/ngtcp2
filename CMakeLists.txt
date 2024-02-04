@@ -129,12 +129,8 @@ if(ENABLE_JEMALLOC)
 endif()
 find_package(Libev 4.11)
 find_package(Libnghttp3 1.0.0)
-find_package(CUnit 2.1)
 enable_testing()
-set(HAVE_CUNIT      ${CUNIT_FOUND})
-if(HAVE_CUNIT)
-  add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
-endif()
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 
 # OpenSSL (required for libngtcp2_crypto_quictls,
 # libngtcp2_crypto_picotls and examples)
@@ -359,8 +355,6 @@ message(STATUS "summary of build options:
     Library:
       Shared:         ${ENABLE_SHARED_LIB}
       Static:         ${ENABLE_STATIC_LIB}
-    Test:
-      CUnit:          ${HAVE_CUNIT} (LIBS='${CUNIT_LIBRARIES}')
     Libs:
       OpenSSL:        ${HAVE_OPENSSL} (LIBS='${OPENSSL_LIBRARIES}')
       Libev:          ${HAVE_LIBEV} (LIBS='${LIBEV_LIBRARIES}')

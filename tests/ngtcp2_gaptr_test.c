@@ -26,11 +26,21 @@
 
 #include <stdio.h>
 
-#include <CUnit/CUnit.h>
-
 #include "ngtcp2_gaptr.h"
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_mem.h"
+
+static const MunitTest tests[] = {
+    munit_void_test(test_ngtcp2_gaptr_push),
+    munit_void_test(test_ngtcp2_gaptr_is_pushed),
+    munit_void_test(test_ngtcp2_gaptr_drop_first_gap),
+    munit_void_test(test_ngtcp2_gaptr_get_first_gap_after),
+    munit_test_end(),
+};
+
+const MunitSuite gaptr_suite = {
+    "/gaptr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+};
 
 void test_ngtcp2_gaptr_push(void) {
   ngtcp2_gaptr gaptr;
@@ -44,51 +54,51 @@ void test_ngtcp2_gaptr_push(void) {
 
   rv = ngtcp2_gaptr_push(&gaptr, 0, 1);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   it = ngtcp2_ksl_begin(&gaptr.gap);
   r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
-  CU_ASSERT(1 == r.begin);
-  CU_ASSERT(UINT64_MAX == r.end);
+  assert_uint64(1, ==, r.begin);
+  assert_uint64(UINT64_MAX, ==, r.end);
 
   rv = ngtcp2_gaptr_push(&gaptr, 12389, 133);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   it = ngtcp2_ksl_begin(&gaptr.gap);
   r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
-  CU_ASSERT(1 == r.begin);
-  CU_ASSERT(12389 == r.end);
+  assert_uint64(1, ==, r.begin);
+  assert_uint64(12389, ==, r.end);
 
   ngtcp2_ksl_it_next(&it);
   r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
-  CU_ASSERT(12389 + 133 == r.begin);
-  CU_ASSERT(UINT64_MAX == r.end);
+  assert_uint64(12389 + 133, ==, r.begin);
+  assert_uint64(UINT64_MAX, ==, r.end);
 
   for (i = 0; i < 2; ++i) {
     rv = ngtcp2_gaptr_push(&gaptr, 1, 12389);
 
-    CU_ASSERT(0 == rv);
+    assert_int(0, ==, rv);
 
     it = ngtcp2_ksl_begin(&gaptr.gap);
     r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
-    CU_ASSERT(12389 + 133 == r.begin);
-    CU_ASSERT(UINT64_MAX == r.end);
+    assert_uint64(12389 + 133, ==, r.begin);
+    assert_uint64(UINT64_MAX, ==, r.end);
   }
 
   rv = ngtcp2_gaptr_push(&gaptr, 12389 + 133 - 1, 2);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   it = ngtcp2_ksl_begin(&gaptr.gap);
   r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
-  CU_ASSERT(12389 + 133 + 1 == r.begin);
-  CU_ASSERT(UINT64_MAX == r.end);
+  assert_uint64(12389 + 133 + 1, ==, r.begin);
+  assert_uint64(UINT64_MAX, ==, r.end);
 
   ngtcp2_gaptr_free(&gaptr);
 }
@@ -102,9 +112,9 @@ void test_ngtcp2_gaptr_is_pushed(void) {
 
   rv = ngtcp2_gaptr_push(&gaptr, 1000000007, 1009);
 
-  CU_ASSERT(0 == rv);
-  CU_ASSERT(ngtcp2_gaptr_is_pushed(&gaptr, 1000000007, 1009));
-  CU_ASSERT(!ngtcp2_gaptr_is_pushed(&gaptr, 1000000007, 1010));
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_gaptr_is_pushed(&gaptr, 1000000007, 1009));
+  assert_false(ngtcp2_gaptr_is_pushed(&gaptr, 1000000007, 1010));
 
   ngtcp2_gaptr_free(&gaptr);
 }
@@ -118,12 +128,12 @@ void test_ngtcp2_gaptr_drop_first_gap(void) {
 
   rv = ngtcp2_gaptr_push(&gaptr, 113245, 12);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   ngtcp2_gaptr_drop_first_gap(&gaptr);
 
-  CU_ASSERT(ngtcp2_gaptr_is_pushed(&gaptr, 0, 1));
-  CU_ASSERT(113245 + 12 == ngtcp2_gaptr_first_gap_offset(&gaptr));
+  assert_true(ngtcp2_gaptr_is_pushed(&gaptr, 0, 1));
+  assert_uint64(113245 + 12, ==, ngtcp2_gaptr_first_gap_offset(&gaptr));
 
   ngtcp2_gaptr_free(&gaptr);
 }
@@ -138,44 +148,44 @@ void test_ngtcp2_gaptr_get_first_gap_after(void) {
 
   rv = ngtcp2_gaptr_push(&gaptr, 100, 1);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   rv = ngtcp2_gaptr_push(&gaptr, 101, 1);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   rv = ngtcp2_gaptr_push(&gaptr, 102, 1);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   rv = ngtcp2_gaptr_push(&gaptr, 104, 1);
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   r = ngtcp2_gaptr_get_first_gap_after(&gaptr, 99);
 
-  CU_ASSERT(0 == r.begin);
-  CU_ASSERT(100 == r.end);
+  assert_uint64(0, ==, r.begin);
+  assert_uint64(100, ==, r.end);
 
   r = ngtcp2_gaptr_get_first_gap_after(&gaptr, 100);
 
-  CU_ASSERT(103 == r.begin);
-  CU_ASSERT(104 == r.end);
+  assert_uint64(103, ==, r.begin);
+  assert_uint64(104, ==, r.end);
 
   r = ngtcp2_gaptr_get_first_gap_after(&gaptr, 102);
 
-  CU_ASSERT(103 == r.begin);
-  CU_ASSERT(104 == r.end);
+  assert_uint64(103, ==, r.begin);
+  assert_uint64(104, ==, r.end);
 
   r = ngtcp2_gaptr_get_first_gap_after(&gaptr, 103);
 
-  CU_ASSERT(103 == r.begin);
-  CU_ASSERT(104 == r.end);
+  assert_uint64(103, ==, r.begin);
+  assert_uint64(104, ==, r.end);
 
   r = ngtcp2_gaptr_get_first_gap_after(&gaptr, UINT64_MAX - 1);
 
-  CU_ASSERT(105 == r.begin);
-  CU_ASSERT(UINT64_MAX == r.end);
+  assert_uint64(105, ==, r.begin);
+  assert_uint64(UINT64_MAX, ==, r.end);
 
   ngtcp2_gaptr_free(&gaptr);
 }

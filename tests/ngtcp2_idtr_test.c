@@ -26,11 +26,18 @@
 
 #include <stdio.h>
 
-#include <CUnit/CUnit.h>
-
 #include "ngtcp2_idtr.h"
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_mem.h"
+
+static const MunitTest tests[] = {
+    munit_void_test(test_ngtcp2_idtr_open),
+    munit_test_end(),
+};
+
+const MunitSuite idtr_suite = {
+    "/idtr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+};
 
 static int64_t stream_id_from_id(uint64_t id) { return (int64_t)(id * 4); }
 
@@ -45,37 +52,37 @@ void test_ngtcp2_idtr_open(void) {
 
   rv = ngtcp2_idtr_open(&idtr, stream_id_from_id(0));
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   it = ngtcp2_ksl_begin(&idtr.gap.gap);
   key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
-  CU_ASSERT(1 == key.begin);
-  CU_ASSERT(UINT64_MAX == key.end);
+  assert_uint64(1, ==, key.begin);
+  assert_uint64(UINT64_MAX, ==, key.end);
 
   rv = ngtcp2_idtr_open(&idtr, stream_id_from_id(1000000007));
 
-  CU_ASSERT(0 == rv);
+  assert_int(0, ==, rv);
 
   it = ngtcp2_ksl_begin(&idtr.gap.gap);
   key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
-  CU_ASSERT(1 == key.begin);
-  CU_ASSERT(1000000007 == key.end);
+  assert_uint64(1, ==, key.begin);
+  assert_uint64(1000000007, ==, key.end);
 
   ngtcp2_ksl_it_next(&it);
   key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
-  CU_ASSERT(1000000008 == key.begin);
-  CU_ASSERT(UINT64_MAX == key.end);
+  assert_uint64(1000000008, ==, key.begin);
+  assert_uint64(UINT64_MAX, ==, key.end);
 
   rv = ngtcp2_idtr_open(&idtr, stream_id_from_id(0));
 
-  CU_ASSERT(NGTCP2_ERR_STREAM_IN_USE == rv);
+  assert_int(NGTCP2_ERR_STREAM_IN_USE, ==, rv);
 
   rv = ngtcp2_idtr_open(&idtr, stream_id_from_id(1000000007));
 
-  CU_ASSERT(NGTCP2_ERR_STREAM_IN_USE == rv);
+  assert_int(NGTCP2_ERR_STREAM_IN_USE, ==, rv);
 
   ngtcp2_idtr_free(&idtr);
 }
