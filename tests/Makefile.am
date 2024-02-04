@@ -77,7 +77,8 @@ HFILES= \
 	ngtcp2_cc_test.h \
 	ngtcp2_qlog_test.h \
 	ngtcp2_window_filter_test.h \
-	ngtcp2_test_helper.h
+	ngtcp2_test_helper.h \
+	munit/munit.h
 
 main_SOURCES = $(HFILES) $(OBJECTS)
 
