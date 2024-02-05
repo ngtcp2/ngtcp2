@@ -548,7 +548,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - uses: microsoft/setup-msbuild@v1
+    - uses: microsoft/setup-msbuild@v2
     - name: Configure cmake
       run: |
         git submodule update --init --depth 1
