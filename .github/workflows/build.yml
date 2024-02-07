@@ -386,12 +386,6 @@ jobs:
         echo 'LDFLAGS='"$LDFLAGS" >> $GITHUB_ENV
         echo 'CFLAGS='"$CFLAGS" >> $GITHUB_ENV
         echo 'CXXFLAGS='"$CXXFLAGS" >> $GITHUB_ENV
-    - name: BoringSSL pthread requirement
-      if: runner.os == 'Linux'
-      run: |
-        BORINGSSL_LIBS="$BORINGSSL_LIBS -pthread"
-
-        echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
     - name: Enable generic sockaddr
       if: matrix.sockaddr == 'generic-sockaddr'
       run: |
