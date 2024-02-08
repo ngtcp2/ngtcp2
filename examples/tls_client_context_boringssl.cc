@@ -34,6 +34,7 @@
 
 #include "client_base.h"
 #include "template.h"
+#include "tls_shared_boringssl.h"
 
 extern Config config;
 
@@ -113,6 +114,15 @@ int TLSClientContext::init(const char *private_key_file,
                                                  SSL_SESS_CACHE_NO_INTERNAL);
     SSL_CTX_sess_set_new_cb(ssl_ctx_, new_session_cb);
   }
+
+#ifdef HAVE_LIBBROTLI
+  if (!SSL_CTX_add_cert_compression_alg(
+          ssl_ctx_, ngtcp2::tls::CERTIFICATE_COMPRESSION_ALGO_BROTLI,
+          ngtcp2::tls::cert_compress, ngtcp2::tls::cert_decompress)) {
+    std::cerr << "SSL_CTX_add_cert_compression_alg failed" << std::endl;
+    return -1;
+  }
+#endif // HAVE_LIBBROTLI
 
   return 0;
 }

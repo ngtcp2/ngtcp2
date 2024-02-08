@@ -31,6 +31,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/third-party \
 	@LIBEV_CFLAGS@ \
 	@LIBNGHTTP3_CFLAGS@ \
+	@LIBBROTLIENC_CFLAGS@ \
+	@LIBBROTLIDEC_CFLAGS@ \
 	@DEFS@ \
 	@EXTRA_DEFS@
 AM_LDFLAGS = -no-install \
@@ -38,7 +40,9 @@ AM_LDFLAGS = -no-install \
 LDADD = $(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/libhttp-parser.la \
 	@LIBEV_LIBS@ \
-	@LIBNGHTTP3_LIBS@
+	@LIBNGHTTP3_LIBS@ \
+	@LIBBROTLIENC_LIBS@ \
+	@LIBBROTLIDEC_LIBS@
 
 SERVER_SRCS = \
 	server_base.cc server_base.h \
@@ -142,6 +146,7 @@ bsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 	tls_client_context_boringssl.cc tls_client_context_boringssl.h \
 	tls_client_session_boringssl.cc tls_client_session_boringssl.h \
 	tls_session_base_quictls.cc tls_session_base_quictls.h \
+	tls_shared_boringssl.cc tls_shared_boringssl.h \
 	util_openssl.cc
 
 bsslserver_CPPFLAGS = ${bsslclient_CPPFLAGS}
@@ -150,6 +155,7 @@ bsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	tls_server_context_boringssl.cc tls_server_context_boringssl.h \
 	tls_server_session_boringssl.cc tls_server_session_boringssl.h \
 	tls_session_base_quictls.cc tls_session_base_quictls.h \
+	tls_shared_boringssl.cc tls_shared_boringssl.h \
 	util_openssl.cc
 endif # ENABLE_EXAMPLE_BORINGSSL
 

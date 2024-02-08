@@ -69,7 +69,7 @@ class ClientRun:
         return c_hs, s_hs
 
     def _assert_hs(self, c_hs, s_hs):
-        if not self.hs_stripe.startswith(c_hs):
+        if re.match('^'+c_hs, self.hs_stripe) is None:
             # what happened?
             if self.hs_stripe == '':
                 # server send nothing
@@ -82,13 +82,13 @@ class ClientRun:
                                 f'{self.server.handshake[0].to_text()}"')
             else:
                 pytest.fail(f'Expected "{c_hs}", got "{self.hs_stripe}"')
-        assert self.server.hs_stripe == s_hs, \
+        assert re.match('^'+s_hs+'$', self.server.hs_stripe) is not None, \
             f'Expected "{s_hs}", got "{self.server.hs_stripe}"\n'
 
     def assert_non_resume_handshake(self, allow_hello_retry=True):
         # for client/server where KEY_SHARE do not match, the hello is retried
         c_hs, s_hs = self.norm_exp(
-            "ServerHello:EncryptedExtensions:Certificate:CertificateVerify:Finished",
+            "ServerHello:EncryptedExtensions:(Compressed)?Certificate:CertificateVerify:Finished",
             "ClientHello:Finished", allow_hello_retry=allow_hello_retry)
         self._assert_hs(c_hs, s_hs)
 
@@ -100,13 +100,13 @@ class ClientRun:
 
     def assert_verify_null_handshake(self):
         c_hs, s_hs = self.norm_exp(
-            "ServerHello:EncryptedExtensions:CertificateRequest:Certificate:CertificateVerify:Finished",
+            "ServerHello:EncryptedExtensions:CertificateRequest:(Compressed)?Certificate:CertificateVerify:Finished",
             "ClientHello:Certificate:Finished")
         self._assert_hs(c_hs, s_hs)
 
     def assert_verify_cert_handshake(self):
         c_hs, s_hs = self.norm_exp(
-            "ServerHello:EncryptedExtensions:CertificateRequest:Certificate:CertificateVerify:Finished",
+            "ServerHello:EncryptedExtensions:CertificateRequest:(Compressed)?Certificate:CertificateVerify:Finished",
             "ClientHello:Certificate:CertificateVerify:Finished")
         self._assert_hs(c_hs, s_hs)
 

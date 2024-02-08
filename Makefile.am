@@ -41,6 +41,8 @@ EXTRA_DIST = \
 	cmake/FindLibev.cmake \
 	cmake/FindLibnghttp3.cmake \
 	cmake/Findwolfssl.cmake \
+	cmake/FindLibbrotlienc.cmake \
+	cmake/FindLibbrotlidec.cmake \
 	cmake/PickyWarningsC.cmake \
 	cmake/PickyWarningsCXX.cmake \
 	cmake/Version.cmake

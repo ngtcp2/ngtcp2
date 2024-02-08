@@ -165,6 +165,7 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     tls_client_context_boringssl.cc
     tls_client_session_boringssl.cc
     tls_session_base_quictls.cc
+    tls_shared_boringssl.cc
     util_openssl.cc
   )
 
@@ -178,6 +179,7 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     tls_server_context_boringssl.cc
     tls_server_session_boringssl.cc
     tls_session_base_quictls.cc
+    tls_shared_boringssl.cc
     util_openssl.cc
   )
 
@@ -191,6 +193,8 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     ${BORINGSSL_INCLUDE_DIRS}
     ${LIBEV_INCLUDE_DIRS}
     ${LIBNGHTTP3_INCLUDE_DIRS}
+    ${LIBBROTLIENC_INCLUDE_DIRS}
+    ${LIBBROTLIDEC_INCLUDE_DIRS}
   )
 
   set(bssl_LIBS
@@ -200,6 +204,8 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     ${BORINGSSL_LIBRARIES}
     ${LIBEV_LIBRARIES}
     ${LIBNGHTTP3_LIBRARIES}
+    ${LIBBROTLIENC_LIBRARIES}
+    ${LIBBROTLIDEC_LIBRARIES}
   )
 
   add_executable(bsslclient ${bsslclient_SOURCES} $<TARGET_OBJECTS:http-parser>)

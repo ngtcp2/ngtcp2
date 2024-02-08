@@ -240,6 +240,7 @@ jobs:
           libssl-dev \
           libev-dev \
           libgnutls28-dev \
+          libbrotli-dev \
           cmake \
           cmake-data \
           python3-pytest
@@ -248,7 +249,7 @@ jobs:
     - name: MacOS setup
       if: runner.os == 'macOS'
       run: |
-        brew install libev gnutls autoconf automake pkg-config libtool
+        brew install libev gnutls brotli autoconf automake pkg-config libtool
 
         echo 'NPROC='"$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
     - name: Setup clang (Linux)
@@ -346,7 +347,7 @@ jobs:
         PICOTLS_CFLAGS="-I$PICOTLS_PREFIX/include/"
         PICOTLS_LIBS="-L$PICOTLS_PREFIX/build -lpicotls-openssl -lpicotls-core"
 
-        AUTOTOOLS_OPTS="--enable-werror --with-libnghttp3 --with-openssl --with-gnutls --with-boringssl --with-wolfssl --with-picotls"
+        AUTOTOOLS_OPTS="--enable-werror --with-libnghttp3 --with-openssl --with-gnutls --with-boringssl --with-wolfssl --with-picotls --with-libbrotlienc --with-libbrotlidec"
 
         echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
         echo 'LDFLAGS='"$LDFLAGS" >> $GITHUB_ENV

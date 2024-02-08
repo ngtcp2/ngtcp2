@@ -142,6 +142,16 @@ AC_ARG_WITH([wolfssl],
                     [Use wolfSSL [default=no]])],
     [request_wolfssl=$withval], [request_wolfssl=no])
 
+AC_ARG_WITH([libbrotlienc],
+    [AS_HELP_STRING([--with-libbrotlienc],
+                    [Use libbrotlienc [default=no]])],
+    [request_libbrotlienc=$withval], [request_libbrotlienc=no])
+
+AC_ARG_WITH([libbrotlidec],
+    [AS_HELP_STRING([--with-libbrotlidec],
+                    [Use libbrotlidec [default=no]])],
+    [request_libbrotlidec=$withval], [request_libbrotlidec=no])
+
 AC_ARG_VAR([BORINGSSL_CFLAGS], [C compiler flags for BORINGSSL])
 AC_ARG_VAR([BORINGSSL_LIBS], [linker flags for BORINGSSL])
 
@@ -412,6 +422,47 @@ fi
 if test "x${request_libev}" = "xyes" &&
    test "x${have_libev}" != "xyes"; then
   AC_MSG_ERROR([libev was requested (--with-libev) but not found])
+fi
+
+# libbrotlienc (for examples)
+have_libbrotlienc=no
+if test "x${request_libbrotlienc}" != "xno"; then
+  PKG_CHECK_MODULES([LIBBROTLIENC], [libbrotlienc >= 1.0.9],
+                    [have_libbrotlienc=yes],
+                    [have_libbrotlienc=no])
+  if test "x${have_libbrotlienc}" = "xno"; then
+    AC_MSG_NOTICE($LIBBROTLIENC_PKG_ERRORS)
+  fi
+fi
+
+if test "x${request_libbrotlienc}" = "xyes" &&
+   test "x${have_libbrotlienc}" != "xyes"; then
+  AC_MSG_ERROR([libbrotlienc was requested (--with-libbrotlienc) but not found])
+fi
+
+# libbrotlidec (for examples)
+have_libbrotlidec=no
+if test "x${request_libbrotlidec}" != "xno"; then
+  PKG_CHECK_MODULES([LIBBROTLIDEC], [libbrotlidec >= 1.0.9],
+                    [have_libbrotlidec=yes],
+                    [have_libbrotlidec=no])
+  if test "x${have_libbrotlidec}" = "xno"; then
+    AC_MSG_NOTICE($LIBBROTLIDEC_PKG_ERRORS)
+  fi
+fi
+
+if test "x${request_libbrotlidec}" = "xyes" &&
+   test "x${have_libbrotlidec}" != "xyes"; then
+  AC_MSG_ERROR([libbrotlidec was requested (--with-libbrotlidec) but not found])
+fi
+
+have_libbrotli=no
+if test "x${have_libbrotlienc}" = "xyes" &&
+   test "x${have_libbrotlidec}" = "xyes"; then
+  have_libbrotli=yes
+
+  AC_DEFINE([HAVE_LIBBROTLI], [1],
+            [Define to 1 if you have `libbrotlienc` and `libbrotlidec` libraries.])
 fi
 
 if test "x${lib_only}" = "xno" &&
@@ -738,5 +789,7 @@ AC_MSG_NOTICE([summary of build options:
       BoringSSL:      ${have_boringssl} (CFLAGS='${BORINGSSL_CFLAGS}' LIBS='${BORINGSSL_LIBS}')
       Picotls:        ${have_picotls} (CFLAGS='${PICOTLS_CFLAGS}' LIBS='${PICOTLS_LIBS}')
       wolfSSL:        ${have_wolfssl} (CFLAGS='${WOLFSSL_CFLAGS}' LIBS='${WOLFSSL_LIBS}')
+      Libbrotlienc:   ${have_libbrotlienc} (CFLAGS="${LIBBROTLIENC_CFLAGS}' LIBS='${LIBBROTLIENC_LIBS}')
+      Libbrotlidec:   ${have_libbrotlidec} (CFLAGS="${LIBBROTLIDEC_CFLAGS}' LIBS='${LIBBROTLIDEC_LIBS}')
     Examples:         ${enable_examples}
 ])

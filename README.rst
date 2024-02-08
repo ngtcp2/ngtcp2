@@ -48,6 +48,12 @@ required:
 - libev
 - `nghttp3 <https://github.com/ngtcp2/nghttp3>`_ for HTTP/3
 
+To enable :rfc:`8879` TLS Certificate Compression in bsslclient and
+bsslserver (BoringSSL (aws-lc) examples client and server), the
+following library is required:
+
+- libbrotli-dev >= 1.0.9
+
 ngtcp2 crypto helper library, and client and server under examples
 directory require at least one of the following TLS backends:
 
