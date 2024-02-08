@@ -99,8 +99,10 @@ bool numeric_host(const char *hostname);
 
 bool numeric_host(const char *hostname, int family);
 
-// Dumps |src| of length |len| in the format similar to `hexdump -C`.
-void hexdump(FILE *out, const uint8_t *src, size_t len);
+// hexdump dumps |data| of length |datalen| in the format similar to
+// hexdump(1) with -C option.  This function returns 0 if it succeeds,
+// or -1.
+int hexdump(FILE *out, const void *data, size_t datalen);
 
 inline char lowcase(char c) {
   constexpr static unsigned char tbl[] = {
