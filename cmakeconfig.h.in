@@ -41,3 +41,6 @@
 /* Define WORDS_BIGENDIAN to 1 if target architecture is big
    endian. */
 #cmakedefine WORDS_BIGENDIAN 1
+
+/* Define to 1 if you have `libbrotlienc` and `libbrotlidec` libraries. */
+#cmakedefine HAVE_LIBBROTLI 1

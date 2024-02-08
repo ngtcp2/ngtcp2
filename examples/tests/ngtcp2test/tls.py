@@ -901,6 +901,7 @@ class HandShake:
         (20, 'Finished', HSRecord),
         (22, 'CertificateStatus', HSRecord),
         (24, 'KeyUpdate', HSRecord),
+        (25, 'CompressedCertificate', HSRecord),
     ]
     RT_NAME_BY_ID = {}
     RT_CLS_BY_ID = {}
