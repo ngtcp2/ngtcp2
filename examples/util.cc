@@ -263,6 +263,7 @@ uint8_t *hexdump_line(uint8_t *dest, const uint8_t *data, size_t datalen,
                       size_t addr) {
   dest = hexdump_addr(dest, addr);
   *dest++ = ' ';
+  *dest++ = ' ';
 
   dest = hexdump16(dest, data, datalen);
 
