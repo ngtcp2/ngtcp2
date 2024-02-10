@@ -25,8 +25,11 @@
 #include "util_test.h"
 
 #include <limits>
+#include <array>
 
 #include "util.h"
+
+using namespace std::literals;
 
 namespace ngtcp2 {
 
@@ -39,6 +42,7 @@ static const MunitTest tests[] = {
     munit_void_test(test_util_parse_uint_iec),
     munit_void_test(test_util_parse_duration),
     munit_void_test(test_util_normalize_path),
+    munit_void_test(test_util_hexdump),
     munit_test_end(),
 };
 
@@ -265,6 +269,124 @@ void test_util_normalize_path() {
   assert_stdstring_equal("/foo/bar", util::normalize_path("/foo/./bar"));
   assert_stdstring_equal("/bar", util::normalize_path("/foo/./../bar"));
   assert_stdstring_equal("/bar", util::normalize_path("/../../bar"));
+}
+
+void test_util_hexdump() {
+  char buf[4096];
+
+  struct hexdump_testdata {
+    std::string_view data;
+    std::string_view dump;
+  };
+
+  auto tests = std::to_array<hexdump_testdata>({
+      {
+          // empty data
+          "",
+          "",
+      },
+      {
+          // 1 byte
+          "0",
+          "00000000  30                                                |0|\n"
+          "00000001\n",
+      },
+      {
+          // 8 bytes
+          "01234567",
+          "00000000  30 31 32 33 34 35 36 37                           "
+          "|01234567|\n"
+          "00000008\n",
+      },
+      {
+          // 9 bytes
+          "012345678",
+          "00000000  30 31 32 33 34 35 36 37  38                       "
+          "|012345678|\n"
+          "00000009\n",
+      },
+      {
+          // 15 bytes
+          "0123456789abcde",
+          "00000000  30 31 32 33 34 35 36 37  38 39 61 62 63 64 65     "
+          "|0123456789abcde|\n"
+          "0000000f\n",
+      },
+      {
+          // 16 bytes,
+          "0123456789abcdef",
+          "00000000  30 31 32 33 34 35 36 37  38 39 61 62 63 64 65 66  "
+          "|0123456789abcdef|\n"
+          "00000010\n",
+      },
+      {
+          // 17 bytes
+          "0123456789abcdefg",
+          "00000000  30 31 32 33 34 35 36 37  38 39 61 62 63 64 65 66  "
+          "|0123456789abcdef|\n"
+          "00000010  67                                                |g|\n"
+          "00000011\n",
+      },
+      {
+          // non printables
+          "\0\a\b\t\n\v\f\r\x7f"sv,
+          "00000000  00 07 08 09 0a 0b 0c 0d  7f                       "
+          "|.........|\n"
+          "00000009\n",
+      },
+      {
+          // multiple lines
+          "alpha bravo charlie delta echo foxtrot golf",
+          "00000000  61 6c 70 68 61 20 62 72  61 76 6f 20 63 68 61 72  |alpha "
+          "bravo char|\n"
+          "00000010  6c 69 65 20 64 65 6c 74  61 20 65 63 68 6f 20 66  |lie "
+          "delta echo f|\n"
+          "00000020  6f 78 74 72 6f 74 20 67  6f 6c 66                 |oxtrot "
+          "golf|\n"
+          "0000002b\n",
+      },
+      {
+          // repeated lines
+          "00000000000000010000000000000001000000000000000100000000000000020000"
+          "0000000000020000000000000003",
+          "00000000  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 31  "
+          "|0000000000000001|\n"
+          "*\n"
+          "00000030  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 32  "
+          "|0000000000000002|\n"
+          "*\n"
+          "00000050  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 33  "
+          "|0000000000000003|\n"
+          "00000060\n",
+      },
+      {
+          // ends with the repeated line
+          "00000000000000010000000000000001000000000000000100000000000000020000"
+          "000000000002",
+          "00000000  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 31  "
+          "|0000000000000001|\n"
+          "*\n"
+          "00000030  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 32  "
+          "|0000000000000002|\n"
+          "*\n"
+          "00000050\n",
+      },
+  });
+
+  for (auto &t : tests) {
+    auto f = tmpfile();
+    auto rv = util::hexdump(f, t.data.data(), t.data.size());
+
+    assert_int(0, ==, rv);
+
+    fseek(f, 0, SEEK_SET);
+    auto nread = fread(buf, 1, sizeof(buf), f);
+    buf[nread] = '\0';
+
+    assert_string_equal(t.dump.data(), buf);
+
+    fclose(f);
+  }
 }
 
 } // namespace ngtcp2
