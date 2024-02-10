@@ -302,18 +302,8 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
   auto in = reinterpret_cast<const uint8_t *>(data);
   auto repeated = false;
 
-  for (size_t offset = 0; offset <= datalen; offset += 16) {
+  for (size_t offset = 0; offset < datalen; offset += 16) {
     auto n = datalen - offset;
-
-    if (n == 0) {
-      last = hexdump_addr(last, offset);
-      *last++ = '\n';
-
-      auto len = static_cast<size_t>(last - buf.data());
-
-      return hexdump_write(fd, buf.data(), len);
-    }
-
     auto s = in + offset;
 
     if (n >= 16) {
@@ -349,6 +339,9 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
       last = buf.data();
     }
   }
+
+  last = hexdump_addr(last, datalen);
+  *last++ = '\n';
 
   auto len = static_cast<size_t>(last - buf.data());
   if (len) {

@@ -45,6 +45,7 @@ munit_void_test_decl(test_util_parse_uint);
 munit_void_test_decl(test_util_parse_uint_iec);
 munit_void_test_decl(test_util_parse_duration);
 munit_void_test_decl(test_util_normalize_path);
+munit_void_test_decl(test_util_hexdump);
 
 } // namespace ngtcp2
 
