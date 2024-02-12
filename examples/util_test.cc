@@ -33,7 +33,8 @@ using namespace std::literals;
 
 namespace ngtcp2 {
 
-static const MunitTest tests[] = {
+namespace {
+const MunitTest tests[]{
     munit_void_test(test_util_format_durationf),
     munit_void_test(test_util_format_uint),
     munit_void_test(test_util_format_uint_iec),
@@ -45,8 +46,9 @@ static const MunitTest tests[] = {
     munit_void_test(test_util_hexdump),
     munit_test_end(),
 };
+} // namespace
 
-const MunitSuite util_suite = {
+const MunitSuite util_suite{
     "/util", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
