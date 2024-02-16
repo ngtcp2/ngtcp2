@@ -275,7 +275,7 @@ namespace {
 int hexdump_write(int fd, const uint8_t *data, size_t datalen) {
   ssize_t nwrite;
 
-  for (; (nwrite = write(fd, data, datalen) == -1) && errno == EINTR;)
+  for (; (nwrite = write(fd, data, datalen)) == -1 && errno == EINTR;)
     ;
   if (nwrite == -1) {
     return -1;
