@@ -596,6 +596,8 @@ AC_SYS_LARGEFILE
 AC_CHECK_FUNCS([ \
   memmove \
   memset \
+  explicit_bzero \
+  memset_s \
 ])
 
 # Checks for symbols.

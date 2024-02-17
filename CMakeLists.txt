@@ -276,6 +276,8 @@ if(HAVE_SYS_ENDIAN_H)
 endif()
 
 check_symbol_exists(bswap_64 "byteswap.h" HAVE_BSWAP_64)
+check_symbol_exists(explicit_bzero "string.h" HAVE_EXPLICIT_BZERO)
+check_symbol_exists(memset_s "string.h" HAVE_MEMSET_S)
 
 if(${CMAKE_C_BYTE_ORDER} STREQUAL "BIG_ENDIAN")
   set(WORDS_BIGENDIAN 1)
