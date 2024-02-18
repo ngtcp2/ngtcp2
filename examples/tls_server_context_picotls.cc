@@ -26,6 +26,7 @@
 
 #include <iostream>
 #include <memory>
+#include <algorithm>
 
 #include <ngtcp2/ngtcp2_crypto_picotls.h>
 
