@@ -27,6 +27,7 @@
 #include <cassert>
 #include <iostream>
 #include <array>
+#include <algorithm>
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
