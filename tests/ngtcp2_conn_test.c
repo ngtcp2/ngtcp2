@@ -706,6 +706,8 @@ static void delete_crypto_cipher_ctx(ngtcp2_conn *conn,
   (void)user_data;
 }
 
+static const uint16_t pmtud_probes[] = {1300, 1400, 1260};
+
 static void server_default_settings(ngtcp2_settings *settings) {
   ngtcp2_settings_default(settings);
   settings->log_printf = NULL;
@@ -714,6 +716,8 @@ static void server_default_settings(ngtcp2_settings *settings) {
   settings->max_tx_udp_payload_size = 2048;
   settings->no_tx_udp_payload_size_shaping = 1;
   settings->handshake_timeout = 10 * NGTCP2_SECONDS;
+  settings->pmtud_probes = pmtud_probes;
+  settings->pmtud_probeslen = ngtcp2_arraylen(pmtud_probes);
 }
 
 static void server_default_transport_params(ngtcp2_transport_params *params) {

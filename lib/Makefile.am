@@ -73,7 +73,8 @@ OBJECTS = \
 	ngtcp2_balloc.c \
 	ngtcp2_objalloc.c \
 	ngtcp2_unreachable.c \
-	ngtcp2_conversion.c
+	ngtcp2_conversion.c \
+	ngtcp2_settings.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -117,6 +118,7 @@ HFILES = \
 	ngtcp2_net.h \
 	ngtcp2_unreachable.h \
 	ngtcp2_conversion.h \
+	ngtcp2_settings.h \
 	ngtcp2_conn_stat.h \
 	ngtcp2_pktns_id.h \
 	ngtcp2_tstamp.h

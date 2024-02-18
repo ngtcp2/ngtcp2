@@ -38,6 +38,7 @@
 #include "ngtcp2_unreachable.h"
 #include "ngtcp2_net.h"
 #include "ngtcp2_conversion.h"
+#include "ngtcp2_settings.h"
 #include "ngtcp2_tstamp.h"
 #include "ngtcp2_frame_chain.h"
 
@@ -1068,10 +1069,13 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   uint8_t fixed_bit_byte;
   size_t i;
   uint32_t *preferred_versions;
+  ngtcp2_settings settingsbuf;
   ngtcp2_transport_params paramsbuf;
   (void)callbacks_version;
   (void)settings_version;
 
+  settings = ngtcp2_settings_convert_to_latest(&settingsbuf, settings_version,
+                                               settings);
   params = ngtcp2_transport_params_convert_to_latest(
       &paramsbuf, transport_params_version, params);
 
@@ -1110,6 +1114,10 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(callbacks->get_path_challenge_data);
   assert(!server || !ngtcp2_is_reserved_version(client_chosen_version));
 
+  for (i = 0; i < settings->pmtud_probeslen; ++i) {
+    assert(settings->pmtud_probes[i] > NGTCP2_MAX_UDP_PAYLOAD_SIZE);
+  }
+
   if (mem == NULL) {
     mem = ngtcp2_mem_default();
   }
@@ -1118,6 +1126,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   if (settings->qlog_write) {
     buflen = buflen_align(buflen);
     buflen += NGTCP2_QLOG_BUFLEN;
+  }
+
+  if (settings->pmtud_probeslen) {
+    buflen = buflen_align(buflen);
+    buflen += sizeof(settings->pmtud_probes[0]) * settings->pmtud_probeslen;
   }
 
   if (settings->preferred_versionslen) {
@@ -1200,6 +1213,14 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     (*pconn)->local.settings.token = tokenbuf;
   } else {
     (*pconn)->local.settings.token = NULL;
+  }
+
+  if (settings->pmtud_probeslen) {
+    (*pconn)->local.settings.pmtud_probes = buf_align(buf);
+    buf = ngtcp2_cpymem((uint16_t *)(*pconn)->local.settings.pmtud_probes,
+                        settings->pmtud_probes,
+                        sizeof(settings->pmtud_probes[0]) *
+                            settings->pmtud_probeslen);
   }
 
   if (!(*pconn)->local.settings.original_version) {
@@ -4667,7 +4688,9 @@ static int conn_start_pmtud(ngtcp2_conn *conn) {
 
   rv = ngtcp2_pmtud_new(&conn->pmtud, conn->dcid.current.max_udp_payload_size,
                         hard_max_udp_payload_size,
-                        conn->pktns.tx.last_pkt_num + 1, conn->mem);
+                        conn->pktns.tx.last_pkt_num + 1,
+                        conn->local.settings.pmtud_probes,
+                        conn->local.settings.pmtud_probeslen, conn->mem);
   if (rv != 0) {
     return rv;
   }
@@ -13657,14 +13680,21 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 
 void ngtcp2_settings_default_versioned(int settings_version,
                                        ngtcp2_settings *settings) {
-  (void)settings_version;
+  size_t len = ngtcp2_settingslen_version(settings_version);
 
-  memset(settings, 0, sizeof(*settings));
-  settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
-  settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  settings->ack_thresh = 2;
-  settings->max_tx_udp_payload_size = 1500 - 48;
-  settings->handshake_timeout = UINT64_MAX;
+  memset(settings, 0, len);
+
+  switch (settings_version) {
+  case NGTCP2_SETTINGS_VERSION:
+  case NGTCP2_SETTINGS_V1:
+    settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
+    settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+    settings->ack_thresh = 2;
+    settings->max_tx_udp_payload_size = 1500 - 48;
+    settings->handshake_timeout = UINT64_MAX;
+
+    break;
+  }
 }
 
 void ngtcp2_transport_params_default_versioned(
