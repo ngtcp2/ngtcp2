@@ -803,8 +803,9 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
   cstat->first_rtt_sample_ts = UINT64_MAX;
   cstat->pto_count = 0;
   cstat->loss_detection_timer = UINT64_MAX;
-  cstat->cwnd =
-      ngtcp2_cc_compute_initcwnd(conn->local.settings.max_tx_udp_payload_size);
+  cstat->max_tx_udp_payload_size =
+      ngtcp2_conn_get_path_max_tx_udp_payload_size(conn);
+  cstat->cwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
   cstat->ssthresh = UINT64_MAX;
   cstat->congestion_recovery_start_ts = UINT64_MAX;
   cstat->bytes_in_flight = 0;
@@ -1180,10 +1181,16 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     (*pconn)->local.settings.original_version = client_chosen_version;
   }
 
+  ngtcp2_dcid_init(&(*pconn)->dcid.current, 0, dcid, NULL);
+  ngtcp2_dcid_set_path(&(*pconn)->dcid.current, path);
+
+  rv = ngtcp2_gaptr_push(&(*pconn)->dcid.seqgap, 0, 1);
+  if (rv != 0) {
+    goto fail_seqgap_push;
+  }
+
   conn_reset_conn_stat(*pconn, &(*pconn)->cstat);
   (*pconn)->cstat.initial_rtt = settings->initial_rtt;
-  (*pconn)->cstat.max_tx_udp_payload_size =
-      (*pconn)->local.settings.max_tx_udp_payload_size;
 
   ngtcp2_rst_init(&(*pconn)->rst);
 
@@ -1248,14 +1255,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   scident = NULL;
-
-  ngtcp2_dcid_init(&(*pconn)->dcid.current, 0, dcid, NULL);
-  ngtcp2_dcid_set_path(&(*pconn)->dcid.current, path);
-
-  rv = ngtcp2_gaptr_push(&(*pconn)->dcid.seqgap, 0, 1);
-  if (rv != 0) {
-    goto fail_seqgap_push;
-  }
 
   if (settings->preferred_versionslen) {
     if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
@@ -1380,7 +1379,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 fail_available_versions:
   ngtcp2_mem_free(mem, (*pconn)->vneg.preferred_versions);
 fail_preferred_versions:
-fail_seqgap_push:
 fail_scid_set_insert:
   ngtcp2_mem_free(mem, scident);
 fail_scident:
@@ -1390,6 +1388,7 @@ fail_pktns_init:
 fail_hs_pktns_init:
   pktns_del((*pconn)->in_pktns, mem);
 fail_in_pktns_init:
+fail_seqgap_push:
   ngtcp2_mem_free(mem, (uint8_t *)(*pconn)->local.settings.token);
 fail_token:
   ngtcp2_mem_free(mem, (*pconn)->qlog.buf.begin);
@@ -8550,12 +8549,12 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     pv->fallback_pto = pto;
   }
 
+  ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
+
   if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_COMPARE_FLAG_ADDR |
                                             NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
     conn_reset_congestion_state(conn, ts);
   }
-
-  ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
 
   conn_reset_ecn_validation_state(conn);
 
