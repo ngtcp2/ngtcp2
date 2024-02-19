@@ -581,7 +581,8 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
     ngtcp2_pmtud_probe_success(conn->pmtud, ent->pktlen);
 
     conn->dcid.current.max_udp_payload_size =
-        ngtcp2_max(conn->dcid.current.max_udp_payload_size, ent->pktlen);
+        conn->cstat.max_tx_udp_payload_size =
+            ngtcp2_max(conn->dcid.current.max_udp_payload_size, ent->pktlen);
 
     if (ngtcp2_pmtud_finished(conn->pmtud)) {
       ngtcp2_conn_stop_pmtud(conn);

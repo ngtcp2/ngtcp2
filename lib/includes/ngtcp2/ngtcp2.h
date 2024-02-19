@@ -1723,8 +1723,7 @@ typedef struct ngtcp2_settings {
   ngtcp2_printf log_printf;
   /**
    * :member:`max_tx_udp_payload_size` is the maximum size of UDP
-   * datagram payload that the local endpoint transmits.  It is used
-   * by congestion controller to compute congestion window.
+   * datagram payload that the local endpoint transmits.
    */
   size_t max_tx_udp_payload_size;
   /**
