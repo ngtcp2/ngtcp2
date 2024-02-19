@@ -43,6 +43,7 @@ EXTRA_DIST = \
 	cmake/Findwolfssl.cmake \
 	cmake/FindLibbrotlienc.cmake \
 	cmake/FindLibbrotlidec.cmake \
+	cmake/FindJemalloc.cmake \
 	cmake/PickyWarningsC.cmake \
 	cmake/PickyWarningsCXX.cmake \
 	cmake/Version.cmake
