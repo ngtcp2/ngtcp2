@@ -10889,7 +10889,6 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
   /* Without preferred_versions */
   setup_handshake_server(&conn);
 
-  ngtcp2_mem_free(conn->mem, conn->vneg.preferred_versions);
   conn->vneg.preferred_versions = NULL;
   conn->vneg.preferred_versionslen = 0;
 
