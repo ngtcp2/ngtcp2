@@ -189,6 +189,8 @@ struct Config {
   // initial_pkt_num is the initial packet number for each packet
   // number space.  If it is set to UINT32_MAX, it is chosen randomly.
   uint32_t initial_pkt_num;
+  // pmtud_probes is the array of UDP datagram payload size to probes.
+  std::vector<uint16_t> pmtud_probes;
 };
 
 class ClientBase {
