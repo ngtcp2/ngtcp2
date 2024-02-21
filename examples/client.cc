@@ -782,6 +782,16 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
 
   settings.original_version = original_version_;
 
+  if (!config.pmtud_probes.empty()) {
+    settings.pmtud_probes = config.pmtud_probes.data();
+    settings.pmtud_probeslen = config.pmtud_probes.size();
+
+    if (!config.max_udp_payload_size) {
+      settings.max_tx_udp_payload_size = *std::max_element(
+          std::begin(config.pmtud_probes), std::end(config.pmtud_probes));
+    }
+  }
+
   ngtcp2_transport_params params;
   ngtcp2_transport_params_default(&params);
   params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
@@ -2499,6 +2509,9 @@ Options:
             << util::format_uint_iec(config.max_stream_window) << R"(
   --max-udp-payload-size=<SIZE>
               Override maximum UDP payload size that client transmits.
+              With this  option, client  assumes that a  path supports
+              <SIZE> byte of UDP  datagram payload, without performing
+              Path MTU Discovery.
   --handshake-timeout=<DURATION>
               Set  the  QUIC handshake  timeout.   It  defaults to  no
               timeout.
@@ -2513,6 +2526,9 @@ Options:
               number space.  It  must be in range [0, (1  << 31) - 1],
               inclusive.   By default,  the initial  packet number  is
               chosen randomly.
+  --pmtud-probes=<SIZE>[[,<SIZE>]...]
+              Specify UDP datagram payload sizes  to probe in Path MTU
+              Discovery.  <SIZE> must be strictly larger than 1200.
   -h, --help  Display this help and exit.
 
 ---
@@ -2596,6 +2612,7 @@ int main(int argc, char **argv) {
         {"ack-thresh", required_argument, &flag, 40},
         {"wait-for-ticket", no_argument, &flag, 41},
         {"initial-pkt-num", required_argument, &flag, 42},
+        {"pmtud-probes", required_argument, &flag, 43},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -3015,6 +3032,23 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         } else {
           config.initial_pkt_num = static_cast<uint32_t>(*n);
+        }
+        break;
+      case 43:
+        // --pmtud-probes
+        auto l = util::split_str(optarg);
+        for (auto &s : l) {
+          if (auto n = util::parse_uint_iec(s); !n) {
+            std::cerr << "pmtud-probes: invalid argument" << std::endl;
+            exit(EXIT_FAILURE);
+          } else if (*n <= 1200 || *n >= 64_k) {
+            std::cerr
+                << "pmtud-probes: must be in range [1201, 65535], inclusive."
+                << std::endl;
+            exit(EXIT_FAILURE);
+          } else {
+            config.pmtud_probes.push_back(*n);
+          }
         }
         break;
       }
