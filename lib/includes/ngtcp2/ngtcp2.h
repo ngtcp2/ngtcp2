@@ -1689,7 +1689,8 @@ typedef enum ngtcp2_token_type {
 } ngtcp2_token_type;
 
 #define NGTCP2_SETTINGS_V1 1
-#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V1
+#define NGTCP2_SETTINGS_V2 2
+#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V2
 
 /**
  * @struct
@@ -1876,6 +1877,24 @@ typedef struct ngtcp2_settings {
    * number space.  It must be in range [0, INT32_MAX], inclusive.
    */
   uint32_t initial_pkt_num;
+  /* The following fields have been added since NGTCP2_SETTINGS_V2. */
+  /**
+   * :member:`pmtud_probes` is the array of UDP datagram payload size
+   * to probe during Path MTU Discovery.  The discovery is done in the
+   * order appeared in this array.  The size must be strictly larger
+   * than 1200, otherwise the behavior is undefined.  The maximum
+   * value in this array should be set to
+   * :member:`max_tx_udp_payload_size`.  If this field is not set, the
+   * predefined PMTUD probes are made.  This field has been available
+   * since v1.4.0.
+   */
+  const uint16_t *pmtud_probes;
+  /**
+   * :member:`pmtud_probeslen` is the number of elements that are
+   * contained in the array pointed by :member:`pmtud_probes`.  This
+   * field has been available since v1.4.0.
+   */
+  size_t pmtud_probeslen;
 } ngtcp2_settings;
 
 /**

@@ -50,6 +50,7 @@ OBJECTS = \
 	ngtcp2_cc_test.c \
 	ngtcp2_qlog_test.c \
 	ngtcp2_window_filter_test.c \
+	ngtcp2_settings_test.c \
 	ngtcp2_test_helper.c \
 	munit/munit.c
 
@@ -77,6 +78,7 @@ HFILES= \
 	ngtcp2_cc_test.h \
 	ngtcp2_qlog_test.h \
 	ngtcp2_window_filter_test.h \
+	ngtcp2_settings_test.h \
 	ngtcp2_test_helper.h \
 	munit/munit.h
 

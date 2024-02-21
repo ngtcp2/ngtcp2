@@ -53,6 +53,7 @@
 #include "ngtcp2_cc_test.h"
 #include "ngtcp2_qlog_test.h"
 #include "ngtcp2_window_filter_test.h"
+#include "ngtcp2_settings_test.h"
 
 int main(int argc, char *argv[]) {
   const MunitSuite suites[] = {
@@ -79,6 +80,7 @@ int main(int argc, char *argv[]) {
       cc_suite,
       qlog_suite,
       window_filter_suite,
+      settings_suite,
       {NULL, NULL, NULL, 0, MUNIT_SUITE_OPTION_NONE},
   };
   const MunitSuite suite = {
