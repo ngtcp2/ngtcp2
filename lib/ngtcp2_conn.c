@@ -9962,7 +9962,7 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
                   pktlen);
 
   if (pktlen == 0) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return 0;
   }
 
   /* client does not expect a packet from unknown path. */
