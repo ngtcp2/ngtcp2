@@ -958,7 +958,9 @@ int Client::write_streams() {
   ngtcp2_path_storage ps;
   size_t pktcnt = 0;
   auto max_udp_payload_size = ngtcp2_conn_get_max_tx_udp_payload_size(conn_);
-  auto max_pktcnt = ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size;
+  auto max_pktcnt =
+      std::max(ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size,
+               static_cast<size_t>(1));
   auto ts = util::timestamp();
 
   ngtcp2_path_storage_zero(&ps);
