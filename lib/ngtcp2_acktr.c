@@ -293,8 +293,7 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr) {
 
     for (;;) {
       if (ent->pkt_num > largest_ack) {
-        ++j;
-        if (j == nacks) {
+        if (++j == nacks) {
           return;
         }
         ent = ngtcp2_ringbuf_get(rb, j);
