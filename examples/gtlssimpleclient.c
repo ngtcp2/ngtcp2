@@ -505,7 +505,7 @@ static int client_write_streams(struct client *c) {
   ngtcp2_tstamp ts = timestamp();
   ngtcp2_pkt_info pi;
   ngtcp2_ssize nwrite;
-  uint8_t buf[1280];
+  uint8_t buf[1452];
   ngtcp2_path_storage ps;
   ngtcp2_vec datav;
   size_t datavcnt;
