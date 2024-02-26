@@ -29,6 +29,25 @@
 
 #include "ngtcp2_unreachable.h"
 
+void ngtcp2_settings_default_versioned(int settings_version,
+                                       ngtcp2_settings *settings) {
+  size_t len = ngtcp2_settingslen_version(settings_version);
+
+  memset(settings, 0, len);
+
+  switch (settings_version) {
+  case NGTCP2_SETTINGS_VERSION:
+  case NGTCP2_SETTINGS_V1:
+    settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
+    settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+    settings->ack_thresh = 2;
+    settings->max_tx_udp_payload_size = 1500 - 48;
+    settings->handshake_timeout = UINT64_MAX;
+
+    break;
+  }
+}
+
 static void settings_copy(int settings_version, ngtcp2_settings *dest,
                           const ngtcp2_settings *src) {
   assert(settings_version != NGTCP2_SETTINGS_VERSION);
