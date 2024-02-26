@@ -223,8 +223,9 @@ Read and write packets
 
 `ngtcp2_conn_read_pkt()` processes the incoming QUIC packets.  In
 order to write QUIC packets, call `ngtcp2_conn_writev_stream()` or
-`ngtcp2_conn_write_pkt()`.  The *destlen* parameter must be at least
-the value returned from `ngtcp2_conn_get_max_tx_udp_payload_size()`.
+`ngtcp2_conn_write_pkt()`.  The *destlen* parameter should be at least
+:member:`ngtcp2_settings.max_tx_udp_payload_size`, and must be at
+least 1200 bytes.
 
 In order to send stream data, the application has to first open a
 stream.  In earliest, clients can open streams after installing 1RTT
@@ -257,6 +258,17 @@ the buffer sized up to `ngtcp2_conn_get_send_quantum()` bytes), call
 `ngtcp2_conn_update_pkt_tx_time()` to set the timer when the next
 packet should be sent.  The timer is integrated into
 `ngtcp2_conn_get_expiry()`.
+
+Outgoing UDP datagram payload size
+----------------------------------
+
+The outgoing UDP datagram payload size is 1200 by default.  It may be
+increased up to :member:`ngtcp2_settings.max_tx_udp_payload_size` by
+Path MTU Discovery (PMTUD).  The PMTUD probes are configurable through
+:member:`ngtcp2_settings.pmtud_probes` and
+:member:`ngtcp2_settings.pmtud_probeslen`.  If these values are
+changed, the largest value should be set to
+:member:`ngtcp2_settings.max_tx_udp_payload_size` as well.
 
 Packet handling on server side
 ------------------------------

@@ -4406,7 +4406,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * handshake as well.
  *
  * |destlen| should be at least
- * :member:`ngtcp2_settings.max_tx_udp_payload_size`.
+ * :member:`ngtcp2_settings.max_tx_udp_payload_size`.  It must be at
+ * least :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`.
  *
  * Specifying -1 to |stream_id| means no new stream data to send.
  *
@@ -4591,7 +4592,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_datagram_versioned(
  * as well.
  *
  * |destlen| should be at least
- * :member:`ngtcp2_settings.max_tx_udp_payload_size`.
+ * :member:`ngtcp2_settings.max_tx_udp_payload_size`.  It must be at
+ * least :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`.
  *
  * For |path| and |pi| parameters, refer to
  * `ngtcp2_conn_writev_stream`.
