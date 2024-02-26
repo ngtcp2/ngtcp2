@@ -1139,8 +1139,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   buf = ngtcp2_mem_calloc(mem, 1, buflen);
   if (buf == NULL) {
-    rv = NGTCP2_ERR_NOMEM;
-    goto fail_conn;
+    return NGTCP2_ERR_NOMEM;
   }
 
   *pconn = buf;
@@ -1400,20 +1399,12 @@ fail_scident:
 fail_hs_pktns_init:
   pktns_del((*pconn)->in_pktns, mem);
 fail_in_pktns_init:
+  ngtcp2_gaptr_free(&(*pconn)->dcid.seqgap);
 fail_seqgap_push:
   ngtcp2_mem_free(mem, (uint8_t *)(*pconn)->local.settings.token);
 fail_token:
-  ngtcp2_idtr_free(&(*pconn)->remote.uni.idtr);
-  ngtcp2_idtr_free(&(*pconn)->remote.bidi.idtr);
-  ngtcp2_map_free(&(*pconn)->strms);
-  delete_scid(&(*pconn)->scid.set, mem);
-  ngtcp2_ksl_free(&(*pconn)->scid.set);
-  ngtcp2_gaptr_free(&(*pconn)->dcid.seqgap);
-  ngtcp2_objalloc_free(&(*pconn)->strm_objalloc);
-  ngtcp2_objalloc_free(&(*pconn)->rtb_entry_objalloc);
-  ngtcp2_objalloc_free(&(*pconn)->frc_objalloc);
   ngtcp2_mem_free(mem, *pconn);
-fail_conn:
+
   return rv;
 }
 
