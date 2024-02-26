@@ -349,7 +349,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
 
   ngtcp2_acktr_recv_ack(&acktr, &ackfr);
 
-  assert_size(1, ==, ngtcp2_ringbuf_len(&acktr.acks));
+  assert_size(1, ==, ngtcp2_ringbuf_len(&acktr.acks.rb));
   assert_size(1, ==, ngtcp2_ksl_len(&acktr.ents));
 
   it = ngtcp2_ksl_begin(&acktr.ents);
@@ -366,7 +366,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
 
   ngtcp2_acktr_recv_ack(&acktr, &ackfr);
 
-  assert_size(0, ==, ngtcp2_ringbuf_len(&acktr.acks));
+  assert_size(0, ==, ngtcp2_ringbuf_len(&acktr.acks.rb));
   assert_size(1, ==, ngtcp2_ksl_len(&acktr.ents));
 
   it = ngtcp2_ksl_begin(&acktr.ents);
