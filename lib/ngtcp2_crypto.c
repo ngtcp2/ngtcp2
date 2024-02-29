@@ -578,28 +578,11 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
 
   /* Set default values */
   memset(params, 0, sizeof(*params));
-  params->original_dcid_present = 0;
-  params->initial_scid_present = 0;
-  params->initial_max_streams_bidi = 0;
-  params->initial_max_streams_uni = 0;
-  params->initial_max_stream_data_bidi_local = 0;
-  params->initial_max_stream_data_bidi_remote = 0;
-  params->initial_max_stream_data_uni = 0;
   params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
   params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
-  params->stateless_reset_token_present = 0;
-  params->preferred_addr_present = 0;
-  params->disable_active_migration = 0;
   params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
-  params->max_idle_timeout = 0;
   params->active_connection_id_limit =
       NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
-  params->retry_scid_present = 0;
-  params->max_datagram_frame_size = 0;
-  memset(&params->retry_scid, 0, sizeof(params->retry_scid));
-  memset(&params->initial_scid, 0, sizeof(params->initial_scid));
-  memset(&params->original_dcid, 0, sizeof(params->original_dcid));
-  params->version_info_present = 0;
 
   p = data;
   end = data + datalen;
