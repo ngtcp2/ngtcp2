@@ -53,7 +53,6 @@ static void rtb_entry_init(ngtcp2_rtb_entry *ent, const ngtcp2_pkt_hd *hd,
   ent->lost_ts = UINT64_MAX;
   ent->pktlen = pktlen;
   ent->flags = flags;
-  ent->next = NULL;
 }
 
 int ngtcp2_rtb_entry_objalloc_new(ngtcp2_rtb_entry **pent,
