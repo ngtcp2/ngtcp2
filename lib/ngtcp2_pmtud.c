@@ -156,7 +156,7 @@ void ngtcp2_pmtud_handle_expiry(ngtcp2_pmtud *pmtud, ngtcp2_tstamp ts) {
     return;
   }
 
-  pmtud->min_fail_udp_payload_size = ngtcp2_min(
+  pmtud->min_fail_udp_payload_size = ngtcp2_min_size(
       pmtud->min_fail_udp_payload_size, pmtud->probes[pmtud->mtu_idx]);
 
   pmtud_next_probe(pmtud);
