@@ -832,7 +832,7 @@ static void delete_scid(ngtcp2_ksl *scids, const ngtcp2_mem *mem) {
 static ngtcp2_duration compute_pto(ngtcp2_duration smoothed_rtt,
                                    ngtcp2_duration rttvar,
                                    ngtcp2_duration max_ack_delay) {
-  ngtcp2_duration var = ngtcp2_max(4 * rttvar, NGTCP2_GRANULARITY);
+  ngtcp2_duration var = ngtcp2_max_uint64(4 * rttvar, NGTCP2_GRANULARITY);
   return smoothed_rtt + var + max_ack_delay;
 }
 
@@ -1471,8 +1471,8 @@ int ngtcp2_conn_server_new_versioned(
  * credits are considered.
  */
 static uint64_t conn_fc_credits(ngtcp2_conn *conn, ngtcp2_strm *strm) {
-  return ngtcp2_min(strm->tx.max_offset - strm->tx.offset,
-                    conn->tx.max_offset - conn->tx.offset);
+  return ngtcp2_min_uint64(strm->tx.max_offset - strm->tx.offset,
+                           conn->tx.max_offset - conn->tx.offset);
 }
 
 /*
@@ -1658,8 +1658,8 @@ static int conn_ensure_ack_ranges(ngtcp2_conn *conn, size_t n) {
  * ACK.
  */
 static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
-  return ngtcp2_min(conn->local.transport_params.max_ack_delay,
-                    conn->cstat.smoothed_rtt / 8);
+  return ngtcp2_min_uint64(conn->local.transport_params.max_ack_delay,
+                           conn->cstat.smoothed_rtt / 8);
 }
 
 int ngtcp2_conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
@@ -10350,8 +10350,8 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
       datalen = ngtcp2_vec_len(vmsg->stream.data, vmsg->stream.datacnt);
       send_stream = conn_retry_early_payloadlen(conn) == 0;
       if (send_stream) {
-        write_datalen = ngtcp2_min(datalen + NGTCP2_STREAM_OVERHEAD,
-                                   NGTCP2_MIN_COALESCED_PAYLOADLEN);
+        write_datalen = ngtcp2_min_uint64(datalen + NGTCP2_STREAM_OVERHEAD,
+                                          NGTCP2_MIN_COALESCED_PAYLOADLEN);
 
         if (vmsg->stream.flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
           wflags |= NGTCP2_WRITE_PKT_FLAG_MORE;
@@ -10892,7 +10892,7 @@ ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn) {
 }
 
 ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
-  ngtcp2_tstamp res = UINT64_MAX, t;
+  ngtcp2_tstamp res = UINT64_MAX;
   ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
   ngtcp2_scid *scid;
   ngtcp2_dcid *dcid;
@@ -10909,15 +10909,13 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
   if (!ngtcp2_pq_empty(&conn->scid.used)) {
     scid = ngtcp2_struct_of(ngtcp2_pq_top(&conn->scid.used), ngtcp2_scid, pe);
     if (scid->retired_ts != UINT64_MAX) {
-      t = scid->retired_ts + pto;
-      res = ngtcp2_min(res, t);
+      res = ngtcp2_min_uint64(res, scid->retired_ts + pto);
     }
   }
 
   if (ngtcp2_ringbuf_len(&conn->dcid.retired.rb)) {
     dcid = ngtcp2_ringbuf_get(&conn->dcid.retired.rb, 0);
-    t = dcid->retired_ts + pto;
-    res = ngtcp2_min(res, t);
+    res = ngtcp2_min_uint64(res, dcid->retired_ts + pto);
   }
 
   if (conn->dcid.current.cid.datalen) {
@@ -10928,15 +10926,13 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
       assert(dcid->cid.datalen);
       assert(dcid->bound_ts != UINT64_MAX);
 
-      t = dcid->bound_ts + 3 * pto;
-      res = ngtcp2_min(res, t);
+      res = ngtcp2_min_uint64(res, dcid->bound_ts + 3 * pto);
     }
   }
 
   if (conn->server && conn->early.ckm &&
       conn->early.discard_started_ts != UINT64_MAX) {
-    t = conn->early.discard_started_ts + 3 * pto;
-    res = ngtcp2_min(res, t);
+    res = ngtcp2_min_uint64(res, conn->early.discard_started_ts + 3 * pto);
   }
 
   return res;
@@ -10965,19 +10961,13 @@ static ngtcp2_tstamp conn_handshake_expiry(ngtcp2_conn *conn) {
 }
 
 ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
-  ngtcp2_tstamp t1 = ngtcp2_conn_loss_detection_expiry(conn);
-  ngtcp2_tstamp t2 = ngtcp2_conn_ack_delay_expiry(conn);
-  ngtcp2_tstamp t3 = ngtcp2_conn_internal_expiry(conn);
-  ngtcp2_tstamp t4 = ngtcp2_conn_lost_pkt_expiry(conn);
-  ngtcp2_tstamp t5 = conn_keep_alive_expiry(conn);
-  ngtcp2_tstamp t6 = conn_handshake_expiry(conn);
-  ngtcp2_tstamp t7 = ngtcp2_conn_get_idle_expiry(conn);
-  ngtcp2_tstamp res = ngtcp2_min(t1, t2);
-  res = ngtcp2_min(res, t3);
-  res = ngtcp2_min(res, t4);
-  res = ngtcp2_min(res, t5);
-  res = ngtcp2_min(res, t6);
-  res = ngtcp2_min(res, t7);
+  ngtcp2_tstamp res = ngtcp2_min_uint64(ngtcp2_conn_loss_detection_expiry(conn),
+                                        ngtcp2_conn_ack_delay_expiry(conn));
+  res = ngtcp2_min_uint64(res, ngtcp2_conn_internal_expiry(conn));
+  res = ngtcp2_min_uint64(res, ngtcp2_conn_lost_pkt_expiry(conn));
+  res = ngtcp2_min_uint64(res, conn_keep_alive_expiry(conn));
+  res = ngtcp2_min_uint64(res, conn_handshake_expiry(conn));
+  res = ngtcp2_min_uint64(res, ngtcp2_conn_get_idle_expiry(conn));
   return ngtcp2_min(res, conn->tx.pacing.next_ts);
 }
 
