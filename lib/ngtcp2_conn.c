@@ -2595,11 +2595,7 @@ static void conn_discard_pktns(ngtcp2_conn *conn, ngtcp2_pktns **ppktns,
   ngtcp2_conn_set_loss_detection_timer(conn, ts);
 }
 
-/*
- * conn_discard_initial_state discards state for Initial packet number
- * space.
- */
-static void conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+void ngtcp2_conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   if (!conn->in_pktns) {
     return;
   }
@@ -2615,11 +2611,7 @@ static void conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   memset(&conn->vneg.tx, 0, sizeof(conn->vneg.tx));
 }
 
-/*
- * conn_discard_handshake_state discards state for Handshake packet
- * number space.
- */
-static void conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+void ngtcp2_conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   if (!conn->hs_pktns) {
     return;
   }
@@ -2687,7 +2679,7 @@ static ngtcp2_ssize conn_write_handshake_ack_pkts(ngtcp2_conn *conn,
     res += nwrite;
 
     if (!conn->server && nwrite) {
-      conn_discard_initial_state(conn, ts);
+      ngtcp2_conn_discard_initial_state(conn, ts);
     }
   }
 
@@ -2800,7 +2792,7 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
        conn->hs_pktns->rtb.probe_pkt_left)) {
     /* Discard Initial state here so that Handshake packet is not
        padded. */
-    conn_discard_initial_state(conn, ts);
+    ngtcp2_conn_discard_initial_state(conn, ts);
   } else if (conn->in_pktns) {
     nwrite =
         conn_write_handshake_pkt(conn, pi, dest, destlen, NGTCP2_PKT_INITIAL,
@@ -2862,7 +2854,7 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
     /* We don't need to send further Initial packet if we have
        Handshake key and sent something with it.  So discard initial
        state here. */
-    conn_discard_initial_state(conn, ts);
+    ngtcp2_conn_discard_initial_state(conn, ts);
   }
 
   return res;
@@ -8216,7 +8208,7 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   conn->pktns.rtb.persistent_congestion_start_ts = ts;
 
-  conn_discard_handshake_state(conn, ts);
+  ngtcp2_conn_discard_handshake_state(conn, ts);
 
   assert(conn->remote.transport_params);
 
@@ -9817,7 +9809,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
     }
 
     if (conn->hs_pktns->rx.max_pkt_num != -1) {
-      conn_discard_initial_state(conn, ts);
+      ngtcp2_conn_discard_initial_state(conn, ts);
     }
 
     if (!conn_is_tls_handshake_completed(conn)) {
@@ -9883,7 +9875,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
       return rv;
     }
 
-    conn_discard_handshake_state(conn, ts);
+    ngtcp2_conn_discard_handshake_state(conn, ts);
 
     rv = conn_enqueue_handshake_done(conn);
     if (rv != 0) {

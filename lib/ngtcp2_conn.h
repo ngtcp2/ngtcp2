@@ -1156,4 +1156,16 @@ int ngtcp2_conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_tstamp ts, ngtcp2_duration ack_delay,
                                  uint64_t ack_delay_exponent);
 
+/*
+ * ngtcp2_conn_discard_initial_state discards state for Initial packet
+ * number space.
+ */
+void ngtcp2_conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_conn_discard_handshake_state discards state for Handshake
+ * packet number space.
+ */
+void ngtcp2_conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
+
 #endif /* NGTCP2_CONN_H */
