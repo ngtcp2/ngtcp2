@@ -848,6 +848,9 @@ setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
   ngtcp2_conn_server_new(pconn, &dcid, &scid, path, NGTCP2_PROTO_VER_V1, &cb,
                          settings, params,
                          /* mem = */ NULL, NULL);
+  ngtcp2_conn_set_initial_crypto_ctx(*pconn, &crypto_ctx);
+  ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
+                                  &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
   ngtcp2_conn_set_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
@@ -857,6 +860,11 @@ setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
                              &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_install_tx_key(*pconn, null_secret, sizeof(null_secret),
                              &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
+
+  ngtcp2_conn_discard_initial_state(*pconn, 0);
+  /* handshake pktns is not discarded here because it is referenced in
+     a test. */
+
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED |
                      NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED |
