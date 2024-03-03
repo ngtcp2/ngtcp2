@@ -36,7 +36,7 @@ set(main_SOURCES
   ngtcp2_rob_test.c
   ngtcp2_acktr_test.c
   ngtcp2_map_test.c
-  ngtcp2_crypto_test.c
+  ngtcp2_transport_params_test.c
   ngtcp2_rtb_test.c
   ngtcp2_idtr_test.c
   ngtcp2_conn_test.c
@@ -50,7 +50,6 @@ set(main_SOURCES
   ngtcp2_pmtud_test.c
   ngtcp2_str_test.c
   ngtcp2_tstamp_test.c
-  ngtcp2_conversion_test.c
   ngtcp2_cc_test.c
   ngtcp2_qlog_test.c
   ngtcp2_window_filter_test.c

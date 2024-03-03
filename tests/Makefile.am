@@ -32,7 +32,7 @@ OBJECTS = \
 	ngtcp2_rob_test.c \
 	ngtcp2_acktr_test.c \
 	ngtcp2_map_test.c \
-	ngtcp2_crypto_test.c \
+	ngtcp2_transport_params_test.c \
 	ngtcp2_rtb_test.c \
 	ngtcp2_idtr_test.c \
 	ngtcp2_conn_test.c \
@@ -46,7 +46,6 @@ OBJECTS = \
 	ngtcp2_pmtud_test.c \
 	ngtcp2_str_test.c \
 	ngtcp2_tstamp_test.c \
-	ngtcp2_conversion_test.c \
 	ngtcp2_cc_test.c \
 	ngtcp2_qlog_test.c \
 	ngtcp2_window_filter_test.c \
@@ -60,7 +59,7 @@ HFILES= \
 	ngtcp2_rob_test.h \
 	ngtcp2_acktr_test.h \
 	ngtcp2_map_test.h \
-	ngtcp2_crypto_test.h \
+	ngtcp2_transport_params_test.h \
 	ngtcp2_rtb_test.h \
 	ngtcp2_idtr_test.h \
 	ngtcp2_conn_test.h \
@@ -74,7 +73,6 @@ HFILES= \
 	ngtcp2_pmtud_test.h \
 	ngtcp2_str_test.h \
 	ngtcp2_tstamp_test.h \
-	ngtcp2_conversion_test.h \
 	ngtcp2_cc_test.h \
 	ngtcp2_qlog_test.h \
 	ngtcp2_window_filter_test.h \

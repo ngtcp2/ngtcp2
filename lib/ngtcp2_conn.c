@@ -37,7 +37,7 @@
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_unreachable.h"
 #include "ngtcp2_net.h"
-#include "ngtcp2_conversion.h"
+#include "ngtcp2_transport_params.h"
 #include "ngtcp2_settings.h"
 #include "ngtcp2_tstamp.h"
 #include "ngtcp2_frame_chain.h"
@@ -13627,33 +13627,6 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const uint8_t *data) {
   ngtcp2_path_storage_init2(&pcent->ps, path);
   memcpy(pcent->data, data, sizeof(pcent->data));
-}
-
-void ngtcp2_transport_params_default_versioned(
-    int transport_params_version, ngtcp2_transport_params *params) {
-  size_t len;
-
-  switch (transport_params_version) {
-  case NGTCP2_TRANSPORT_PARAMS_VERSION:
-    len = sizeof(*params);
-
-    break;
-  default:
-    ngtcp2_unreachable();
-  }
-
-  memset(params, 0, len);
-
-  switch (transport_params_version) {
-  case NGTCP2_TRANSPORT_PARAMS_VERSION:
-    params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
-    params->active_connection_id_limit =
-        NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
-    params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
-    params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
-
-    break;
-  }
 }
 
 /* The functions prefixed with ngtcp2_pkt_ are usually put inside
