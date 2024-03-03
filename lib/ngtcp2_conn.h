@@ -65,9 +65,6 @@ typedef enum {
   NGTCP2_CS_DRAINING,
 } ngtcp2_conn_state;
 
-/* NGTCP2_MAX_STREAMS is the maximum number of streams. */
-#define NGTCP2_MAX_STREAMS (1LL << 60)
-
 /* NGTCP2_MAX_NUM_BUFFED_RX_PKTS is the maximum number of buffered
    reordered packets. */
 #define NGTCP2_MAX_NUM_BUFFED_RX_PKTS 4

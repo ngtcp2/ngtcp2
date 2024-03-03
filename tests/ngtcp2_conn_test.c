@@ -38,6 +38,7 @@
 #include "ngtcp2_addr.h"
 #include "ngtcp2_net.h"
 #include "ngtcp2_tstamp.h"
+#include "ngtcp2_transport_params.h"
 #include "ngtcp2_frame_chain.h"
 
 static const MunitTest tests[] = {

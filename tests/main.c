@@ -35,7 +35,7 @@
 #include "ngtcp2_rob_test.h"
 #include "ngtcp2_rtb_test.h"
 #include "ngtcp2_acktr_test.h"
-#include "ngtcp2_crypto_test.h"
+#include "ngtcp2_transport_params_test.h"
 #include "ngtcp2_idtr_test.h"
 #include "ngtcp2_conn_test.h"
 #include "ngtcp2_ringbuf_test.h"
@@ -49,7 +49,6 @@
 #include "ngtcp2_pmtud_test.h"
 #include "ngtcp2_str_test.h"
 #include "ngtcp2_tstamp_test.h"
-#include "ngtcp2_conversion_test.h"
 #include "ngtcp2_cc_test.h"
 #include "ngtcp2_qlog_test.h"
 #include "ngtcp2_window_filter_test.h"
@@ -57,31 +56,18 @@
 
 int main(int argc, char *argv[]) {
   const MunitSuite suites[] = {
-      pkt_suite,
-      range_suite,
-      rob_suite,
-      acktr_suite,
-      map_suite,
-      crypto_suite,
-      rtb_suite,
-      idtr_suite,
-      conn_suite,
-      ringbuf_suite,
-      conv_suite,
-      ksl_suite,
-      gaptr_suite,
-      vec_suite,
-      strm_suite,
-      pv_suite,
-      pmtud_suite,
-      str_suite,
-      tstamp_suite,
-      conversion_suite,
-      cc_suite,
-      qlog_suite,
-      window_filter_suite,
-      settings_suite,
-      {NULL, NULL, NULL, 0, MUNIT_SUITE_OPTION_NONE},
+      pkt_suite,      range_suite,
+      rob_suite,      acktr_suite,
+      map_suite,      transport_params_suite,
+      rtb_suite,      idtr_suite,
+      conn_suite,     ringbuf_suite,
+      conv_suite,     ksl_suite,
+      gaptr_suite,    vec_suite,
+      strm_suite,     pv_suite,
+      pmtud_suite,    str_suite,
+      tstamp_suite,   cc_suite,
+      qlog_suite,     window_filter_suite,
+      settings_suite, {NULL, NULL, NULL, 0, MUNIT_SUITE_OPTION_NONE},
   };
   const MunitSuite suite = {
       "", NULL, suites, 1, MUNIT_SUITE_OPTION_NONE,

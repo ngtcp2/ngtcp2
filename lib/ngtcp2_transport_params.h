@@ -22,14 +22,61 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_CONVERSION_H
-#define NGTCP2_CONVERSION_H
+#ifndef NGTCP2_TRANSPORT_PARAMS_H
+#define NGTCP2_TRANSPORT_PARAMS_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
 #include <ngtcp2/ngtcp2.h>
+
+/* ngtcp2_transport_param_id is the registry of QUIC transport
+   parameter ID. */
+typedef uint64_t ngtcp2_transport_param_id;
+
+#define NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID 0x00
+#define NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT 0x01
+#define NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN 0x02
+#define NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE 0x03
+#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA 0x04
+#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL 0x05
+#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE 0x06
+#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI 0x07
+#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI 0x08
+#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI 0x09
+#define NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT 0x0a
+#define NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY 0x0b
+#define NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION 0x0c
+#define NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS 0x0d
+#define NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT 0x0e
+#define NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID 0x0f
+#define NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID 0x10
+/* https://datatracker.ietf.org/doc/html/rfc9221 */
+#define NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE 0x20
+#define NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT 0x2ab2
+/* https://datatracker.ietf.org/doc/html/rfc9368 */
+#define NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION 0x11
+
+/* NGTCP2_MAX_STREAMS is the maximum number of streams. */
+#define NGTCP2_MAX_STREAMS (1LL << 60)
+
+/*
+ * ngtcp2_transport_params_copy_new makes a copy of |src|, and assigns
+ * it to |*pdest|.  If |src| is NULL, NULL is assigned to |*pdest|.
+ *
+ * Caller is responsible to call ngtcp2_transport_params_del to free
+ * the memory assigned to |*pdest|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+int ngtcp2_transport_params_copy_new(ngtcp2_transport_params **pdest,
+                                     const ngtcp2_transport_params *src,
+                                     const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_transport_params_convert_to_latest converts |src| of version
@@ -68,4 +115,4 @@ void ngtcp2_transport_params_convert_to_old(int transport_params_version,
                                             ngtcp2_transport_params *dest,
                                             const ngtcp2_transport_params *src);
 
-#endif /* NGTCP2_CONVERSION_H */
+#endif /* NGTCP2_TRANSPORT_PARAMS_H */

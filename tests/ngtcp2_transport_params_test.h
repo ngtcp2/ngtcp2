@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_CRYPTO_TEST_H
-#define NGTCP2_CRYPTO_TEST_H
+#ifndef NGTCP2_TRANSPORT_PARAMS_TEST_H
+#define NGTCP2_TRANSPORT_PARAMS_TEST_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -33,9 +33,11 @@
 
 #include "munit.h"
 
-extern const MunitSuite crypto_suite;
+extern const MunitSuite transport_params_suite;
 
 munit_void_test_decl(test_ngtcp2_transport_params_encode);
 munit_void_test_decl(test_ngtcp2_transport_params_decode_new);
+munit_void_test_decl(test_ngtcp2_transport_params_convert_to_latest);
+munit_void_test_decl(test_ngtcp2_transport_params_convert_to_old);
 
-#endif /* NGTCP2_CRYPTO_TEST_H */
+#endif /* NGTCP2_TRANSPORT_PARAMS_TEST_H */
