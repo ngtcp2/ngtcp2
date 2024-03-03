@@ -847,9 +847,9 @@ int ngtcp2_transport_params_copy_new(ngtcp2_transport_params **pdest,
   return transport_params_copy_new(pdest, src, mem);
 }
 
-static void transport_params_copy(int transport_params_version,
-                                  ngtcp2_transport_params *dest,
-                                  const ngtcp2_transport_params *src) {
+static void transport_params_copy(ngtcp2_transport_params *dest,
+                                  const ngtcp2_transport_params *src,
+                                  int transport_params_version) {
   assert(transport_params_version != NGTCP2_TRANSPORT_PARAMS_VERSION);
 
   switch (transport_params_version) {
@@ -872,7 +872,7 @@ ngtcp2_transport_params_convert_to_latest(ngtcp2_transport_params *dest,
 
   ngtcp2_transport_params_default(dest);
 
-  transport_params_copy(transport_params_version, dest, src);
+  transport_params_copy(dest, src, transport_params_version);
 
   return dest;
 }
@@ -882,5 +882,5 @@ void ngtcp2_transport_params_convert_to_old(
     const ngtcp2_transport_params *src) {
   assert(transport_params_version != NGTCP2_TRANSPORT_PARAMS_VERSION);
 
-  transport_params_copy(transport_params_version, dest, src);
+  transport_params_copy(dest, src, transport_params_version);
 }
