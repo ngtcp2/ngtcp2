@@ -48,8 +48,8 @@ void ngtcp2_settings_default_versioned(int settings_version,
   }
 }
 
-static void settings_copy(int settings_version, ngtcp2_settings *dest,
-                          const ngtcp2_settings *src) {
+static void settings_copy(ngtcp2_settings *dest, const ngtcp2_settings *src,
+                          int settings_version) {
   assert(settings_version != NGTCP2_SETTINGS_VERSION);
 
   memcpy(dest, src, ngtcp2_settingslen_version(settings_version));
@@ -64,7 +64,7 @@ ngtcp2_settings_convert_to_latest(ngtcp2_settings *dest, int settings_version,
 
   ngtcp2_settings_default(dest);
 
-  settings_copy(settings_version, dest, src);
+  settings_copy(dest, src, settings_version);
 
   return dest;
 }
@@ -73,7 +73,7 @@ void ngtcp2_settings_convert_to_old(int settings_version, ngtcp2_settings *dest,
                                     const ngtcp2_settings *src) {
   assert(settings_version != NGTCP2_SETTINGS_VERSION);
 
-  settings_copy(settings_version, dest, src);
+  settings_copy(dest, src, settings_version);
 }
 
 size_t ngtcp2_settingslen_version(int settings_version) {
