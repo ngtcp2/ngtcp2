@@ -13,18 +13,18 @@ RUN apt-get update && \
     ./configure --enable-all --enable-aesni --enable-harden \
         --enable-keylog-export --disable-ech && \
     make -j$(nproc) && make install && cd .. && rm -rf wolfssl && \
-    git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
+    git clone --recursive --shallow-submodules --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && \
-    git submodule update --init --depth 1 && autoreconf -i && \
+    autoreconf -i && \
     ./configure --enable-lib-only \
         CC=clang-12 \
         CXX=clang++-12 \
         LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
         CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" && \
     make -j$(nproc) && make install && cd .. && rm -rf nghttp3 && \
-    git clone --depth 1 -b $NGTCP2_BRANCH https://github.com/ngtcp2/ngtcp2 && \
+    git clone --recursive --shallow-submodules --depth 1 -b $NGTCP2_BRANCH https://github.com/ngtcp2/ngtcp2 && \
     cd ngtcp2 && \
-    git submodule update --init --depth 1 && autoreconf -i && \
+    autoreconf -i && \
     ./configure \
         CC=clang-12 \
         CXX=clang++-12 \

@@ -222,6 +222,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: recursive
     - name: Startup
       run: |
         echo 'NGTCP2_SOURCE_DIR='"$PWD" >> $GITHUB_ENV
@@ -395,9 +397,6 @@ jobs:
 
         echo 'CFLAGS='"$CFLAGS" >> $GITHUB_ENV
         echo 'AUTOTOOLS_OPTS='"$AUTOTOOLS_OPTS" >> $GITHUB_ENV
-    - name: git submodule
-      run: |
-        git submodule update --init --depth 1
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
@@ -492,6 +491,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: recursive
     - name: Linux setup
       run: |
         sudo dpkg --add-architecture i386
@@ -514,7 +515,6 @@ jobs:
         echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
     - name: Configure autotools
       run: |
-        git submodule update --init --depth 1
         autoreconf -i && \
         ./configure --enable-werror --with-openssl --host="$HOST" \
           LIBS="-pthread"
@@ -543,10 +543,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: recursive
     - uses: microsoft/setup-msbuild@v2
     - name: Configure cmake
       run: |
-        git submodule update --init --depth 1
         cmake -B build -DENABLE_WERROR=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows
     - name: Build ngtcp2
       run: |
@@ -570,6 +571,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        submodules: recursive
     - name: Make artifacts
       run: |
         ver='${{ github.ref_name }}'

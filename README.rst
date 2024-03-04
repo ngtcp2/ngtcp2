@@ -88,9 +88,8 @@ Build with wolfSSL
    $ make -j$(nproc)
    $ make install
    $ cd ..
-   $ git clone https://github.com/ngtcp2/nghttp3
+   $ git clone --recursive https://github.com/ngtcp2/nghttp3
    $ cd nghttp3
-   $ git submodule update --init
    $ autoreconf -i
    $ ./configure --prefix=$PWD/build --enable-lib-only
    $ make -j$(nproc) check
@@ -117,9 +116,8 @@ Build with BoringSSL
    $ cmake -B build -DCMAKE_POSITION_INDEPENDENT_CODE=ON
    $ make -j$(nproc) -C build
    $ cd ..
-   $ git clone https://github.com/ngtcp2/nghttp3
+   $ git clone --recursive https://github.com/ngtcp2/nghttp3
    $ cd nghttp3
-   $ git submodule update --init
    $ autoreconf -i
    $ ./configure --prefix=$PWD/build --enable-lib-only
    $ make -j$(nproc) check
@@ -144,9 +142,8 @@ Build with aws-lc
    $ cmake -B build -DDISABLE_GO=ON
    $ make -j$(nproc) -C build
    $ cd ..
-   $ git clone https://github.com/ngtcp2/nghttp3
+   $ git clone --recursive https://github.com/ngtcp2/nghttp3
    $ cd nghttp3
-   $ git submodule update --init
    $ autoreconf -i
    $ ./configure --prefix=$PWD/build --enable-lib-only
    $ make -j$(nproc) check
