@@ -81,6 +81,7 @@ Build with wolfSSL
 
    $ git clone --depth 1 -b v5.6.6-stable https://github.com/wolfSSL/wolfssl
    $ cd wolfssl
+   $ autoreconf -i
    $ # For wolfSSL < v5.6.6, append --enable-quic.
    $ ./configure --prefix=$PWD/build \
        --enable-all --enable-aesni --enable-harden --enable-keylog-export \
