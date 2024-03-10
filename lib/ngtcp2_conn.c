@@ -12303,12 +12303,9 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
     destlen -= (size_t)nwrite;
   }
 
-  if (conn->state != NGTCP2_CS_POST_HANDSHAKE) {
-    assert(res);
-
-    if (!conn->server || !conn->pktns.crypto.tx.ckm) {
-      return res;
-    }
+  if (conn->state != NGTCP2_CS_POST_HANDSHAKE &&
+      (!conn->server || !conn->pktns.crypto.tx.ckm)) {
+    return res;
   }
 
   assert(conn->pktns.crypto.tx.ckm);

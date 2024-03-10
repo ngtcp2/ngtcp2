@@ -9270,6 +9270,47 @@ void test_ngtcp2_conn_write_application_close(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* Server has all keys and has confirmed handshake, but not
+     transitioned to NGTCP2_CS_POST_HANDSHAKE. */
+  setup_handshake_server(&conn);
+
+  conn->dcid.current.bytes_recv = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
+
+  init_initial_crypto_ctx(&crypto_ctx);
+
+  ngtcp2_conn_set_initial_crypto_ctx(conn, &crypto_ctx);
+  ngtcp2_conn_install_initial_key(conn, &aead_ctx, null_iv, &hp_ctx, &aead_ctx,
+                                  null_iv, &hp_ctx, sizeof(null_iv));
+
+  init_crypto_ctx(&crypto_ctx);
+
+  ngtcp2_conn_set_crypto_ctx(conn, &crypto_ctx);
+  conn->negotiated_version = conn->client_chosen_version;
+  ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
+
+  ngtcp2_conn_tls_handshake_completed(conn);
+
+  ngtcp2_ccerr_set_application_error(&ccerr, app_err_code, NULL, 0);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, >, spktlen);
+
+  p = buf;
+
+  shdlen = ngtcp2_pkt_decode_hd_short(&hd, p, (size_t)spktlen,
+                                      conn->dcid.current.cid.datalen);
+
+  assert_ptrdiff(0, <, shdlen);
+  assert_uint8(NGTCP2_PKT_1RTT, ==, hd.type);
+
+  ngtcp2_conn_del(conn);
+
   /* Server has confirmed handshake */
   setup_default_server(&conn);
 
