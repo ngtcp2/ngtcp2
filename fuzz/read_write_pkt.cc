@@ -35,6 +35,7 @@ extern "C" {
 #endif
 
 #include "ngtcp2_conn.h"
+#include "ngtcp2_transport_params.h"
 
 #ifdef __cplusplus
 }
