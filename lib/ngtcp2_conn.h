@@ -971,6 +971,12 @@ int ngtcp2_conn_track_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
 void ngtcp2_conn_untrack_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
 
 /*
+ * ngtcp2_conn_check_retired_dcid_tracked returns nonzero if |seq| has
+ * already been tracked.
+ */
+int ngtcp2_conn_check_retired_dcid_tracked(ngtcp2_conn *conn, uint64_t seq);
+
+/*
  * ngtcp2_conn_server_negotiate_version negotiates QUIC version.  It
  * is compatible version negotiation.  It returns the negotiated QUIC
  * version.  This function must not be called by client.
