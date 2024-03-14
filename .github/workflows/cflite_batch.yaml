@@ -14,6 +14,13 @@ jobs:
         - undefined
         - memory
     steps:
+    - name: LLVM workaround
+      run: |
+        # https://github.com/actions/runner-images/issues/9491#issuecomment-1989718917
+        # Asan in llvm 14 provided in ubuntu 22.04 is incompatible with
+        # high-entropy ASLR in much newer kernels that GitHub runners are
+        # using leading to random crashes: https://reviews.llvm.org/D148280
+        sudo sysctl vm.mmap_rnd_bits=28
     - name: Build Fuzzers (${{ matrix.sanitizer }})
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
