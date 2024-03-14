@@ -116,5 +116,6 @@ munit_void_test_decl(test_ngtcp2_conn_new_failmalloc);
 munit_void_test_decl(test_ngtcp2_accept);
 munit_void_test_decl(test_ngtcp2_select_version);
 munit_void_test_decl(test_ngtcp2_pkt_write_connection_close);
+munit_void_test_decl(test_ngtcp2_ccerr_set_liberr);
 
 #endif /* NGTCP2_CONN_TEST_H */
