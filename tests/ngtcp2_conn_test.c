@@ -12763,13 +12763,11 @@ void test_ngtcp2_ccerr_set_liberr(void) {
 
   ngtcp2_ccerr_set_liberr(&ccerr, NGTCP2_ERR_IDLE_CLOSE, NULL, 0);
 
-  assert_enum(ngtcp2_ccerr_type, NGTCP2_CCERR_TYPE_IDLE_CLOSE, ==,
-              ccerr.type);
+  assert_enum(ngtcp2_ccerr_type, NGTCP2_CCERR_TYPE_IDLE_CLOSE, ==, ccerr.type);
 
   ngtcp2_ccerr_set_liberr(&ccerr, NGTCP2_ERR_DROP_CONN, NULL, 0);
 
-  assert_enum(ngtcp2_ccerr_type, NGTCP2_CCERR_TYPE_DROP_CONN, ==,
-              ccerr.type);
+  assert_enum(ngtcp2_ccerr_type, NGTCP2_CCERR_TYPE_DROP_CONN, ==, ccerr.type);
 
   ngtcp2_ccerr_set_liberr(&ccerr, NGTCP2_ERR_RETRY, NULL, 0);
 
