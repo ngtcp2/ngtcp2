@@ -12371,6 +12371,16 @@ void ngtcp2_ccerr_set_liberr(ngtcp2_ccerr *ccerr, int liberr,
                reasonlen);
 
     return;
+  case NGTCP2_ERR_DROP_CONN:
+    ccerr_init(ccerr, NGTCP2_CCERR_TYPE_DROP_CONN, NGTCP2_NO_ERROR, reason,
+               reasonlen);
+
+    return;
+  case NGTCP2_ERR_RETRY:
+    ccerr_init(ccerr, NGTCP2_CCERR_TYPE_RETRY, NGTCP2_NO_ERROR, reason,
+               reasonlen);
+
+    return;
   };
 
   ngtcp2_ccerr_set_transport_error(

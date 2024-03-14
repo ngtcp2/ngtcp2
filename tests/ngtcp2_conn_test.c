@@ -121,6 +121,7 @@ static const MunitTest tests[] = {
     munit_void_test(test_ngtcp2_accept),
     munit_void_test(test_ngtcp2_select_version),
     munit_void_test(test_ngtcp2_pkt_write_connection_close),
+    munit_void_test(test_ngtcp2_ccerr_set_liberr),
     munit_test_end(),
 };
 
@@ -12750,4 +12751,27 @@ void test_ngtcp2_pkt_write_connection_close(void) {
       null_encrypt, &aead, &aead_ctx, null_iv, null_hp_mask, &hp_mask, &hp_ctx);
 
   assert_ptrdiff(NGTCP2_ERR_NOBUF, ==, spktlen);
+}
+
+void test_ngtcp2_ccerr_set_liberr(void) {
+  ngtcp2_ccerr ccerr;
+
+  ngtcp2_ccerr_set_liberr(&ccerr, NGTCP2_ERR_RECV_VERSION_NEGOTIATION, NULL, 0);
+
+  assert_enum(ngtcp2_ccerr_type, NGTCP2_CCERR_TYPE_VERSION_NEGOTIATION, ==,
+              ccerr.type);
+
+  ngtcp2_ccerr_set_liberr(&ccerr, NGTCP2_ERR_IDLE_CLOSE, NULL, 0);
+
+  assert_enum(ngtcp2_ccerr_type, NGTCP2_CCERR_TYPE_IDLE_CLOSE, ==,
+              ccerr.type);
+
+  ngtcp2_ccerr_set_liberr(&ccerr, NGTCP2_ERR_DROP_CONN, NULL, 0);
+
+  assert_enum(ngtcp2_ccerr_type, NGTCP2_CCERR_TYPE_DROP_CONN, ==,
+              ccerr.type);
+
+  ngtcp2_ccerr_set_liberr(&ccerr, NGTCP2_ERR_RETRY, NULL, 0);
+
+  assert_enum(ngtcp2_ccerr_type, NGTCP2_CCERR_TYPE_RETRY, ==, ccerr.type);
 }

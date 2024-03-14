@@ -5213,7 +5213,19 @@ typedef enum ngtcp2_ccerr_type {
    * transport error, and it indicates that connection is closed
    * because of idle timeout.
    */
-  NGTCP2_CCERR_TYPE_IDLE_CLOSE
+  NGTCP2_CCERR_TYPE_IDLE_CLOSE,
+  /**
+   * :enum:`NGTCP2_CCERR_TYPE_DROP_CONN` is a special case of QUIC
+   * transport error, and it indicates that connection should be
+   * dropped without sending a CONNECTION_CLOSE frame.
+   */
+  NGTCP2_CCERR_TYPE_DROP_CONN,
+  /**
+   * :enum:`NGTCP2_CCERR_TYPE_RETRY` is a special case of QUIC
+   * transport error, and it indicates that RETRY packet should be
+   * sent to a client.
+   */
+  NGTCP2_CCERR_TYPE_RETRY
 } ngtcp2_ccerr_type;
 
 /**
@@ -5302,6 +5314,18 @@ NGTCP2_EXTERN void ngtcp2_ccerr_set_transport_error(ngtcp2_ccerr *ccerr,
  * <ngtcp2_ccerr.type>` is set to
  * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_IDLE_CLOSE`, and
  * :member:`ccerr->error_code <ngtcp2_ccerr.error_code>` to
+ * :macro:`NGTCP2_NO_ERROR`.
+ *
+ * If |liberr| is :macro:`NGTCP2_ERR_DROP_CONN`, :member:`ccerr->type
+ * <ngtcp2_ccerr.type>` is set to
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_DROP_CONN`, and
+ * :member:`ccerr->error_code <ngtcp2_ccerr.error_code>` to
+ * :macro:`NGTCP2_NO_ERROR`.
+ *
+ * If |liberr| is :macro:`NGTCP2_ERR_RETRY`, :member:`ccerr->type
+ * <ngtcp2_ccerr.type>` is set to
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_RETRY`, and
+ * :member:`ccerr->error_type <ngtcp2_ccerr.error_code>` to
  * :macro:`NGTCP2_NO_ERROR`.
  *
  * Otherwise, :member:`ccerr->type <ngtcp2_ccerr.type>` is set to
