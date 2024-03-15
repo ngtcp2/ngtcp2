@@ -40,7 +40,7 @@ RUN apt-get update && \
 
 FROM gcr.io/distroless/cc-debian12
 
-COPY --from=build /usr/local/bin/wsslclient /usr/local/bin/wsslserver /usr/local/bin/
-COPY --from=build /etc/mime.types /etc/
+COPY --from=build --link /usr/local/bin/wsslclient /usr/local/bin/wsslserver /usr/local/bin/
+COPY --from=build --link /etc/mime.types /etc/
 
 CMD ["/usr/local/bin/wsslclient"]
