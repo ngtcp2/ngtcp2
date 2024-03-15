@@ -42,6 +42,6 @@ RUN apt-get update && \
     apt-get -y autoremove --purge && \
     rm -rf /var/log/*
 
-COPY run_endpoint.sh .
+COPY --link run_endpoint.sh .
 RUN chmod +x run_endpoint.sh
 ENTRYPOINT [ "./run_endpoint.sh" ]
