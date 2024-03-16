@@ -23,6 +23,7 @@ RUN apt-get update && \
     ./configure \
         CC=clang-15 \
         CXX=clang++-15 \
+        LDFLAGS="-static-libgcc -static-libstdc++" \
         LIBTOOL_LDFLAGS="-static-libtool-libs" \
         LIBEV_LIBS="-l:libev.a" \
         JEMALLOC_LIBS="-l:libjemalloc.a -lm" \
@@ -38,7 +39,7 @@ RUN apt-get update && \
     apt-get -y autoremove --purge && \
     rm -rf /var/log/*
 
-FROM gcr.io/distroless/cc-debian12
+FROM gcr.io/distroless/base-nossl-debian12
 
 COPY --from=build --link /usr/local/bin/wsslclient /usr/local/bin/wsslserver /usr/local/bin/
 COPY --from=build --link /etc/mime.types /etc/
