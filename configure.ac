@@ -271,9 +271,11 @@ AM_CONDITIONAL([HAVE_GNUTLS], [ test "x${have_gnutls}" = "xyes" ])
 # BoringSSL (required for libngtcp2_crypto_boringssl)
 have_boringssl=no
 if test "x${request_boringssl}" != "xno"; then
-  save_CFLAGS="$CFLAGS"
+  AC_LANG_PUSH(C++)
+
+  save_CXXFLAGS="$CXXFLAGS"
   save_LIBS="$LIBS"
-  CFLAGS="$BORINGSSL_CFLAGS $CFLAGS"
+  CXXFLAGS="$BORINGSSL_CFLAGS $CXXFLAGS"
   LIBS="$BORINGSSL_LIBS $LIBS"
 
   AC_MSG_CHECKING([for SSL_set_quic_early_data_context])
@@ -286,8 +288,10 @@ if test "x${request_boringssl}" != "xno"; then
   [AC_MSG_RESULT([yes]); have_boringssl=yes],
   [AC_MSG_RESULT([no]); have_boringssl=no])
 
-  CFLAGS="$save_CFLAGS"
+  CXXFLAGS="$save_CXXFLAGS"
   LIBS="$save_LIBS"
+
+  AC_LANG_POP()
 fi
 
 if test "x${request_boringssl}" = "xyes" &&
