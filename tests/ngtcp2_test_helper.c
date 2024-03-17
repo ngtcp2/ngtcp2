@@ -137,7 +137,7 @@ size_t write_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
   ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_1RTT, dcid, NULL, pkt_num, 4,
                      NGTCP2_PROTO_VER_V1, 0);
 
-  ngtcp2_ppe_init(&ppe, out, outlen, &cc);
+  ngtcp2_ppe_init(&ppe, out, outlen, 0, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   assert(0 == rv);
 
@@ -194,7 +194,7 @@ static size_t write_long_header_pkt_generic(
   hd.token = token;
   hd.tokenlen = tokenlen;
 
-  ngtcp2_ppe_init(&ppe, out, outlen, &cc);
+  ngtcp2_ppe_init(&ppe, out, outlen, 0, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   assert(0 == rv);
   ngtcp2_put_uint32be(&out[1], version);
