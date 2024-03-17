@@ -10734,9 +10734,7 @@ void test_ngtcp2_conn_get_ccerr(void) {
   pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs,
                      ngtcp2_arraylen(frs), conn->pktns.crypto.rx.ckm);
 
-  fprintf(stderr, "start\n");
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
-  fprintf(stderr, "end\n");
 
   assert_int(NGTCP2_ERR_DRAINING, ==, rv);
 
