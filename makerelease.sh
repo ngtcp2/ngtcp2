@@ -8,7 +8,10 @@ git log --pretty=fuller --date=short refs/tags/$PREV_TAG..HEAD > ChangeLog
 
 autoreconf -i
 ./configure
-make dist-bzip2 dist-gzip dist-xz distclean
+make dist-bzip2
+make dist-gzip
+make dist-xz
+make distclean
 
 rm -f checksums.txt
 
