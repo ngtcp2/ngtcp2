@@ -958,22 +958,18 @@ int Handler::write_streams() {
   ngtcp2_vec vec;
   ngtcp2_path_storage ps, prev_ps;
   uint32_t prev_ecn = 0;
-  size_t pktcnt = 0;
   auto max_udp_payload_size = ngtcp2_conn_get_max_tx_udp_payload_size(conn_);
   auto path_max_udp_payload_size =
       ngtcp2_conn_get_path_max_tx_udp_payload_size(conn_);
-  auto max_pktcnt =
-      std::max(ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size,
-               static_cast<size_t>(1));
   uint8_t *bufpos = tx_.data.get();
+  auto bufleft =
+      std::max(ngtcp2_conn_get_send_quantum(conn_), path_max_udp_payload_size);
   ngtcp2_pkt_info pi;
   size_t gso_size = 0;
   auto ts = util::timestamp();
 
   ngtcp2_path_storage_zero(&ps);
   ngtcp2_path_storage_zero(&prev_ps);
-
-  max_pktcnt = std::min(max_pktcnt, static_cast<size_t>(config.max_gso_dgrams));
 
   for (;;) {
     int64_t stream_id = -1;
@@ -993,9 +989,11 @@ int Handler::write_streams() {
 
     ngtcp2_ssize ndatalen;
 
-    auto nwrite = ngtcp2_conn_writev_stream(conn_, &ps.path, &pi, bufpos,
-                                            max_udp_payload_size, &ndatalen,
-                                            flags, stream_id, &vec, vcnt, ts);
+    auto buflen = bufleft >= max_udp_payload_size ? max_udp_payload_size
+                                                  : path_max_udp_payload_size;
+    auto nwrite =
+        ngtcp2_conn_writev_stream(conn_, &ps.path, &pi, bufpos, buflen,
+                                  &ndatalen, flags, stream_id, &vec, vcnt, ts);
     if (nwrite < 0) {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
@@ -1049,9 +1047,12 @@ int Handler::write_streams() {
       return 0;
     }
 
-    bufpos += nwrite;
+    auto first_pkt = bufpos == tx_.data.get();
 
-    if (pktcnt == 0) {
+    bufpos += nwrite;
+    bufleft -= nwrite;
+
+    if (first_pkt) {
       ngtcp2_path_copy(&prev_ps.path, &ps.path);
       prev_ecn = pi.ecn;
       gso_size = nwrite;
@@ -1099,7 +1100,8 @@ int Handler::write_streams() {
       return 0;
     }
 
-    if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) < gso_size) {
+    if (bufleft < path_max_udp_payload_size ||
+        static_cast<size_t>(nwrite) < gso_size) {
       auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
       auto data = tx_.data.get();
       auto datalen = bufpos - data;
@@ -2493,7 +2495,6 @@ void config_set_default(Config &config) {
   config.max_dyn_length = 20_m;
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  config.max_gso_dgrams = 64;
   config.handshake_timeout = UINT64_MAX;
   config.ack_thresh = 2;
   config.initial_pkt_num = UINT32_MAX;
@@ -2629,11 +2630,6 @@ Options:
             << util::format_uint_iec(config.max_stream_window) << R"(
   --send-trailers
               Send trailer fields.
-  --max-gso-dgrams=<N>
-              Maximum  number of  UDP  datagrams that  are  sent in  a
-              single GSO sendmsg call.
-              Default: )"
-            << config.max_gso_dgrams << R"(
   --handshake-timeout=<DURATION>
               Set  the  QUIC handshake  timeout.   It  defaults to  no
               timeout.
@@ -2729,7 +2725,6 @@ int main(int argc, char **argv) {
         {"send-trailers", no_argument, &flag, 22},
         {"max-window", required_argument, &flag, 23},
         {"max-stream-window", required_argument, &flag, 24},
-        {"max-gso-dgrams", required_argument, &flag, 25},
         {"handshake-timeout", required_argument, &flag, 26},
         {"preferred-versions", required_argument, &flag, 27},
         {"available-versions", required_argument, &flag, 28},
@@ -2967,15 +2962,6 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         } else {
           config.max_stream_window = *n;
-        }
-        break;
-      case 25:
-        // --max-gso-dgrams
-        if (auto n = util::parse_uint(optarg); !n) {
-          std::cerr << "max-gso-dgrams: invalid argument" << std::endl;
-          exit(EXIT_FAILURE);
-        } else {
-          config.max_gso_dgrams = *n;
         }
         break;
       case 26:
