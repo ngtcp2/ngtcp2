@@ -4437,8 +4437,10 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * In that case, |*pdatalen| would be -1 if |pdatalen| is not
  * ``NULL``.
  *
- * If |flags| & :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` is nonzero, and
- * 0 length STREAM frame is successfully serialized, |*pdatalen| would
+ * Empty data is treated specially, and it is only accepted if no
+ * data, including the empty data, is submitted to a stream or
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` is set in |flags|.  If 0
+ * length STREAM frame is successfully serialized, |*pdatalen| would
  * be 0.
  *
  * The number of data encoded in STREAM frame is stored in |*pdatalen|

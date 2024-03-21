@@ -1349,13 +1349,14 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   assert_ptrdiff(NGTCP2_ERR_STREAM_DATA_BLOCKED, ==, spktlen);
 
-  /* We can write 0 length STREAM frame */
+  /* We cannot write 0 length STREAM frame after committing some
+     data. */
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
                                      &nwrite, NGTCP2_WRITE_STREAM_FLAG_NONE,
                                      stream_id, null_data, 0, 3);
 
-  assert_ptrdiff(0, <, spktlen);
-  assert_ptrdiff(0, ==, nwrite);
+  assert_ptrdiff(0, ==, spktlen);
+  assert_ptrdiff(-1, ==, nwrite);
   assert_uint64(2047, ==, strm->tx.offset);
 
   fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
@@ -5240,9 +5241,16 @@ void test_ngtcp2_conn_send_early_data(void) {
   assert_ptrdiff(sizeof(buf), ==, spktlen);
   assert_ptrdiff(0, ==, datalen);
 
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                      &datalen, NGTCP2_WRITE_STREAM_FLAG_FIN,
+                                      stream_id, NULL, 0, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_STREAM_SHUT_WR, ==, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+
   ngtcp2_conn_del(conn);
 
-  /* Can write 0 length STREAM frame */
+  /* Can write 0 length STREAM frame without FIN bit set */
   setup_early_client(&conn);
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
@@ -5262,6 +5270,15 @@ void test_ngtcp2_conn_send_early_data(void) {
                                       stream_id, NULL, 0, ++t);
 
   assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(0, ==, datalen);
+
+  /* 0 length data cannot be written more than once. */
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                      &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                      stream_id, NULL, 0, ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
 
   ngtcp2_conn_del(conn);
 
