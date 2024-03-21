@@ -3936,6 +3936,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     vmsg->stream.strm->tx.offset += ndatalen;
     conn->tx.offset += ndatalen;
+    vmsg->stream.strm->flags |= NGTCP2_STRM_FLAG_ANY_SENT;
 
     if (fin) {
       ngtcp2_strm_shutdown(vmsg->stream.strm, NGTCP2_STRM_FLAG_SHUT_WR);
@@ -11722,19 +11723,24 @@ ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
-    if ((uint64_t)datalen > NGTCP2_MAX_VARINT - strm->tx.offset ||
-        (uint64_t)datalen > NGTCP2_MAX_VARINT - conn->tx.offset) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
+    if (datalen == 0 && !(flags & NGTCP2_WRITE_STREAM_FLAG_FIN) &&
+        (strm->flags & NGTCP2_STRM_FLAG_ANY_SENT)) {
+      pvmsg = NULL;
+    } else {
+      if ((uint64_t)datalen > NGTCP2_MAX_VARINT - strm->tx.offset ||
+          (uint64_t)datalen > NGTCP2_MAX_VARINT - conn->tx.offset) {
+        return NGTCP2_ERR_INVALID_ARGUMENT;
+      }
+
+      vmsg.type = NGTCP2_VMSG_TYPE_STREAM;
+      vmsg.stream.strm = strm;
+      vmsg.stream.flags = flags;
+      vmsg.stream.data = datav;
+      vmsg.stream.datacnt = datavcnt;
+      vmsg.stream.pdatalen = pdatalen;
+
+      pvmsg = &vmsg;
     }
-
-    vmsg.type = NGTCP2_VMSG_TYPE_STREAM;
-    vmsg.stream.strm = strm;
-    vmsg.stream.flags = flags;
-    vmsg.stream.data = datav;
-    vmsg.stream.datacnt = datavcnt;
-    vmsg.stream.pdatalen = pdatalen;
-
-    pvmsg = &vmsg;
   } else {
     pvmsg = NULL;
   }
