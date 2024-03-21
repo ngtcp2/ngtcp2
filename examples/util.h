@@ -41,6 +41,8 @@
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
 
+#include "network.h"
+
 namespace ngtcp2 {
 
 namespace util {
@@ -153,6 +155,9 @@ std::string make_cid_key(const uint8_t *cid, size_t cidlen);
 
 // straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
 std::string straddr(const sockaddr *sa, socklen_t salen);
+
+// port returns port from |su|.
+uint16_t port(const sockaddr_union *su);
 
 // strccalgo stringifies |cc_algo|.
 std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
