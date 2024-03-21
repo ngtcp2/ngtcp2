@@ -1740,6 +1740,10 @@ int Server::on_read(Endpoint &ep) {
       return 0;
     }
 
+    if (util::port(&su) < 1024) {
+      continue;
+    }
+
     pi.ecn = msghdr_get_ecn(&msg, su.storage.ss_family);
     auto local_addr = msghdr_get_local_addr(&msg, su.storage.ss_family);
     if (!local_addr) {
