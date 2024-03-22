@@ -159,6 +159,10 @@ std::string straddr(const sockaddr *sa, socklen_t salen);
 // port returns port from |su|.
 uint16_t port(const sockaddr_union *su);
 
+// prohibited_port returns true if |port| is prohibited as a client
+// port.
+bool prohibited_port(uint16_t port);
+
 // strccalgo stringifies |cc_algo|.
 std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 
