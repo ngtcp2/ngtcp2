@@ -949,8 +949,9 @@ int Client::on_read(const Endpoint &ep) {
         if (!config.quiet) {
           std::cerr << "** Simulated incoming packet loss **" << std::endl;
         }
-      } else {
-        feed_data(ep, &su.sa, msg.msg_namelen, &pi, data, datalen);
+      } else if (feed_data(ep, &su.sa, msg.msg_namelen, &pi, data, datalen) !=
+                 0) {
+        return -1;
       }
 
       nread -= datalen;
