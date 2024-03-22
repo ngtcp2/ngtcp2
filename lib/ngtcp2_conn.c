@@ -3086,7 +3086,8 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
  * this endpoint sends.
  */
 static size_t conn_min_short_pktlen(ngtcp2_conn *conn) {
-  return conn->dcid.current.cid.datalen + NGTCP2_MIN_PKT_EXPANDLEN;
+  return ngtcp2_max(conn->dcid.current.cid.datalen, conn->oscid.datalen) +
+         NGTCP2_MIN_PKT_EXPANDLEN;
 }
 
 /*
