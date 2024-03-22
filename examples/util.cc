@@ -387,6 +387,19 @@ uint16_t port(const sockaddr_union *su) {
   }
 }
 
+bool prohibited_port(uint16_t port) {
+  switch (port) {
+  case 1900:
+  case 5353:
+  case 11211:
+  case 20800:
+  case 27015:
+    return true;
+  default:
+    return port < 1024;
+  }
+}
+
 std::string_view strccalgo(ngtcp2_cc_algo cc_algo) {
   switch (cc_algo) {
   case NGTCP2_CC_ALGO_RENO:

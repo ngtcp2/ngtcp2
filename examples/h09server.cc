@@ -1740,7 +1740,9 @@ int Server::on_read(Endpoint &ep) {
       return 0;
     }
 
-    if (util::port(&su) < 1024) {
+    if (util::prohibited_port(util::port(&su))) {
+      ++pktcnt;
+
       continue;
     }
 
