@@ -66,6 +66,10 @@ constexpr size_t max_preferred_versionslen = 4;
 } // namespace
 
 namespace {
+constexpr size_t NGTCP2_STATELESS_RESET_BURST = 100;
+} // namespace
+
+namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
@@ -789,9 +793,9 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
 
   params.original_dcid_present = 1;
 
-  if (util::generate_secure_random(params.stateless_reset_token,
-                                   sizeof(params.stateless_reset_token)) != 0) {
-    std::cerr << "Could not generate stateless reset token" << std::endl;
+  if (ngtcp2_crypto_generate_stateless_reset_token(
+          params.stateless_reset_token, config.static_secret.data(),
+          config.static_secret.size(), &scid_) != 0) {
     return -1;
   }
 
@@ -1474,8 +1478,20 @@ void siginthandler(struct ev_loop *loop, ev_signal *watcher, int revents) {
 } // namespace
 
 Server::Server(struct ev_loop *loop, TLSServerContext &tls_ctx)
-    : loop_(loop), tls_ctx_(tls_ctx) {
+    : loop_(loop),
+      tls_ctx_(tls_ctx),
+      stateless_reset_bucket_(NGTCP2_STATELESS_RESET_BURST) {
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
+
+  ev_timer_init(
+      &stateless_reset_regen_timer_,
+      [](struct ev_loop *loop, ev_timer *w, int revents) {
+        auto server = static_cast<Server *>(w->data);
+
+        server->on_stateless_reset_regen();
+      },
+      0., 1.);
+  stateless_reset_regen_timer_.data = this;
 }
 
 Server::~Server() {
@@ -1490,6 +1506,7 @@ void Server::disconnect() {
     ev_io_stop(loop_, &ep.rev);
   }
 
+  ev_timer_stop(loop_, &stateless_reset_regen_timer_);
   ev_signal_stop(loop_, &sigintev_);
 
   while (!handlers_.empty()) {
@@ -1740,6 +1757,13 @@ int Server::on_read(Endpoint &ep) {
       return 0;
     }
 
+    // Packets less than 21 bytes never be a valid QUIC packet.
+    if (nread < 21) {
+      ++pktcnt;
+
+      continue;
+    }
+
     if (util::prohibited_port(util::port(&su))) {
       ++pktcnt;
 
@@ -1779,6 +1803,11 @@ int Server::on_read(Endpoint &ep) {
                   << std::dec << " " << datalen << " bytes" << std::endl;
       }
 
+      // Packets less than 21 bytes never be a valid QUIC packet.
+      if (datalen < 21) {
+        break;
+      }
+
       if (debug::packet_lost(config.rx_loss_prob)) {
         if (!config.quiet) {
           std::cerr << "** Simulated incoming packet loss **" << std::endl;
@@ -1803,10 +1832,6 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
                       const sockaddr *sa, socklen_t salen,
                       const ngtcp2_pkt_info *pi, const uint8_t *data,
                       size_t datalen) {
-  if (datalen == 0) {
-    return;
-  }
-
   ngtcp2_version_cid vc;
 
   switch (auto rv = ngtcp2_pkt_decode_version_cid(&vc, data, datalen,
@@ -1835,6 +1860,12 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
         std::cerr << "Unexpected packet received: length=" << datalen
                   << std::endl;
       }
+
+      if (!(data[0] & 0x80) && datalen >= NGTCP2_SV_SCIDLEN + 21) {
+        send_stateless_reset(datalen, vc.dcid, vc.dcidlen, ep, local_addr, sa,
+                             salen);
+      }
+
       return;
     }
 
@@ -2136,6 +2167,82 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
   return 0;
 }
 
+int Server::send_stateless_reset(size_t pktlen, const uint8_t *dcid,
+                                 size_t dcidlen, Endpoint &ep,
+                                 const Address &local_addr, const sockaddr *sa,
+                                 socklen_t salen) {
+  if (stateless_reset_bucket_ == 0) {
+    return 0;
+  }
+
+  --stateless_reset_bucket_;
+
+  if (!ev_is_active(&stateless_reset_regen_timer_)) {
+    ev_timer_again(loop_, &stateless_reset_regen_timer_);
+  }
+
+  ngtcp2_cid cid;
+
+  ngtcp2_cid_init(&cid, dcid, dcidlen);
+
+  std::array<uint8_t, NGTCP2_STATELESS_RESET_TOKENLEN> token;
+
+  if (ngtcp2_crypto_generate_stateless_reset_token(
+          token.data(), config.static_secret.data(),
+          config.static_secret.size(), &cid) != 0) {
+    return -1;
+  }
+
+  // SCID + minimum expansion - NGTCP2_STATELESS_RESET_TOKENLEN
+  constexpr size_t max_rand_byteslen =
+      NGTCP2_SV_SCIDLEN + 22 - NGTCP2_STATELESS_RESET_TOKENLEN;
+
+  size_t rand_byteslen;
+
+  if (pktlen <= 43) {
+    // As per
+    // https://datatracker.ietf.org/doc/html/rfc9000#section-10.3
+    rand_byteslen = pktlen - NGTCP2_STATELESS_RESET_TOKENLEN - 1;
+  } else {
+    rand_byteslen = max_rand_byteslen;
+  }
+
+  std::array<uint8_t, max_rand_byteslen> rand_bytes;
+
+  if (util::generate_secure_random(rand_bytes.data(), rand_byteslen) != 0) {
+    return -1;
+  }
+
+  Buffer buf{NGTCP2_MAX_UDP_PAYLOAD_SIZE};
+
+  auto nwrite = ngtcp2_pkt_write_stateless_reset(
+      buf.wpos(), buf.left(), token.data(), rand_bytes.data(), rand_byteslen);
+  if (nwrite < 0) {
+    std::cerr << "ngtcp2_pkt_write_stateless_reset: " << ngtcp2_strerror(nwrite)
+              << std::endl;
+
+    return -1;
+  }
+
+  buf.push(nwrite);
+
+  ngtcp2_addr laddr{
+      const_cast<sockaddr *>(&local_addr.su.sa),
+      local_addr.len,
+  };
+  ngtcp2_addr raddr{
+      const_cast<sockaddr *>(sa),
+      salen,
+  };
+
+  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.rpos(), buf.size()) !=
+      NETWORK_ERR_OK) {
+    return -1;
+  }
+
+  return 0;
+}
+
 int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                                const sockaddr *sa, socklen_t salen) {
   std::array<char, NI_MAXHOST> host;
@@ -2406,6 +2513,14 @@ void Server::remove(const Handler *h) {
   }
 
   delete h;
+}
+
+void Server::on_stateless_reset_regen() {
+  assert(stateless_reset_bucket_ < NGTCP2_STATELESS_RESET_BURST);
+
+  if (++stateless_reset_bucket_ == NGTCP2_STATELESS_RESET_BURST) {
+    ev_timer_stop(loop_, &stateless_reset_regen_timer_);
+  }
 }
 
 namespace {
