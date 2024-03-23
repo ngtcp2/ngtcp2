@@ -230,6 +230,9 @@ public:
   int send_stateless_connection_close(const ngtcp2_pkt_hd *chd, Endpoint &ep,
                                       const Address &local_addr,
                                       const sockaddr *sa, socklen_t salen);
+  int send_stateless_reset(size_t pktlen, const uint8_t *dcid, size_t dcidlen,
+                           Endpoint &ep, const Address &local_addr,
+                           const sockaddr *sa, socklen_t salen);
   int verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                          const sockaddr *sa, socklen_t salen);
   int verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
@@ -247,12 +250,16 @@ public:
   void associate_cid(const ngtcp2_cid *cid, Handler *h);
   void dissociate_cid(const ngtcp2_cid *cid);
 
+  void on_stateless_reset_regen();
+
 private:
   std::unordered_map<std::string, Handler *> handlers_;
   struct ev_loop *loop_;
   std::vector<Endpoint> endpoints_;
   TLSServerContext &tls_ctx_;
   ev_signal sigintev_;
+  ev_timer stateless_reset_regen_timer_;
+  size_t stateless_reset_bucket_;
 };
 
 #endif // SERVER_H
