@@ -8,7 +8,7 @@ RUN apt-get update && \
         pkg-config libev-dev libjemalloc-dev \
         libev4 libjemalloc2 ca-certificates mime-support \
         llvm-12 libasan5 libubsan1 && \
-    git clone --depth 1 -b v5.6.6-stable https://github.com/wolfSSL/wolfssl && \
+    git clone --depth 1 -b v5.7.0-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
     ./configure --enable-all --enable-aesni --enable-harden \
         --enable-keylog-export --disable-ech && \
