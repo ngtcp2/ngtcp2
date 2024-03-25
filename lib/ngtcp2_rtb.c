@@ -236,7 +236,9 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
     switch (frc->fr.type) {
     case NGTCP2_FRAME_STREAM:
       strm = ngtcp2_conn_find_stream(conn, fr->stream.stream_id);
-      if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM)) {
+      if (strm == NULL ||
+          ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) &&
+           strm->tx.reset_stream_at <= ngtcp2_strm_get_acked_offset(strm))) {
         continue;
       }
 
@@ -671,6 +673,7 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 
       break;
     case NGTCP2_FRAME_RESET_STREAM:
+    case NGTCP2_FRAME_RESET_STREAM_AT:
       strm = ngtcp2_conn_find_stream(conn, frc->fr.reset_stream.stream_id);
       if (strm == NULL) {
         break;
