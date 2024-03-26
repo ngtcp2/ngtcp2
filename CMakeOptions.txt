@@ -13,5 +13,6 @@ option(ENABLE_OPENSSL   "Enable OpenSSL crypto backend (required for examples)" 
 option(ENABLE_BORINGSSL "Enable BoringSSL crypto backend" OFF)
 option(ENABLE_PICOTLS "Enable Picotls crypto backend" OFF)
 option(ENABLE_WOLFSSL   "Enable wolfSSL crypto backend" OFF)
+cmake_dependent_option(BUILD_TESTING "Enable tests" ON "ENABLE_STATIC_LIB" OFF)
 
 # vim: ft=cmake:
