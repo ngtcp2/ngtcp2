@@ -468,14 +468,17 @@ jobs:
             echo "# $client - $server"
             ./examples/$server localhost 4433 cert/server.key cert/server.crt > sv.log 2>&1 &
             SVPID="$!"
-            ./examples/$client localhost 4433 https://localhost/ --exit-on-first-stream-close
+
+            echo "::group::$client"
+            ./examples/$client localhost 4433 https://localhost/ --exit-on-first-stream-close 2>&1
+            echo "::endgroup::"
+
+            echo "::group::$server"
+            cat sv.log
+            echo "::endgroup::"
+
             kill -INT "$SVPID"
-            if wait "$SVPID"; then
-              cat sv.log
-            else
-              cat sv.log
-              exit 1
-            fi
+            wait "$SVPID"
           done
         done
 
