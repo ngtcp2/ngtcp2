@@ -2480,8 +2480,8 @@ int Server::on_read(Endpoint &ep) {
       return 0;
     }
 
-    // Packets less than 21 bytes never be a valid QUIC packet.
-    if (nread < 21) {
+    // Packets less than 22 bytes never be a valid QUIC packet.
+    if (nread < 22) {
       ++pktcnt;
 
       continue;
@@ -2526,8 +2526,8 @@ int Server::on_read(Endpoint &ep) {
                   << std::dec << " " << datalen << " bytes" << std::endl;
       }
 
-      // Packets less than 21 bytes never be a valid QUIC packet.
-      if (datalen < 21) {
+      // Packets less than 22 bytes never be a valid QUIC packet.
+      if (datalen < 22) {
         break;
       }
 
@@ -2584,7 +2584,7 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
                   << std::endl;
       }
 
-      if (!(data[0] & 0x80) && datalen >= NGTCP2_SV_SCIDLEN + 21) {
+      if (!(data[0] & 0x80) && datalen >= NGTCP2_SV_SCIDLEN + 22) {
         send_stateless_reset(datalen, vc.dcid, vc.dcidlen, ep, local_addr, sa,
                              salen);
       }
