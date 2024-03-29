@@ -98,10 +98,10 @@ Build with wolfSSL
    $ cd ..
    $ git clone https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
+   $ git submodule update --init
    $ autoreconf -i
    $ # For Mac users who have installed libev with MacPorts, append
-   $ # ',-L/opt/local/lib' to LDFLAGS, and also pass
-   $ # CPPFLAGS="-I/opt/local/include" to ./configure.
+   $ # LIBEV_CFLAGS="-I/opt/local/include" LIBEV_LIBS="-L/opt/local/lib -lev"
    $ ./configure PKG_CONFIG_PATH=$PWD/../wolfssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig \
        --with-wolfssl
    $ make -j$(nproc) check
@@ -126,7 +126,10 @@ Build with BoringSSL
    $ cd ..
    $ git clone https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
+   $ git submodule update --init
    $ autoreconf -i
+   $ # For Mac users who have installed libev with MacPorts, append
+   $ # LIBEV_CFLAGS="-I/opt/local/include" LIBEV_LIBS="-L/opt/local/lib -lev"
    $ ./configure PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig \
        BORINGSSL_LIBS="-L$PWD/../boringssl/build/ssl -lssl -L$PWD/../boringssl/build/crypto -lcrypto" \
        BORINGSSL_CFLAGS="-I$PWD/../boringssl/include" \
@@ -152,7 +155,10 @@ Build with aws-lc
    $ cd ..
    $ git clone https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
+   $ git submodule update --init
    $ autoreconf -i
+   $ # For Mac users who have installed libev with MacPorts, append
+   $ # LIBEV_CFLAGS="-I/opt/local/include" LIBEV_LIBS="-L/opt/local/lib -lev"
    $ ./configure PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig \
        BORINGSSL_CFLAGS="-I$PWD/../aws-lc/include" \
        BORINGSSL_LIBS="-L$PWD/../aws-lc/build/ssl -lssl -L$PWD/../aws-lc/build/crypto -lcrypto" \
