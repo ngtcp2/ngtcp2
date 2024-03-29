@@ -83,6 +83,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 include(GNUInstallDirs)
+include(CMakeDependentOption)
 
 include(CMakeOptions.txt)
 
@@ -334,6 +335,10 @@ if(APPLE)
   add_definitions(-D__APPLE_USE_RFC_3542)
 endif()
 
+if(ENABLE_SHARED_LIB AND ENABLE_STATIC_LIB AND MSVC AND NOT STATIC_LIB_SUFFIX)
+  set(STATIC_LIB_SUFFIX "_static")
+endif()
+
 include_directories(
   "${CMAKE_CURRENT_BINARY_DIR}" # for config.h
 )
@@ -343,7 +348,9 @@ set(PKGDATADIR "${CMAKE_INSTALL_FULL_DATADIR}/${CMAKE_PROJECT_NAME}")
 install(FILES README.rst DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 
 add_subdirectory(lib)
-add_subdirectory(tests)
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+endif()
 add_subdirectory(crypto)
 add_subdirectory(third-party)
 add_subdirectory(examples)
