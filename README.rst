@@ -96,9 +96,8 @@ Build with wolfSSL
    $ make -j$(nproc) check
    $ make install
    $ cd ..
-   $ git clone https://github.com/ngtcp2/ngtcp2
+   $ git clone --recursive https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
-   $ git submodule update --init
    $ autoreconf -i
    $ # For Mac users who have installed libev with MacPorts, append
    $ # LIBEV_CFLAGS="-I/opt/local/include" LIBEV_LIBS="-L/opt/local/lib -lev"
@@ -124,9 +123,8 @@ Build with BoringSSL
    $ make -j$(nproc) check
    $ make install
    $ cd ..
-   $ git clone https://github.com/ngtcp2/ngtcp2
+   $ git clone --recursive  https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
-   $ git submodule update --init
    $ autoreconf -i
    $ # For Mac users who have installed libev with MacPorts, append
    $ # LIBEV_CFLAGS="-I/opt/local/include" LIBEV_LIBS="-L/opt/local/lib -lev"
@@ -153,9 +151,8 @@ Build with aws-lc
    $ make -j$(nproc) check
    $ make install
    $ cd ..
-   $ git clone https://github.com/ngtcp2/ngtcp2
+   $ git clone --recursive  https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
-   $ git submodule update --init
    $ autoreconf -i
    $ # For Mac users who have installed libev with MacPorts, append
    $ # LIBEV_CFLAGS="-I/opt/local/include" LIBEV_LIBS="-L/opt/local/lib -lev"
