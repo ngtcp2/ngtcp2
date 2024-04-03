@@ -7,7 +7,7 @@ permissions: read-all
 env:
   OPENSSL1_VERSION: 1_1_1w+quic
   OPENSSL3_VERSION: 3.1.5+quic
-  BORINGSSL_VERSION: fae0964b3d44e94ca2a2d21f86e61dabe683d130
+  BORINGSSL_VERSION: 077d4d2b1a768028603ae1b26287224d7f985d1f
   AWSLC_VERSION: v1.23.0
   PICOTLS_VERSION: 703553c94048ba22987e8529590f4c060c0407f8
   WOLFSSL_VERSION: v5.7.0-stable
@@ -45,7 +45,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-12]
+        os: [ubuntu-22.04, macos-13, macos-14]
 
     runs-on: ${{ matrix.os }}
 
@@ -56,13 +56,13 @@ jobs:
       uses: actions/cache@v4
       with:
         path: openssl1/build
-        key: ${{ runner.os }}-openssl-${{ env.OPENSSL1_VERSION }}
+        key: ${{ matrix.os }}-openssl-${{ env.OPENSSL1_VERSION }}
     - name: Restore OpenSSL v3.x cache
       id: cache-openssl3
       uses: actions/cache@v4
       with:
         path: openssl3/build
-        key: ${{ runner.os }}-openssl-${{ env.OPENSSL3_VERSION }}
+        key: ${{ matrix.os }}-openssl-${{ env.OPENSSL3_VERSION }}
     - name: Restore BoringSSL cache
       id: cache-boringssl
       uses: actions/cache@v4
@@ -71,7 +71,7 @@ jobs:
           boringssl/build/crypto/libcrypto.a
           boringssl/build/ssl/libssl.a
           boringssl/include
-        key: ${{ runner.os }}-boringssl-${{ env.BORINGSSL_VERSION }}
+        key: ${{ matrix.os }}-boringssl-${{ env.BORINGSSL_VERSION }}
     - name: Restore aws-lc cache
       id: cache-awslc
       uses: actions/cache@v4
@@ -80,7 +80,7 @@ jobs:
           aws-lc/build/crypto/libcrypto.a
           aws-lc/build/ssl/libssl.a
           aws-lc/include
-        key: ${{ runner.os }}-awslc-${{ env.AWSLC_VERSION }}
+        key: ${{ matrix.os }}-awslc-${{ env.AWSLC_VERSION }}
     - name: Restore Picotls + OpenSSL v1.1.1 cache
       id: cache-picotls-openssl1
       uses: actions/cache@v4
@@ -89,7 +89,7 @@ jobs:
           picotls-openssl1/build/libpicotls-core.a
           picotls-openssl1/build/libpicotls-openssl.a
           picotls-openssl1/include
-        key: ${{ runner.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL1_VERSION }}
+        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL1_VERSION }}
     - name: Restore Picotls + OpenSSL v3.x cache
       id: cache-picotls-openssl3
       uses: actions/cache@v4
@@ -98,19 +98,19 @@ jobs:
           picotls-openssl3/build/libpicotls-core.a
           picotls-openssl3/build/libpicotls-openssl.a
           picotls-openssl3/include
-        key: ${{ runner.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
+        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
     - name: Restore wolfSSL cache
       id: cache-wolfssl
       uses: actions/cache@v4
       with:
         path: wolfssl/build
-        key: ${{ runner.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
+        key: ${{ matrix.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
     - name: Restore nghttp3 cache
       id: cache-nghttp3
       uses: actions/cache@v4
       with:
         path: nghttp3/build
-        key: ${{ runner.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-version }}
+        key: ${{ matrix.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-version }}
     - id: settings
       if: |
         steps.cache-openssl1.outputs.cache-hit != 'true' ||
@@ -179,6 +179,11 @@ jobs:
     - name: Build wolfSSL
       if: steps.cache-wolfssl.outputs.cache-hit != 'true'
       run: |
+        if [ "${{ matrix.os }}" = "macos-14" ]; then
+          export EXTRA_CONFIGURE_FLAGS="--enable-armasm"
+        else
+          export EXTRA_CONFIGURE_FLAGS="--enable-aesni"
+        fi
         ./ci/build_wolfssl.sh
     - name: Build nghttp3
       if: steps.cache-nghttp3.outputs.cache-hit != 'true'
@@ -193,13 +198,15 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-12]
+        os: [ubuntu-22.04, macos-13, macos-14]
         compiler: [gcc, clang]
         buildtool: [autotools, distcheck, cmake]
         tls: [tls-reg, tls-alt]
         sockaddr: [native-sockaddr, generic-sockaddr]
         exclude:
-        - os: macos-12
+        - os: macos-13
+          buildtool: distcheck
+        - os: macos-14
           buildtool: distcheck
         - compiler: gcc
           buildtool: distcheck
@@ -213,9 +220,13 @@ jobs:
           sockaddr: generic-sockaddr
         - buildtool: cmake
           sockaddr: generic-sockaddr
-        - os: macos-12
+        - os: macos-13
           compiler: gcc
-        - os: macos-12
+        - os: macos-13
+          tls: tls-alt
+        - os: macos-14
+          compiler: gcc
+        - os: macos-14
           tls: tls-alt
 
     runs-on: ${{ matrix.os }}
@@ -280,14 +291,14 @@ jobs:
       if: matrix.tls == 'tls-reg'
       with:
         path: openssl1/build
-        key: ${{ runner.os }}-openssl-${{ env.OPENSSL1_VERSION }}
+        key: ${{ matrix.os }}-openssl-${{ env.OPENSSL1_VERSION }}
         fail-on-cache-miss: true
     - name: Restore OpenSSL v3.x cache
       uses: actions/cache/restore@v4
       if: matrix.tls == 'tls-alt'
       with:
         path: openssl3/build
-        key: ${{ runner.os }}-openssl-${{ env.OPENSSL3_VERSION }}
+        key: ${{ matrix.os }}-openssl-${{ env.OPENSSL3_VERSION }}
         fail-on-cache-miss: true
     - name: Restore BoringSSL cache
       uses: actions/cache/restore@v4
@@ -297,7 +308,7 @@ jobs:
           boringssl/build/crypto/libcrypto.a
           boringssl/build/ssl/libssl.a
           boringssl/include
-        key: ${{ runner.os }}-boringssl-${{ env.BORINGSSL_VERSION }}
+        key: ${{ matrix.os }}-boringssl-${{ env.BORINGSSL_VERSION }}
         fail-on-cache-miss: true
     - name: Restore aws-lc cache
       uses: actions/cache/restore@v4
@@ -307,7 +318,7 @@ jobs:
           aws-lc/build/crypto/libcrypto.a
           aws-lc/build/ssl/libssl.a
           aws-lc/include
-        key: ${{ runner.os }}-awslc-${{ env.AWSLC_VERSION }}
+        key: ${{ matrix.os }}-awslc-${{ env.AWSLC_VERSION }}
         fail-on-cache-miss: true
     - name: Restore Picotls + OpenSSL v1.1.1 cache
       uses: actions/cache/restore@v4
@@ -317,7 +328,7 @@ jobs:
           picotls-openssl1/build/libpicotls-core.a
           picotls-openssl1/build/libpicotls-openssl.a
           picotls-openssl1/include
-        key: ${{ runner.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL1_VERSION }}
+        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL1_VERSION }}
         fail-on-cache-miss: true
     - name: Restore Picotls + OpenSSL v3.x cache
       uses: actions/cache/restore@v4
@@ -327,19 +338,19 @@ jobs:
           picotls-openssl3/build/libpicotls-core.a
           picotls-openssl3/build/libpicotls-openssl.a
           picotls-openssl3/include
-        key: ${{ runner.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
+        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
         fail-on-cache-miss: true
     - name: Restore wolfSSL cache
       uses: actions/cache/restore@v4
       with:
         path: wolfssl/build
-        key: ${{ runner.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
+        key: ${{ matrix.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
         fail-on-cache-miss: true
     - name: Restore nghttp3 cache
       uses: actions/cache/restore@v4
       with:
         path: nghttp3/build
-        key: ${{ runner.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-version }}
+        key: ${{ matrix.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-version }}
         fail-on-cache-miss: true
     - name: Setup environment variables
       run: |
@@ -383,6 +394,14 @@ jobs:
         echo 'BORINGSSL_CFLAGS='"$BORINGSSL_CFLAGS" >> $GITHUB_ENV
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
         echo 'BORINGSSL_INCLUDE_DIR='"$BORINGSSL_INCLUDE_DIR" >> $GITHUB_ENV
+    - name: Setup libev environment variables
+      if: matrix.os == 'macos-14'
+      run: |
+        LIBEV_CFLAGS="-I/opt/homebrew/Cellar/libev/4.33/include"
+        LIBEV_LIBS="-L/opt/homebrew/Cellar/libev/4.33/lib -lev"
+
+        echo 'LIBEV_CFLAGS='"$LIBEV_CFLAGS" >> $GITHUB_ENV
+        echo 'LIBEV_LIBS='"$LIBEV_LIBS" >> $GITHUB_ENV
     - name: Enable ASAN
       if: runner.os == 'Linux'
       run: |
