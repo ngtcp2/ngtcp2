@@ -138,7 +138,7 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
       return 0;
     }
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-    std::array<OSSL_PARAM, 3> params{
+    auto params = std::to_array({
         OSSL_PARAM_construct_octet_string(
             OSSL_MAC_PARAM_KEY, const_cast<uint8_t *>(static_hmac_key.data()),
             static_hmac_key.size()),
@@ -146,7 +146,7 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
             OSSL_MAC_PARAM_DIGEST,
             const_cast<char *>(EVP_MD_get0_name(ticket_hmac)), 0),
         OSSL_PARAM_construct_end(),
-    };
+    });
     if (!EVP_MAC_CTX_set_params(hctx, params.data())) {
       /* TODO Which value should we return on error? */
       return 0;
@@ -170,7 +170,7 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
     return 0;
   }
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-  std::array<OSSL_PARAM, 3> params{
+  auto params = std::to_array({
       OSSL_PARAM_construct_octet_string(
           OSSL_MAC_PARAM_KEY, const_cast<uint8_t *>(static_hmac_key.data()),
           static_hmac_key.size()),
@@ -178,7 +178,7 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
           OSSL_MAC_PARAM_DIGEST,
           const_cast<char *>(EVP_MD_get0_name(ticket_hmac)), 0),
       OSSL_PARAM_construct_end(),
-  };
+  });
   if (!EVP_MAC_CTX_set_params(hctx, params.data())) {
     /* TODO Which value should we return on error? */
     return 0;

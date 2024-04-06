@@ -332,9 +332,9 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
     if (config.send_trailers) {
       *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;
       auto stream_id_str = util::format_uint(stream_id);
-      std::array<nghttp3_nv, 1> trailers{
+      auto trailers = std::to_array({
           util::make_nv_nc("x-ngtcp2-stream-id"sv, stream_id_str),
-      };
+      });
 
       if (auto rv = nghttp3_conn_submit_trailers(
               conn, stream_id, trailers.data(), trailers.size());
@@ -395,9 +395,9 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
 
   if (config.send_trailers) {
     auto stream_id_str = util::format_uint(stream_id);
-    std::array<nghttp3_nv, 1> trailers{
+    auto trailers = std::to_array({
         util::make_nv_nc("x-ngtcp2-stream-id"sv, stream_id_str),
-    };
+    });
 
     if (auto rv = nghttp3_conn_submit_trailers(
             httpconn, stream_id, trailers.data(), trailers.size());
@@ -543,9 +543,9 @@ int Stream::start_response(nghttp3_conn *httpconn) {
 
   if (config.send_trailers && dyn_len == -1) {
     auto stream_id_str = util::format_uint(stream_id);
-    std::array<nghttp3_nv, 1> trailers{
+    auto trailers = std::to_array({
         util::make_nv_nc("x-ngtcp2-stream-id"sv, stream_id_str),
-    };
+    });
 
     if (auto rv = nghttp3_conn_submit_trailers(
             httpconn, stream_id, trailers.data(), trailers.size());
