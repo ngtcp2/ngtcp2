@@ -53,21 +53,21 @@ TLSClientSession::~TLSClientSession() {
 }
 
 namespace {
-auto negotiated_protocols_h3 = std::array<ptls_iovec_t, 1>{{
+auto negotiated_protocols_h3 = std::to_array<ptls_iovec_t>({
     {
         .base = const_cast<uint8_t *>(&H3_ALPN_V1[1]),
         .len = H3_ALPN_V1[0],
     },
-}};
+});
 } // namespace
 
 namespace {
-auto negotiated_protocols_hq = std::array<ptls_iovec_t, 1>{{
+auto negotiated_protocols_hq = std::to_array<ptls_iovec_t>({
     {
         .base = const_cast<uint8_t *>(&HQ_ALPN_V1[1]),
         .len = HQ_ALPN_V1[0],
     },
-}};
+});
 } // namespace
 
 int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,

@@ -1627,10 +1627,10 @@ int Client::submit_http_request(Stream *stream) {
       stream->reqbuf.begin + stream->rawreqbuf.size();
 
   if (!config.quiet) {
-    auto nva = std::array<nghttp3_nv, 2>{
+    auto nva = std::to_array({
         util::make_nv_nn(":method", config.http_method),
         util::make_nv_nn(":path", req.path),
-    };
+    });
     debug::print_http_request_headers(stream->stream_id, nva.data(),
                                       nva.size());
   }
