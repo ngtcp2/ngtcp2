@@ -35,6 +35,7 @@
 #include <deque>
 #include <string_view>
 #include <memory>
+#include <span>
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -109,26 +110,26 @@ public:
 
   int init(const Endpoint &ep, const Address &local_addr, const sockaddr *sa,
            socklen_t salen, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-           const ngtcp2_cid *ocid, const uint8_t *token, size_t tokenlen,
+           const ngtcp2_cid *ocid, std::span<const uint8_t> token,
            ngtcp2_token_type token_type, uint32_t version,
            TLSServerContext &tls_ctx);
 
   int on_read(const Endpoint &ep, const Address &local_addr, const sockaddr *sa,
-              socklen_t salen, const ngtcp2_pkt_info *pi, const uint8_t *data,
-              size_t datalen);
+              socklen_t salen, const ngtcp2_pkt_info *pi,
+              std::span<const uint8_t> data);
   int on_write();
   int write_streams();
   int feed_data(const Endpoint &ep, const Address &local_addr,
                 const sockaddr *sa, socklen_t salen, const ngtcp2_pkt_info *pi,
-                const uint8_t *data, size_t datalen);
+                std::span<const uint8_t> data);
   void update_timer();
   int handle_expiry();
   void signal_write();
   int handshake_completed();
 
   Server *server() const;
-  int recv_stream_data(uint32_t flags, int64_t stream_id, const uint8_t *data,
-                       size_t datalen);
+  int recv_stream_data(uint32_t flags, int64_t stream_id,
+                       std::span<const uint8_t> data);
   int acked_stream_data_offset(int64_t stream_id, uint64_t datalen);
   uint32_t version() const;
   void on_stream_open(int64_t stream_id);
@@ -167,7 +168,7 @@ public:
 
   void on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
                        const ngtcp2_addr &remote_addr, unsigned int ecn,
-                       const uint8_t *data, size_t datalen, size_t gso_size);
+                       std::span<const uint8_t> data, size_t gso_size);
   void start_wev_endpoint(const Endpoint &ep);
   int send_blocked_packet();
 
@@ -198,8 +199,7 @@ private:
       Address local_addr;
       Address remote_addr;
       unsigned int ecn;
-      const uint8_t *data;
-      size_t datalen;
+      std::span<const uint8_t> data;
       size_t gso_size;
     } blocked[2];
     std::unique_ptr<uint8_t[]> data;
@@ -217,11 +217,10 @@ public:
 
   int on_read(Endpoint &ep);
   void read_pkt(Endpoint &ep, const Address &local_addr, const sockaddr *sa,
-                socklen_t salen, const ngtcp2_pkt_info *pi, const uint8_t *data,
-                size_t datalen);
-  int send_version_negotiation(uint32_t version, const uint8_t *dcid,
-                               size_t dcidlen, const uint8_t *scid,
-                               size_t scidlen, Endpoint &ep,
+                socklen_t salen, const ngtcp2_pkt_info *pi,
+                std::span<const uint8_t> data);
+  int send_version_negotiation(uint32_t version, std::span<const uint8_t> dcid,
+                               std::span<const uint8_t> scid, Endpoint &ep,
                                const Address &local_addr, const sockaddr *sa,
                                socklen_t salen);
   int send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
@@ -230,7 +229,7 @@ public:
   int send_stateless_connection_close(const ngtcp2_pkt_hd *chd, Endpoint &ep,
                                       const Address &local_addr,
                                       const sockaddr *sa, socklen_t salen);
-  int send_stateless_reset(size_t pktlen, const uint8_t *dcid, size_t dcidlen,
+  int send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
                            Endpoint &ep, const Address &local_addr,
                            const sockaddr *sa, socklen_t salen);
   int verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
@@ -239,12 +238,11 @@ public:
                    socklen_t salen);
   int send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
                   const ngtcp2_addr &remote_addr, unsigned int ecn,
-                  const uint8_t *data, size_t datalen);
-  std::pair<size_t, int> send_packet(Endpoint &ep, bool &no_gso,
-                                     const ngtcp2_addr &local_addr,
-                                     const ngtcp2_addr &remote_addr,
-                                     unsigned int ecn, const uint8_t *data,
-                                     size_t datalen, size_t gso_size);
+                  std::span<const uint8_t> data);
+  std::pair<size_t, int>
+  send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
+              const ngtcp2_addr &remote_addr, unsigned int ecn,
+              std::span<const uint8_t> data, size_t gso_size);
   void remove(const Handler *h);
 
   void associate_cid(const ngtcp2_cid *cid, Handler *h);
