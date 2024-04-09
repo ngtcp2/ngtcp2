@@ -34,6 +34,7 @@
 #include <map>
 #include <string_view>
 #include <memory>
+#include <span>
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -84,7 +85,7 @@ public:
   int on_write();
   int write_streams();
   int feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-                const ngtcp2_pkt_info *pi, uint8_t *data, size_t datalen);
+                const ngtcp2_pkt_info *pi, std::span<const uint8_t> data);
   int handle_expiry();
   void update_timer();
   int handshake_completed();
@@ -92,7 +93,7 @@ public:
   void recv_version_negotiation(const uint32_t *sv, size_t nsv);
 
   int send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
-                  unsigned int ecn, const uint8_t *data, size_t datalen);
+                  unsigned int ecn, std::span<const uint8_t> data);
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   int on_extend_max_streams();
   int handle_error();
@@ -117,11 +118,11 @@ public:
 
   int setup_httpconn();
   int submit_http_request(const Stream *stream);
-  int recv_stream_data(uint32_t flags, int64_t stream_id, const uint8_t *data,
-                       size_t datalen);
+  int recv_stream_data(uint32_t flags, int64_t stream_id,
+                       std::span<const uint8_t> data);
   int acked_stream_data_offset(int64_t stream_id, uint64_t datalen);
   void http_consume(int64_t stream_id, size_t nconsumed);
-  void http_write_data(int64_t stream_id, const uint8_t *data, size_t datalen);
+  void http_write_data(int64_t stream_id, std::span<const uint8_t> data);
   int on_stream_reset(int64_t stream_id);
   int on_stream_stop_sending(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
