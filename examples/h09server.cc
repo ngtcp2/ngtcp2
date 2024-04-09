@@ -1289,9 +1289,9 @@ int Handler::send_conn_close() {
 
   auto path = ngtcp2_conn_get_path(conn_);
 
-  return server_->send_packet(
-      *static_cast<Endpoint *>(path->user_data), path->local, path->remote,
-      /* ecn = */ 0, {conn_closebuf_->rpos(), conn_closebuf_->size()});
+  return server_->send_packet(*static_cast<Endpoint *>(path->user_data),
+                              path->local, path->remote,
+                              /* ecn = */ 0, conn_closebuf_->data());
 }
 
 void Handler::update_timer() {
@@ -2046,7 +2046,7 @@ int Server::send_version_negotiation(uint32_t version,
       salen,
   };
 
-  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, {buf.rpos(), buf.size()}) !=
+  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.data()) !=
       NETWORK_ERR_OK) {
     return -1;
   }
@@ -2119,7 +2119,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
       salen,
   };
 
-  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, {buf.rpos(), buf.size()}) !=
+  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.data()) !=
       NETWORK_ERR_OK) {
     return -1;
   }
@@ -2153,7 +2153,7 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
       salen,
   };
 
-  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, {buf.rpos(), buf.size()}) !=
+  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.data()) !=
       NETWORK_ERR_OK) {
     return -1;
   }
@@ -2228,7 +2228,7 @@ int Server::send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
       salen,
   };
 
-  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, {buf.rpos(), buf.size()}) !=
+  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.data()) !=
       NETWORK_ERR_OK) {
     return -1;
   }
