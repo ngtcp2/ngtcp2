@@ -69,12 +69,10 @@ int keylog_callback(gnutls_session_t session, const char *label,
     return -1;
   }
 
-  auto crandom_hex =
-      util::format_hex(reinterpret_cast<unsigned char *>(crandom.data), 32);
+  auto crandom_hex = util::format_hex({crandom.data, 32});
   keylog_file << crandom_hex << " ";
 
-  auto secret_hex = util::format_hex(
-      reinterpret_cast<unsigned char *>(secret->data), secret->size);
+  auto secret_hex = util::format_hex({secret->data, secret->size});
   keylog_file << secret_hex << " ";
 
   keylog_file.put('\n');

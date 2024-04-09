@@ -436,7 +436,8 @@ int do_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   }
 
   if (!config.quiet && config.show_secret) {
-    debug::print_hp_mask(dest, NGTCP2_HP_MASKLEN, sample, NGTCP2_HP_SAMPLELEN);
+    debug::print_hp_mask({dest, NGTCP2_HP_MASKLEN},
+                         {sample, NGTCP2_HP_SAMPLELEN});
   }
 
   return 0;
@@ -448,7 +449,7 @@ int recv_crypto_data(ngtcp2_conn *conn,
                      ngtcp2_encryption_level encryption_level, uint64_t offset,
                      const uint8_t *data, size_t datalen, void *user_data) {
   if (!config.quiet && !config.no_quic_dump) {
-    debug::print_crypto_data(encryption_level, data, datalen);
+    debug::print_crypto_data(encryption_level, {data, datalen});
   }
 
   return ngtcp2_crypto_recv_crypto_data_cb(conn, encryption_level, offset, data,
@@ -535,7 +536,7 @@ void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
 namespace {
 int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
                           size_t cidlen, void *user_data) {
-  if (util::generate_secure_random(cid->data, cidlen) != 0) {
+  if (util::generate_secure_random({cid->data, cidlen}) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -707,7 +708,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   };
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;
-  if (util::generate_secure_random(scid_.data, scid_.datalen) != 0) {
+  if (util::generate_secure_random({scid_.data, scid_.datalen}) != 0) {
     std::cerr << "Could not generate connection ID" << std::endl;
     return -1;
   }
@@ -733,7 +734,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   if (!config.qlog_dir.empty()) {
     auto path = std::string{config.qlog_dir};
     path += '/';
-    path += util::format_hex(scid_.data, scid_.datalen);
+    path += util::format_hex({scid_.data, scid_.datalen});
     path += ".sqlog";
     qlog_ = fopen(path.c_str(), "w");
     if (qlog_ == nullptr) {
@@ -811,16 +812,17 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       params.preferred_addr.ipv6_present = 1;
     }
 
-    auto &token = params.preferred_addr.stateless_reset_token;
-    if (util::generate_secure_random(token, sizeof(token)) != 0) {
+    if (util::generate_secure_random(
+            params.preferred_addr.stateless_reset_token) != 0) {
       std::cerr << "Could not generate preferred address stateless reset token"
                 << std::endl;
       return -1;
     }
 
     params.preferred_addr.cid.datalen = NGTCP2_SV_SCIDLEN;
-    if (util::generate_secure_random(params.preferred_addr.cid.data,
-                                     params.preferred_addr.cid.datalen) != 0) {
+    if (util::generate_secure_random({params.preferred_addr.cid.data,
+                                      params.preferred_addr.cid.datalen}) !=
+        0) {
       std::cerr << "Could not generate preferred address connection ID"
                 << std::endl;
       return -1;
@@ -1362,7 +1364,7 @@ auto htp_settings = http_parser_settings{
 int Handler::recv_stream_data(uint32_t flags, int64_t stream_id,
                               std::span<const uint8_t> data) {
   if (!config.quiet && !config.no_quic_dump) {
-    debug::print_stream_data(stream_id, data.data(), data.size());
+    debug::print_stream_data(stream_id, data);
   }
 
   auto it = streams_.find(stream_id);
@@ -1414,11 +1416,11 @@ int Handler::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
 
   if (!config.quiet && config.show_secret) {
     std::cerr << "application_traffic rx secret " << nkey_update_ << std::endl;
-    debug::print_secrets(rx_secret, secretlen, rx_key.data(), keylen, rx_iv,
-                         ivlen);
+    debug::print_secrets({rx_secret, secretlen}, {rx_key.data(), keylen},
+                         {rx_iv, ivlen});
     std::cerr << "application_traffic tx secret " << nkey_update_ << std::endl;
-    debug::print_secrets(tx_secret, secretlen, tx_key.data(), keylen, tx_iv,
-                         ivlen);
+    debug::print_secrets({tx_secret, secretlen}, {tx_key.data(), keylen},
+                         {tx_iv, ivlen});
   }
 
   return 0;
@@ -1840,7 +1842,7 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
     return;
   }
 
-  auto dcid_key = util::make_cid_key(vc.dcid, vc.dcidlen);
+  auto dcid_key = util::make_cid_key({vc.dcid, vc.dcidlen});
 
   auto handler_it = handlers_.find(dcid_key);
   if (handler_it == std::end(handlers_)) {
@@ -2073,7 +2075,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
   ngtcp2_cid scid;
 
   scid.datalen = NGTCP2_SV_SCIDLEN;
-  if (util::generate_secure_random(scid.data, scid.datalen) != 0) {
+  if (util::generate_secure_random({scid.data, scid.datalen}) != 0) {
     return -1;
   }
 
@@ -2200,7 +2202,7 @@ int Server::send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
 
   std::array<uint8_t, max_rand_byteslen> rand_bytes;
 
-  if (util::generate_secure_random(rand_bytes.data(), rand_byteslen) != 0) {
+  if (util::generate_secure_random({rand_bytes.data(), rand_byteslen}) != 0) {
     return -1;
   }
 
@@ -3245,8 +3247,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (util::generate_secret(config.static_secret.data(),
-                            config.static_secret.size()) != 0) {
+  if (util::generate_secret(config.static_secret) != 0) {
     std::cerr << "Unable to generate static secret" << std::endl;
     exit(EXIT_FAILURE);
   }

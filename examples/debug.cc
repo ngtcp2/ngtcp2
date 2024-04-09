@@ -63,7 +63,7 @@ bool packet_lost(double prob) {
 }
 
 void print_crypto_data(ngtcp2_encryption_level encryption_level,
-                       const uint8_t *data, size_t datalen) {
+                       std::span<const uint8_t> data) {
   const char *encryption_level_str;
   switch (encryption_level) {
   case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
@@ -81,103 +81,94 @@ void print_crypto_data(ngtcp2_encryption_level encryption_level,
   }
   fprintf(outfile, "Ordered CRYPTO data in %s crypto level\n",
           encryption_level_str);
-  util::hexdump(outfile, data, datalen);
+  util::hexdump(outfile, data.data(), data.size());
 }
 
-void print_stream_data(int64_t stream_id, const uint8_t *data, size_t datalen) {
+void print_stream_data(int64_t stream_id, std::span<const uint8_t> data) {
   fprintf(outfile, "Ordered STREAM data stream_id=0x%" PRIx64 "\n", stream_id);
-  util::hexdump(outfile, data, datalen);
+  util::hexdump(outfile, data.data(), data.size());
 }
 
-void print_initial_secret(const uint8_t *data, size_t len) {
-  fprintf(outfile, "initial_secret=%s\n", util::format_hex(data, len).c_str());
+void print_initial_secret(std::span<const uint8_t> data) {
+  fprintf(outfile, "initial_secret=%s\n", util::format_hex(data).c_str());
 }
 
-void print_client_in_secret(const uint8_t *data, size_t len) {
-  fprintf(outfile, "client_in_secret=%s\n",
-          util::format_hex(data, len).c_str());
+void print_client_in_secret(std::span<const uint8_t> data) {
+  fprintf(outfile, "client_in_secret=%s\n", util::format_hex(data).c_str());
 }
 
-void print_server_in_secret(const uint8_t *data, size_t len) {
-  fprintf(outfile, "server_in_secret=%s\n",
-          util::format_hex(data, len).c_str());
+void print_server_in_secret(std::span<const uint8_t> data) {
+  fprintf(outfile, "server_in_secret=%s\n", util::format_hex(data).c_str());
 }
 
-void print_handshake_secret(const uint8_t *data, size_t len) {
-  fprintf(outfile, "handshake_secret=%s\n",
-          util::format_hex(data, len).c_str());
+void print_handshake_secret(std::span<const uint8_t> data) {
+  fprintf(outfile, "handshake_secret=%s\n", util::format_hex(data).c_str());
 }
 
-void print_client_hs_secret(const uint8_t *data, size_t len) {
-  fprintf(outfile, "client_hs_secret=%s\n",
-          util::format_hex(data, len).c_str());
+void print_client_hs_secret(std::span<const uint8_t> data) {
+  fprintf(outfile, "client_hs_secret=%s\n", util::format_hex(data).c_str());
 }
 
-void print_server_hs_secret(const uint8_t *data, size_t len) {
-  fprintf(outfile, "server_hs_secret=%s\n",
-          util::format_hex(data, len).c_str());
+void print_server_hs_secret(std::span<const uint8_t> data) {
+  fprintf(outfile, "server_hs_secret=%s\n", util::format_hex(data).c_str());
 }
 
-void print_client_0rtt_secret(const uint8_t *data, size_t len) {
-  fprintf(outfile, "client_0rtt_secret=%s\n",
-          util::format_hex(data, len).c_str());
+void print_client_0rtt_secret(std::span<const uint8_t> data) {
+  fprintf(outfile, "client_0rtt_secret=%s\n", util::format_hex(data).c_str());
 }
 
-void print_client_1rtt_secret(const uint8_t *data, size_t len) {
-  fprintf(outfile, "client_1rtt_secret=%s\n",
-          util::format_hex(data, len).c_str());
+void print_client_1rtt_secret(std::span<const uint8_t> data) {
+  fprintf(outfile, "client_1rtt_secret=%s\n", util::format_hex(data).c_str());
 }
 
-void print_server_1rtt_secret(const uint8_t *data, size_t len) {
-  fprintf(outfile, "server_1rtt_secret=%s\n",
-          util::format_hex(data, len).c_str());
+void print_server_1rtt_secret(std::span<const uint8_t> data) {
+  fprintf(outfile, "server_1rtt_secret=%s\n", util::format_hex(data).c_str());
 }
 
-void print_client_pp_key(const uint8_t *data, size_t len) {
-  fprintf(outfile, "+ client_pp_key=%s\n", util::format_hex(data, len).c_str());
+void print_client_pp_key(std::span<const uint8_t> data) {
+  fprintf(outfile, "+ client_pp_key=%s\n", util::format_hex(data).c_str());
 }
 
-void print_server_pp_key(const uint8_t *data, size_t len) {
-  fprintf(outfile, "+ server_pp_key=%s\n", util::format_hex(data, len).c_str());
+void print_server_pp_key(std::span<const uint8_t> data) {
+  fprintf(outfile, "+ server_pp_key=%s\n", util::format_hex(data).c_str());
 }
 
-void print_client_pp_iv(const uint8_t *data, size_t len) {
-  fprintf(outfile, "+ client_pp_iv=%s\n", util::format_hex(data, len).c_str());
+void print_client_pp_iv(std::span<const uint8_t> data) {
+  fprintf(outfile, "+ client_pp_iv=%s\n", util::format_hex(data).c_str());
 }
 
-void print_server_pp_iv(const uint8_t *data, size_t len) {
-  fprintf(outfile, "+ server_pp_iv=%s\n", util::format_hex(data, len).c_str());
+void print_server_pp_iv(std::span<const uint8_t> data) {
+  fprintf(outfile, "+ server_pp_iv=%s\n", util::format_hex(data).c_str());
 }
 
-void print_client_pp_hp(const uint8_t *data, size_t len) {
-  fprintf(outfile, "+ client_pp_hp=%s\n", util::format_hex(data, len).c_str());
+void print_client_pp_hp(std::span<const uint8_t> data) {
+  fprintf(outfile, "+ client_pp_hp=%s\n", util::format_hex(data).c_str());
 }
 
-void print_server_pp_hp(const uint8_t *data, size_t len) {
-  fprintf(outfile, "+ server_pp_hp=%s\n", util::format_hex(data, len).c_str());
+void print_server_pp_hp(std::span<const uint8_t> data) {
+  fprintf(outfile, "+ server_pp_hp=%s\n", util::format_hex(data).c_str());
 }
 
-void print_secrets(const uint8_t *secret, size_t secretlen, const uint8_t *key,
-                   size_t keylen, const uint8_t *iv, size_t ivlen,
-                   const uint8_t *hp, size_t hplen) {
-  std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
-            << "+ key=" << util::format_hex(key, keylen) << "\n"
-            << "+ iv=" << util::format_hex(iv, ivlen) << "\n"
-            << "+ hp=" << util::format_hex(hp, hplen) << std::endl;
+void print_secrets(std::span<const uint8_t> secret,
+                   std::span<const uint8_t> key, std::span<const uint8_t> iv,
+                   std::span<const uint8_t> hp) {
+  std::cerr << "+ secret=" << util::format_hex(secret) << "\n"
+            << "+ key=" << util::format_hex(key) << "\n"
+            << "+ iv=" << util::format_hex(iv) << "\n"
+            << "+ hp=" << util::format_hex(hp) << std::endl;
 }
 
-void print_secrets(const uint8_t *secret, size_t secretlen, const uint8_t *key,
-                   size_t keylen, const uint8_t *iv, size_t ivlen) {
-  std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
-            << "+ key=" << util::format_hex(key, keylen) << "\n"
-            << "+ iv=" << util::format_hex(iv, ivlen) << std::endl;
+void print_secrets(std::span<const uint8_t> secret,
+                   std::span<const uint8_t> key, std::span<const uint8_t> iv) {
+  std::cerr << "+ secret=" << util::format_hex(secret) << "\n"
+            << "+ key=" << util::format_hex(key) << "\n"
+            << "+ iv=" << util::format_hex(iv) << std::endl;
 }
 
-void print_hp_mask(const uint8_t *mask, size_t masklen, const uint8_t *sample,
-                   size_t samplelen) {
-  fprintf(outfile, "mask=%s sample=%s\n",
-          util::format_hex(mask, masklen).c_str(),
-          util::format_hex(sample, samplelen).c_str());
+void print_hp_mask(std::span<const uint8_t> mask,
+                   std::span<const uint8_t> sample) {
+  fprintf(outfile, "mask=%s sample=%s\n", util::format_hex(mask).c_str(),
+          util::format_hex(sample).c_str());
 }
 
 void log_printf(void *user_data, const char *fmt, ...) {
@@ -223,10 +214,10 @@ void print_http_begin_response_headers(int64_t stream_id) {
 }
 
 namespace {
-void print_header(const uint8_t *name, size_t namelen, const uint8_t *value,
-                  size_t valuelen, uint8_t flags) {
-  fprintf(outfile, "[%.*s: %.*s]%s\n", static_cast<int>(namelen), name,
-          static_cast<int>(valuelen), value,
+void print_header(std::span<const uint8_t> name, std::span<const uint8_t> value,
+                  uint8_t flags) {
+  fprintf(outfile, "[%.*s: %.*s]%s\n", static_cast<int>(name.size()),
+          name.data(), static_cast<int>(value.size()), value.data(),
           (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
 }
 } // namespace
@@ -236,13 +227,14 @@ void print_header(const nghttp3_rcbuf *name, const nghttp3_rcbuf *value,
                   uint8_t flags) {
   auto namebuf = nghttp3_rcbuf_get_buf(name);
   auto valuebuf = nghttp3_rcbuf_get_buf(value);
-  print_header(namebuf.base, namebuf.len, valuebuf.base, valuebuf.len, flags);
+  print_header({namebuf.base, namebuf.len}, {valuebuf.base, valuebuf.len},
+               flags);
 }
 } // namespace
 
 namespace {
 void print_header(const nghttp3_nv &nv) {
-  print_header(nv.name, nv.namelen, nv.value, nv.valuelen, nv.flags);
+  print_header({nv.name, nv.namelen}, {nv.value, nv.valuelen}, nv.flags);
 }
 } // namespace
 
@@ -256,10 +248,10 @@ void print_http_end_headers(int64_t stream_id) {
   fprintf(outfile, "http: stream 0x%" PRIx64 " headers ended\n", stream_id);
 }
 
-void print_http_data(int64_t stream_id, const uint8_t *data, size_t datalen) {
+void print_http_data(int64_t stream_id, std::span<const uint8_t> data) {
   fprintf(outfile, "http: stream 0x%" PRIx64 " body %zu bytes\n", stream_id,
-          datalen);
-  util::hexdump(outfile, data, datalen);
+          data.size());
+  util::hexdump(outfile, data.data(), data.size());
 }
 
 void print_http_begin_trailers(int64_t stream_id) {

@@ -59,8 +59,7 @@ std::optional<std::string> read_pem(const std::string_view &filename,
                                     const std::string_view &type);
 
 int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, const uint8_t *data,
-              size_t datalen);
+              const std::string_view &type, std::span<const uint8_t> data);
 
 namespace {
 constexpr char LOWER_XDIGITS[] = "0123456789abcdef";
@@ -76,21 +75,22 @@ std::string format_hex(uint8_t c) {
   return s;
 }
 
-std::string format_hex(const uint8_t *s, size_t len) {
+std::string format_hex(std::span<const uint8_t> s) {
   std::string res;
-  res.resize(len * 2);
+  res.resize(s.size() * 2);
 
-  for (size_t i = 0; i < len; ++i) {
-    auto c = s[i];
+  size_t i = 0;
 
+  for (auto c : s) {
     res[i * 2] = LOWER_XDIGITS[c >> 4];
     res[i * 2 + 1] = LOWER_XDIGITS[c & 0x0f];
+    ++i;
   }
   return res;
 }
 
 std::string format_hex(const std::string_view &s) {
-  return format_hex(reinterpret_cast<const uint8_t *>(s.data()), s.size());
+  return format_hex({reinterpret_cast<const uint8_t *>(s.data()), s.size()});
 }
 
 std::string decode_hex(const std::string_view &s) {
@@ -203,12 +203,12 @@ uint8_t *hexdump_addr(uint8_t *dest, size_t addr) {
 } // namespace
 
 namespace {
-uint8_t *hexdump_ascii(uint8_t *dest, const uint8_t *data, size_t datalen) {
+uint8_t *hexdump_ascii(uint8_t *dest, std::span<const uint8_t> data) {
   *dest++ = '|';
 
-  for (size_t i = 0; i < datalen; ++i) {
-    if (0x20 <= data[i] && data[i] <= 0x7e) {
-      *dest++ = data[i];
+  for (auto c : data) {
+    if (0x20 <= c && c <= 0x7e) {
+      *dest++ = c;
     } else {
       *dest++ = '.';
     }
@@ -221,16 +221,14 @@ uint8_t *hexdump_ascii(uint8_t *dest, const uint8_t *data, size_t datalen) {
 } // namespace
 
 namespace {
-uint8_t *hexdump8(uint8_t *dest, const uint8_t *data, size_t datalen) {
-  size_t i;
-
-  for (i = 0; i < datalen; ++i) {
-    *dest++ = LOWER_XDIGITS[data[i] >> 4];
-    *dest++ = LOWER_XDIGITS[data[i] & 0xf];
+uint8_t *hexdump8(uint8_t *dest, std::span<const uint8_t> data) {
+  for (auto c : data) {
+    *dest++ = LOWER_XDIGITS[c >> 4];
+    *dest++ = LOWER_XDIGITS[c & 0xf];
     *dest++ = ' ';
   }
 
-  for (; i < 8; ++i) {
+  for (auto i = data.size(); i < 8; ++i) {
     *dest++ = ' ';
     *dest++ = ' ';
     *dest++ = ' ';
@@ -241,16 +239,16 @@ uint8_t *hexdump8(uint8_t *dest, const uint8_t *data, size_t datalen) {
 } // namespace
 
 namespace {
-uint8_t *hexdump16(uint8_t *dest, const uint8_t *data, size_t datalen) {
-  if (datalen > 8) {
-    dest = hexdump8(dest, data, 8);
+uint8_t *hexdump16(uint8_t *dest, std::span<const uint8_t> data) {
+  if (data.size() > 8) {
+    dest = hexdump8(dest, {data.data(), 8});
     *dest++ = ' ';
-    dest = hexdump8(dest, data + 8, datalen - 8);
+    dest = hexdump8(dest, data.subspan(8));
     *dest++ = ' ';
   } else {
-    dest = hexdump8(dest, data, datalen);
+    dest = hexdump8(dest, data);
     *dest++ = ' ';
-    dest = hexdump8(dest, nullptr, 0);
+    dest = hexdump8(dest, {});
     *dest++ = ' ';
   }
 
@@ -259,23 +257,24 @@ uint8_t *hexdump16(uint8_t *dest, const uint8_t *data, size_t datalen) {
 } // namespace
 
 namespace {
-uint8_t *hexdump_line(uint8_t *dest, const uint8_t *data, size_t datalen,
+uint8_t *hexdump_line(uint8_t *dest, std::span<const uint8_t> data,
                       size_t addr) {
   dest = hexdump_addr(dest, addr);
   *dest++ = ' ';
   *dest++ = ' ';
 
-  dest = hexdump16(dest, data, datalen);
+  dest = hexdump16(dest, data);
 
-  return hexdump_ascii(dest, data, datalen);
+  return hexdump_ascii(dest, data);
 }
 } // namespace
 
 namespace {
-int hexdump_write(int fd, const uint8_t *data, size_t datalen) {
+int hexdump_write(int fd, std::span<const uint8_t> data) {
   ssize_t nwrite;
 
-  for (; (nwrite = write(fd, data, datalen)) == -1 && errno == EINTR;)
+  for (;
+       (nwrite = write(fd, data.data(), data.size())) == -1 && errno == EINTR;)
     ;
   if (nwrite == -1) {
     return -1;
@@ -327,12 +326,12 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
       }
     }
 
-    last = hexdump_line(last, s, n, offset);
+    last = hexdump_line(last, {s, n}, offset);
     *last++ = '\n';
 
     auto len = static_cast<size_t>(last - buf.data());
     if (len + min_space > buf.size()) {
-      if (hexdump_write(fd, buf.data(), len) != 0) {
+      if (hexdump_write(fd, {buf.data(), len}) != 0) {
         return -1;
       }
 
@@ -345,18 +344,18 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
 
   auto len = static_cast<size_t>(last - buf.data());
   if (len) {
-    return hexdump_write(fd, buf.data(), len);
+    return hexdump_write(fd, {buf.data(), len});
   }
 
   return 0;
 }
 
 std::string make_cid_key(const ngtcp2_cid *cid) {
-  return std::string(cid->data, cid->data + cid->datalen);
+  return make_cid_key({cid->data, cid->datalen});
 }
 
-std::string make_cid_key(const uint8_t *cid, size_t cidlen) {
-  return std::string(cid, cid + cidlen);
+std::string make_cid_key(std::span<const uint8_t> cid) {
+  return std::string{std::begin(cid), std::end(cid)};
 }
 
 std::string straddr(const sockaddr *sa, socklen_t salen) {
@@ -771,9 +770,9 @@ std::optional<std::string> read_token(const std::string_view &filename) {
   return read_pem(filename, "token", "QUIC TOKEN");
 }
 
-int write_token(const std::string_view &filename, const uint8_t *token,
-                size_t tokenlen) {
-  return write_pem(filename, "token", "QUIC TOKEN", token, tokenlen);
+int write_token(const std::string_view &filename,
+                std::span<const uint8_t> token) {
+  return write_pem(filename, "token", "QUIC TOKEN", token);
 }
 
 std::optional<std::string>
@@ -783,15 +782,15 @@ read_transport_params(const std::string_view &filename) {
 }
 
 int write_transport_params(const std::string_view &filename,
-                           const uint8_t *data, size_t datalen) {
+                           std::span<const uint8_t> data) {
   return write_pem(filename, "transport parameters",
-                   "QUIC TRANSPORT PARAMETERS", data, datalen);
+                   "QUIC TRANSPORT PARAMETERS", data);
 }
 
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {
-  return os << "0x" << util::format_hex(cid.data, cid.datalen);
+  return os << "0x" << util::format_hex({cid.data, cid.datalen});
 }
 
 } // namespace ngtcp2

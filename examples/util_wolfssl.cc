@@ -41,21 +41,18 @@ namespace ngtcp2 {
 
 namespace util {
 
-int generate_secure_random(uint8_t *data, size_t datalen) {
-  if (wolfSSL_RAND_bytes(data, static_cast<int>(datalen)) != 1) {
+int generate_secure_random(std::span<uint8_t> data) {
+  if (wolfSSL_RAND_bytes(data.data(), static_cast<int>(data.size())) != 1) {
     return -1;
   }
 
   return 0;
 }
 
-int generate_secret(uint8_t *secret, size_t secretlen) {
+int generate_secret(std::span<uint8_t> secret) {
   std::array<uint8_t, 16> rand;
-  std::array<uint8_t, 32> md;
 
-  assert(md.size() == secretlen);
-
-  if (generate_secure_random(rand.data(), rand.size()) != 0) {
+  if (generate_secure_random(rand) != 0) {
     return -1;
   }
 
@@ -64,15 +61,14 @@ int generate_secret(uint8_t *secret, size_t secretlen) {
     return -1;
   }
 
-  unsigned int mdlen = md.size();
+  unsigned int mdlen = secret.size();
   if (!wolfSSL_EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
       !wolfSSL_EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
-      !wolfSSL_EVP_DigestFinal_ex(ctx, md.data(), &mdlen)) {
+      !wolfSSL_EVP_DigestFinal_ex(ctx, secret.data(), &mdlen)) {
     wolfSSL_EVP_MD_CTX_free(ctx);
     return -1;
   }
 
-  std::copy_n(std::begin(md), secretlen, secret);
   wolfSSL_EVP_MD_CTX_free(ctx);
   return 0;
 }
@@ -111,15 +107,14 @@ std::optional<std::string> read_pem(const std::string_view &filename,
 }
 
 int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, const uint8_t *data,
-              size_t datalen) {
+              const std::string_view &type, std::span<const uint8_t> data) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "w");
   if (f == nullptr) {
     std::cerr << "Could not write " << name << " in " << filename << std::endl;
     return -1;
   }
 
-  wolfSSL_PEM_write_bio(f, type.data(), "", data, datalen);
+  wolfSSL_PEM_write_bio(f, type.data(), "", data.data(), data.size());
   wolfSSL_BIO_free(f);
 
   return 0;
