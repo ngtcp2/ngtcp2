@@ -35,6 +35,7 @@
 #include <string>
 #include <string_view>
 #include <functional>
+#include <span>
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
@@ -162,7 +163,7 @@ struct Buffer {
   size_t size() const { return tail - begin; }
   size_t left() const { return buf.data() + buf.size() - tail; }
   uint8_t *const wpos() { return tail; }
-  const uint8_t *rpos() const { return begin; }
+  std::span<const uint8_t> data() const { return {begin, size()}; }
   void push(size_t len) { tail += len; }
   void reset() { tail = begin; }
 
