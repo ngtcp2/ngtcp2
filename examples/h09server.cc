@@ -2490,7 +2490,7 @@ void Server::associate_cid(const ngtcp2_cid *cid, Handler *h) {
 }
 
 void Server::dissociate_cid(const ngtcp2_cid *cid) {
-  handlers_.erase(util::make_cid_key(cid));
+  handlers_.erase(std::string{util::make_cid_key(cid)});
 }
 
 void Server::remove(const Handler *h) {
