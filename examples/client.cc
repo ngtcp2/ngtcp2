@@ -260,7 +260,7 @@ int recv_stream_data(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
 
   auto c = static_cast<Client *>(user_data);
 
-  if (c->recv_stream_data(flags, stream_id, data, datalen) != 0) {
+  if (c->recv_stream_data(flags, stream_id, {data, datalen}) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -858,12 +858,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
 }
 
 int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-                      const ngtcp2_pkt_info *pi, uint8_t *data,
-                      size_t datalen) {
-  if (datalen == 0) {
-    return 0;
-  }
-
+                      const ngtcp2_pkt_info *pi,
+                      std::span<const uint8_t> data) {
   auto path = ngtcp2_path{
       {
           const_cast<sockaddr *>(&ep.addr.su.sa),
@@ -875,7 +871,7 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       },
       const_cast<Endpoint *>(&ep),
   };
-  if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data, datalen,
+  if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data.data(), data.size(),
                                      util::timestamp());
       rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
@@ -924,16 +920,23 @@ int Client::on_read(const Endpoint &ep) {
       break;
     }
 
+    // Packets less than 22 bytes never be a valid QUIC packet.
+    if (nread < 22) {
+      ++pktcnt;
+
+      continue;
+    }
+
     pi.ecn = msghdr_get_ecn(&msg, su.storage.ss_family);
     auto gso_size = msghdr_get_udp_gro(&msg);
     if (gso_size == 0) {
       gso_size = static_cast<size_t>(nread);
     }
 
-    auto data = buf.data();
+    auto data = std::span{buf.data(), static_cast<size_t>(nread)};
 
     for (;;) {
-      auto datalen = std::min(static_cast<size_t>(nread), gso_size);
+      auto datalen = std::min(data.size(), gso_size);
 
       ++pktcnt;
 
@@ -945,21 +948,25 @@ int Client::on_read(const Endpoint &ep) {
                   << std::dec << " " << datalen << " bytes" << std::endl;
       }
 
+      // Packets less than 22 bytes never be a valid QUIC packet.
+      if (datalen < 22) {
+        break;
+      }
+
       if (debug::packet_lost(config.rx_loss_prob)) {
         if (!config.quiet) {
           std::cerr << "** Simulated incoming packet loss **" << std::endl;
         }
-      } else if (feed_data(ep, &su.sa, msg.msg_namelen, &pi, data, datalen) !=
-                 0) {
+      } else if (feed_data(ep, &su.sa, msg.msg_namelen, &pi,
+                           {data.data(), datalen}) != 0) {
         return -1;
       }
 
-      nread -= datalen;
-      if (nread == 0) {
+      data = data.subspan(datalen);
+
+      if (data.empty()) {
         break;
       }
-
-      data += datalen;
     }
 
     if (pktcnt >= 10) {
@@ -1120,8 +1127,8 @@ int Client::write_streams() {
 
     auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
 
-    if (auto rv =
-            send_packet(ep, ps.path.remote, pi.ecn, tx_.data.data(), nwrite);
+    if (auto rv = send_packet(ep, ps.path.remote, pi.ecn,
+                              {tx_.data.data(), static_cast<size_t>(nwrite)});
         rv != NETWORK_ERR_OK) {
       if (rv != NETWORK_ERR_SEND_BLOCKED) {
         ngtcp2_ccerr_set_liberr(&last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
@@ -1487,7 +1494,7 @@ void Client::start_delay_stream_timer() {
 }
 
 int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
-                        unsigned int ecn, const uint8_t *data, size_t datalen) {
+                        unsigned int ecn, std::span<const uint8_t> data) {
   if (debug::packet_lost(config.tx_loss_prob)) {
     if (!config.quiet) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
@@ -1496,8 +1503,8 @@ int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
   }
 
   iovec msg_iov;
-  msg_iov.iov_base = const_cast<uint8_t *>(data);
-  msg_iov.iov_len = datalen;
+  msg_iov.iov_base = const_cast<uint8_t *>(data.data());
+  msg_iov.iov_len = data.size();
 
   msghdr msg{};
 #ifdef HAVE_LINUX_RTNETLINK_H
@@ -1550,7 +1557,7 @@ int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
     return NETWORK_ERR_FATAL;
   }
 
-  assert(static_cast<size_t>(nwrite) == datalen);
+  assert(static_cast<size_t>(nwrite) == data.size());
 
   if (!config.quiet) {
     std::cerr << "Sent packet: local="
@@ -1601,7 +1608,7 @@ int Client::send_blocked_packet() {
   };
 
   auto rv = send_packet(*tx_.blocked.endpoint, remote_addr, tx_.blocked.ecn,
-                        tx_.data.data(), tx_.blocked.datalen);
+                        {tx_.data.data(), tx_.blocked.datalen});
   if (rv != 0) {
     if (rv == NETWORK_ERR_SEND_BLOCKED) {
       assert(wev_.fd == tx_.blocked.endpoint->fd);
@@ -1648,7 +1655,8 @@ int Client::handle_error() {
   }
 
   return send_packet(*static_cast<Endpoint *>(ps.path.user_data),
-                     ps.path.remote, pi.ecn, buf.data(), nwrite);
+                     ps.path.remote, pi.ecn,
+                     {buf.data(), static_cast<size_t>(nwrite)});
 }
 
 int Client::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
@@ -1796,9 +1804,10 @@ int Client::submit_http_request(const Stream *stream) {
 }
 
 int Client::recv_stream_data(uint32_t flags, int64_t stream_id,
-                             const uint8_t *data, size_t datalen) {
-  auto nconsumed = nghttp3_conn_read_stream(
-      httpconn_, stream_id, data, datalen, flags & NGTCP2_STREAM_DATA_FLAG_FIN);
+                             std::span<const uint8_t> data) {
+  auto nconsumed =
+      nghttp3_conn_read_stream(httpconn_, stream_id, data.data(), data.size(),
+                               flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   if (nconsumed < 0) {
     std::cerr << "nghttp3_conn_read_stream: " << nghttp3_strerror(nconsumed)
               << std::endl;
@@ -1873,7 +1882,7 @@ int http_recv_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t *data,
   }
   auto c = static_cast<Client *>(user_data);
   c->http_consume(stream_id, datalen);
-  c->http_write_data(stream_id, data, datalen);
+  c->http_write_data(stream_id, {data, datalen});
   return 0;
 }
 } // namespace
@@ -1893,8 +1902,7 @@ void Client::http_consume(int64_t stream_id, size_t nconsumed) {
   ngtcp2_conn_extend_max_offset(conn_, nconsumed);
 }
 
-void Client::http_write_data(int64_t stream_id, const uint8_t *data,
-                             size_t datalen) {
+void Client::http_write_data(int64_t stream_id, std::span<const uint8_t> data) {
   auto it = streams_.find(stream_id);
   if (it == std::end(streams_)) {
     return;
@@ -1908,7 +1916,7 @@ void Client::http_write_data(int64_t stream_id, const uint8_t *data,
 
   ssize_t nwrite;
   do {
-    nwrite = write(stream->fd, data, datalen);
+    nwrite = write(stream->fd, data.data(), data.size());
   } while (nwrite == -1 && errno == EINTR);
 }
 
