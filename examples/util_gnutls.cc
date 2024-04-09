@@ -42,30 +42,26 @@ namespace ngtcp2 {
 
 namespace util {
 
-int generate_secure_random(uint8_t *data, size_t datalen) {
-  if (gnutls_rnd(GNUTLS_RND_RANDOM, data, datalen) != 0) {
+int generate_secure_random(std::span<uint8_t> data) {
+  if (gnutls_rnd(GNUTLS_RND_RANDOM, data.data(), data.size()) != 0) {
     return -1;
   }
 
   return 0;
 }
 
-int generate_secret(uint8_t *secret, size_t secretlen) {
+int generate_secret(std::span<uint8_t> secret) {
   std::array<uint8_t, 16> rand;
-  std::array<uint8_t, 32> md;
 
-  assert(md.size() == secretlen);
-
-  if (generate_secure_random(rand.data(), rand.size()) != 0) {
+  if (generate_secure_random(rand) != 0) {
     return -1;
   }
 
   if (gnutls_hash_fast(GNUTLS_DIG_SHA256, rand.data(), rand.size(),
-                       md.data()) != 0) {
+                       secret.data()) != 0) {
     return -1;
   }
 
-  std::copy_n(std::begin(md), secretlen, secret);
   return 0;
 }
 
@@ -102,8 +98,7 @@ std::optional<std::string> read_pem(const std::string_view &filename,
 }
 
 int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, const uint8_t *data,
-              size_t datalen) {
+              const std::string_view &type, std::span<const uint8_t> data) {
   auto f = std::ofstream(filename.data());
   if (!f) {
     std::cerr << "Could not write " << name << " in " << filename << std::endl;
@@ -111,8 +106,8 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
   }
 
   gnutls_datum_t s;
-  s.data = const_cast<uint8_t *>(data);
-  s.size = datalen;
+  s.data = const_cast<uint8_t *>(data.data());
+  s.size = data.size();
 
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_encode2(type.data(), &s, &d); rv < 0) {

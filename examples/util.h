@@ -37,6 +37,7 @@
 #include <random>
 #include <unordered_map>
 #include <string_view>
+#include <span>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -76,7 +77,7 @@ inline nghttp3_nv make_nv_nn(const std::string_view &name,
 
 std::string format_hex(uint8_t c);
 
-std::string format_hex(const uint8_t *s, size_t len);
+std::string format_hex(std::span<const uint8_t> s);
 
 std::string format_hex(const std::string_view &s);
 
@@ -151,7 +152,7 @@ template <typename S, typename T> bool istarts_with(const S &a, const T &b) {
 
 // make_cid_key returns the key for |cid|.
 std::string make_cid_key(const ngtcp2_cid *cid);
-std::string make_cid_key(const uint8_t *cid, size_t cidlen);
+std::string make_cid_key(std::span<const uint8_t> cid);
 
 // straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
 std::string straddr(const sockaddr *sa, socklen_t salen);
@@ -278,14 +279,12 @@ std::optional<uint64_t> parse_uint_iec(const std::string_view &s);
 std::optional<uint64_t> parse_duration(const std::string_view &s);
 
 // generate_secure_random generates a cryptographically secure pseudo
-// random data of |datalen| bytes and stores to the buffer pointed by
-// |data|.
-int generate_secure_random(uint8_t *data, size_t datalen);
+// random data of |data|.
+int generate_secure_random(std::span<uint8_t> data);
 
-// generate_secret generates secret and writes it to the buffer
-// pointed by |secret| of length |secretlen|.  Currently, |secretlen|
-// must be 32.
-int generate_secret(uint8_t *secret, size_t secretlen);
+// generate_secret generates secret and writes it to |secret|.
+// Currently, |secret| must be 32 bytes long.
+int generate_secret(std::span<uint8_t> secret);
 
 // normalize_path removes ".." by consuming a previous path component.
 // It also removes ".".  It assumes that |path| starts with "/".  If
@@ -342,13 +341,13 @@ int make_socket_nonblocking(int fd);
 int create_nonblock_socket(int domain, int type, int protocol);
 
 std::optional<std::string> read_token(const std::string_view &filename);
-int write_token(const std::string_view &filename, const uint8_t *token,
-                size_t tokenlen);
+int write_token(const std::string_view &filename,
+                std::span<const uint8_t> token);
 
 std::optional<std::string>
 read_transport_params(const std::string_view &filename);
 int write_transport_params(const std::string_view &filename,
-                           const uint8_t *data, size_t datalen);
+                           std::span<const uint8_t> data);
 
 const char *crypto_default_ciphers();
 

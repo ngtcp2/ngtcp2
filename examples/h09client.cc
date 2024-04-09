@@ -236,7 +236,7 @@ int recv_crypto_data(ngtcp2_conn *conn,
                      ngtcp2_encryption_level encryption_level, uint64_t offset,
                      const uint8_t *data, size_t datalen, void *user_data) {
   if (!config.quiet && !config.no_quic_dump) {
-    debug::print_crypto_data(encryption_level, data, datalen);
+    debug::print_crypto_data(encryption_level, {data, datalen});
   }
 
   return ngtcp2_crypto_recv_crypto_data_cb(conn, encryption_level, offset, data,
@@ -249,7 +249,7 @@ int recv_stream_data(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data, void *stream_user_data) {
   if (!config.quiet && !config.no_quic_dump) {
-    debug::print_stream_data(stream_id, data, datalen);
+    debug::print_stream_data(stream_id, {data, datalen});
   }
 
   auto c = static_cast<Client *>(user_data);
@@ -321,8 +321,9 @@ int Client::handshake_completed() {
     if (datalen < 0) {
       std::cerr << "Could not encode 0-RTT transport parameters: "
                 << ngtcp2_strerror(datalen) << std::endl;
-    } else if (util::write_transport_params(config.tp_file, data.data(),
-                                            datalen) != 0) {
+    } else if (util::write_transport_params(
+                   config.tp_file,
+                   {data.data(), static_cast<size_t>(datalen)}) != 0) {
       std::cerr << "Could not write transport parameters in " << config.tp_file
                 << std::endl;
     }
@@ -426,7 +427,7 @@ void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
 namespace {
 int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
                           size_t cidlen, void *user_data) {
-  if (util::generate_secure_random(cid->data, cidlen) != 0) {
+  if (util::generate_secure_random({cid->data, cidlen}) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -449,7 +450,8 @@ int do_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   }
 
   if (!config.quiet && config.show_secret) {
-    debug::print_hp_mask(dest, NGTCP2_HP_MASKLEN, sample, NGTCP2_HP_SAMPLELEN);
+    debug::print_hp_mask({dest, NGTCP2_HP_MASKLEN},
+                         {sample, NGTCP2_HP_SAMPLELEN});
   }
 
   return 0;
@@ -557,7 +559,7 @@ int recv_new_token(ngtcp2_conn *conn, const uint8_t *token, size_t tokenlen,
     return 0;
   }
 
-  util::write_token(config.token_file, token, tokenlen);
+  util::write_token(config.token_file, {token, tokenlen});
 
   return 0;
 }
@@ -640,13 +642,13 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
 
   ngtcp2_cid scid, dcid;
   scid.datalen = 17;
-  if (util::generate_secure_random(scid.data, scid.datalen) != 0) {
+  if (util::generate_secure_random({scid.data, scid.datalen}) != 0) {
     std::cerr << "Could not generate source connection ID" << std::endl;
     return -1;
   }
   if (config.dcid.datalen == 0) {
     dcid.datalen = 18;
-    if (util::generate_secure_random(dcid.data, dcid.datalen) != 0) {
+    if (util::generate_secure_random({dcid.data, dcid.datalen}) != 0) {
       std::cerr << "Could not generate destination connection ID" << std::endl;
       return -1;
     }
@@ -664,7 +666,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     } else {
       path = std::string{config.qlog_dir};
       path += '/';
-      path += util::format_hex(scid.data, scid.datalen);
+      path += util::format_hex({scid.data, scid.datalen});
       path += ".sqlog";
     }
     qlog_ = fopen(path.c_str(), "w");
@@ -1370,11 +1372,11 @@ int Client::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
 
   if (!config.quiet && config.show_secret) {
     std::cerr << "application_traffic rx secret " << nkey_update_ << std::endl;
-    debug::print_secrets(rx_secret, secretlen, rx_key.data(), keylen, rx_iv,
-                         ivlen);
+    debug::print_secrets({rx_secret, secretlen}, {rx_key.data(), keylen},
+                         {rx_iv, ivlen});
     std::cerr << "application_traffic tx secret " << nkey_update_ << std::endl;
-    debug::print_secrets(tx_secret, secretlen, tx_key.data(), keylen, tx_iv,
-                         ivlen);
+    debug::print_secrets({tx_secret, secretlen}, {tx_key.data(), keylen},
+                         {tx_iv, ivlen});
   }
 
   return 0;
@@ -2693,8 +2695,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (util::generate_secret(config.static_secret.data(),
-                            config.static_secret.size()) != 0) {
+  if (util::generate_secret(config.static_secret) != 0) {
     std::cerr << "Unable to generate static secret" << std::endl;
     exit(EXIT_FAILURE);
   }

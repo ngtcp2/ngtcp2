@@ -62,8 +62,7 @@ std::optional<std::string> read_pem(const std::string_view &filename,
 
 namespace util {
 int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, const uint8_t *data,
-              size_t datalen) {
+              const std::string_view &type, std::span<const uint8_t> data) {
   return -1;
 }
 } // namespace util
