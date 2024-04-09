@@ -151,8 +151,8 @@ template <typename S, typename T> bool istarts_with(const S &a, const T &b) {
 }
 
 // make_cid_key returns the key for |cid|.
-std::string make_cid_key(const ngtcp2_cid *cid);
-std::string make_cid_key(std::span<const uint8_t> cid);
+std::string_view make_cid_key(const ngtcp2_cid *cid);
+std::string_view make_cid_key(std::span<const uint8_t> cid);
 
 // straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
 std::string straddr(const sockaddr *sa, socklen_t salen);

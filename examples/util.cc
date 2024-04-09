@@ -350,12 +350,13 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
   return 0;
 }
 
-std::string make_cid_key(const ngtcp2_cid *cid) {
+std::string_view make_cid_key(const ngtcp2_cid *cid) {
   return make_cid_key({cid->data, cid->datalen});
 }
 
-std::string make_cid_key(std::span<const uint8_t> cid) {
-  return std::string{std::begin(cid), std::end(cid)};
+std::string_view make_cid_key(std::span<const uint8_t> cid) {
+  return std::string_view{reinterpret_cast<const char *>(cid.data()),
+                          cid.size()};
 }
 
 std::string straddr(const sockaddr *sa, socklen_t salen) {
