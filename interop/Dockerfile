@@ -57,7 +57,8 @@ RUN git clone --recursive --shallow-submodules --depth 1 -b $NGTCP2_BRANCH https
         PKG_CONFIG_PATH=/usr/local/lib/pkgconfig \
         --with-wolfssl && \
     make -j$(nproc) && \
-    cp examples/wsslclient examples/wsslserver /usr/local/bin && \
+    cp examples/wsslclient examples/wsslserver \
+        examples/h09wsslclient examples/h09wsslserver /usr/local/bin && \
     rm -rf ngtcp2
 
 FROM ghcr.io/tatsuhiro-t/quic-network-simulator-endpoint:latest
@@ -66,7 +67,8 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         mime-support
 
-COPY --from=build --link /usr/local/bin/wsslclient /usr/local/bin/wsslserver /usr/local/bin/
+COPY --from=build --link /usr/local/bin/wsslclient /usr/local/bin/wsslserver \
+    /usr/local/bin/h09wsslclient /usr/local/bin/h09wsslserver /usr/local/bin/
 COPY --link --chmod=0775 run_endpoint.sh .
 
 ENTRYPOINT [ "./run_endpoint.sh" ]
