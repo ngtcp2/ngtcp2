@@ -81,10 +81,6 @@ std::string format_hex(std::span<const uint8_t> s);
 
 std::string format_hex(const std::string_view &s);
 
-template <size_t N> std::string format_hex(const uint8_t (&s)[N]) {
-  return format_hex(s, N);
-}
-
 std::string decode_hex(const std::string_view &s);
 
 // format_durationf formats |ns| in human readable manner.  |ns| must

@@ -44,6 +44,7 @@ const MunitTest tests[]{
     munit_void_test(test_util_parse_duration),
     munit_void_test(test_util_normalize_path),
     munit_void_test(test_util_hexdump),
+    munit_void_test(test_util_format_hex),
     munit_test_end(),
 };
 } // namespace
@@ -395,6 +396,12 @@ void test_util_hexdump() {
 
     fclose(f);
   }
+}
+
+void test_util_format_hex() {
+  auto a = std::to_array<uint8_t>({0xde, 0xad, 0xbe, 0xef});
+
+  assert_stdstring_equal("deadbeef", util::format_hex(a));
 }
 
 } // namespace ngtcp2
