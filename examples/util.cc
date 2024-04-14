@@ -79,12 +79,11 @@ std::string format_hex(std::span<const uint8_t> s) {
   std::string res;
   res.resize(s.size() * 2);
 
-  size_t i = 0;
+  auto p = std::begin(res);
 
   for (auto c : s) {
-    res[i * 2] = LOWER_XDIGITS[c >> 4];
-    res[i * 2 + 1] = LOWER_XDIGITS[c & 0x0f];
-    ++i;
+    *p++ = LOWER_XDIGITS[c >> 4];
+    *p++ = LOWER_XDIGITS[c & 0x0f];
   }
   return res;
 }
