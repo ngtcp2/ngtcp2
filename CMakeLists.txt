@@ -374,6 +374,8 @@ message(STATUS "summary of build options:
     Library:
       Shared:         ${ENABLE_SHARED_LIB}
       Static:         ${ENABLE_STATIC_LIB}
+    Test:
+      Build Test:     ${BUILD_TESTING}
     Libs:
       OpenSSL:        ${HAVE_OPENSSL} (LIBS='${OPENSSL_LIBRARIES}')
       Libev:          ${HAVE_LIBEV} (LIBS='${LIBEV_LIBRARIES}')
