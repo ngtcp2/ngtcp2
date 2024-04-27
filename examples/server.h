@@ -251,7 +251,7 @@ public:
   int send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
                   const ngtcp2_addr &remote_addr, unsigned int ecn,
                   std::span<const uint8_t> data);
-  std::pair<size_t, int>
+  std::pair<std::span<const uint8_t>, int>
   send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
               const ngtcp2_addr &remote_addr, unsigned int ecn,
               std::span<const uint8_t> data, size_t gso_size);

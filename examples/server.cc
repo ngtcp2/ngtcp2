@@ -1709,9 +1709,10 @@ int Handler::write_streams() {
   ngtcp2_pkt_info pi;
   size_t gso_size = 0;
   auto ts = util::timestamp();
-  auto buf =
+  auto txbuf =
       std::span{tx_.data.get(), std::max(ngtcp2_conn_get_send_quantum(conn_),
                                          path_max_udp_payload_size)};
+  auto buf = txbuf;
 
   ngtcp2_path_storage_zero(&ps);
   ngtcp2_path_storage_zero(&prev_ps);
@@ -1795,20 +1796,18 @@ int Handler::write_streams() {
     }
 
     if (nwrite == 0) {
-      auto data = std::span{tx_.data.get(),
-                            static_cast<size_t>(buf.data() - tx_.data.get())};
-
+      auto data = std::span{std::begin(txbuf), std::begin(buf)};
       if (!data.empty()) {
         auto &ep = *static_cast<Endpoint *>(prev_ps.path.user_data);
 
-        if (auto [nsent, rv] = server_->send_packet(
+        if (auto [rest, rv] = server_->send_packet(
                 ep, no_gso_, prev_ps.path.local, prev_ps.path.remote, prev_ecn,
                 data, gso_size);
             rv != NETWORK_ERR_OK) {
           assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
           on_send_blocked(ep, prev_ps.path.local, prev_ps.path.remote, prev_ecn,
-                          data.subspan(nsent), gso_size);
+                          rest, gso_size);
 
           start_wev_endpoint(ep);
         }
@@ -1819,11 +1818,11 @@ int Handler::write_streams() {
       return 0;
     }
 
-    auto first_pkt = buf.data() == tx_.data.get();
+    auto last_pkt = std::begin(buf);
 
     buf = buf.subspan(nwrite);
 
-    if (first_pkt) {
+    if (last_pkt == std::begin(txbuf)) {
       ngtcp2_path_copy(&prev_ps.path, &ps.path);
       prev_ecn = pi.ecn;
       gso_size = nwrite;
@@ -1832,36 +1831,36 @@ int Handler::write_streams() {
                (gso_size > path_max_udp_payload_size &&
                 static_cast<size_t>(nwrite) != gso_size)) {
       auto &ep = *static_cast<Endpoint *>(prev_ps.path.user_data);
-      auto data =
-          std::span{tx_.data.get(),
-                    static_cast<size_t>(buf.data() - tx_.data.get() - nwrite)};
+      auto data = std::span{std::begin(txbuf), last_pkt};
 
-      if (auto [nsent, rv] = server_->send_packet(
+      if (auto [rest, rv] = server_->send_packet(
               ep, no_gso_, prev_ps.path.local, prev_ps.path.remote, prev_ecn,
               data, gso_size);
           rv != 0) {
         assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
         on_send_blocked(ep, prev_ps.path.local, prev_ps.path.remote, prev_ecn,
-                        data.subspan(nsent), gso_size);
+                        rest, gso_size);
 
+        data = std::span{last_pkt, std::begin(buf)};
         on_send_blocked(*static_cast<Endpoint *>(ps.path.user_data),
-                        ps.path.local, ps.path.remote, pi.ecn,
-                        {buf.data() - nwrite, static_cast<size_t>(nwrite)}, 0);
+                        ps.path.local, ps.path.remote, pi.ecn, data,
+                        data.size());
 
         start_wev_endpoint(ep);
       } else {
         auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
-        auto data = std::span{buf.data() - nwrite, static_cast<size_t>(nwrite)};
+        auto data = std::span{last_pkt, std::begin(buf)};
 
-        if (auto [nsent, rv] =
+        if (auto [rest, rv] =
                 server_->send_packet(ep, no_gso_, ps.path.local, ps.path.remote,
-                                     pi.ecn, data, nwrite);
+                                     pi.ecn, data, data.size());
             rv != 0) {
-          assert(nsent == 0);
+          assert(rest.size() == data.size());
           assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
-          on_send_blocked(ep, ps.path.local, ps.path.remote, pi.ecn, data, 0);
+          on_send_blocked(ep, ps.path.local, ps.path.remote, pi.ecn, rest,
+                          rest.size());
 
           start_wev_endpoint(ep);
         }
@@ -1874,17 +1873,16 @@ int Handler::write_streams() {
     if (buf.size() < path_max_udp_payload_size ||
         static_cast<size_t>(nwrite) < gso_size) {
       auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
-      auto data = std::span{tx_.data.get(),
-                            static_cast<size_t>(buf.data() - tx_.data.get())};
+      auto data = std::span{std::begin(txbuf), std::begin(buf)};
 
-      if (auto [nsent, rv] =
+      if (auto [rest, rv] =
               server_->send_packet(ep, no_gso_, ps.path.local, ps.path.remote,
                                    pi.ecn, data, gso_size);
           rv != 0) {
         assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
-        on_send_blocked(ep, ps.path.local, ps.path.remote, pi.ecn,
-                        data.subspan(nsent), gso_size);
+        on_send_blocked(ep, ps.path.local, ps.path.remote, pi.ecn, rest,
+                        gso_size);
 
         start_wev_endpoint(ep);
       }
@@ -1900,6 +1898,7 @@ void Handler::on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
                               std::span<const uint8_t> data, size_t gso_size) {
   assert(tx_.num_blocked || !tx_.send_blocked);
   assert(tx_.num_blocked < 2);
+  assert(gso_size);
 
   tx_.send_blocked = true;
 
@@ -1945,13 +1944,13 @@ int Handler::send_blocked_packet() {
         .addrlen = p.remote_addr.len,
     };
 
-    auto [nsent, rv] =
+    auto [rest, rv] =
         server_->send_packet(*p.endpoint, no_gso_, local_addr, remote_addr,
                              p.ecn, p.data, p.gso_size);
     if (rv != 0) {
       assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
-      p.data = p.data.subspan(nsent);
+      p.data = rest;
 
       start_wev_endpoint(*p.endpoint);
 
@@ -3047,7 +3046,7 @@ int Server::send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
   return rv;
 }
 
-std::pair<size_t, int>
+std::pair<std::span<const uint8_t>, int>
 Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
                     const ngtcp2_addr &remote_addr, unsigned int ecn,
                     std::span<const uint8_t> data, size_t gso_size) {
@@ -3057,25 +3056,23 @@ Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
     if (!config.quiet) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
     }
-    return {0, NETWORK_ERR_OK};
+    return {{}, NETWORK_ERR_OK};
   }
 
   if (no_gso && data.size() > gso_size) {
-    auto begin = data.data();
-
     for (; !data.empty();) {
       auto len = std::min(gso_size, data.size());
 
-      auto [n, rv] = send_packet(ep, no_gso, local_addr, remote_addr, ecn,
-                                 {data.data(), len}, len);
+      auto [_, rv] = send_packet(ep, no_gso, local_addr, remote_addr, ecn,
+                                 {std::begin(data), len}, len);
       if (rv != 0) {
-        return {data.data() - begin, rv};
+        return {data, rv};
       }
 
-      data = data.subspan(n);
+      data = data.subspan(len);
     }
 
-    return {data.data() - begin, 0};
+    return {{}, 0};
   }
 
   iovec msg_iov;
@@ -3175,7 +3172,7 @@ Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
 #if EAGAIN != EWOULDBLOCK
     case EWOULDBLOCK:
 #endif // EAGAIN != EWOULDBLOCK
-      return {0, NETWORK_ERR_SEND_BLOCKED};
+      return {data, NETWORK_ERR_SEND_BLOCKED};
 #ifdef UDP_SEGMENT
     case EIO:
       if (data.size() > gso_size) {
@@ -3195,7 +3192,7 @@ Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
     std::cerr << "sendmsg: " << strerror(errno) << std::endl;
     // TODO We have packet which is expected to fail to send (e.g.,
     // path validation to old path).
-    return {0, NETWORK_ERR_OK};
+    return {{}, NETWORK_ERR_OK};
   }
 
   if (!config.quiet) {
@@ -3207,7 +3204,7 @@ Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
               << " bytes" << std::endl;
   }
 
-  return {nwrite, NETWORK_ERR_OK};
+  return {{}, NETWORK_ERR_OK};
 }
 
 void Server::associate_cid(const ngtcp2_cid *cid, Handler *h) {
