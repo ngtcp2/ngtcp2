@@ -163,11 +163,6 @@ bool prohibited_port(uint16_t port);
 // strccalgo stringifies |cc_algo|.
 std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 
-template <typename T, size_t N>
-bool streq_l(const T (&a)[N], const nghttp3_vec &b) {
-  return N - 1 == b.len && memcmp(a, b.base, N - 1) == 0;
-}
-
 namespace {
 constexpr char B64_CHARS[] = {
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
