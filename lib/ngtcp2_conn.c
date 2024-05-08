@@ -6833,6 +6833,12 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
       return rv;
     }
 
+    /* ngtcp2_conn_shutdown_stream_read from a callback will free
+       strm->rx.rob. */
+    if (!strm->rx.rob) {
+      return 0;
+    }
+
     ngtcp2_rob_pop(strm->rx.rob, rx_offset - datalen, datalen);
   }
 }
