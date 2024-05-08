@@ -264,6 +264,7 @@ typedef struct {
   struct {
     int64_t stream_id;
     uint32_t flags;
+    uint64_t offset;
     size_t datalen;
   } stream_data;
   struct {
@@ -580,13 +581,13 @@ static int recv_stream_data(ngtcp2_conn *conn, uint32_t flags,
                             void *user_data, void *stream_user_data) {
   my_user_data *ud = user_data;
   (void)conn;
-  (void)offset;
   (void)data;
   (void)stream_user_data;
 
   if (ud) {
     ud->stream_data.stream_id = stream_id;
     ud->stream_data.flags = flags;
+    ud->stream_data.offset = offset;
     ud->stream_data.datalen = datalen;
   }
 
@@ -607,6 +608,18 @@ recv_stream_data_shutdown_stream_read(ngtcp2_conn *conn, uint32_t flags,
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
+
+  return 0;
+}
+
+static int recv_stream_data_deferred_shutdown_stream_read(
+    ngtcp2_conn *conn, uint32_t flags, int64_t stream_id, uint64_t offset,
+    const uint8_t *data, size_t datalen, void *user_data,
+    void *stream_user_data) {
+  recv_stream_data(conn, flags, stream_id, offset, data, datalen, user_data,
+                   stream_user_data);
+
+  conn->callbacks.recv_stream_data = recv_stream_data_shutdown_stream_read;
 
   return 0;
 }
@@ -5037,6 +5050,52 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   assert_int64(4, ==, ud.stream_data.stream_id);
   assert_false(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   assert_size(599, ==, ud.stream_data.datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* ngtcp2_conn_shutdown_stream_read is called in 2nd
+     recv_stream_data callback. */
+  setup_default_server(&conn);
+  conn->callbacks.recv_stream_data =
+      recv_stream_data_deferred_shutdown_stream_read;
+  conn->user_data = &ud;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 599;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 1;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  memset(&ud, 0, sizeof(ud));
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_int64(0, ==, ud.stream_data.stream_id);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 599;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  memset(&ud, 0, sizeof(ud));
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_int64(4, ==, ud.stream_data.stream_id);
+  assert_false(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
+  assert_uint64(599, ==, ud.stream_data.offset);
+  assert_size(1, ==, ud.stream_data.datalen);
 
   ngtcp2_conn_del(conn);
 }
