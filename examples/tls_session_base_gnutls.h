@@ -30,6 +30,7 @@
 #endif // HAVE_CONFIG_H
 
 #include <string>
+#include <string_view>
 
 #include <gnutls/gnutls.h>
 
@@ -41,6 +42,7 @@ public:
   gnutls_session_t get_native_handle() const;
 
   std::string get_cipher_name() const;
+  std::string_view get_negotiated_group() const;
   std::string get_selected_alpn() const;
   void enable_keylog();
 

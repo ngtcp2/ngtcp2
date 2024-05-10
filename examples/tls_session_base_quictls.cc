@@ -27,8 +27,10 @@
 #include <array>
 
 #include "util.h"
+#include "template.h"
 
 using namespace ngtcp2;
+using namespace std::literals;
 
 TLSSessionBase::TLSSessionBase() : ssl_{nullptr} {}
 
@@ -42,6 +44,46 @@ SSL *TLSSessionBase::get_native_handle() const { return ssl_; }
 
 std::string TLSSessionBase::get_cipher_name() const {
   return SSL_get_cipher_name(ssl_);
+}
+
+std::string_view TLSSessionBase::get_negotiated_group() const {
+#if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
+  return SSL_get_group_name(SSL_get_group_id(ssl_));
+#elif OPENSSL_VERSION_NUMBER >= 0x30000000L
+  auto nid = SSL_get_negotiated_group(ssl_);
+
+  auto name = EC_curve_nid2nist(nid);
+  if (!name) {
+    name = OBJ_nid2sn(nid);
+  }
+
+  return name;
+#else  // !OPENSSL_IS_BORINGSSL && !OPENSSL_IS_AWSLC && OPENSSL_VERSION_NUMBER <
+       // 0x30000000L
+  EVP_PKEY *key;
+
+  if (!SSL_get_tmp_key(ssl_, &key)) {
+    return ""sv;
+  }
+
+  auto key_del = defer(EVP_PKEY_free, key);
+
+  auto nid = EVP_PKEY_id(key);
+  if (nid == EVP_PKEY_EC) {
+    auto ec = EVP_PKEY_get1_EC_KEY(key);
+    auto ec_del = defer(EC_KEY_free, ec);
+
+    nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
+  }
+
+  auto name = EC_curve_nid2nist(nid);
+  if (!name) {
+    name = OBJ_nid2sn(nid);
+  }
+
+  return name;
+#endif // !OPENSSL_IS_BORINGSSL && !OPENSSL_IS_AWSLC && OPENSSL_VERSION_NUMBER <
+       // 0x30000000L
 }
 
 std::string TLSSessionBase::get_selected_alpn() const {

@@ -30,6 +30,7 @@
 #endif // HAVE_CONFIG_H
 
 #include <string>
+#include <string_view>
 
 #include <ngtcp2/ngtcp2_crypto_picotls.h>
 
@@ -43,6 +44,11 @@ public:
   ngtcp2_crypto_picotls_ctx *get_native_handle();
 
   std::string get_cipher_name() const;
+  std::string_view get_negotiated_group() const {
+    using namespace std::literals;
+
+    return ""sv;
+  }
   std::string get_selected_alpn() const;
   // TODO make keylog work with picotls
   void enable_keylog(){};
