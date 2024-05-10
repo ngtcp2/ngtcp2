@@ -43,6 +43,10 @@ std::string TLSSessionBase::get_cipher_name() const {
   return gnutls_cipher_get_name(gnutls_cipher_get(session_));
 }
 
+std::string_view TLSSessionBase::get_negotiated_group() const {
+  return gnutls_group_get_name(gnutls_group_get(session_));
+}
+
 std::string TLSSessionBase::get_selected_alpn() const {
   gnutls_datum_t alpn;
 
