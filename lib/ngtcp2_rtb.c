@@ -580,8 +580,8 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
     ngtcp2_pmtud_probe_success(conn->pmtud, ent->pktlen);
 
     conn->dcid.current.max_udp_payload_size =
-        conn->cstat.max_tx_udp_payload_size =
-            ngtcp2_max(conn->dcid.current.max_udp_payload_size, ent->pktlen);
+        conn->cstat.max_tx_udp_payload_size = ngtcp2_max_size(
+            conn->dcid.current.max_udp_payload_size, ent->pktlen);
 
     if (ngtcp2_pmtud_finished(conn->pmtud)) {
       ngtcp2_conn_stop_pmtud(conn);
@@ -985,8 +985,8 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
 static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_conn_stat *cstat) {
   /* 9/8 is kTimeThreshold */
   ngtcp2_duration loss_delay =
-      ngtcp2_max(cstat->latest_rtt, cstat->smoothed_rtt) * 9 / 8;
-  return ngtcp2_max(loss_delay, NGTCP2_GRANULARITY);
+      ngtcp2_max_uint64(cstat->latest_rtt, cstat->smoothed_rtt) * 9 / 8;
+  return ngtcp2_max_uint64(loss_delay, NGTCP2_GRANULARITY);
 }
 
 /*
@@ -1024,8 +1024,8 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
   uint64_t bytes_lost = 0;
   ngtcp2_duration max_ack_delay;
 
-  pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
-  pkt_thres = ngtcp2_min(pkt_thres, 256);
+  pkt_thres = ngtcp2_max_uint64(pkt_thres, NGTCP2_PKT_THRESHOLD);
+  pkt_thres = ngtcp2_min_uint64(pkt_thres, 256);
   cstat->loss_time[rtb->pktns_id] = UINT64_MAX;
   loss_delay = compute_pkt_loss_delay(cstat);
 
@@ -1053,8 +1053,8 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
            max_ack_delay) *
           NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
-      start_ts = ngtcp2_max(rtb->persistent_congestion_start_ts,
-                            cstat->first_rtt_sample_ts);
+      start_ts = ngtcp2_max_uint64(rtb->persistent_congestion_start_ts,
+                                   cstat->first_rtt_sample_ts);
 
       for (; !ngtcp2_ksl_it_end(&it);) {
         ent = ngtcp2_ksl_it_get(&it);

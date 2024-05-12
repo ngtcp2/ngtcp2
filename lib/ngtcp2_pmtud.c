@@ -134,7 +134,7 @@ static void pmtud_next_probe(ngtcp2_pmtud *pmtud) {
 
 void ngtcp2_pmtud_probe_success(ngtcp2_pmtud *pmtud, size_t payloadlen) {
   pmtud->max_udp_payload_size =
-      ngtcp2_max(pmtud->max_udp_payload_size, payloadlen);
+      ngtcp2_max_size(pmtud->max_udp_payload_size, payloadlen);
 
   assert(pmtud->mtu_idx < pmtud->probeslen);
 

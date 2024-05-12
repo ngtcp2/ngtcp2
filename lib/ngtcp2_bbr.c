@@ -493,9 +493,9 @@ static void bbr_update_on_loss(ngtcp2_cc_bbr *cc, ngtcp2_conn_stat *cstat,
 static void bbr_update_latest_delivery_signals(ngtcp2_cc_bbr *bbr,
                                                ngtcp2_conn_stat *cstat) {
   bbr->loss_round_start = 0;
-  bbr->bw_latest = ngtcp2_max(bbr->bw_latest, cstat->delivery_rate_sec);
+  bbr->bw_latest = ngtcp2_max_uint64(bbr->bw_latest, cstat->delivery_rate_sec);
   bbr->inflight_latest =
-      ngtcp2_max(bbr->inflight_latest, bbr->rst->rs.delivered);
+      ngtcp2_max_uint64(bbr->inflight_latest, bbr->rst->rs.delivered);
 
   if (bbr->rst->rs.prior_delivered >= bbr->loss_round_delivered) {
     bbr->loss_round_delivered = bbr->rst->delivered;
@@ -567,8 +567,8 @@ static void bbr_loss_lower_bounds(ngtcp2_cc_bbr *bbr) {
 }
 
 static void bbr_bound_bw_for_model(ngtcp2_cc_bbr *bbr) {
-  bbr->bw = ngtcp2_min(bbr->max_bw, bbr->bw_lo);
-  bbr->bw = ngtcp2_min(bbr->bw, bbr->bw_hi);
+  bbr->bw = ngtcp2_min_uint64(bbr->max_bw, bbr->bw_lo);
+  bbr->bw = ngtcp2_min_uint64(bbr->bw, bbr->bw_hi);
 }
 
 static void bbr_update_max_bw(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
@@ -634,7 +634,7 @@ static void bbr_update_ack_aggregation(ngtcp2_cc_bbr *bbr,
 
   bbr->extra_acked_delivered += ack->bytes_delivered;
   extra = bbr->extra_acked_delivered - expected_delivered;
-  extra = ngtcp2_min(extra, cstat->cwnd);
+  extra = ngtcp2_min_uint64(extra, cstat->cwnd);
 
   ngtcp2_window_filter_update(&bbr->extra_acked_filter, extra,
                               bbr->round_count);
@@ -911,14 +911,14 @@ static int bbr_is_reno_coexistence_probe_time(ngtcp2_cc_bbr *bbr,
   uint64_t reno_rounds =
       bbr_target_inflight(bbr, cstat) / cstat->max_tx_udp_payload_size;
 
-  return bbr->rounds_since_bw_probe >= ngtcp2_min(reno_rounds, 63);
+  return bbr->rounds_since_bw_probe >= ngtcp2_min_uint64(reno_rounds, 63);
 }
 
 static uint64_t bbr_target_inflight(ngtcp2_cc_bbr *bbr,
                                     ngtcp2_conn_stat *cstat) {
   uint64_t bdp = bbr_inflight(bbr, cstat, bbr->bw, 100);
 
-  return ngtcp2_min(bdp, cstat->cwnd);
+  return ngtcp2_min_uint64(bdp, cstat->cwnd);
 }
 
 static int bbr_check_inflight_too_high(ngtcp2_cc_bbr *bbr,
@@ -1154,7 +1154,7 @@ static uint64_t bbr_quantization_budget(ngtcp2_cc_bbr *bbr,
                                         uint64_t inflight) {
   bbr_update_offload_budget(bbr, cstat);
 
-  inflight = ngtcp2_max(inflight, bbr->offload_budget);
+  inflight = ngtcp2_max_uint64(inflight, bbr->offload_budget);
   inflight = ngtcp2_max_uint64(inflight,
                                min_pipe_cwnd(cstat->max_tx_udp_payload_size));
 
@@ -1218,11 +1218,11 @@ static void bbr_save_cwnd(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
     return;
   }
 
-  bbr->prior_cwnd = ngtcp2_max(bbr->prior_cwnd, cstat->cwnd);
+  bbr->prior_cwnd = ngtcp2_max_uint64(bbr->prior_cwnd, cstat->cwnd);
 }
 
 static void bbr_restore_cwnd(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
-  cstat->cwnd = ngtcp2_max(cstat->cwnd, bbr->prior_cwnd);
+  cstat->cwnd = ngtcp2_max_uint64(cstat->cwnd, bbr->prior_cwnd);
 }
 
 static uint64_t bbr_probe_rtt_cwnd(ngtcp2_cc_bbr *bbr,
@@ -1231,7 +1231,7 @@ static uint64_t bbr_probe_rtt_cwnd(ngtcp2_cc_bbr *bbr,
       bbr_bdp_multiple(bbr, bbr->bw, NGTCP2_BBR_PROBE_RTT_CWND_GAIN_H);
   uint64_t mpcwnd = min_pipe_cwnd(cstat->max_tx_udp_payload_size);
 
-  return ngtcp2_max(probe_rtt_cwnd, mpcwnd);
+  return ngtcp2_max_uint64(probe_rtt_cwnd, mpcwnd);
 }
 
 static void bbr_bound_cwnd_for_probe_rtt(ngtcp2_cc_bbr *bbr,
@@ -1241,7 +1241,7 @@ static void bbr_bound_cwnd_for_probe_rtt(ngtcp2_cc_bbr *bbr,
   if (bbr->state == NGTCP2_BBR_STATE_PROBE_RTT) {
     probe_rtt_cwnd = bbr_probe_rtt_cwnd(bbr, cstat);
 
-    cstat->cwnd = ngtcp2_min(cstat->cwnd, probe_rtt_cwnd);
+    cstat->cwnd = ngtcp2_min_uint64(cstat->cwnd, probe_rtt_cwnd);
   }
 }
 
@@ -1255,14 +1255,14 @@ static void bbr_set_cwnd(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
   if (!bbr->packet_conservation) {
     if (bbr->filled_pipe) {
       cstat->cwnd += ack->bytes_delivered;
-      cstat->cwnd = ngtcp2_min(cstat->cwnd, bbr->max_inflight);
+      cstat->cwnd = ngtcp2_min_uint64(cstat->cwnd, bbr->max_inflight);
     } else if (cstat->cwnd < bbr->max_inflight ||
                bbr->rst->delivered < bbr->initial_cwnd) {
       cstat->cwnd += ack->bytes_delivered;
     }
 
     mpcwnd = min_pipe_cwnd(cstat->max_tx_udp_payload_size);
-    cstat->cwnd = ngtcp2_max(cstat->cwnd, mpcwnd);
+    cstat->cwnd = ngtcp2_max_uint64(cstat->cwnd, mpcwnd);
   }
 
   bbr_bound_cwnd_for_probe_rtt(bbr, cstat);
@@ -1282,10 +1282,10 @@ static void bbr_bound_cwnd_for_model(ngtcp2_cc_bbr *bbr,
     cap = bbr_inflight_with_headroom(bbr, cstat);
   }
 
-  cap = ngtcp2_min(cap, bbr->inflight_lo);
-  cap = ngtcp2_max(cap, mpcwnd);
+  cap = ngtcp2_min_uint64(cap, bbr->inflight_lo);
+  cap = ngtcp2_max_uint64(cap, mpcwnd);
 
-  cstat->cwnd = ngtcp2_min(cstat->cwnd, cap);
+  cstat->cwnd = ngtcp2_min_uint64(cstat->cwnd, cap);
 }
 
 static void bbr_set_send_quantum(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
@@ -1300,12 +1300,12 @@ static void bbr_set_send_quantum(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
 
   if (cstat->pacing_interval) {
     send_quantum = (size_t)(NGTCP2_MILLISECONDS / cstat->pacing_interval);
-    send_quantum = ngtcp2_min(send_quantum, 64 * 1024);
+    send_quantum = ngtcp2_min_size(send_quantum, 64 * 1024);
   } else {
     send_quantum = 64 * 1024;
   }
 
-  cstat->send_quantum = ngtcp2_max(send_quantum, floor);
+  cstat->send_quantum = ngtcp2_max_size(send_quantum, floor);
 }
 
 static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
@@ -1336,7 +1336,7 @@ static void bbr_handle_recovery(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
     bbr_save_cwnd(bbr, cstat);
     cstat->cwnd =
         cstat->bytes_in_flight +
-        ngtcp2_max(ack->bytes_delivered, cstat->max_tx_udp_payload_size);
+        ngtcp2_max_uint64(ack->bytes_delivered, cstat->max_tx_udp_payload_size);
 
     cstat->congestion_recovery_start_ts = bbr->congestion_recovery_start_ts;
     bbr->congestion_recovery_start_ts = UINT64_MAX;
@@ -1383,9 +1383,11 @@ static void bbr_cc_on_spurious_congestion(ngtcp2_cc *cc,
     bbr_restore_cwnd(bbr, cstat);
     bbr->full_bw_count = 0;
     bbr->loss_in_round = 0;
-    bbr->inflight_lo = ngtcp2_max(bbr->inflight_lo, bbr->prior_inflight_lo);
-    bbr->inflight_hi = ngtcp2_max(bbr->inflight_hi, bbr->prior_inflight_hi);
-    bbr->bw_lo = ngtcp2_max(bbr->bw_lo, bbr->prior_bw_lo);
+    bbr->inflight_lo =
+        ngtcp2_max_uint64(bbr->inflight_lo, bbr->prior_inflight_lo);
+    bbr->inflight_hi =
+        ngtcp2_max_uint64(bbr->inflight_hi, bbr->prior_inflight_hi);
+    bbr->bw_lo = ngtcp2_max_uint64(bbr->bw_lo, bbr->prior_bw_lo);
   }
 }
 
