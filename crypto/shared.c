@@ -125,7 +125,7 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
 
 size_t ngtcp2_crypto_packet_protection_ivlen(const ngtcp2_crypto_aead *aead) {
   size_t noncelen = ngtcp2_crypto_aead_noncelen(aead);
-  return ngtcp2_max(8, noncelen);
+  return ngtcp2_max_size(8, noncelen);
 }
 
 int ngtcp2_crypto_derive_packet_protection_key(
