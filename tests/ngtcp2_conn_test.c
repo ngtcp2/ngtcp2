@@ -10271,6 +10271,88 @@ void test_ngtcp2_conn_keep_alive(void) {
   assert_ptrdiff(0, <, spktlen);
 
   ngtcp2_conn_del(conn);
+
+  /* Keep-alive elicits PTO */
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(0, ==, ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  ngtcp2_conn_set_keep_alive_timeout(conn, 10 * NGTCP2_SECONDS);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, ==, spktlen);
+  assert_uint64(UINT64_MAX, ==, ngtcp2_conn_loss_detection_expiry(conn));
+
+  t += 10 * NGTCP2_SECONDS;
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_uint64(t, ==, conn->keep_alive.last_ts);
+  assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
+
+  t = ngtcp2_conn_loss_detection_expiry(conn);
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+  assert_size(2, ==, conn->pktns.rtb.probe_pkt_left);
+
+  /* Send 2 PTO probes */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, ==, spktlen);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 1;
+  fr.ack.rangecnt = 0;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, 1, &fr, 1,
+                     conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(0, ==, conn->pktns.rtb.probe_pkt_left);
+  assert_uint64(UINT64_MAX, ==, ngtcp2_conn_loss_detection_expiry(conn));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
