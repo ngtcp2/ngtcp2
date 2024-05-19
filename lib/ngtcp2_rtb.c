@@ -579,9 +579,11 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
       conn->pmtud->tx_pkt_num <= ent->hd.pkt_num) {
     ngtcp2_pmtud_probe_success(conn->pmtud, ent->pktlen);
 
-    conn->dcid.current.max_udp_payload_size =
-        conn->cstat.max_tx_udp_payload_size = ngtcp2_max_size(
-            conn->dcid.current.max_udp_payload_size, ent->pktlen);
+    if (conn->dcid.current.max_udp_payload_size < ent->pktlen) {
+      conn->dcid.current.max_udp_payload_size = ent->pktlen;
+      conn->cstat.max_tx_udp_payload_size =
+          ngtcp2_conn_get_path_max_tx_udp_payload_size(conn);
+    }
 
     if (ngtcp2_pmtud_finished(conn->pmtud)) {
       ngtcp2_conn_stop_pmtud(conn);
