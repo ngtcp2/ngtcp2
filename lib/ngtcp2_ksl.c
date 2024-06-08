@@ -60,8 +60,7 @@ void ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar, size_t keylen,
   size_t nodelen = ksl_nodelen(keylen);
 
   ngtcp2_objalloc_init(&ksl->blkalloc,
-                       ((ksl_blklen(nodelen) + 0xfu) & ~(uintptr_t)0xfu) * 8,
-                       mem);
+                       (ksl_blklen(nodelen) + 0xfu) & ~(uintptr_t)0xfu, mem);
 
   ksl->head = NULL;
   ksl->front = ksl->back = NULL;
