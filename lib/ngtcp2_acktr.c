@@ -62,7 +62,7 @@ static int greater(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
 
 void ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
                        const ngtcp2_mem *mem) {
-  ngtcp2_objalloc_acktr_entry_init(&acktr->objalloc, 32, mem);
+  ngtcp2_objalloc_acktr_entry_init(&acktr->objalloc, 16, mem);
 
   ngtcp2_static_ringbuf_acks_init(&acktr->acks);
 
