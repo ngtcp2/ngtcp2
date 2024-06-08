@@ -39,7 +39,7 @@
 
 /* NGTCP2_ACKTR_MAX_ENT is the maximum number of ngtcp2_acktr_entry
    which ngtcp2_acktr stores. */
-#define NGTCP2_ACKTR_MAX_ENT 1024
+#define NGTCP2_ACKTR_MAX_ENT (NGTCP2_MAX_ACK_RANGES + 1)
 
 typedef struct ngtcp2_log ngtcp2_log;
 
