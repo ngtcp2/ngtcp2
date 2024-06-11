@@ -2815,7 +2815,7 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
           ngtcp2_log_info(
               &conn->log, NGTCP2_LOG_EVENT_LDC,
               "loss detection timer canceled due to amplification limit");
-          cstat->loss_detection_timer = UINT64_MAX;
+          ngtcp2_conn_cancel_loss_detection_timer(conn);
         }
 
         return 0;
@@ -11908,7 +11908,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
             ngtcp2_log_info(
                 &conn->log, NGTCP2_LOG_EVENT_LDC,
                 "loss detection timer canceled due to amplification limit");
-            cstat->loss_detection_timer = UINT64_MAX;
+            ngtcp2_conn_cancel_loss_detection_timer(conn);
           }
 
           return 0;
@@ -12061,7 +12061,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
         ngtcp2_log_info(
             &conn->log, NGTCP2_LOG_EVENT_LDC,
             "loss detection timer canceled due to amplification limit");
-        conn->cstat.loss_detection_timer = UINT64_MAX;
+        ngtcp2_conn_cancel_loss_detection_timer(conn);
       }
     }
   }
@@ -12948,8 +12948,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     if (cstat->loss_detection_timer != UINT64_MAX) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_LDC,
                       "loss detection timer canceled");
-      cstat->loss_detection_timer = UINT64_MAX;
-      cstat->pto_count = 0;
+      ngtcp2_conn_cancel_loss_detection_timer(conn);
     }
     return;
   }
@@ -12964,6 +12963,13 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
                   cstat->loss_detection_timer, timeout / NGTCP2_MILLISECONDS);
 }
 
+void ngtcp2_conn_cancel_loss_detection_timer(ngtcp2_conn *conn) {
+  ngtcp2_conn_stat *cstat = &conn->cstat;
+
+  cstat->loss_detection_timer = UINT64_MAX;
+  cstat->pto_count = 0;
+}
+
 int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_conn_stat *cstat = &conn->cstat;
   int rv;
@@ -12975,8 +12981,7 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   switch (conn->state) {
   case NGTCP2_CS_CLOSING:
   case NGTCP2_CS_DRAINING:
-    cstat->loss_detection_timer = UINT64_MAX;
-    cstat->pto_count = 0;
+    ngtcp2_conn_cancel_loss_detection_timer(conn);
     return 0;
   default:
     break;
