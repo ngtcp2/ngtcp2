@@ -101,6 +101,8 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   int rv;
   ngtcp2_vec *data;
   ngtcp2_objalloc frc_objalloc;
+  size_t i;
+  ngtcp2_ksl_it it;
 
   ngtcp2_objalloc_init(&frc_objalloc, 1024, mem);
 
@@ -319,6 +321,54 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
 
   assert_int(0, ==, rv);
   assert_null(frc);
+
+  ngtcp2_strm_free(&strm);
+
+  /* stream datacnt gets below the allocation threshold */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_objalloc,
+                   mem);
+  ngtcp2_frame_chain_stream_datacnt_objalloc_new(&frc, 1, &frc_objalloc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.offset = 0;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 17;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_frame_chain_stream_datacnt_objalloc_new(
+      &frc, NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES + 1, &frc_objalloc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.offset = 17;
+  frc->fr.stream.datacnt = NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES + 1;
+  data = frc->fr.stream.data;
+
+  for (i = 0; i < frc->fr.stream.datacnt; ++i) {
+    data[i].len = 1;
+    data[i].base = nulldata;
+  }
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  frc = NULL;
+  rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 18);
+
+  assert_int(0, ==, rv);
+  assert_false(frc->fr.stream.fin);
+  assert_size(2, ==, frc->fr.stream.datacnt);
+
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
+
+  it = ngtcp2_ksl_begin(strm.tx.streamfrq);
+  frc = ngtcp2_ksl_it_get(&it);
+
+  assert_false(frc->fr.stream.fin);
+  assert_uint64(18, ==, frc->fr.stream.offset);
+  assert_size(NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES, ==,
+              frc->fr.stream.datacnt);
 
   ngtcp2_strm_free(&strm);
 

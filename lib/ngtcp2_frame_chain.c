@@ -68,7 +68,9 @@ int ngtcp2_frame_chain_stream_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
                                                    size_t datacnt,
                                                    ngtcp2_objalloc *objalloc,
                                                    const ngtcp2_mem *mem) {
-  size_t need, avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream);
+  size_t need;
+  const size_t avail =
+      (NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES - 1) * sizeof(ngtcp2_vec);
 
   if (datacnt > 1) {
     need = sizeof(ngtcp2_vec) * (datacnt - 1);
