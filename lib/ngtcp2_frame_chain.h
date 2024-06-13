@@ -121,12 +121,18 @@ int ngtcp2_frame_chain_objalloc_new(ngtcp2_frame_chain **pfrc,
 int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
                                     const ngtcp2_mem *mem);
 
+/* NGTCP2_FRAME_CHAIN_STREAM_AVAIL is the number of additional bytes
+   available after ngtcp2_stream when it is embedded in
+   ngtcp2_frame. */
+#define NGTCP2_FRAME_CHAIN_STREAM_AVAIL                                        \
+  (sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream))
+
 /* NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES is the number of datacnt
    that changes allocation method.  If datacnt is more than this
    value, ngtcp2_frame_chain is allocated without ngtcp2_objalloc.
    Otherwise, it is allocated using ngtcp2_objalloc.  */
 #define NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES                                \
-  ((sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream)) / sizeof(ngtcp2_vec) + 1)
+  (NGTCP2_FRAME_CHAIN_STREAM_AVAIL / sizeof(ngtcp2_vec) + 1)
 
 /*
  * ngtcp2_frame_chain_stream_datacnt_objalloc_new works like
