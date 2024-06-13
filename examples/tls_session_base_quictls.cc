@@ -58,6 +58,8 @@ std::string_view TLSSessionBase::get_negotiated_group() const {
   }
 
   return name;
+#elif defined(LIBRESSL_VERSION_NUMBER)
+  return ""sv;
 #else  // !OPENSSL_IS_BORINGSSL && !OPENSSL_IS_AWSLC && OPENSSL_VERSION_NUMBER <
        // 0x30000000L
   EVP_PKEY *key;
