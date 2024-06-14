@@ -16,7 +16,7 @@ env:
 
 jobs:
   setup:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     outputs:
       nghttp3-version: ${{ steps.nghttp3-version.outputs.result }}
@@ -46,7 +46,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-13, macos-14]
+        os: [ubuntu-24.04, macos-13, macos-14]
 
     runs-on: ${{ matrix.os }}
 
@@ -147,6 +147,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install \
+          g++-14 \
           autoconf \
           automake \
           autotools-dev \
@@ -226,7 +227,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-13, macos-14]
+        os: [ubuntu-24.04, macos-13, macos-14]
         compiler: [gcc, clang]
         buildtool: [autotools, distcheck, cmake]
         # group-a ... openssl3, pictols+openssl3, wolfssl, boringssl
@@ -282,8 +283,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install \
-          g++-12 \
-          clang-15 \
+          g++-14 \
+          clang-18 \
           autoconf \
           automake \
           autotools-dev \
@@ -313,8 +314,8 @@ jobs:
     - name: Setup clang (Linux)
       if: runner.os == 'Linux' && matrix.compiler == 'clang'
       run: |
-        echo 'CC=clang-15' >> $GITHUB_ENV
-        echo 'CXX=clang++-15' >> $GITHUB_ENV
+        echo 'CC=clang-18' >> $GITHUB_ENV
+        echo 'CXX=clang++-18' >> $GITHUB_ENV
     - name: Setup clang (MacOS)
       if: runner.os == 'macOS' && matrix.compiler == 'clang'
       run: |
@@ -323,8 +324,8 @@ jobs:
     - name: Setup gcc
       if: runner.os == 'Linux' && matrix.compiler == 'gcc'
       run: |
-        echo 'CC=gcc-12' >> $GITHUB_ENV
-        echo 'CXX=g++-12' >> $GITHUB_ENV
+        echo 'CC=gcc-14' >> $GITHUB_ENV
+        echo 'CXX=g++-14' >> $GITHUB_ENV
     - name: Restore OpenSSL v1.1.1 cache
       uses: actions/cache/restore@v4
       if: matrix.tls == 'group-b'
@@ -526,13 +527,10 @@ jobs:
       if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr' && runner.os == 'Linux'
       run: |
         cd examples/tests
-        # Do not run resumption and earlydata between gtlsserver and
-        # wsslclient until ubuntu gets GnuTLS v3.7.5.
-        #
         # There is an issue around the ticket age validation between
         # gtlsserver and bsslclient that causes early data test
         # failure; see https://gitlab.com/gnutls/gnutls/-/issues/1403
-        EXPR="not (gnutls-wolfssl and (resume or earlydata)) and not (gnutls-boringssl and earlydata)"
+        EXPR="not (gnutls-boringssl and earlydata)"
 
         if [ "${{ matrix.tls }}" = "group-c" ]; then
           # libressl does not support resumption, earlydata,
@@ -584,7 +582,7 @@ jobs:
         - host: i686-w64-mingw32
           oscc: mingw
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     env:
       HOST: ${{ matrix.host }}
@@ -670,7 +668,7 @@ jobs:
     permissions:
       contents: write
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
     - uses: actions/checkout@v4
