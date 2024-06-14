@@ -521,9 +521,12 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Linux setup
+    - name: Prepare for i386
+      if: matrix.host == 'i686-w64-mingw32'
       run: |
         sudo dpkg --add-architecture i386
+    - name: Linux setup
+      run: |
         sudo apt-get update
         sudo apt-get install \
           gcc-mingw-w64 \
