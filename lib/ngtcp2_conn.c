@@ -12851,6 +12851,7 @@ void ngtcp2_conn_get_conn_info_versioned(ngtcp2_conn *conn,
   cinfo->cwnd = cstat->cwnd;
   cinfo->ssthresh = cstat->ssthresh;
   cinfo->bytes_in_flight = cstat->bytes_in_flight;
+  cinfo->delivery_rate_sec = cstat->delivery_rate_sec;
 }
 
 static void conn_get_loss_time_and_pktns(ngtcp2_conn *conn,

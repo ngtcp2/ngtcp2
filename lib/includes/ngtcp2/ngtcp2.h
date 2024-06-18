@@ -1586,6 +1586,11 @@ typedef struct ngtcp2_conn_info {
    * packets which have not been acknowledged.
    */
   uint64_t bytes_in_flight;
+  /**
+   * :member:`delivery_rate_sec` is the current sending rate measured
+   * in byte per second.
+   */
+  uint64_t delivery_rate_sec;
 } ngtcp2_conn_info;
 
 /**
