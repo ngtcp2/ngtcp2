@@ -69,11 +69,9 @@ namespace {
 ptls_key_exchange_algorithm_t *key_exchanges[] = {
 #if PTLS_OPENSSL_HAVE_X25519
     &ptls_openssl_x25519,
-#endif
-    &ptls_openssl_secp256r1,
-    &ptls_openssl_secp384r1,
-    &ptls_openssl_secp521r1,
-    nullptr,
+#endif // PTLS_OPENSSL_X25519
+    &ptls_openssl_secp256r1, &ptls_openssl_secp384r1,
+    &ptls_openssl_secp521r1, nullptr,
 };
 } // namespace
 
@@ -83,7 +81,7 @@ ptls_cipher_suite_t *cipher_suites[] = {
     &ptls_openssl_aes256gcmsha384,
 #if PTLS_OPENSSL_HAVE_CHACHA20_POLY1305
     &ptls_openssl_chacha20poly1305sha256,
-#endif
+#endif // PTLS_OPENSSL_CHACHA20POLY1305SHA256
     nullptr,
 };
 } // namespace
