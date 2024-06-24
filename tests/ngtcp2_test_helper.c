@@ -413,3 +413,63 @@ void path_init(ngtcp2_path_storage *path, uint32_t local_addr,
   ngtcp2_path_storage_init(path, (ngtcp2_sockaddr *)&la, sizeof(la),
                            (ngtcp2_sockaddr *)&ra, sizeof(ra), NULL);
 }
+
+void ngtcp2_tpe_init(ngtcp2_tpe *tpe, const ngtcp2_cid *dcid,
+                     const ngtcp2_cid *scid, uint32_t version) {
+  memset(tpe, 0, sizeof(*tpe));
+
+  tpe->dcid = *dcid;
+
+  if (scid) {
+    tpe->scid = *scid;
+  }
+
+  tpe->version = version;
+  tpe->initial.last_pkt_num = -1;
+  tpe->handshake.last_pkt_num = -1;
+  tpe->app.last_pkt_num = -1;
+}
+
+void ngtcp2_tpe_init_conn(ngtcp2_tpe *tpe, ngtcp2_conn *conn) {
+  ngtcp2_tpe_init(tpe, &conn->oscid, ngtcp2_conn_get_dcid(conn),
+                  conn->client_chosen_version);
+
+  if (conn->in_pktns) {
+    tpe->initial.ckm = conn->in_pktns->crypto.rx.ckm;
+  }
+
+  if (conn->hs_pktns) {
+    tpe->handshake.ckm = conn->hs_pktns->crypto.rx.ckm;
+  }
+
+  tpe->early.ckm = conn->early.ckm;
+  tpe->app.ckm = conn->pktns.crypto.rx.ckm;
+}
+
+size_t ngtcp2_tpe_write_initial(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
+                                ngtcp2_frame *fr, size_t frlen) {
+  return write_initial_pkt_flags(out, outlen, tpe->flags, &tpe->dcid,
+                                 &tpe->scid, ++tpe->initial.last_pkt_num,
+                                 tpe->version, tpe->token, tpe->tokenlen, fr,
+                                 frlen, tpe->initial.ckm);
+}
+
+size_t ngtcp2_tpe_write_handshake(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
+                                  ngtcp2_frame *fr, size_t frlen) {
+  return write_handshake_pkt(out, outlen, &tpe->dcid, &tpe->scid,
+                             ++tpe->handshake.last_pkt_num, tpe->version, fr,
+                             frlen, tpe->handshake.ckm);
+}
+
+size_t ngtcp2_tpe_write_0rtt(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
+                             ngtcp2_frame *fr, size_t frlen) {
+  return write_0rtt_pkt(out, outlen, &tpe->dcid, &tpe->scid,
+                        ++tpe->app.last_pkt_num, tpe->version, fr, frlen,
+                        tpe->early.ckm);
+}
+
+size_t ngtcp2_tpe_write_1rtt(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
+                             ngtcp2_frame *fr, size_t frlen) {
+  return write_pkt_flags(out, outlen, tpe->flags, &tpe->dcid,
+                         ++tpe->app.last_pkt_num, fr, frlen, tpe->app.ckm);
+}
