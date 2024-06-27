@@ -140,7 +140,7 @@ jobs:
     - name: MacOS setup
       if: runner.os == 'macOS' && steps.settings.outputs.needs-build == 'true'
       run: |
-        brew install autoconf automake pkg-config libtool
+        brew install autoconf automake libtool
 
         echo 'NPROC='"$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
     - name: Build OpenSSL v1.1.1
@@ -267,7 +267,7 @@ jobs:
     - name: MacOS setup
       if: runner.os == 'macOS'
       run: |
-        brew install libev gnutls brotli autoconf automake pkg-config libtool
+        brew install libev autoconf automake libtool
 
         echo 'NPROC='"$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
     - name: Setup clang (Linux)
