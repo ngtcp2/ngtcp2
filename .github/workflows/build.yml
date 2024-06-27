@@ -424,15 +424,16 @@ jobs:
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
-        autoreconf -i && ./configure $AUTOTOOLS_OPTS
+        autoreconf -i && \
+        ./configure --disable-dependency-tracking $AUTOTOOLS_OPTS
     - name: Configure autotools for distcheck
       if: matrix.buildtool == 'distcheck'
       run: |
-        autoreconf -i && ./configure
+        autoreconf -i && ./configure --disable-dependency-tracking
     - name: Configure cmake
       if: matrix.buildtool == 'cmake'
       run: |
-        autoreconf -i && ./configure
+        autoreconf -i && ./configure --disable-dependency-tracking
         make dist
 
         VERSION=$(grep PACKAGE_VERSION config.h | cut -d' ' -f3 | tr -d '"')
@@ -546,7 +547,8 @@ jobs:
     - name: Configure autotools
       run: |
         autoreconf -i && \
-        ./configure --enable-werror --with-openssl --host="$HOST" \
+        ./configure --disable-dependency-tracking --enable-werror \
+          --with-openssl --host="$HOST" \
           LIBS="-pthread"
     - name: Build ngtcp2
       run: |

@@ -22,8 +22,8 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then export WSSLFLAGS="--enable-ae
     if [ "$TARGETPLATFORM" = "linux/arm64" ]; then export WSSLFLAGS="--enable-armasm"; fi && \
     git clone --depth 1 -b v5.7.0-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
-    ./configure --enable-static --enable-all --enable-harden \
-        --enable-keylog-export --disable-ech $WSSLFLAGS \
+    ./configure --disable-dependency-tracking --enable-static --enable-all \
+        --enable-harden --enable-keylog-export --disable-ech $WSSLFLAGS \
         --host=$(xx-clang --print-target-triple) \
         CC=$(xx-info)-gcc-12 \
         CXX=$(xx-info)-g++-12 && \
@@ -32,7 +32,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then export WSSLFLAGS="--enable-ae
 RUN git clone --recursive --shallow-submodules --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && \
     autoreconf -i && \
-    ./configure --enable-lib-only \
+    ./configure --disable-dependency-tracking --enable-lib-only \
         --host=$(xx-clang --print-target-triple) \
         CC=$(xx-info)-gcc-12 \
         CXX=$(xx-info)-g++-12 \
@@ -55,6 +55,7 @@ RUN git clone --recursive --shallow-submodules --depth 1 -b $NGTCP2_BRANCH https
         LIBEV_LIBS="-l:libev.a" \
         JEMALLOC_LIBS="-l:libjemalloc.a" \
         PKG_CONFIG_PATH=/usr/local/lib/pkgconfig \
+        --disable-dependency-tracking \
         --with-wolfssl && \
     make -j$(nproc) && \
     cp examples/wsslclient examples/wsslserver \
