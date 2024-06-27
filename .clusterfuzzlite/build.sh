@@ -1,7 +1,7 @@
 #!/bin/bash -eu
 
 autoreconf -i
-./configure --enable-lib-only
+./configure --disable-dependency-tracking --enable-lib-only
 make -j$(nproc)
 
 $CXX $CXXFLAGS -std=c++17 -Ilib/includes -Ilib -I. -DHAVE_CONFIG_H \

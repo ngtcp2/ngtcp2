@@ -9,13 +9,14 @@ RUN apt-get update && \
         ca-certificates mime-support && \
     git clone --depth 1 -b v5.7.0-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
-    ./configure --enable-static --enable-all --enable-aesni \
-        --enable-harden --enable-keylog-export --disable-ech && \
+    ./configure --disable-dependency-tracking --enable-static --enable-all \
+        --enable-aesni --enable-harden --enable-keylog-export --disable-ech && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf wolfssl && \
     git clone --recursive --shallow-submodules --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && \
     autoreconf -i && \
-    ./configure --enable-lib-only CC=clang-15 CXX=clang++-15 && \
+    ./configure --disable-dependency-tracking --enable-lib-only \
+        CC=clang-15 CXX=clang++-15 && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf nghttp3 && \
     git clone --recursive --shallow-submodules --depth 1 -b $NGTCP2_BRANCH https://github.com/ngtcp2/ngtcp2 && \
     cd ngtcp2 && \
@@ -27,6 +28,7 @@ RUN apt-get update && \
         LIBTOOL_LDFLAGS="-static-libtool-libs" \
         LIBEV_LIBS="-l:libev.a" \
         JEMALLOC_LIBS="-l:libjemalloc.a -lm" \
+        --disable-dependency-tracking \
         --with-wolfssl && \
     make -j$(nproc) && \
     strip examples/wsslclient examples/wsslserver && \

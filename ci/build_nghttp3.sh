@@ -9,6 +9,6 @@ git fetch origin --depth 1 "${NGHTTP3_VERSION}"
 git checkout "${NGHTTP3_VERSION}"
 git submodule update --init --depth 1
 autoreconf -i
-./configure --prefix=$PWD/build --enable-lib-only
+./configure --disable-dependency-tracking --prefix=$PWD/build --enable-lib-only
 make -j"$(nproc 2> /dev/null || sysctl -n hw.ncpu)" check
 make install
