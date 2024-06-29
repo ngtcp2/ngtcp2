@@ -199,7 +199,7 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
 }
 
 size_t msghdr_get_udp_gro(msghdr *msg) {
-  uint16_t gso_size = 0;
+  int gso_size = 0;
 
 #ifdef UDP_GRO
   for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
@@ -211,7 +211,7 @@ size_t msghdr_get_udp_gro(msghdr *msg) {
   }
 #endif // UDP_GRO
 
-  return gso_size;
+  return static_cast<size_t>(gso_size);
 }
 
 void set_port(Address &dst, Address &src) {
