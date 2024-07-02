@@ -53,9 +53,12 @@ void ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
   strm->tx.last_lost_pkt_num = -1;
   strm->tx.stop_sending_app_error_code = 0;
   strm->tx.reset_stream_app_error_code = 0;
+  strm->tx.reset_stream_at = 0;
   strm->rx.rob = NULL;
   strm->rx.cont_offset = 0;
   strm->rx.last_offset = 0;
+  strm->rx.final_offset = 0;
+  strm->rx.reliable_offset = 0;
   strm->stream_id = stream_id;
   strm->flags = flags;
   strm->stream_user_data = stream_user_data;
