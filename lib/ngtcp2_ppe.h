@@ -36,10 +36,13 @@
 #include "ngtcp2_crypto.h"
 
 /*
- * ngtcp2_ppe is the Protected Packet Encoder.
+ * ngtcp2_ppe is the QUIC Packet Encoder.
  */
 typedef struct ngtcp2_ppe {
+  /* buf is the buffer where a QUIC packet is written. */
   ngtcp2_buf buf;
+  /* cc is the encryption context that includes callback functions to
+     encrypt a QUIC packet, and AEAD cipher, etc. */
   ngtcp2_crypto_cc *cc;
   /* dgram_offset is the offset in UDP datagram payload that this QUIC
      packet is positioned at. */
@@ -56,7 +59,7 @@ typedef struct ngtcp2_ppe {
   /* pkt_num is the packet number written in buf. */
   int64_t pkt_num;
   /* nonce is the buffer to store nonce.  It should be equal or longer
-     than then length of IV. */
+     than the length of IV. */
   uint8_t nonce[32];
 } ngtcp2_ppe;
 
@@ -89,7 +92,7 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd);
 int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, ngtcp2_frame *fr);
 
 /*
- * ngtcp2_ppe_final encrypts QUIC packet payload.  If |**ppkt| is not
+ * ngtcp2_ppe_final encrypts QUIC packet payload.  If |ppkt| is not
  * NULL, the pointer to the packet is assigned to it.
  *
  * This function returns the length of QUIC packet, including header,

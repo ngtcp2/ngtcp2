@@ -66,6 +66,7 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
     rv = ngtcp2_pkt_encode_hd_short(
         buf->last, ngtcp2_buf_left(buf) - cc->aead.max_overhead, hd);
   }
+
   if (rv < 0) {
     return (int)rv;
   }
@@ -74,7 +75,6 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
 
   ppe->pkt_numlen = hd->pkt_numlen;
   ppe->hdlen = (size_t)rv;
-
   ppe->pkt_num = hd->pkt_num;
 
   return 0;
@@ -138,7 +138,7 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
 
   buf->last = payload + payloadlen + cc->aead.max_overhead;
 
-  /* TODO Check that we have enough space to get sample */
+  /* Make sure that we have enough space to get sample */
   assert(ppe_sample_offset(ppe) + NGTCP2_HP_SAMPLELEN <= ngtcp2_buf_len(buf));
 
   rv = cc->hp_mask(mask, &cc->hp, &cc->hp_ctx,
