@@ -56,7 +56,6 @@ int ngtcp2_rob_data_new(ngtcp2_rob_data **pd, uint64_t offset, size_t chunk,
   (*pd)->range.begin = offset;
   (*pd)->range.end = offset + chunk;
   (*pd)->begin = (uint8_t *)(*pd) + sizeof(ngtcp2_rob_data);
-  (*pd)->end = (*pd)->begin + chunk;
 
   return 0;
 }

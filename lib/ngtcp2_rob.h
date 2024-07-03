@@ -74,8 +74,6 @@ typedef struct ngtcp2_rob_data {
   ngtcp2_range range;
   /* begin points to the buffer. */
   uint8_t *begin;
-  /* end points to the one beyond of the last byte of the buffer */
-  uint8_t *end;
 } ngtcp2_rob_data;
 
 /*
