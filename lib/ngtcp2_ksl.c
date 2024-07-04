@@ -263,8 +263,8 @@ static void ksl_insert_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i,
   ++blk->n;
 }
 
-static size_t ksl_bsearch(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
-                          const ngtcp2_ksl_key *key, ngtcp2_ksl_compar compar) {
+static size_t ksl_search(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
+                         const ngtcp2_ksl_key *key, ngtcp2_ksl_compar compar) {
   size_t i;
   ngtcp2_ksl_node *node;
 
@@ -301,7 +301,7 @@ int ngtcp2_ksl_insert(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
   }
 
   for (;;) {
-    i = ksl_bsearch(ksl, blk, key, ksl->compar);
+    i = ksl_search(ksl, blk, key, ksl->compar);
 
     if (blk->leaf) {
       if (i < blk->n &&
@@ -541,7 +541,7 @@ int ngtcp2_ksl_remove(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
   }
 
   for (;;) {
-    i = ksl_bsearch(ksl, blk, key, ksl->compar);
+    i = ksl_search(ksl, blk, key, ksl->compar);
 
     if (i == blk->n) {
       if (it) {
@@ -605,43 +605,7 @@ int ngtcp2_ksl_remove(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
 
 ngtcp2_ksl_it ngtcp2_ksl_lower_bound(ngtcp2_ksl *ksl,
                                      const ngtcp2_ksl_key *key) {
-  ngtcp2_ksl_blk *blk = ksl->head;
-  ngtcp2_ksl_it it;
-  size_t i;
-
-  if (!blk) {
-    ngtcp2_ksl_it_init(&it, ksl, &null_blk, 0);
-    return it;
-  }
-
-  for (;;) {
-    i = ksl_bsearch(ksl, blk, key, ksl->compar);
-
-    if (blk->leaf) {
-      if (i == blk->n && blk->next) {
-        blk = blk->next;
-        i = 0;
-      }
-      ngtcp2_ksl_it_init(&it, ksl, blk, i);
-      return it;
-    }
-
-    if (i == blk->n) {
-      /* This happens if descendant has smaller key.  Fast forward to
-         find last node in this subtree. */
-      for (; !blk->leaf; blk = ngtcp2_ksl_nth_node(ksl, blk, blk->n - 1)->blk)
-        ;
-      if (blk->next) {
-        blk = blk->next;
-        i = 0;
-      } else {
-        i = blk->n;
-      }
-      ngtcp2_ksl_it_init(&it, ksl, blk, i);
-      return it;
-    }
-    blk = ngtcp2_ksl_nth_node(ksl, blk, i)->blk;
-  }
+  return ngtcp2_ksl_lower_bound_compar(ksl, key, ksl->compar);
 }
 
 ngtcp2_ksl_it ngtcp2_ksl_lower_bound_compar(ngtcp2_ksl *ksl,
@@ -657,7 +621,7 @@ ngtcp2_ksl_it ngtcp2_ksl_lower_bound_compar(ngtcp2_ksl *ksl,
   }
 
   for (;;) {
-    i = ksl_bsearch(ksl, blk, key, compar);
+    i = ksl_search(ksl, blk, key, compar);
 
     if (blk->leaf) {
       if (i == blk->n && blk->next) {
@@ -695,7 +659,7 @@ void ngtcp2_ksl_update_key(ngtcp2_ksl *ksl, const ngtcp2_ksl_key *old_key,
   assert(ksl->head);
 
   for (;;) {
-    i = ksl_bsearch(ksl, blk, old_key, ksl->compar);
+    i = ksl_search(ksl, blk, old_key, ksl->compar);
 
     assert(i < blk->n);
     node = ngtcp2_ksl_nth_node(ksl, blk, i);
