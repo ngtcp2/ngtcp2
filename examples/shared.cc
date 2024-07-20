@@ -163,6 +163,7 @@ void fd_set_udp_gro(int fd) {
 }
 
 std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
+#if defined(IP_PKTINFO) && defined(IPV6_PKTINFO)
   switch (family) {
   case AF_INET:
     for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
@@ -195,6 +196,7 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
     }
     return {};
   }
+#endif // defined(IP_PKTINFO) && defined(IPV6_PKTINFO)
   return {};
 }
 
