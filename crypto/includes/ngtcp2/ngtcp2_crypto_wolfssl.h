@@ -27,6 +27,7 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#define WOLFSSL_QUIC
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/quic.h>
