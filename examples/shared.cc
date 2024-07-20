@@ -87,6 +87,7 @@ unsigned int msghdr_get_ecn(msghdr *msg, int family) {
 }
 
 void fd_set_recv_ecn(int fd, int family) {
+#if defined(IP_RECVTOS) && defined(IPV6_RECVTCLASS)
   unsigned int tos = 1;
   switch (family) {
   case AF_INET:
@@ -102,6 +103,7 @@ void fd_set_recv_ecn(int fd, int family) {
     }
     break;
   }
+#endif // defined(IP_RECVTOS) && defined(IPV6_RECVTCLASS)
 }
 
 void fd_set_ip_mtu_discover(int fd, int family) {
