@@ -34,7 +34,7 @@
 #include <ngtcp2/ngtcp2.h>
 
 #define ngtcp2_struct_of(ptr, type, member)                                    \
-  ((type *)(void *)((char *)(ptr)-offsetof(type, member)))
+  ((type *)(void *)((char *)(ptr) - offsetof(type, member)))
 
 /* ngtcp2_list_insert inserts |T| before |*PD|.  The contract is that
    this is singly linked list, and the next element is pointed by next
