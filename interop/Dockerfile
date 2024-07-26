@@ -23,7 +23,8 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then export WSSLFLAGS="--enable-ae
     git clone --depth 1 -b v5.7.0-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
     ./configure --disable-dependency-tracking --enable-static --enable-all \
-        --enable-harden --enable-keylog-export --disable-ech $WSSLFLAGS \
+        --enable-harden --enable-keylog-export --disable-ech \
+        --enable-ticket-nonce-malloc $WSSLFLAGS \
         --host=$(xx-clang --print-target-triple) \
         CC=$(xx-info)-gcc-12 \
         CXX=$(xx-info)-g++-12 && \
