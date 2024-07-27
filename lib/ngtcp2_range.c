@@ -35,9 +35,11 @@ ngtcp2_range ngtcp2_range_intersect(const ngtcp2_range *a,
   ngtcp2_range r = {0, 0};
   uint64_t begin = ngtcp2_max_uint64(a->begin, b->begin);
   uint64_t end = ngtcp2_min_uint64(a->end, b->end);
+
   if (begin < end) {
     ngtcp2_range_init(&r, begin, end);
   }
+
   return r;
 }
 
