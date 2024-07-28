@@ -1167,9 +1167,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_pq_init(&(*pconn)->tx.strmq, cycle_less, mem);
 
-  ngtcp2_idtr_init(&(*pconn)->remote.bidi.idtr, !server, mem);
+  ngtcp2_idtr_init(&(*pconn)->remote.bidi.idtr, mem);
 
-  ngtcp2_idtr_init(&(*pconn)->remote.uni.idtr, !server, mem);
+  ngtcp2_idtr_init(&(*pconn)->remote.uni.idtr, mem);
 
   ngtcp2_static_ringbuf_path_challenge_init(&(*pconn)->rx.path_challenge);
 
