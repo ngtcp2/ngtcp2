@@ -85,7 +85,8 @@ struct ngtcp2_ksl_blk {
     struct {
       /* next points to the next block if leaf field is nonzero. */
       ngtcp2_ksl_blk *next;
-      /* prev points to the previous block if leaf field is nonzero. */
+      /* prev points to the previous block if leaf field is
+         nonzero. */
       ngtcp2_ksl_blk *prev;
       /* n is the number of nodes this object contains in nodes. */
       uint32_t n;
