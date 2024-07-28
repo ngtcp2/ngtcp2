@@ -43,18 +43,12 @@ typedef struct ngtcp2_idtr {
      stream ID are in the different number spaces.  See
      id_from_stream_id to convert a stream ID to an internal ID. */
   ngtcp2_gaptr gap;
-  /* server is nonzero if this object records server initiated stream
-     ID. */
-  int server;
 } ngtcp2_idtr;
 
 /*
  * ngtcp2_idtr_init initializes |idtr|.
- *
- * If this object records server initiated stream ID (odd number), set
- * |server| to nonzero.
  */
-void ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, const ngtcp2_mem *mem);
+void ngtcp2_idtr_init(ngtcp2_idtr *idtr, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_idtr_free frees resources allocated for |idtr|.

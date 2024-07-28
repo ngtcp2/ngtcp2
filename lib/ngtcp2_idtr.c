@@ -26,10 +26,8 @@
 
 #include <assert.h>
 
-void ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, const ngtcp2_mem *mem) {
+void ngtcp2_idtr_init(ngtcp2_idtr *idtr, const ngtcp2_mem *mem) {
   ngtcp2_gaptr_init(&idtr->gap, mem);
-
-  idtr->server = server;
 }
 
 void ngtcp2_idtr_free(ngtcp2_idtr *idtr) {
@@ -50,9 +48,6 @@ static uint64_t id_from_stream_id(int64_t stream_id) {
 int ngtcp2_idtr_open(ngtcp2_idtr *idtr, int64_t stream_id) {
   uint64_t q;
 
-  assert((idtr->server && (stream_id & 1)) ||
-         (!idtr->server && !(stream_id & 1)));
-
   q = id_from_stream_id(stream_id);
 
   if (ngtcp2_gaptr_is_pushed(&idtr->gap, q, 1)) {
@@ -64,9 +59,6 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, int64_t stream_id) {
 
 int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, int64_t stream_id) {
   uint64_t q;
-
-  assert((idtr->server && (stream_id & 1)) ||
-         (!idtr->server && !(stream_id & 1)));
 
   q = id_from_stream_id(stream_id);
 
