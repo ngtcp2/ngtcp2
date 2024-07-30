@@ -201,6 +201,7 @@ static int map_resize(ngtcp2_map *map, uint32_t new_tablelen,
     if (bkt->data == NULL) {
       continue;
     }
+
     rv = insert(new_table, new_tablelen, new_tablelenbits, bkt->hash, bkt->key,
                 bkt->data);
 
@@ -241,7 +242,9 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
   if (rv != 0) {
     return rv;
   }
+
   ++map->size;
+
   return 0;
 }
 
