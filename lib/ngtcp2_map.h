@@ -60,18 +60,9 @@ void ngtcp2_map_init(ngtcp2_map *map, const ngtcp2_mem *mem);
 /*
  * ngtcp2_map_free deallocates any resources allocated for |map|.  The
  * stored entries are not freed by this function.  Use
- * ngtcp2_map_each_free() to free each entry.
+ * ngtcp2_map_each() to free each entry.
  */
 void ngtcp2_map_free(ngtcp2_map *map);
-
-/*
- * ngtcp2_map_each_free deallocates each entry using |func| function.
- * The |func| function is responsible for freeing the passed |data|
- * object.  The |ptr| will be passed to the |func| as the second
- * argument.  The return value of the |func| will be ignored.
- */
-void ngtcp2_map_each_free(ngtcp2_map *map, int (*func)(void *data, void *ptr),
-                          void *ptr);
 
 /*
  * ngtcp2_map_insert inserts the new |data| with the |key| to the map
@@ -127,9 +118,6 @@ size_t ngtcp2_map_size(ngtcp2_map *map);
  * |func| immediately.  Thus, this function returns 0 if all the
  * invocations of the |func| return 0, or nonzero value which the last
  * invocation of |func| returns.
- *
- * Do not use this function to free each entry. Use
- * ngtcp2_map_each_free() instead.
  */
 int ngtcp2_map_each(ngtcp2_map *map, int (*func)(void *data, void *ptr),
                     void *ptr);

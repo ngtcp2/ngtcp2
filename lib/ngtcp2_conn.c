@@ -1604,7 +1604,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_idtr_free(&conn->remote.bidi.idtr);
   ngtcp2_mem_free(conn->mem, conn->tx.ack);
   ngtcp2_pq_free(&conn->tx.strmq);
-  ngtcp2_map_each_free(&conn->strms, delete_strms_each, (void *)conn);
+  ngtcp2_map_each(&conn->strms, delete_strms_each, (void *)conn);
   ngtcp2_map_free(&conn->strms);
 
   ngtcp2_pq_free(&conn->scid.used);
@@ -12729,7 +12729,7 @@ static void conn_discard_early_data_state(ngtcp2_conn *conn) {
 
   ngtcp2_rtb_remove_early_data(&conn->pktns.rtb, &conn->cstat);
 
-  ngtcp2_map_each_free(&conn->strms, delete_strms_pq_each, conn);
+  ngtcp2_map_each(&conn->strms, delete_strms_pq_each, conn);
   ngtcp2_map_clear(&conn->strms);
 
   conn->tx.offset = 0;

@@ -49,22 +49,6 @@ void ngtcp2_map_free(ngtcp2_map *map) {
   ngtcp2_mem_free(map->mem, map->table);
 }
 
-void ngtcp2_map_each_free(ngtcp2_map *map, int (*func)(void *data, void *ptr),
-                          void *ptr) {
-  uint32_t i;
-  ngtcp2_map_bucket *bkt;
-
-  for (i = 0; i < map->tablelen; ++i) {
-    bkt = &map->table[i];
-
-    if (bkt->data == NULL) {
-      continue;
-    }
-
-    func(bkt->data, ptr);
-  }
-}
-
 int ngtcp2_map_each(ngtcp2_map *map, int (*func)(void *data, void *ptr),
                     void *ptr) {
   int rv;
