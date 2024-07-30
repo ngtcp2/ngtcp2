@@ -83,29 +83,30 @@ static uint32_t hash(ngtcp2_map_key_type key) {
 
 static size_t h2idx(uint32_t hash, size_t bits) { return hash >> (32 - bits); }
 
-static size_t distance(size_t tablelenbits, ngtcp2_map_bucket *bkt,
-                       size_t idx) {
-  return (idx - h2idx(bkt->hash, tablelenbits)) & ((1u << tablelenbits) - 1);
-}
-
 static void map_bucket_swap(ngtcp2_map_bucket *bkt, uint32_t *phash,
-                            ngtcp2_map_key_type *pkey, void **pdata) {
+                            uint32_t *ppsl, ngtcp2_map_key_type *pkey,
+                            void **pdata) {
   uint32_t h = bkt->hash;
+  uint32_t psl = bkt->psl;
   ngtcp2_map_key_type key = bkt->key;
   void *data = bkt->data;
 
   bkt->hash = *phash;
+  bkt->psl = *ppsl;
   bkt->key = *pkey;
   bkt->data = *pdata;
 
   *phash = h;
+  *ppsl = psl;
   *pkey = key;
   *pdata = data;
 }
 
 static void map_bucket_set_data(ngtcp2_map_bucket *bkt, uint32_t hash,
-                                ngtcp2_map_key_type key, void *data) {
+                                uint32_t psl, ngtcp2_map_key_type key,
+                                void *data) {
   bkt->hash = hash;
+  bkt->psl = psl;
   bkt->key = key;
   bkt->data = data;
 }
@@ -132,8 +133,8 @@ void ngtcp2_map_print_distance(ngtcp2_map *map) {
     }
 
     idx = h2idx(bkt->hash, map->tablelenbits);
-    fprintf(stderr, "@%zu hash=%08x key=%" PRIu64 " base=%zu distance=%zu\n", i,
-            bkt->hash, bkt->key, idx, distance(map->tablelenbits, bkt, idx));
+    fprintf(stderr, "@%zu hash=%08x key=%" PRIu64 " base=%zu distance=%u\n", i,
+            bkt->hash, bkt->key, idx, bkt->psl);
   }
 }
 #endif /* !WIN32 */
@@ -141,7 +142,7 @@ void ngtcp2_map_print_distance(ngtcp2_map *map) {
 static int insert(ngtcp2_map_bucket *table, size_t tablelenbits, uint32_t hash,
                   ngtcp2_map_key_type key, void *data) {
   size_t idx = h2idx(hash, tablelenbits);
-  size_t d = 0, dd;
+  uint32_t psl = 0;
   ngtcp2_map_bucket *bkt;
   size_t mask = (1u << tablelenbits) - 1;
 
@@ -149,14 +150,12 @@ static int insert(ngtcp2_map_bucket *table, size_t tablelenbits, uint32_t hash,
     bkt = &table[idx];
 
     if (bkt->data == NULL) {
-      map_bucket_set_data(bkt, hash, key, data);
+      map_bucket_set_data(bkt, hash, psl, key, data);
       return 0;
     }
 
-    dd = distance(tablelenbits, bkt, idx);
-    if (d > dd) {
-      map_bucket_swap(bkt, &hash, &key, &data);
-      d = dd;
+    if (psl > bkt->psl) {
+      map_bucket_swap(bkt, &hash, &psl, &key, &data);
     } else if (bkt->key == key) {
       /* TODO This check is just a waste after first swap or if this
          function is called from map_resize.  That said, there is no
@@ -165,7 +164,7 @@ static int insert(ngtcp2_map_bucket *table, size_t tablelenbits, uint32_t hash,
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
-    ++d;
+    ++psl;
     idx = (idx + 1) & mask;
   }
 }
@@ -256,7 +255,7 @@ void *ngtcp2_map_find(ngtcp2_map *map, ngtcp2_map_key_type key) {
   for (;;) {
     bkt = &map->table[idx];
 
-    if (bkt->data == NULL || d > distance(map->tablelenbits, bkt, idx)) {
+    if (bkt->data == NULL || d > bkt->psl) {
       return NULL;
     }
 
@@ -287,24 +286,24 @@ int ngtcp2_map_remove(ngtcp2_map *map, ngtcp2_map_key_type key) {
   for (;;) {
     bkt = &map->table[idx];
 
-    if (bkt->data == NULL || d > distance(map->tablelenbits, bkt, idx)) {
+    if (bkt->data == NULL || d > bkt->psl) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
     if (bkt->key == key) {
-      map_bucket_set_data(bkt, 0, 0, NULL);
+      map_bucket_set_data(bkt, 0, 0, 0, NULL);
 
       didx = idx;
       idx = (idx + 1) & mask;
 
       for (;;) {
         bkt = &map->table[idx];
-        if (bkt->data == NULL || distance(map->tablelenbits, bkt, idx) == 0) {
+        if (bkt->data == NULL || bkt->psl == 0) {
           break;
         }
 
         map->table[didx] = *bkt;
-        map_bucket_set_data(bkt, 0, 0, NULL);
+        map_bucket_set_data(bkt, 0, 0, 0, NULL);
         didx = idx;
 
         idx = (idx + 1) & mask;
