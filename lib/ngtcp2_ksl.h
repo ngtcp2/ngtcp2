@@ -35,10 +35,6 @@
 
 #include "ngtcp2_objalloc.h"
 
-/*
- * Skip List using single key instead of range.
- */
-
 #define NGTCP2_KSL_DEGR 16
 /* NGTCP2_KSL_MAX_NBLK is the maximum number of nodes which a single
    block can contain. */
@@ -121,7 +117,7 @@ typedef struct ngtcp2_ksl ngtcp2_ksl;
 typedef struct ngtcp2_ksl_it ngtcp2_ksl_it;
 
 /*
- * ngtcp2_ksl_it is a forward iterator to iterate nodes.
+ * ngtcp2_ksl_it is a bidirectional iterator to iterate nodes.
  */
 struct ngtcp2_ksl_it {
   const ngtcp2_ksl *ksl;
@@ -141,6 +137,7 @@ struct ngtcp2_ksl {
   /* back points to the last leaf block. */
   ngtcp2_ksl_blk *back;
   ngtcp2_ksl_compar compar;
+  /* n is the number of elements stored. */
   size_t n;
   /* keylen is the size of key */
   size_t keylen;
@@ -166,15 +163,15 @@ void ngtcp2_ksl_free(ngtcp2_ksl *ksl);
 /*
  * ngtcp2_ksl_insert inserts |key| with its associated |data|.  On
  * successful insertion, the iterator points to the inserted node is
- * stored in |*it|.
+ * stored in |*it| if |it| is not NULL.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGTCP2_ERR_NOMEM
- *   Out of memory.
+ *     Out of memory.
  * NGTCP2_ERR_INVALID_ARGUMENT
- *   |key| already exists.
+ *     |key| already exists.
  */
 int ngtcp2_ksl_insert(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
                       const ngtcp2_ksl_key *key, void *data);
@@ -185,13 +182,14 @@ int ngtcp2_ksl_insert(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
  * This function assigns the iterator to |*it|, which points to the
  * node which is located at the right next of the removed node if |it|
  * is not NULL.  If |key| is not found, no deletion takes place and
- * the return value of ngtcp2_ksl_end(ksl) is assigned to |*it|.
+ * the return value of ngtcp2_ksl_end(ksl) is assigned to |*it| if
+ * |it| is not NULL.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *   |key| does not exist.
+ *     |key| does not exist.
  */
 int ngtcp2_ksl_remove(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
                       const ngtcp2_ksl_key *key);
@@ -236,7 +234,8 @@ void ngtcp2_ksl_update_key(ngtcp2_ksl *ksl, const ngtcp2_ksl_key *old_key,
 /*
  * ngtcp2_ksl_begin returns the iterator which points to the first
  * node.  If there is no node in |ksl|, it returns the iterator which
- * satisfies ngtcp2_ksl_it_end(it) != 0.
+ * satisfies both ngtcp2_ksl_it_begin(it) != 0 and
+ * ngtcp2_ksl_it_end(it) != 0.
  */
 ngtcp2_ksl_it ngtcp2_ksl_begin(const ngtcp2_ksl *ksl);
 
@@ -244,7 +243,8 @@ ngtcp2_ksl_it ngtcp2_ksl_begin(const ngtcp2_ksl *ksl);
  * ngtcp2_ksl_end returns the iterator which points to the node
  * following the last node.  The returned object satisfies
  * ngtcp2_ksl_it_end().  If there is no node in |ksl|, it returns the
- * iterator which satisfies ngtcp2_ksl_it_begin(it) != 0.
+ * iterator which satisfies ngtcp2_ksl_it_begin(it) != 0 and
+ * ngtcp2_ksl_it_end(it) != 0.
  */
 ngtcp2_ksl_it ngtcp2_ksl_end(const ngtcp2_ksl *ksl);
 
@@ -305,16 +305,16 @@ void ngtcp2_ksl_it_init(ngtcp2_ksl_it *it, const ngtcp2_ksl *ksl,
 void ngtcp2_ksl_it_prev(ngtcp2_ksl_it *it);
 
 /*
- * ngtcp2_ksl_it_end returns nonzero if |it| points to the beyond the
- * last node.
+ * ngtcp2_ksl_it_end returns nonzero if |it| points to the one beyond
+ * the last node.
  */
 #define ngtcp2_ksl_it_end(IT)                                                  \
   ((IT)->blk->n == (IT)->i && (IT)->blk->next == NULL)
 
 /*
  * ngtcp2_ksl_it_begin returns nonzero if |it| points to the first
- * node.  |it| might satisfy both ngtcp2_ksl_it_begin(&it) and
- * ngtcp2_ksl_it_end(&it) if the skip list has no node.
+ * node.  |it| might satisfy both ngtcp2_ksl_it_begin(it) != 0 and
+ * ngtcp2_ksl_it_end(it) != 0 if the skip list has no node.
  */
 int ngtcp2_ksl_it_begin(const ngtcp2_ksl_it *it);
 
