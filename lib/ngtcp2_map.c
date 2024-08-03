@@ -302,6 +302,7 @@ int ngtcp2_map_remove(ngtcp2_map *map, ngtcp2_map_key_type key) {
           break;
         }
 
+        --bkt->psl;
         map->table[didx] = *bkt;
         map_bucket_set_data(bkt, 0, 0, 0, NULL);
         didx = idx;
