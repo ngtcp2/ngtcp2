@@ -291,20 +291,18 @@ int ngtcp2_map_remove(ngtcp2_map *map, ngtcp2_map_key_type key) {
     }
 
     if (bkt->key == key) {
-      map_bucket_set_data(bkt, 0, 0, 0, NULL);
-
       didx = idx;
       idx = (idx + 1) & mask;
 
       for (;;) {
         bkt = &map->table[idx];
         if (bkt->data == NULL || bkt->psl == 0) {
+          map_bucket_set_data(&map->table[didx], 0, 0, 0, NULL);
           break;
         }
 
         --bkt->psl;
         map->table[didx] = *bkt;
-        map_bucket_set_data(bkt, 0, 0, 0, NULL);
         didx = idx;
 
         idx = (idx + 1) & mask;
