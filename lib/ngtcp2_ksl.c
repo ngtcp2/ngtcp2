@@ -38,8 +38,8 @@ static ngtcp2_ksl_blk null_blk = {{{NULL, NULL, 0, 0, {0}}}};
 ngtcp2_objalloc_def(ksl_blk, ngtcp2_ksl_blk, oplent);
 
 static size_t ksl_nodelen(size_t keylen) {
-  return (sizeof(ngtcp2_ksl_node) + keylen - sizeof(uint64_t) + 0xfu) &
-         ~(uintptr_t)0xfu;
+  return (sizeof(ngtcp2_ksl_node) + keylen - sizeof(uint64_t) + 0x7u) &
+         ~(uintptr_t)0x7u;
 }
 
 static size_t ksl_blklen(size_t nodelen) {
