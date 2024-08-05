@@ -63,7 +63,7 @@ directory require at least one of the following TLS backends:
 - GnuTLS >= 3.7.5
 - BoringSSL (commit a220a6024f66c123019b5c080f6bd8bcaf75448c);
   or aws-lc >= 1.19.0
-- Picotls (commit 096fc5c2ab4db1c4e0adcfdd4e75b8ee2dcc7c99)
+- Picotls (commit e4f0a27ebd1c07ebed68674258da9556fb92b46b)
 - wolfSSL >= 5.5.0
 
 Before building from git
@@ -163,6 +163,32 @@ Build with aws-lc
        --with-boringssl
    $ make -j$(nproc) check
 
+Build with libressl
+-----------------
+
+.. code-block:: shell
+
+   $ git clone --depth 1 -b v3.9.2 https://github.com/libressl/portable.git libressl
+   $ cd libressl
+   $ ./autogen.sh
+   $ ./configure --prefix=$PWD/build
+   $ make -j$(nproc) install
+   $ cd ..
+   $ git clone --recursive https://github.com/ngtcp2/nghttp3
+   $ cd nghttp3
+   $ autoreconf -i
+   $ ./configure --prefix=$PWD/build --enable-lib-only
+   $ make -j$(nproc) check
+   $ make install
+   $ cd ..
+   $ git clone --recursive  https://github.com/ngtcp2/ngtcp2
+   $ cd ngtcp2
+   $ autoreconf -i
+   $ # For Mac users who have installed libev with MacPorts, append
+   $ # LIBEV_CFLAGS="-I/opt/homebrew/Cellar/libev/4.33/include" LIBEV_LIBS="-L/opt/homebrew/Cellar/libev/4.33/lib -lev"
+   $ ./configure PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig:$PWD/../libressl/build/lib/pkgconfig
+   $ make -j$(nproc) check
+
 Client/Server
 -------------
 
@@ -242,7 +268,7 @@ The header file exists under crypto/includes/ngtcp2 directory.
 Each library file is built for a particular TLS backend.  The
 available crypto helper libraries are:
 
-- libngtcp2_crypto_quictls: Use quictls as TLS backend
+- libngtcp2_crypto_quictls: Use quictls and libressl as TLS backend
 - libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
 - libngtcp2_crypto_boringssl: Use BoringSSL and aws-lc as TLS backend
 - libngtcp2_crypto_picotls: Use Picotls as TLS backend
@@ -257,8 +283,8 @@ The examples directory contains client and server that are linked to
 those crypto helper libraries and TLS backends.  They are only built
 if their corresponding crypto helper library is built:
 
-- qtlsclient: quictls client
-- qtlsserver: quictls server
+- qtlsclient: quictls(libressl) client
+- qtlsserver: quictls(libressl) server
 - gtlsclient: GnuTLS client
 - gtlsserver: GnuTLS server
 - bsslclient: BoringSSL(aws-lc) client

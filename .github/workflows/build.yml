@@ -9,8 +9,9 @@ env:
   OPENSSL3_VERSION: 3.1.5+quic
   BORINGSSL_VERSION: a220a6024f66c123019b5c080f6bd8bcaf75448c
   AWSLC_VERSION: v1.29.0
-  PICOTLS_VERSION: 096fc5c2ab4db1c4e0adcfdd4e75b8ee2dcc7c99
+  PICOTLS_VERSION: e4f0a27ebd1c07ebed68674258da9556fb92b46b
   WOLFSSL_VERSION: v5.7.0-stable
+  LIBRESSL_VERSION: v3.9.2
   NGHTTP3_VERSION: head
 
 jobs:
@@ -99,12 +100,28 @@ jobs:
           picotls-openssl3/build/libpicotls-openssl.a
           picotls-openssl3/include
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
+    - name: Restore Picotls + LibreSSL cache
+      id: cache-picotls-libressl
+      uses: actions/cache@v4
+      with:
+        path: |
+          picotls-libressl/build/libpicotls-core.a
+          picotls-libressl/build/libpicotls-openssl.a
+          picotls-libressl/include
+        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-libressl-${{ env.LIBRESSL_VERSION }}
     - name: Restore wolfSSL cache
       id: cache-wolfssl
       uses: actions/cache@v4
       with:
         path: wolfssl/build
         key: ${{ matrix.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
+    - name: Restore LibreSSL cache
+      id: cache-libressl
+      uses: actions/cache@v4
+      with:
+        path: |
+          libressl/build
+        key: ${{ matrix.os }}-libressl-${{ env.LIBRESSL_VERSION }}
     - name: Restore nghttp3 cache
       id: cache-nghttp3
       uses: actions/cache@v4
@@ -119,7 +136,9 @@ jobs:
         steps.cache-awslc.outputs.cache-hit != 'true' ||
         steps.cache-picotls-openssl1.outputs.cache-hit != 'true' ||
         steps.cache-picotls-openssl3.outputs.cache-hit != 'true' ||
+        steps.cache-picotls-libressl.outputs.cache-hit != 'true' ||
         steps.cache-wolfssl.outputs.cache-hit != 'true' ||
+        steps.cache-libressl.outputs.cache-hit != 'true' ||
         steps.cache-nghttp3.outputs.cache-hit != 'true'
       run: |
         echo 'needs-build=true' >> $GITHUB_OUTPUT
@@ -184,6 +203,16 @@ jobs:
           export EXTRA_CONFIGURE_FLAGS="--enable-aesni"
         fi
         ./ci/build_wolfssl.sh
+    - name: Build LibreSSL
+      if: steps.cache-libressl.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_libressl.sh
+    - name: Build Picotls + LibreSSL
+      if: steps.cache-picotls-libressl.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_picotls.sh
+      env:
+        OPENSSL: libressl
     - name: Build nghttp3
       if: steps.cache-nghttp3.outputs.cache-hit != 'true'
       run: |
@@ -200,7 +229,11 @@ jobs:
         os: [ubuntu-22.04, macos-13, macos-14]
         compiler: [gcc, clang]
         buildtool: [autotools, distcheck, cmake]
-        tls: [tls-reg, tls-alt]
+        # group-a ... openssl3, pictols+openssl3, wolfssl, boringssl
+        # group-b ... openssl1, picotls+openssl1, wolfssl, aws-lc
+        # group-c ... libressl, picotls+libressl, wolfssl, boringssl
+        # (Note: group-c does not run pytest as libressl does not support some features such as resume and earlydata.)
+        tls: [group-a, group-b, group-c]
         sockaddr: [native-sockaddr, generic-sockaddr]
         exclude:
         - os: macos-13
@@ -209,11 +242,15 @@ jobs:
           buildtool: distcheck
         - compiler: gcc
           buildtool: distcheck
-        - tls: tls-alt
+        - tls: group-c
+          buildtool: distcheck
+        - tls: group-a
           buildtool: distcheck
         - compiler: gcc
           sockaddr: generic-sockaddr
-        - tls: tls-alt
+        - tls: group-c
+          sockaddr: generic-sockaddr
+        - tls: group-a
           sockaddr: generic-sockaddr
         - buildtool: distcheck
           sockaddr: generic-sockaddr
@@ -222,11 +259,15 @@ jobs:
         - os: macos-13
           compiler: gcc
         - os: macos-13
-          tls: tls-alt
+          tls: group-c
+        - os: macos-13
+          tls: group-a
         - os: macos-14
           compiler: gcc
         - os: macos-14
-          tls: tls-alt
+          tls: group-c
+        - os: macos-14
+          tls: group-a
 
     runs-on: ${{ matrix.os }}
 
@@ -287,21 +328,21 @@ jobs:
         echo 'CXX=g++-12' >> $GITHUB_ENV
     - name: Restore OpenSSL v1.1.1 cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'tls-reg'
+      if: matrix.tls == 'group-b'
       with:
         path: openssl1/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL1_VERSION }}
         fail-on-cache-miss: true
     - name: Restore OpenSSL v3.x cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'tls-alt'
+      if: matrix.tls == 'group-a'
       with:
         path: openssl3/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL3_VERSION }}
         fail-on-cache-miss: true
     - name: Restore BoringSSL cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'tls-reg'
+      if: matrix.tls == 'group-a' || matrix.tls == 'group-c'
       with:
         path: |
           boringssl/build/crypto/libcrypto.a
@@ -311,7 +352,7 @@ jobs:
         fail-on-cache-miss: true
     - name: Restore aws-lc cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'tls-alt'
+      if: matrix.tls == 'group-b'
       with:
         path: |
           aws-lc/build/crypto/libcrypto.a
@@ -321,7 +362,7 @@ jobs:
         fail-on-cache-miss: true
     - name: Restore Picotls + OpenSSL v1.1.1 cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'tls-reg'
+      if: matrix.tls == 'group-b'
       with:
         path: |
           picotls-openssl1/build/libpicotls-core.a
@@ -331,7 +372,7 @@ jobs:
         fail-on-cache-miss: true
     - name: Restore Picotls + OpenSSL v3.x cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'tls-alt'
+      if: matrix.tls == 'group-a'
       with:
         path: |
           picotls-openssl3/build/libpicotls-core.a
@@ -345,6 +386,24 @@ jobs:
         path: wolfssl/build
         key: ${{ matrix.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
         fail-on-cache-miss: true
+    - name: Restore libreSSL cache
+      uses: actions/cache/restore@v4
+      if: matrix.tls == 'group-c'
+      with:
+        path: |
+          libressl/build
+        key: ${{ matrix.os }}-libressl-${{ env.LIBRESSL_VERSION }}
+        fail-on-cache-miss: true
+    - name: Restore Picotls + LibreSSL
+      uses: actions/cache/restore@v4
+      if: matrix.tls == 'group-c'
+      with:
+        path: |
+          picotls-libressl/build/libpicotls-core.a
+          picotls-libressl/build/libpicotls-openssl.a
+          picotls-libressl/include
+        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-libressl-${{ env.LIBRESSL_VERSION }}
+        fail-on-cache-miss: true
     - name: Restore nghttp3 cache
       uses: actions/cache/restore@v4
       with:
@@ -353,13 +412,15 @@ jobs:
         fail-on-cache-miss: true
     - name: Setup environment variables
       run: |
-        PKG_CONFIG_PATH="$PWD/openssl1/build/lib/pkgconfig:$PWD/openssl3/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig"
-        LDFLAGS="-Wl,-rpath,$PWD/openssl1/build/lib -Wl,-rpath,$PWD/openssl3/build/lib64"
+        PKG_CONFIG_PATH="$PWD/openssl1/build/lib/pkgconfig:$PWD/openssl3/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig:$PWD/libressl/build/lib/pkgconfig"
+        LDFLAGS="-Wl,-rpath,$PWD/openssl1/build/lib -Wl,-rpath,$PWD/openssl3/build/lib64 -Wl,-rpath,$PWD/libressl/build/lib"
 
-        if [ "${{ matrix.tls }}" = "tls-reg" ]; then
+        if [ "${{ matrix.tls }}" = "group-b" ]; then
           PICOTLS_PREFIX="$PWD/picotls-openssl1"
-        else
+        elif [ "${{ matrix.tls }}" = "group-a" ]; then
           PICOTLS_PREFIX="$PWD/picotls-openssl3"
+        else
+          PICOTLS_PREFIX="$PWD/picotls-libressl"
         fi
 
         PICOTLS_CFLAGS="-I$PICOTLS_PREFIX/include/"
@@ -374,7 +435,7 @@ jobs:
         echo 'PICOTLS_PREFIX='"$PICOTLS_PREFIX" >> $GITHUB_ENV
         echo 'AUTOTOOLS_OPTS='"$AUTOTOOLS_OPTS" >> $GITHUB_ENV
     - name: Setup BoringSSL environment variables
-      if: matrix.tls == 'tls-reg'
+      if: matrix.tls == 'group-a' || matrix.tls == 'group-c'
       run: |
         BORINGSSL_INCLUDE_DIR="$PWD/boringssl/include/"
         BORINGSSL_CFLAGS="-I$BORINGSSL_INCLUDE_DIR"
@@ -384,7 +445,7 @@ jobs:
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
         echo 'BORINGSSL_INCLUDE_DIR='"$BORINGSSL_INCLUDE_DIR" >> $GITHUB_ENV
     - name: Setup aws-lc environment variables
-      if: matrix.tls == 'tls-alt'
+      if: matrix.tls == 'group-b'
       run: |
         BORINGSSL_INCLUDE_DIR="$PWD/aws-lc/include/"
         BORINGSSL_CFLAGS="-I$BORINGSSL_INCLUDE_DIR"
@@ -463,7 +524,7 @@ jobs:
       run: |
         make -j"$NPROC" distcheck DISTCHECK_CONFIGURE_FLAGS="$AUTOTOOLS_OPTS"
     - name: examples/tests
-      if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr' && runner.os == 'Linux'
+      if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr' && runner.os == 'Linux' && matrix.tls != 'group-c'
       run: |
         cd examples/tests
         # Do not run resumption and earlydata between gtlsserver and
