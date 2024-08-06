@@ -340,6 +340,7 @@ int ngtcp2_ksl_insert(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
 
           node = ngtcp2_ksl_nth_node(ksl, blk, blk->n - 1);
         }
+
         ksl_node_set_key(ksl, node, key);
         blk = node->blk;
       }
