@@ -148,7 +148,8 @@ struct ngtcp2_ksl {
 
 /*
  * ngtcp2_ksl_init initializes |ksl|.  |compar| specifies compare
- * function.  |keylen| is the length of key.
+ * function.  |keylen| is the length of key and must be at least
+ * sizeof(uint64_t).
  */
 void ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar, size_t keylen,
                      const ngtcp2_mem *mem);
