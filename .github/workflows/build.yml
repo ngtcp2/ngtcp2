@@ -232,7 +232,6 @@ jobs:
         # group-a ... openssl3, pictols+openssl3, wolfssl, boringssl
         # group-b ... openssl1, picotls+openssl1, wolfssl, aws-lc
         # group-c ... libressl, picotls+libressl, wolfssl, boringssl
-        # (Note: group-c does not run pytest as libressl does not support some features such as resume and earlydata.)
         tls: [group-a, group-b, group-c]
         sockaddr: [native-sockaddr, generic-sockaddr]
         exclude:
@@ -524,7 +523,7 @@ jobs:
       run: |
         make -j"$NPROC" distcheck DISTCHECK_CONFIGURE_FLAGS="$AUTOTOOLS_OPTS"
     - name: examples/tests
-      if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr' && runner.os == 'Linux' && matrix.tls != 'group-c'
+      if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr' && runner.os == 'Linux'
       run: |
         cd examples/tests
         # Do not run resumption and earlydata between gtlsserver and
@@ -533,7 +532,20 @@ jobs:
         # There is an issue around the ticket age validation between
         # gtlsserver and bsslclient that causes early data test
         # failure; see https://gitlab.com/gnutls/gnutls/-/issues/1403
-        pytest-3 -v -k 'not (gnutls-wolfssl and (resume or earlydata)) and not (gnutls-boringssl and earlydata)'
+        EXPR="not (gnutls-wolfssl and (resume or earlydata)) and not (gnutls-boringssl and earlydata)"
+
+        if [ "${{ matrix.tls }}" = "group-c" ]; then
+          # libressl does not support resumption, earlydata,
+          # TLS_AES_128_CCM_SHA256, and X25519.  Moreover, libressl
+          # server does not fail handshake if server requires client
+          # certificate, but client does not offer it.  Resumption
+          # does not work between libressl flavored picotls server and
+          # boringssl client.  The one of the reasons is the lack of
+          # X25519 support in libressl.
+          EXPR="$EXPR and not ((quictls and (resume or earlydata or TLS_AES_128_CCM_SHA256)) or (quictls- and test_04_01) or (picotls-boringssl and (resume or earlydata)))"
+        fi
+
+        pytest-3 -v -k "$EXPR"
     - name: Integration test
       if: matrix.buildtool != 'distcheck' && matrix.sockaddr == 'native-sockaddr'
       run: |
