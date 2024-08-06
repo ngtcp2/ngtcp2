@@ -391,9 +391,9 @@ static void ksl_remove_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i) {
  * ksl_merge_node merges 2 nodes which are the nodes at the index of
  * |i| and |i + 1|.
  *
- * If |blk| is the direct descendant of head (root) block and the head
- * block contains just 2 nodes, the merged block becomes head block,
- * which decreases the height of |ksl| by 1.
+ * If |blk| is the head (root) block and it contains just 2 nodes
+ * before merging nodes, the merged block becomes head block, which
+ * decreases the height of |ksl| by 1.
  *
  * This function returns the pointer to the merged block.
  */
