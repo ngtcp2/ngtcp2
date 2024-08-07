@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  using KeyType = uint16_t;
+  using KeyType = uint64_t;
   using DataType = int64_t;
   constexpr size_t keylen = sizeof(KeyType);
 
@@ -33,8 +33,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     memcpy(&d, data, keylen);
 
     for (size_t i = 0; i < 2; ++i) {
-      auto add = (d & 0x8000) != 0;
-      auto key = static_cast<KeyType>(d & 0x7fff);
+      auto add = (d & 0x8000000000000000llu) != 0;
+      auto key = static_cast<KeyType>(d & 0x7fffffffffffffffllu);
 
       if (add) {
         auto data = std::make_unique<DataType>(key);
@@ -62,7 +62,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
       ngtcp2_ksl_remove(&ksl, nullptr, &key);
 
-      d = bswap_16(d);
+      d = bswap_64(d);
     }
   }
 
