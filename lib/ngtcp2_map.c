@@ -48,7 +48,7 @@ void ngtcp2_map_free(ngtcp2_map *map) {
   ngtcp2_mem_free(map->mem, map->table);
 }
 
-int ngtcp2_map_each(ngtcp2_map *map, int (*func)(void *data, void *ptr),
+int ngtcp2_map_each(const ngtcp2_map *map, int (*func)(void *data, void *ptr),
                     void *ptr) {
   int rv;
   size_t i;
@@ -112,7 +112,7 @@ static void map_bucket_set_data(ngtcp2_map_bucket *bkt, uint32_t hash,
 }
 
 #ifndef WIN32
-void ngtcp2_map_print_distance(ngtcp2_map *map) {
+void ngtcp2_map_print_distance(const ngtcp2_map *map) {
   size_t i;
   size_t idx;
   ngtcp2_map_bucket *bkt;
@@ -237,7 +237,7 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
   return 0;
 }
 
-void *ngtcp2_map_find(ngtcp2_map *map, ngtcp2_map_key_type key) {
+void *ngtcp2_map_find(const ngtcp2_map *map, ngtcp2_map_key_type key) {
   uint32_t h;
   size_t idx;
   ngtcp2_map_bucket *bkt;
@@ -327,4 +327,4 @@ void ngtcp2_map_clear(ngtcp2_map *map) {
   map->size = 0;
 }
 
-size_t ngtcp2_map_size(ngtcp2_map *map) { return map->size; }
+size_t ngtcp2_map_size(const ngtcp2_map *map) { return map->size; }

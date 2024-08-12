@@ -82,7 +82,7 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data);
  * ngtcp2_map_find returns the entry associated by the key |key|.  If
  * there is no such entry, this function returns NULL.
  */
-void *ngtcp2_map_find(ngtcp2_map *map, ngtcp2_map_key_type key);
+void *ngtcp2_map_find(const ngtcp2_map *map, ngtcp2_map_key_type key);
 
 /*
  * ngtcp2_map_remove removes the entry associated by the key |key|
@@ -106,7 +106,7 @@ void ngtcp2_map_clear(ngtcp2_map *map);
  * ngtcp2_map_size returns the number of items stored in the map
  * |map|.
  */
-size_t ngtcp2_map_size(ngtcp2_map *map);
+size_t ngtcp2_map_size(const ngtcp2_map *map);
 
 /*
  * ngtcp2_map_each applies the function |func| to each entry in the
@@ -119,11 +119,11 @@ size_t ngtcp2_map_size(ngtcp2_map *map);
  * invocations of the |func| return 0, or nonzero value which the last
  * invocation of |func| returns.
  */
-int ngtcp2_map_each(ngtcp2_map *map, int (*func)(void *data, void *ptr),
+int ngtcp2_map_each(const ngtcp2_map *map, int (*func)(void *data, void *ptr),
                     void *ptr);
 
 #ifndef WIN32
-void ngtcp2_map_print_distance(ngtcp2_map *map);
+void ngtcp2_map_print_distance(const ngtcp2_map *map);
 #endif /* !WIN32 */
 
 #endif /* NGTCP2_MAP_H */
