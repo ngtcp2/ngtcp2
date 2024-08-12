@@ -91,7 +91,7 @@ int ngtcp2_pq_push(ngtcp2_pq *pq, ngtcp2_pq_entry *item);
  * ngtcp2_pq_top returns item at the top of |pq|.  It is undefined if
  * |pq| is empty.
  */
-ngtcp2_pq_entry *ngtcp2_pq_top(ngtcp2_pq *pq);
+ngtcp2_pq_entry *ngtcp2_pq_top(const ngtcp2_pq *pq);
 
 /*
  * ngtcp2_pq_pop pops item at the top of |pq|.  The popped item is not
@@ -102,12 +102,12 @@ void ngtcp2_pq_pop(ngtcp2_pq *pq);
 /*
  * ngtcp2_pq_empty returns nonzero if |pq| is empty.
  */
-int ngtcp2_pq_empty(ngtcp2_pq *pq);
+int ngtcp2_pq_empty(const ngtcp2_pq *pq);
 
 /*
  * ngtcp2_pq_size returns the number of items |pq| contains.
  */
-size_t ngtcp2_pq_size(ngtcp2_pq *pq);
+size_t ngtcp2_pq_size(const ngtcp2_pq *pq);
 
 typedef int (*ngtcp2_pq_item_cb)(ngtcp2_pq_entry *item, void *arg);
 
@@ -118,7 +118,7 @@ typedef int (*ngtcp2_pq_item_cb)(ngtcp2_pq_entry *item, void *arg);
  * nonzero, this function returns 1 immediately without iterating
  * remaining items.  Otherwise this function returns 0.
  */
-int ngtcp2_pq_each(ngtcp2_pq *pq, ngtcp2_pq_item_cb fun, void *arg);
+int ngtcp2_pq_each(const ngtcp2_pq *pq, ngtcp2_pq_item_cb fun, void *arg);
 
 /*
  * ngtcp2_pq_remove removes |item| from |pq|.  |pq| must contain
