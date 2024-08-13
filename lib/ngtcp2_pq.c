@@ -94,7 +94,7 @@ int ngtcp2_pq_push(ngtcp2_pq *pq, ngtcp2_pq_entry *item) {
   return 0;
 }
 
-ngtcp2_pq_entry *ngtcp2_pq_top(ngtcp2_pq *pq) {
+ngtcp2_pq_entry *ngtcp2_pq_top(const ngtcp2_pq *pq) {
   assert(pq->length);
   return pq->q[0];
 }
@@ -158,11 +158,11 @@ void ngtcp2_pq_remove(ngtcp2_pq *pq, ngtcp2_pq_entry *item) {
   }
 }
 
-int ngtcp2_pq_empty(ngtcp2_pq *pq) { return pq->length == 0; }
+int ngtcp2_pq_empty(const ngtcp2_pq *pq) { return pq->length == 0; }
 
-size_t ngtcp2_pq_size(ngtcp2_pq *pq) { return pq->length; }
+size_t ngtcp2_pq_size(const ngtcp2_pq *pq) { return pq->length; }
 
-int ngtcp2_pq_each(ngtcp2_pq *pq, ngtcp2_pq_item_cb fun, void *arg) {
+int ngtcp2_pq_each(const ngtcp2_pq *pq, ngtcp2_pq_item_cb fun, void *arg) {
   size_t i;
 
   if (pq->length == 0) {

@@ -213,14 +213,14 @@ int ngtcp2_ksl_remove_hint(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
  * node, it returns the iterator which satisfies ngtcp2_ksl_it_end(it)
  * != 0.
  */
-ngtcp2_ksl_it ngtcp2_ksl_lower_bound(ngtcp2_ksl *ksl,
+ngtcp2_ksl_it ngtcp2_ksl_lower_bound(const ngtcp2_ksl *ksl,
                                      const ngtcp2_ksl_key *key);
 
 /*
  * ngtcp2_ksl_lower_bound_compar works like ngtcp2_ksl_lower_bound,
  * but it takes custom function |compar| to do lower bound search.
  */
-ngtcp2_ksl_it ngtcp2_ksl_lower_bound_compar(ngtcp2_ksl *ksl,
+ngtcp2_ksl_it ngtcp2_ksl_lower_bound_compar(const ngtcp2_ksl *ksl,
                                             const ngtcp2_ksl_key *key,
                                             ngtcp2_ksl_compar compar);
 
@@ -252,7 +252,7 @@ ngtcp2_ksl_it ngtcp2_ksl_end(const ngtcp2_ksl *ksl);
 /*
  * ngtcp2_ksl_len returns the number of elements stored in |ksl|.
  */
-size_t ngtcp2_ksl_len(ngtcp2_ksl *ksl);
+size_t ngtcp2_ksl_len(const ngtcp2_ksl *ksl);
 
 /*
  * ngtcp2_ksl_clear removes all elements stored in |ksl|.
@@ -271,7 +271,7 @@ void ngtcp2_ksl_clear(ngtcp2_ksl *ksl);
  * that the key is of type int64_t.  This function should be used for
  * the debugging purpose only.
  */
-void ngtcp2_ksl_print(ngtcp2_ksl *ksl);
+void ngtcp2_ksl_print(const ngtcp2_ksl *ksl);
 #endif /* !WIN32 */
 
 /*
