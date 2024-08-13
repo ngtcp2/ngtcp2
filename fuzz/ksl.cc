@@ -32,21 +32,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     memcpy(&d, data, keylen);
 
-    for (size_t i = 0; i < 2; ++i) {
+    for (size_t i = 0; i < 2; ++i, d = bswap_64(d)) {
       auto add = (d & 0x8000000000000000llu) != 0;
+      auto rm = (d & 0x4000000000000000llu) != 0;
       auto key = static_cast<KeyType>(d & 0x7fffffffffffffffllu);
 
       if (add) {
         auto data = std::make_unique<DataType>(key);
         auto rv = ngtcp2_ksl_insert(&ksl, nullptr, &key, data.get());
-        if (rv != 0) {
-          continue;
+        if (rv == 0) {
+          data.release();
         }
-
-        data.release();
-        ngtcp2_ksl_lower_bound(&ksl, &key);
-
-        continue;
       }
 
       auto it = ngtcp2_ksl_lower_bound(&ksl, &key);
@@ -54,15 +50,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         continue;
       }
 
-      if (*static_cast<KeyType *>(ngtcp2_ksl_it_key(&it)) != key) {
+      if (!rm) {
         continue;
       }
 
       delete static_cast<DataType *>(ngtcp2_ksl_it_get(&it));
 
-      ngtcp2_ksl_remove(&ksl, nullptr, &key);
-
-      d = bswap_64(d);
+      if (*static_cast<KeyType *>(ngtcp2_ksl_it_key(&it)) == key) {
+        ngtcp2_ksl_remove(&ksl, nullptr, &key);
+      } else {
+        ngtcp2_ksl_remove_hint(&ksl, nullptr, &it, &key);
+      }
     }
   }
 
