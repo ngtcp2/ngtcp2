@@ -335,10 +335,6 @@ static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
   bbr->max_inflight = 0;
 
   bbr->congestion_recovery_start_ts = UINT64_MAX;
-
-  bbr->prior_inflight_lo = 0;
-  bbr->prior_inflight_hi = 0;
-  bbr->prior_bw_lo = 0;
 }
 
 static void bbr_reset_congestion_signals(ngtcp2_cc_bbr *bbr) {
@@ -1323,9 +1319,6 @@ static void bbr_handle_recovery(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 
     cstat->congestion_recovery_start_ts = bbr->congestion_recovery_start_ts;
     bbr->congestion_recovery_start_ts = UINT64_MAX;
-    bbr->prior_inflight_hi = bbr->inflight_hi;
-    bbr->prior_inflight_lo = bbr->inflight_lo;
-    bbr->prior_bw_lo = bbr->bw_lo;
   }
 }
 
@@ -1365,13 +1358,6 @@ static void bbr_cc_on_spurious_congestion(ngtcp2_cc *cc,
   if (bbr->in_loss_recovery) {
     bbr->in_loss_recovery = 0;
     bbr_restore_cwnd(bbr, cstat);
-    bbr->full_bw_count = 0;
-    bbr->loss_in_round = 0;
-    bbr->inflight_lo =
-        ngtcp2_max_uint64(bbr->inflight_lo, bbr->prior_inflight_lo);
-    bbr->inflight_hi =
-        ngtcp2_max_uint64(bbr->inflight_hi, bbr->prior_inflight_hi);
-    bbr->bw_lo = ngtcp2_max_uint64(bbr->bw_lo, bbr->prior_bw_lo);
   }
 }
 
