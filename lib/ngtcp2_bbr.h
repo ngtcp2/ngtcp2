@@ -130,10 +130,6 @@ typedef struct ngtcp2_cc_bbr {
   int in_loss_recovery;
   uint64_t max_inflight;
   ngtcp2_tstamp congestion_recovery_start_ts;
-
-  uint64_t prior_inflight_lo;
-  uint64_t prior_inflight_hi;
-  uint64_t prior_bw_lo;
 } ngtcp2_cc_bbr;
 
 void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *bbr, ngtcp2_log *log,
