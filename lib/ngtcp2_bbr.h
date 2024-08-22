@@ -128,6 +128,7 @@ typedef struct ngtcp2_cc_bbr {
   ngtcp2_duration probe_rtt_min_delay;
   ngtcp2_tstamp probe_rtt_min_stamp;
   int in_loss_recovery;
+  uint64_t round_count_at_recovery;
   uint64_t max_inflight;
   ngtcp2_tstamp congestion_recovery_start_ts;
 } ngtcp2_cc_bbr;
