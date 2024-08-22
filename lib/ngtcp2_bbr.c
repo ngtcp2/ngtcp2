@@ -85,8 +85,7 @@ static void bbr_set_pacing_rate(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat);
 
 static void bbr_enter_startup(ngtcp2_cc_bbr *bbr);
 
-static void bbr_check_startup_done(ngtcp2_cc_bbr *bbr,
-                                   const ngtcp2_cc_ack *ack);
+static void bbr_check_startup_done(ngtcp2_cc_bbr *bbr);
 
 static void bbr_update_on_ack(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
@@ -391,16 +390,11 @@ static void bbr_check_full_bw_reached(ngtcp2_cc_bbr *bbr,
                   "bbr reached full bandwidth, full_bw=%" PRIu64, bbr->full_bw);
 }
 
-static void bbr_check_startup_high_loss(ngtcp2_cc_bbr *bbr,
-                                        const ngtcp2_cc_ack *ack) {
+static void bbr_check_startup_high_loss(ngtcp2_cc_bbr *bbr) {
   if (bbr->full_bw_reached || bbr->loss_events_in_round <= 6 ||
       (bbr->in_loss_recovery &&
-       bbr->round_count <= bbr->round_count_at_recovery)) {
-    return;
-  }
-
-  /* loss_thresh = 2% */
-  if (bbr->bytes_lost_in_round * 100 <= ack->prior_bytes_in_flight * 2) {
+       bbr->round_count <= bbr->round_count_at_recovery) ||
+      !is_inflight_too_high(&bbr->rst->rs)) {
     return;
   }
 
@@ -443,9 +437,8 @@ static void bbr_enter_startup(ngtcp2_cc_bbr *bbr) {
   bbr->cwnd_gain_h = NGTCP2_BBR_DEFAULT_CWND_GAIN_H;
 }
 
-static void bbr_check_startup_done(ngtcp2_cc_bbr *bbr,
-                                   const ngtcp2_cc_ack *ack) {
-  bbr_check_startup_high_loss(bbr, ack);
+static void bbr_check_startup_done(ngtcp2_cc_bbr *bbr) {
+  bbr_check_startup_high_loss(bbr);
 
   if (bbr->state == NGTCP2_BBR_STATE_STARTUP && bbr->full_bw_reached) {
     bbr_enter_drain(bbr);
@@ -471,7 +464,7 @@ static void bbr_update_model_and_state(ngtcp2_cc_bbr *bbr,
   bbr_update_congestion_signals(bbr, cstat, ack);
   bbr_update_ack_aggregation(bbr, cstat, ack, ts);
   bbr_check_full_bw_reached(bbr, cstat);
-  bbr_check_startup_done(bbr, ack);
+  bbr_check_startup_done(bbr);
   bbr_check_drain(bbr, cstat, ts);
   bbr_update_probe_bw_cycle_phase(bbr, cstat, ack, ts);
   bbr_update_min_rtt(bbr, ack, ts);
