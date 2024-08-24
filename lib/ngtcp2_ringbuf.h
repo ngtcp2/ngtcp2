@@ -51,7 +51,7 @@ typedef struct ngtcp2_ringbuf {
 /*
  * ngtcp2_ringbuf_init initializes |rb|.  |nmemb| is the number of
  * elements that can be stored in this buffer.  |size| is the size of
- * each element.  |size| must be power of 2.
+ * each element.  |nmemb| must be power of 2.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -64,7 +64,7 @@ int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
 
 /*
  * ngtcp2_ringbuf_buf_init initializes |rb| with given buffer and
- * size.
+ * size.  Same restrictions are applied as ngtcp2_ringbuf_init.
  */
 void ngtcp2_ringbuf_buf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                              uint8_t *buf, const ngtcp2_mem *mem);
@@ -79,15 +79,16 @@ void ngtcp2_ringbuf_free(ngtcp2_ringbuf *rb);
    the buffer backward, and returns the pointer to the element.
    Caller can store data to the buffer pointed by the returned
    pointer.  If this action exceeds the capacity of the ring buffer,
-   the last element is silently overwritten, and rb->len remains
-   unchanged. */
+   this function returns the pointer to the last element, and rb->len
+   remains unchanged. */
 void *ngtcp2_ringbuf_push_front(ngtcp2_ringbuf *rb);
 
 /* ngtcp2_ringbuf_push_back moves the offset to the last element in
    the buffer forward, and returns the pointer to the element.  Caller
    can store data to the buffer pointed by the returned pointer.  If
-   this action exceeds the capacity of the ring buffer, the first
-   element is silently overwritten, and rb->len remains unchanged. */
+   this action exceeds the capacity of the ring buffer, this function
+   returns the pointer to the first element, and rb->len remains
+   unchanged. */
 void *ngtcp2_ringbuf_push_back(ngtcp2_ringbuf *rb);
 
 /*
