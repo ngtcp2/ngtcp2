@@ -90,8 +90,8 @@ int64_t ngtcp2_vec_len_varint(const ngtcp2_vec *vec, size_t n) {
   return (int64_t)res;
 }
 
-ngtcp2_ssize ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
-                              size_t *pdstcnt, size_t left, size_t maxcnt) {
+ngtcp2_ssize ngtcp2_vec_split(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
+                              size_t *psrccnt, size_t left, size_t maxcnt) {
   size_t i;
   size_t srccnt = *psrccnt;
   size_t nmove;

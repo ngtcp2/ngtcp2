@@ -419,7 +419,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     acnt = fr->datacnt;
 
     bcnt = 0;
-    ngtcp2_vec_split(a, &acnt, b, &bcnt, left, NGTCP2_MAX_STREAM_DATACNT);
+    ngtcp2_vec_split(b, &bcnt, a, &acnt, left, NGTCP2_MAX_STREAM_DATACNT);
 
     assert(acnt > 0);
     assert(bcnt > 0);
