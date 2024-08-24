@@ -55,7 +55,7 @@ void test_ngtcp2_vec_split(void) {
   b[0].len = 0;
   b[0].base = NULL;
 
-  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 135, 16);
+  nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 135, 16);
 
   assert_ptrdiff(0, ==, nsplit);
   assert_size(1, ==, acnt);
@@ -74,7 +74,7 @@ void test_ngtcp2_vec_split(void) {
   b[0].len = 0;
   b[0].base = NULL;
 
-  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 87, 16);
+  nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 87, 16);
 
   assert_ptrdiff(48, ==, nsplit);
   assert_size(1, ==, acnt);
@@ -95,7 +95,7 @@ void test_ngtcp2_vec_split(void) {
   b[0].len = 0;
   b[0].base = NULL;
 
-  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 33, 16);
+  nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 33, 16);
 
   assert_ptrdiff(89, ==, nsplit);
   assert_size(1, ==, acnt);
@@ -118,7 +118,7 @@ void test_ngtcp2_vec_split(void) {
   b[0].len = 0;
   b[0].base = NULL;
 
-  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 34, 16);
+  nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 34, 16);
 
   assert_ptrdiff(88 + 211, ==, nsplit);
   assert_size(2, ==, acnt);
@@ -146,7 +146,7 @@ void test_ngtcp2_vec_split(void) {
   b[1].len = 3;
   b[1].base = nulldata + 33 + 89 + 17;
 
-  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 33, 16);
+  nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 33, 16);
 
   assert_ptrdiff(89, ==, nsplit);
   assert_size(1, ==, acnt);
@@ -172,7 +172,7 @@ void test_ngtcp2_vec_split(void) {
   b[1].len = 3;
   b[1].base = nulldata + 33 + 89 + 17;
 
-  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 34, 16);
+  nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 34, 16);
 
   assert_ptrdiff(88, ==, nsplit);
   assert_size(2, ==, acnt);
@@ -202,7 +202,7 @@ void test_ngtcp2_vec_split(void) {
   b[1].len = 3;
   b[1].base = nulldata + 33 + 89 + 211 + 17;
 
-  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 34, 16);
+  nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 34, 16);
 
   assert_ptrdiff(88 + 211, ==, nsplit);
   assert_size(2, ==, acnt);
@@ -232,7 +232,7 @@ void test_ngtcp2_vec_split(void) {
   b[1].len = 3;
   b[1].base = nulldata + 256 + 17;
 
-  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 33, 16);
+  nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 33, 16);
 
   assert_ptrdiff(89, ==, nsplit);
   assert_size(1, ==, acnt);
@@ -257,7 +257,7 @@ void test_ngtcp2_vec_split(void) {
   b[0].len = 17;
   b[0].base = nulldata + 33 + 89;
 
-  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 32, 1);
+  nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 32, 1);
 
   assert_ptrdiff(-1, ==, nsplit);
 
@@ -272,7 +272,7 @@ void test_ngtcp2_vec_split(void) {
   b[0].len = 17;
   b[0].base = nulldata + 256;
 
-  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 33, 1);
+  nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 33, 1);
 
   assert_ptrdiff(-1, ==, nsplit);
 }
