@@ -1,6 +1,6 @@
-FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.5.0 AS xx
 
-FROM --platform=$BUILDPLATFORM ubuntu:22.04 AS build
+FROM --platform=$BUILDPLATFORM ubuntu:24.04 AS build
 
 COPY --from=xx --link / /
 
@@ -9,14 +9,15 @@ ARG TARGETPLATFORM
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
         apt-get install -y --no-install-recommends \
-        git clang-15 make autoconf automake autotools-dev libtool dpkg-dev \
+        git clang-18 make autoconf automake autotools-dev libtool dpkg-dev \
         pkg-config ca-certificates && \
+    xx-info debian-arch && \
     DEBIAN_FRONTEND=noninteractive \
         xx-apt-get install -y --no-install-recommends \
-        gcc-12 g++-12 libc6-dev binutils \
+        gcc-14 g++-14 libc6-dev binutils \
         libev-dev libjemalloc-dev && \
-    ln -s /usr/bin/clang-15 /usr/bin/clang && \
-    ln -s /usr/bin/clang++-15 /usr/bin/clang++
+    ln -s /usr/bin/clang-18 /usr/bin/clang && \
+    ln -s /usr/bin/clang++-18 /usr/bin/clang++
 
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then export WSSLFLAGS="--enable-aesni"; fi && \
     if [ "$TARGETPLATFORM" = "linux/arm64" ]; then export WSSLFLAGS="--enable-armasm"; fi && \
@@ -26,8 +27,8 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then export WSSLFLAGS="--enable-ae
         --enable-harden --enable-keylog-export --disable-ech \
         --enable-ticket-nonce-malloc $WSSLFLAGS \
         --host=$(xx-clang --print-target-triple) \
-        CC=$(xx-info)-gcc-12 \
-        CXX=$(xx-info)-g++-12 && \
+        CC=$(xx-info)-gcc-14 \
+        CXX=$(xx-info)-g++-14 && \
     make -j$(nproc) && make install && cd .. && rm -rf wolfssl
 
 RUN git clone --recursive --shallow-submodules --depth 1 https://github.com/ngtcp2/nghttp3 && \
@@ -35,8 +36,8 @@ RUN git clone --recursive --shallow-submodules --depth 1 https://github.com/ngtc
     autoreconf -i && \
     ./configure --disable-dependency-tracking --enable-lib-only \
         --host=$(xx-clang --print-target-triple) \
-        CC=$(xx-info)-gcc-12 \
-        CXX=$(xx-info)-g++-12 \
+        CC=$(xx-info)-gcc-14 \
+        CXX=$(xx-info)-g++-14 \
         LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
         CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" && \
     make -j$(nproc) && make install && cd .. && rm -rf nghttp3
@@ -48,8 +49,8 @@ RUN git clone --recursive --shallow-submodules --depth 1 -b $NGTCP2_BRANCH https
     autoreconf -i && \
     ./configure \
         --host=$(xx-clang --print-target-triple) \
-        CC=$(xx-info)-gcc-12 \
-        CXX=$(xx-info)-g++-12 \
+        CC=$(xx-info)-gcc-14 \
+        CXX=$(xx-info)-g++-14 \
         LIBTOOL_LDFLAGS="-static-libtool-libs" \
         LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -static-libgcc -static-libstdc++ -static-libasan -static-libubsan" \
         CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" \
@@ -63,11 +64,11 @@ RUN git clone --recursive --shallow-submodules --depth 1 -b $NGTCP2_BRANCH https
         examples/h09wsslclient examples/h09wsslserver /usr/local/bin && \
     rm -rf ngtcp2
 
-FROM ghcr.io/tatsuhiro-t/quic-network-simulator-endpoint:latest
+FROM martenseemann/quic-network-simulator-endpoint:latest
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        mime-support
+        media-types
 
 COPY --from=build --link /usr/local/bin/wsslclient /usr/local/bin/wsslserver \
     /usr/local/bin/h09wsslclient /usr/local/bin/h09wsslserver /usr/local/bin/
