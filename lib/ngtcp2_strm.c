@@ -114,7 +114,7 @@ static int strm_rob_init(ngtcp2_strm *strm) {
   return 0;
 }
 
-uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {
+uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm) {
   if (strm->rx.rob == NULL) {
     return strm->rx.cont_offset;
   }
@@ -123,7 +123,7 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {
 
 /* strm_rob_heavily_fragmented returns nonzero if the number of gaps
    in |rob| exceeds the limit. */
-static int strm_rob_heavily_fragmented(ngtcp2_rob *rob) {
+static int strm_rob_heavily_fragmented(const ngtcp2_rob *rob) {
   return ngtcp2_ksl_len(&rob->gapksl) >= 5000;
 }
 
@@ -597,7 +597,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
   return 0;
 }
 
-uint64_t ngtcp2_strm_streamfrq_unacked_offset(ngtcp2_strm *strm) {
+uint64_t ngtcp2_strm_streamfrq_unacked_offset(const ngtcp2_strm *strm) {
   ngtcp2_frame_chain *frc;
   ngtcp2_stream *fr;
   ngtcp2_range gap;
@@ -633,7 +633,7 @@ uint64_t ngtcp2_strm_streamfrq_unacked_offset(ngtcp2_strm *strm) {
   return (uint64_t)-1;
 }
 
-ngtcp2_frame_chain *ngtcp2_strm_streamfrq_top(ngtcp2_strm *strm) {
+ngtcp2_frame_chain *ngtcp2_strm_streamfrq_top(const ngtcp2_strm *strm) {
   ngtcp2_ksl_it it;
 
   assert(strm->tx.streamfrq);
@@ -644,7 +644,7 @@ ngtcp2_frame_chain *ngtcp2_strm_streamfrq_top(ngtcp2_strm *strm) {
   return ngtcp2_ksl_it_get(&it);
 }
 
-int ngtcp2_strm_streamfrq_empty(ngtcp2_strm *strm) {
+int ngtcp2_strm_streamfrq_empty(const ngtcp2_strm *strm) {
   return strm->tx.streamfrq == NULL || ngtcp2_ksl_len(strm->tx.streamfrq) == 0;
 }
 
@@ -665,11 +665,11 @@ void ngtcp2_strm_streamfrq_clear(ngtcp2_strm *strm) {
   ngtcp2_ksl_clear(strm->tx.streamfrq);
 }
 
-int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm) {
+int ngtcp2_strm_is_tx_queued(const ngtcp2_strm *strm) {
   return strm->pe.index != NGTCP2_PQ_BAD_INDEX;
 }
 
-int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm) {
+int ngtcp2_strm_is_all_tx_data_acked(const ngtcp2_strm *strm) {
   if (strm->tx.acked_offset == NULL) {
     return strm->tx.cont_acked_offset == strm->tx.offset;
   }
@@ -678,12 +678,12 @@ int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm) {
          strm->tx.offset;
 }
 
-int ngtcp2_strm_is_all_tx_data_fin_acked(ngtcp2_strm *strm) {
+int ngtcp2_strm_is_all_tx_data_fin_acked(const ngtcp2_strm *strm) {
   return (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED) &&
          ngtcp2_strm_is_all_tx_data_acked(strm);
 }
 
-ngtcp2_range ngtcp2_strm_get_unacked_range_after(ngtcp2_strm *strm,
+ngtcp2_range ngtcp2_strm_get_unacked_range_after(const ngtcp2_strm *strm,
                                                  uint64_t offset) {
   ngtcp2_range gap;
 
@@ -696,7 +696,7 @@ ngtcp2_range ngtcp2_strm_get_unacked_range_after(ngtcp2_strm *strm,
   return ngtcp2_gaptr_get_first_gap_after(strm->tx.acked_offset, offset);
 }
 
-uint64_t ngtcp2_strm_get_acked_offset(ngtcp2_strm *strm) {
+uint64_t ngtcp2_strm_get_acked_offset(const ngtcp2_strm *strm) {
   if (strm->tx.acked_offset == NULL) {
     return strm->tx.cont_acked_offset;
   }
@@ -755,24 +755,24 @@ void ngtcp2_strm_set_app_error_code(ngtcp2_strm *strm,
   strm->app_error_code = app_error_code;
 }
 
-int ngtcp2_strm_require_retransmit_reset_stream(ngtcp2_strm *strm) {
+int ngtcp2_strm_require_retransmit_reset_stream(const ngtcp2_strm *strm) {
   return !ngtcp2_strm_is_all_tx_data_fin_acked(strm);
 }
 
-int ngtcp2_strm_require_retransmit_stop_sending(ngtcp2_strm *strm) {
+int ngtcp2_strm_require_retransmit_stop_sending(const ngtcp2_strm *strm) {
   return !(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) ||
          ngtcp2_strm_rx_offset(strm) != strm->rx.last_offset;
 }
 
-int ngtcp2_strm_require_retransmit_max_stream_data(ngtcp2_strm *strm,
-                                                   ngtcp2_max_stream_data *fr) {
+int ngtcp2_strm_require_retransmit_max_stream_data(
+    const ngtcp2_strm *strm, const ngtcp2_max_stream_data *fr) {
   return fr->max_stream_data == strm->rx.max_offset &&
          !(strm->flags &
            (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING));
 }
 
 int ngtcp2_strm_require_retransmit_stream_data_blocked(
-    ngtcp2_strm *strm, ngtcp2_stream_data_blocked *fr) {
+    const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr) {
   return fr->offset == strm->tx.max_offset &&
          !(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
 }

@@ -166,7 +166,7 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   return (ngtcp2_ssize)ngtcp2_buf_len(buf);
 }
 
-size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe) {
+size_t ngtcp2_ppe_left(const ngtcp2_ppe *ppe) {
   ngtcp2_crypto_cc *cc = ppe->cc;
 
   if (ngtcp2_buf_left(&ppe->buf) < cc->aead.max_overhead) {
@@ -176,7 +176,7 @@ size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe) {
   return ngtcp2_buf_left(&ppe->buf) - cc->aead.max_overhead;
 }
 
-size_t ngtcp2_ppe_pktlen(ngtcp2_ppe *ppe) {
+size_t ngtcp2_ppe_pktlen(const ngtcp2_ppe *ppe) {
   ngtcp2_crypto_cc *cc = ppe->cc;
 
   return ngtcp2_buf_len(&ppe->buf) + cc->aead.max_overhead;

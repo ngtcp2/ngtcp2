@@ -199,11 +199,11 @@ void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent) {
   }
 }
 
-ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr) {
+ngtcp2_ksl_it ngtcp2_acktr_get(const ngtcp2_acktr *acktr) {
   return ngtcp2_ksl_begin(&acktr->ents);
 }
 
-int ngtcp2_acktr_empty(ngtcp2_acktr *acktr) {
+int ngtcp2_acktr_empty(const ngtcp2_acktr *acktr) {
   ngtcp2_ksl_it it = ngtcp2_ksl_begin(&acktr->ents);
   return ngtcp2_ksl_it_end(&it);
 }
@@ -317,7 +317,7 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr) {
   acktr->rx_npkt = 0;
 }
 
-int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr,
+int ngtcp2_acktr_require_active_ack(const ngtcp2_acktr *acktr,
                                     ngtcp2_duration max_ack_delay,
                                     ngtcp2_tstamp ts) {
   return ngtcp2_tstamp_elapsed(acktr->first_unacked_ts, max_ack_delay, ts);
