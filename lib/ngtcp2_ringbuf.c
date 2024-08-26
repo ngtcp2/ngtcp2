@@ -117,7 +117,7 @@ void ngtcp2_ringbuf_resize(ngtcp2_ringbuf *rb, size_t len) {
   rb->len = len;
 }
 
-void *ngtcp2_ringbuf_get(ngtcp2_ringbuf *rb, size_t offset) {
+void *ngtcp2_ringbuf_get(const ngtcp2_ringbuf *rb, size_t offset) {
   assert(offset < rb->len);
   offset = (rb->first + offset) & rb->mask;
 
