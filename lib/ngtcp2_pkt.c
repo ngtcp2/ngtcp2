@@ -170,10 +170,11 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   size_t dcil, scil;
   const uint8_t *p;
   size_t len = 0;
-  size_t n;
   size_t ntokenlen = 0;
   const uint8_t *token = NULL;
   size_t tokenlen = 0;
+  size_t nlonglen = 0;
+  size_t longlen = 0;
   uint64_t vi;
   uint8_t flags = NGTCP2_PKT_FLAG_LONG_FORM;
 
@@ -285,12 +286,21 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     }
 
     /* Length */
-    n = ngtcp2_get_uvarintlen(p);
-    len += n - 1;
+    nlonglen = ngtcp2_get_uvarintlen(p);
+    len += nlonglen - 1;
 
     if (pktlen < len) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
+
+    ngtcp2_get_uvarint(&vi, p);
+#if SIZE_MAX > UINT32_MAX
+    if (vi > SIZE_MAX) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+#endif /* SIZE_MAX > UINT32_MAX */
+
+    longlen = (size_t)vi;
   }
 
   dest->flags = flags;
@@ -309,24 +319,11 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   dest->tokenlen = tokenlen;
   p += ntokenlen + tokenlen;
 
-  switch (type) {
-  case NGTCP2_PKT_RETRY:
-    dest->len = 0;
-    break;
-  default:
-    if (!(flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
-      assert(type == NGTCP2_PKT_VERSION_NEGOTIATION);
-      /* Version Negotiation is not a long header packet. */
-      dest->len = 0;
-      break;
-    }
+  dest->len = longlen;
 
-    p = ngtcp2_get_uvarint(&vi, p);
-    if (vi > SIZE_MAX) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
-    }
-    dest->len = (size_t)vi;
-  }
+#ifndef NDEBUG
+  p += nlonglen;
+#endif /* NDEBUG */
 
   assert((size_t)(p - pkt) == len);
 
