@@ -30,15 +30,15 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_acktr_add),
-    munit_void_test(test_ngtcp2_acktr_eviction),
-    munit_void_test(test_ngtcp2_acktr_forget),
-    munit_void_test(test_ngtcp2_acktr_recv_ack),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_acktr_add),
+  munit_void_test(test_ngtcp2_acktr_eviction),
+  munit_void_test(test_ngtcp2_acktr_forget),
+  munit_void_test(test_ngtcp2_acktr_recv_ack),
+  munit_test_end(),
 };
 
 const MunitSuite acktr_suite = {
-    "/acktr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/acktr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 void test_ngtcp2_acktr_add(void) {
@@ -315,7 +315,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
   size_t i;
   ngtcp2_ack ackfr;
   int64_t rpkt_nums[] = {
-      4500, 4499, 4497, 4496, 4494, 4493, 4491, 4490, 4488, 4487, 4483,
+    4500, 4499, 4497, 4496, 4494, 4493, 4491, 4490, 4488, 4487, 4483,
   };
   /*
      4500 4499

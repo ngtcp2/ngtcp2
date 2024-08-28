@@ -125,7 +125,7 @@ int ngtcp2_ringbuf_full(ngtcp2_ringbuf *rb);
   } ngtcp2_static_ringbuf_##NAME;                                              \
                                                                                \
   static inline void ngtcp2_static_ringbuf_##NAME##_init(                      \
-      ngtcp2_static_ringbuf_##NAME *srb) {                                     \
+    ngtcp2_static_ringbuf_##NAME *srb) {                                       \
     ngtcp2_ringbuf_buf_init(&srb->rb, (NMEMB), (SIZE), srb->buf, NULL);        \
   }
 

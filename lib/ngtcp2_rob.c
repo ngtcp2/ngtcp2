@@ -293,8 +293,8 @@ size_t ngtcp2_rob_data_at(const ngtcp2_rob *rob, const uint8_t **pdest,
   *pdest = d->begin + (offset - d->range.begin);
 
   return (
-      size_t)(ngtcp2_min_uint64(g->range.begin, d->range.begin + rob->chunk) -
-              offset);
+    size_t)(ngtcp2_min_uint64(g->range.begin, d->range.begin + rob->chunk) -
+            offset);
 }
 
 void ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len) {

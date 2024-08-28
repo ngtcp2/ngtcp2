@@ -30,12 +30,12 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_pmtud_probe),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_pmtud_probe),
+  munit_test_end(),
 };
 
 const MunitSuite pmtud_suite = {
-    "/pmtud", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/pmtud", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 void test_ngtcp2_pmtud_probe(void) {
@@ -43,8 +43,8 @@ void test_ngtcp2_pmtud_probe(void) {
   ngtcp2_pmtud *pmtud;
   int rv;
   static const uint16_t probes[] = {
-      3000 - 48,
-      9000 - 48,
+    3000 - 48,
+    9000 - 48,
   };
 
   /* Send probe and get success */

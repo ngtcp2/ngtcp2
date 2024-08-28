@@ -51,7 +51,7 @@ int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
               unsigned int incoming, const gnutls_datum_t *msg) {
   if (config.session_file && htype == GNUTLS_HANDSHAKE_NEW_SESSION_TICKET) {
     auto conn_ref =
-        static_cast<ngtcp2_crypto_conn_ref *>(gnutls_session_get_ptr(session));
+      static_cast<ngtcp2_crypto_conn_ref *>(gnutls_session_get_ptr(session));
     auto c = static_cast<ClientBase *>(conn_ref->user_data);
 
     c->ticket_received();
@@ -69,7 +69,7 @@ int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
 
     gnutls_datum_t d;
     if (auto rv =
-            gnutls_pem_base64_encode2("GNUTLS SESSION PARAMETERS", &data, &d);
+          gnutls_pem_base64_encode2("GNUTLS SESSION PARAMETERS", &data, &d);
         rv < 0) {
       std::cerr << "Could not encode session in " << config.session_file
                 << std::endl;
@@ -95,8 +95,8 @@ int TLSClientSession::init(bool &early_data_enabled,
   early_data_enabled = false;
 
   if (auto rv =
-          gnutls_init(&session_, GNUTLS_CLIENT | GNUTLS_ENABLE_EARLY_DATA |
-                                     GNUTLS_NO_END_OF_EARLY_DATA);
+        gnutls_init(&session_, GNUTLS_CLIENT | GNUTLS_ENABLE_EARLY_DATA |
+                                 GNUTLS_NO_END_OF_EARLY_DATA);
       rv != 0) {
     std::cerr << "gnutls_init failed: " << gnutls_strerror(rv) << std::endl;
     return -1;
@@ -133,13 +133,13 @@ int TLSClientSession::init(bool &early_data_enabled,
       f.read(content.data(), pos);
 
       gnutls_datum_t s{
-          .data = reinterpret_cast<unsigned char *>(content.data()),
-          .size = static_cast<unsigned int>(content.size()),
+        .data = reinterpret_cast<unsigned char *>(content.data()),
+        .size = static_cast<unsigned int>(content.size()),
       };
 
       gnutls_datum_t d;
       if (auto rv =
-              gnutls_pem_base64_decode2("GNUTLS SESSION PARAMETERS", &s, &d);
+            gnutls_pem_base64_decode2("GNUTLS SESSION PARAMETERS", &s, &d);
           rv < 0) {
         std::cerr << "Could not read session in " << config.session_file
                   << std::endl;
@@ -173,8 +173,8 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   // strip the first byte from H3_ALPN_V1
   gnutls_datum_t alpn{
-      .data = const_cast<uint8_t *>(&H3_ALPN_V1[1]),
-      .size = H3_ALPN_V1[0],
+    .data = const_cast<uint8_t *>(&H3_ALPN_V1[1]),
+    .size = H3_ALPN_V1[0],
   };
 
   gnutls_alpn_set_protocols(session_, &alpn, 1, GNUTLS_ALPN_MANDATORY);

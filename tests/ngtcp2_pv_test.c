@@ -30,13 +30,13 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_pv_add_entry),
-    munit_void_test(test_ngtcp2_pv_validate),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_pv_add_entry),
+  munit_void_test(test_ngtcp2_pv_validate),
+  munit_test_end(),
 };
 
 const MunitSuite pv_suite = {
-    "/pv", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/pv", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 void test_ngtcp2_pv_add_entry(void) {

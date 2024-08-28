@@ -30,17 +30,17 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_ksl_insert),
-    munit_void_test(test_ngtcp2_ksl_clear),
-    munit_void_test(test_ngtcp2_ksl_range),
-    munit_void_test(test_ngtcp2_ksl_update_key_range),
-    munit_void_test(test_ngtcp2_ksl_dup),
-    munit_void_test(test_ngtcp2_ksl_remove_hint),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_ksl_insert),
+  munit_void_test(test_ngtcp2_ksl_clear),
+  munit_void_test(test_ngtcp2_ksl_range),
+  munit_void_test(test_ngtcp2_ksl_update_key_range),
+  munit_void_test(test_ngtcp2_ksl_dup),
+  munit_void_test(test_ngtcp2_ksl_remove_hint),
+  munit_test_end(),
 };
 
 const MunitSuite ksl_suite = {
-    "/ksl", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/ksl", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 static int less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
@@ -235,12 +235,12 @@ void test_ngtcp2_ksl_clear(void) {
 
 void test_ngtcp2_ksl_range(void) {
   static const ngtcp2_range keys[] = {
-      {10, 11},   {3, 4},     {8, 9},     {11, 12},   {16, 17},   {12, 13},
-      {1, 2},     {5, 6},     {4, 5},     {0, 1},     {13, 14},   {7, 8},
-      {9, 10},    {2, 3},     {14, 15},   {6, 7},     {15, 16},   {17, 18},
-      {18, 19},   {19, 20},   {20, 21},   {202, 203}, {203, 204}, {204, 205},
-      {205, 206}, {206, 207}, {207, 208}, {208, 209}, {209, 210}, {210, 211},
-      {211, 212}, {212, 213}, {213, 214}, {214, 215}, {215, 216}};
+    {10, 11},   {3, 4},     {8, 9},     {11, 12},   {16, 17},   {12, 13},
+    {1, 2},     {5, 6},     {4, 5},     {0, 1},     {13, 14},   {7, 8},
+    {9, 10},    {2, 3},     {14, 15},   {6, 7},     {15, 16},   {17, 18},
+    {18, 19},   {19, 20},   {20, 21},   {202, 203}, {203, 204}, {204, 205},
+    {205, 206}, {206, 207}, {207, 208}, {208, 209}, {209, 210}, {210, 211},
+    {211, 212}, {212, 213}, {213, 214}, {214, 215}, {215, 216}};
   ngtcp2_ksl ksl;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   size_t i;
@@ -333,8 +333,8 @@ void test_ngtcp2_ksl_range(void) {
   assert_int(0, ==, ngtcp2_ksl_remove(&ksl, NULL, &r));
 
   r = *(ngtcp2_range *)(void *)ngtcp2_ksl_nth_node(
-           &ksl, ngtcp2_ksl_nth_node(&ksl, ksl.head, 1)->blk, 0)
-           ->key;
+         &ksl, ngtcp2_ksl_nth_node(&ksl, ksl.head, 1)->blk, 0)
+         ->key;
 
   assert_uint64(1701, ==, r.begin);
 
@@ -356,7 +356,7 @@ void test_ngtcp2_ksl_range(void) {
   node = ngtcp2_ksl_nth_node(&ksl, ksl.head, 0);
   r = *(ngtcp2_range *)(void *)ngtcp2_ksl_nth_node(&ksl, node->blk,
                                                    node->blk->n - 1)
-           ->key;
+         ->key;
 
   assert_uint64(14, ==, r.begin);
 
@@ -365,9 +365,9 @@ void test_ngtcp2_ksl_range(void) {
 
 void test_ngtcp2_ksl_update_key_range(void) {
   static ngtcp2_range ranges[] = {
-      {0, 5},     {10, 15},   {20, 25},   {30, 35},   {40, 45},   {50, 55},
-      {60, 65},   {70, 75},   {80, 85},   {90, 95},   {100, 105}, {110, 115},
-      {120, 125}, {130, 135}, {140, 145}, {150, 155}, {160, 165}, {170, 175}};
+    {0, 5},     {10, 15},   {20, 25},   {30, 35},   {40, 45},   {50, 55},
+    {60, 65},   {70, 75},   {80, 85},   {90, 95},   {100, 105}, {110, 115},
+    {120, 125}, {130, 135}, {140, 145}, {150, 155}, {160, 165}, {170, 175}};
   ngtcp2_ksl ksl;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   size_t i;
@@ -394,8 +394,8 @@ void test_ngtcp2_ksl_update_key_range(void) {
 
   r.begin = 74;
   r.end = 75;
-  it = ngtcp2_ksl_lower_bound_compar(&ksl, &r,
-                                     ngtcp2_ksl_range_exclusive_compar);
+  it =
+    ngtcp2_ksl_lower_bound_compar(&ksl, &r, ngtcp2_ksl_range_exclusive_compar);
 
   r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 

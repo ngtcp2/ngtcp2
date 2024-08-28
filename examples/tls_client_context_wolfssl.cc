@@ -54,7 +54,7 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
   std::cerr << "new_session_cb called" << std::endl;
 
   auto conn_ref =
-      static_cast<ngtcp2_crypto_conn_ref *>(wolfSSL_get_app_data(ssl));
+    static_cast<ngtcp2_crypto_conn_ref *>(wolfSSL_get_app_data(ssl));
   auto c = static_cast<ClientBase *>(conn_ref->user_data);
 
   c->ticket_received();
@@ -134,7 +134,7 @@ int TLSClientContext::init(const char *private_key_file,
   }
 
   if (wolfSSL_CTX_set1_curves_list(
-          ssl_ctx_, const_cast<char *>(config.groups)) != WOLFSSL_SUCCESS) {
+        ssl_ctx_, const_cast<char *>(config.groups)) != WOLFSSL_SUCCESS) {
     std::cerr << "wolfSSL_CTX_set1_curves_list(" << config.groups << ") failed"
               << std::endl;
     return -1;

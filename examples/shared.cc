@@ -348,7 +348,7 @@ int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
     auto attrlen = hdr->nlmsg_len - NLMSG_SPACE(sizeof(rtmsg));
 
     for (auto rta = reinterpret_cast<rtattr *>(
-             static_cast<uint8_t *>(NLMSG_DATA(hdr)) + sizeof(rtmsg));
+           static_cast<uint8_t *>(NLMSG_DATA(hdr)) + sizeof(rtmsg));
          RTA_OK(rta, attrlen); rta = RTA_NEXT(rta, attrlen)) {
       if (rta->rta_type != RTA_PREFSRC) {
         continue;

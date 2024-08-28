@@ -190,11 +190,11 @@ static size_t write_long_pkt(uint8_t *out, size_t outlen, uint8_t flags,
      pretend that it is QUIC v1 here and rewrite the version field
      later. */
   ngtcp2_pkt_hd_init(
-      &hd, NGTCP2_PKT_FLAG_LONG_FORM | flags, pkt_type, dcid, scid, pkt_num, 4,
-      version != NGTCP2_PROTO_VER_V1 && version != NGTCP2_PROTO_VER_V2
-          ? NGTCP2_PROTO_VER_V1
-          : version,
-      0);
+    &hd, NGTCP2_PKT_FLAG_LONG_FORM | flags, pkt_type, dcid, scid, pkt_num, 4,
+    version != NGTCP2_PROTO_VER_V1 && version != NGTCP2_PROTO_VER_V2
+      ? NGTCP2_PROTO_VER_V1
+      : version,
+    0);
 
   hd.token = token;
   hd.tokenlen = tokenlen;

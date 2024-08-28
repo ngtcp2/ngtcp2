@@ -58,12 +58,12 @@ namespace {
 int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
                         void *user_data) {
   ngtcp2_crypto_ctx crypto_ctx{
-      .aead =
-          {
-              .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
-          },
-      .max_encryption = 9999,
-      .max_decryption_failure = 8888,
+    .aead =
+      {
+        .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
+      },
+    .max_encryption = 9999,
+    .max_decryption_failure = 8888,
   };
 
   ngtcp2_conn_set_initial_crypto_ctx(conn, &crypto_ctx);
@@ -89,12 +89,12 @@ int recv_crypto_data(ngtcp2_conn *conn,
   auto state = static_cast<TLSState *>(user_data);
 
   ngtcp2_crypto_ctx crypto_ctx{
-      .aead =
-          {
-              .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
-          },
-      .max_encryption = 9999,
-      .max_decryption_failure = 8888,
+    .aead =
+      {
+        .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
+      },
+    .max_encryption = 9999,
+    .max_decryption_failure = 8888,
   };
 
   ngtcp2_conn_set_crypto_ctx(conn, &crypto_ctx);
@@ -127,7 +127,7 @@ int recv_crypto_data(ngtcp2_conn *conn,
       remote_params.initial_max_data = 64 * 1024;
       remote_params.active_connection_id_limit = 8;
       remote_params.max_udp_payload_size =
-          NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
+        NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
       remote_params.initial_scid_present = 1;
       remote_params.initial_scid = dcid;
 
@@ -278,11 +278,11 @@ int version_negotiation(ngtcp2_conn *conn, uint32_t version,
 namespace {
 void init_path(ngtcp2_path_storage *ps) {
   addrinfo *local, *remote,
-      hints{
-          .ai_flags = AI_NUMERICHOST | AI_NUMERICSERV,
-          .ai_family = AF_UNSPEC,
-          .ai_socktype = SOCK_DGRAM,
-      };
+    hints{
+      .ai_flags = AI_NUMERICHOST | AI_NUMERICSERV,
+      .ai_family = AF_UNSPEC,
+      .ai_socktype = SOCK_DGRAM,
+    };
 
   auto rv = getaddrinfo("127.0.0.1", "4433", &hints, &local);
 
@@ -303,18 +303,18 @@ void init_path(ngtcp2_path_storage *ps) {
 namespace {
 ngtcp2_conn *setup_conn(TLSState *state) {
   ngtcp2_callbacks cb{
-      .recv_client_initial = recv_client_initial,
-      .recv_crypto_data = recv_crypto_data,
-      .encrypt = null_encrypt,
-      .decrypt = null_decrypt,
-      .hp_mask = null_hp_mask,
-      .rand = genrand,
-      .get_new_connection_id = get_new_connection_id,
-      .update_key = update_key,
-      .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
-      .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
-      .get_path_challenge_data = get_path_challenge_data,
-      .version_negotiation = version_negotiation,
+    .recv_client_initial = recv_client_initial,
+    .recv_crypto_data = recv_crypto_data,
+    .encrypt = null_encrypt,
+    .decrypt = null_decrypt,
+    .hp_mask = null_hp_mask,
+    .rand = genrand,
+    .get_new_connection_id = get_new_connection_id,
+    .update_key = update_key,
+    .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
+    .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
+    .get_path_challenge_data = get_path_challenge_data,
+    .version_negotiation = version_negotiation,
   };
 
   ngtcp2_path_storage ps;
@@ -362,26 +362,26 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   init_path(&ps);
 
   auto pi = ngtcp2_pkt_info{
-      .ecn = NGTCP2_ECN_ECT_1,
+    .ecn = NGTCP2_ECN_ECT_1,
   };
 
   TLSState state{};
 
   ngtcp2_cid_init(
-      &dcid,
-      reinterpret_cast<const uint8_t *>("\xc1\xd8\x21\x9c\xe9\xbf\x6a\x01\x63"
-                                        "\x4e\xfd\xca\x46\x5f\xb5\xb6\x06"),
-      17);
+    &dcid,
+    reinterpret_cast<const uint8_t *>("\xc1\xd8\x21\x9c\xe9\xbf\x6a\x01\x63"
+                                      "\x4e\xfd\xca\x46\x5f\xb5\xb6\x06"),
+    17);
   ngtcp2_cid_init(
-      &scid,
-      reinterpret_cast<const uint8_t *>("\xac\xc8\xa6\x3d\xa8\x28\x14\xbd\x0b"
-                                        "\xaf\x5f\xfe\x40\x79\xb9\x03\x11\x83"),
-      18);
+    &scid,
+    reinterpret_cast<const uint8_t *>("\xac\xc8\xa6\x3d\xa8\x28\x14\xbd\x0b"
+                                      "\xaf\x5f\xfe\x40\x79\xb9\x03\x11\x83"),
+    18);
   ngtcp2_cid_init(
-      &odcid,
-      reinterpret_cast<const uint8_t *>("\xc3\xd7\x24\x52\x16\xc9\x7b\xa6\xf5"
-                                        "\x16\xc8\x53\x4d\x10\x6e\x54\x9a\xb2"),
-      18);
+    &odcid,
+    reinterpret_cast<const uint8_t *>("\xc3\xd7\x24\x52\x16\xc9\x7b\xa6\xf5"
+                                      "\x16\xc8\x53\x4d\x10\x6e\x54\x9a\xb2"),
+    18);
 
   auto conn = setup_conn(&state);
 
@@ -402,8 +402,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     ngtcp2_pkt_info pi{};
 
     auto spktlen = ngtcp2_conn_writev_stream(
-        conn, &ps.path, &pi, pkt.data(), pkt.size(), nullptr,
-        NGTCP2_WRITE_STREAM_FLAG_NONE, -1, nullptr, 0, ts);
+      conn, &ps.path, &pi, pkt.data(), pkt.size(), nullptr,
+      NGTCP2_WRITE_STREAM_FLAG_NONE, -1, nullptr, 0, ts);
     if (spktlen < 0) {
       break;
     }

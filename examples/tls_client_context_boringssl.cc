@@ -111,14 +111,14 @@ int TLSClientContext::init(const char *private_key_file,
 
   if (config.session_file) {
     SSL_CTX_set_session_cache_mode(ssl_ctx_, SSL_SESS_CACHE_CLIENT |
-                                                 SSL_SESS_CACHE_NO_INTERNAL);
+                                               SSL_SESS_CACHE_NO_INTERNAL);
     SSL_CTX_sess_set_new_cb(ssl_ctx_, new_session_cb);
   }
 
 #ifdef HAVE_LIBBROTLI
   if (!SSL_CTX_add_cert_compression_alg(
-          ssl_ctx_, ngtcp2::tls::CERTIFICATE_COMPRESSION_ALGO_BROTLI,
-          ngtcp2::tls::cert_compress, ngtcp2::tls::cert_decompress)) {
+        ssl_ctx_, ngtcp2::tls::CERTIFICATE_COMPRESSION_ALGO_BROTLI,
+        ngtcp2::tls::cert_compress, ngtcp2::tls::cert_decompress)) {
     std::cerr << "SSL_CTX_add_cert_compression_alg failed" << std::endl;
     return -1;
   }

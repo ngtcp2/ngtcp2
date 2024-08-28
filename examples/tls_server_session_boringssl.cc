@@ -60,12 +60,12 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   params.initial_max_streams_uni = config.max_streams_uni;
   params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
   params.initial_max_stream_data_bidi_remote =
-      config.max_stream_data_bidi_remote;
+    config.max_stream_data_bidi_remote;
   params.initial_max_stream_data_uni = config.max_stream_data_uni;
   params.initial_max_data = config.max_data;
 
   auto quic_early_data_ctxlen = ngtcp2_transport_params_encode(
-      quic_early_data_ctx.data(), quic_early_data_ctx.size(), &params);
+    quic_early_data_ctx.data(), quic_early_data_ctx.size(), &params);
   if (quic_early_data_ctxlen < 0) {
     std::cerr << "ngtcp2_transport_params_encode: "
               << ngtcp2_strerror(quic_early_data_ctxlen) << std::endl;

@@ -581,7 +581,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
  *     Payload is too short to include CONNECTION_CLOSE frame.
  */
 ngtcp2_ssize ngtcp2_pkt_decode_connection_close_frame(
-    ngtcp2_connection_close *dest, const uint8_t *payload, size_t payloadlen);
+  ngtcp2_connection_close *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_max_data_frame decodes MAX_DATA frame from
@@ -611,7 +611,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
  *     Payload is too short to include MAX_STREAM_DATA frame.
  */
 ngtcp2_ssize ngtcp2_pkt_decode_max_stream_data_frame(
-    ngtcp2_max_stream_data *dest, const uint8_t *payload, size_t payloadlen);
+  ngtcp2_max_stream_data *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_max_streams_frame decodes MAX_STREAMS frame from
@@ -667,10 +667,8 @@ ngtcp2_ssize ngtcp2_pkt_decode_data_blocked_frame(ngtcp2_data_blocked *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include STREAM_DATA_BLOCKED frame.
  */
-ngtcp2_ssize
-ngtcp2_pkt_decode_stream_data_blocked_frame(ngtcp2_stream_data_blocked *dest,
-                                            const uint8_t *payload,
-                                            size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_stream_data_blocked_frame(
+  ngtcp2_stream_data_blocked *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_streams_blocked_frame decodes STREAMS_BLOCKED
@@ -685,7 +683,7 @@ ngtcp2_pkt_decode_stream_data_blocked_frame(ngtcp2_stream_data_blocked *dest,
  *     Payload is too short to include STREAMS_BLOCKED frame.
  */
 ngtcp2_ssize ngtcp2_pkt_decode_streams_blocked_frame(
-    ngtcp2_streams_blocked *dest, const uint8_t *payload, size_t payloadlen);
+  ngtcp2_streams_blocked *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_new_connection_id_frame decodes NEW_CONNECTION_ID
@@ -702,7 +700,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_streams_blocked_frame(
  *     greater than NGTCP2_MAX_CIDLEN.
  */
 ngtcp2_ssize ngtcp2_pkt_decode_new_connection_id_frame(
-    ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen);
+  ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_stop_sending_frame decodes STOP_SENDING frame
@@ -793,10 +791,8 @@ ngtcp2_ssize ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include RETIRE_CONNECTION_ID frame.
  */
-ngtcp2_ssize
-ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
-                                             const uint8_t *payload,
-                                             size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_retire_connection_id_frame(
+  ngtcp2_retire_connection_id *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_handshake_done_frame decodes HANDSHAKE_DONE frame
@@ -979,7 +975,7 @@ ngtcp2_pkt_encode_data_blocked_frame(uint8_t *out, size_t outlen,
  *     Buffer does not have enough capacity to write a frame.
  */
 ngtcp2_ssize ngtcp2_pkt_encode_stream_data_blocked_frame(
-    uint8_t *out, size_t outlen, const ngtcp2_stream_data_blocked *fr);
+  uint8_t *out, size_t outlen, const ngtcp2_stream_data_blocked *fr);
 
 /*
  * ngtcp2_pkt_encode_streams_blocked_frame encodes STREAMS_BLOCKED
@@ -1088,7 +1084,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
  *     Buffer does not have enough capacity to write a frame.
  */
 ngtcp2_ssize ngtcp2_pkt_encode_retire_connection_id_frame(
-    uint8_t *out, size_t outlen, const ngtcp2_retire_connection_id *fr);
+  uint8_t *out, size_t outlen, const ngtcp2_retire_connection_id *fr);
 
 /*
  * ngtcp2_pkt_encode_handshake_done_frame encodes HANDSHAKE_DONE frame
@@ -1190,8 +1186,8 @@ int ngtcp2_pkt_verify_reserved_bits(uint8_t c);
  *     Buffer is too short.
  */
 ngtcp2_ssize ngtcp2_pkt_encode_pseudo_retry(
-    uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd, uint8_t unused,
-    const ngtcp2_cid *odcid, const uint8_t *token, size_t tokenlen);
+  uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd, uint8_t unused,
+  const ngtcp2_cid *odcid, const uint8_t *token, size_t tokenlen);
 
 /*
  * ngtcp2_pkt_verify_retry_tag verifies Retry packet.  The buffer

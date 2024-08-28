@@ -31,12 +31,12 @@
 #include "ngtcp2_mem.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_idtr_open),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_idtr_open),
+  munit_test_end(),
 };
 
 const MunitSuite idtr_suite = {
-    "/idtr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/idtr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 static int64_t stream_id_from_id(uint64_t id) { return (int64_t)(id * 4); }

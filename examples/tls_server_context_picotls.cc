@@ -51,7 +51,7 @@ int on_client_hello_h3_cb(ptls_on_client_hello_t *self, ptls_t *ptls,
     if (H3_ALPN_V1[0] == proto.len &&
         memcmp(&H3_ALPN_V1[1], proto.base, proto.len) == 0) {
       if (ptls_set_negotiated_protocol(
-              ptls, reinterpret_cast<char *>(proto.base), proto.len) != 0) {
+            ptls, reinterpret_cast<char *>(proto.base), proto.len) != 0) {
         return -1;
       }
 
@@ -75,7 +75,7 @@ int on_client_hello_hq_cb(ptls_on_client_hello_t *self, ptls_t *ptls,
     if (HQ_ALPN_V1[0] == proto.len &&
         memcmp(&HQ_ALPN_V1[1], proto.base, proto.len) == 0) {
       if (ptls_set_negotiated_protocol(
-              ptls, reinterpret_cast<char *>(proto.base), proto.len) != 0) {
+            ptls, reinterpret_cast<char *>(proto.base), proto.len) != 0) {
         return -1;
       }
 
@@ -139,13 +139,13 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
     }
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
     auto params = std::to_array({
-        OSSL_PARAM_construct_octet_string(
-            OSSL_MAC_PARAM_KEY, const_cast<uint8_t *>(static_hmac_key.data()),
-            static_hmac_key.size()),
-        OSSL_PARAM_construct_utf8_string(
-            OSSL_MAC_PARAM_DIGEST,
-            const_cast<char *>(EVP_MD_get0_name(ticket_hmac)), 0),
-        OSSL_PARAM_construct_end(),
+      OSSL_PARAM_construct_octet_string(
+        OSSL_MAC_PARAM_KEY, const_cast<uint8_t *>(static_hmac_key.data()),
+        static_hmac_key.size()),
+      OSSL_PARAM_construct_utf8_string(
+        OSSL_MAC_PARAM_DIGEST,
+        const_cast<char *>(EVP_MD_get0_name(ticket_hmac)), 0),
+      OSSL_PARAM_construct_end(),
     });
     if (!EVP_MAC_CTX_set_params(hctx, params.data())) {
       /* TODO Which value should we return on error? */
@@ -171,13 +171,13 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
   }
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   auto params = std::to_array({
-      OSSL_PARAM_construct_octet_string(
-          OSSL_MAC_PARAM_KEY, const_cast<uint8_t *>(static_hmac_key.data()),
-          static_hmac_key.size()),
-      OSSL_PARAM_construct_utf8_string(
-          OSSL_MAC_PARAM_DIGEST,
-          const_cast<char *>(EVP_MD_get0_name(ticket_hmac)), 0),
-      OSSL_PARAM_construct_end(),
+    OSSL_PARAM_construct_octet_string(
+      OSSL_MAC_PARAM_KEY, const_cast<uint8_t *>(static_hmac_key.data()),
+      static_hmac_key.size()),
+    OSSL_PARAM_construct_utf8_string(
+      OSSL_MAC_PARAM_DIGEST, const_cast<char *>(EVP_MD_get0_name(ticket_hmac)),
+      0),
+    OSSL_PARAM_construct_end(),
   });
   if (!EVP_MAC_CTX_set_params(hctx, params.data())) {
     /* TODO Which value should we return on error? */
@@ -199,7 +199,7 @@ int encrypt_ticket_cb(ptls_encrypt_ticket_t *encrypt_ticket, ptls_t *ptls,
                       int is_encrypt, ptls_buffer_t *dst, ptls_iovec_t src) {
   int rv;
   auto conn_ref =
-      static_cast<ngtcp2_crypto_conn_ref *>(*ptls_get_data_ptr(ptls));
+    static_cast<ngtcp2_crypto_conn_ref *>(*ptls_get_data_ptr(ptls));
   auto conn = conn_ref->get_conn(conn_ref);
   uint32_t ver;
 
@@ -256,21 +256,21 @@ ptls_encrypt_ticket_t encrypt_ticket = {encrypt_ticket_cb};
 namespace {
 ptls_key_exchange_algorithm_t *key_exchanges[] = {
 #if PTLS_OPENSSL_HAVE_X25519
-    &ptls_openssl_x25519,
+  &ptls_openssl_x25519,
 #endif // PTLS_OPENSSL_X25519
-    &ptls_openssl_secp256r1, &ptls_openssl_secp384r1,
-    &ptls_openssl_secp521r1, nullptr,
+  &ptls_openssl_secp256r1, &ptls_openssl_secp384r1,
+  &ptls_openssl_secp521r1, nullptr,
 };
 } // namespace
 
 namespace {
 ptls_cipher_suite_t *cipher_suites[] = {
-    &ptls_openssl_aes128gcmsha256,
-    &ptls_openssl_aes256gcmsha384,
+  &ptls_openssl_aes128gcmsha256,
+  &ptls_openssl_aes256gcmsha384,
 #if PTLS_OPENSSL_HAVE_CHACHA20_POLY1305
-    &ptls_openssl_chacha20poly1305sha256,
+  &ptls_openssl_chacha20poly1305sha256,
 #endif // PTLS_OPENSSL_CHACHA20POLY1305SHA256
-    nullptr,
+  nullptr,
 };
 } // namespace
 

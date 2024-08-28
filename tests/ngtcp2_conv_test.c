@@ -31,24 +31,24 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_get_varint),
-    munit_void_test(test_ngtcp2_get_uvarintlen),
-    munit_void_test(test_ngtcp2_put_uvarintlen),
-    munit_void_test(test_ngtcp2_get_uint64),
-    munit_void_test(test_ngtcp2_get_uint48),
-    munit_void_test(test_ngtcp2_get_uint32),
-    munit_void_test(test_ngtcp2_get_uint24),
-    munit_void_test(test_ngtcp2_get_uint16),
-    munit_void_test(test_ngtcp2_get_uint16be),
-    munit_void_test(test_ngtcp2_nth_server_bidi_id),
-    munit_void_test(test_ngtcp2_nth_server_uni_id),
-    munit_void_test(test_ngtcp2_nth_client_bidi_id),
-    munit_void_test(test_ngtcp2_nth_client_uni_id),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_get_varint),
+  munit_void_test(test_ngtcp2_get_uvarintlen),
+  munit_void_test(test_ngtcp2_put_uvarintlen),
+  munit_void_test(test_ngtcp2_get_uint64),
+  munit_void_test(test_ngtcp2_get_uint48),
+  munit_void_test(test_ngtcp2_get_uint32),
+  munit_void_test(test_ngtcp2_get_uint24),
+  munit_void_test(test_ngtcp2_get_uint16),
+  munit_void_test(test_ngtcp2_get_uint16be),
+  munit_void_test(test_ngtcp2_nth_server_bidi_id),
+  munit_void_test(test_ngtcp2_nth_server_uni_id),
+  munit_void_test(test_ngtcp2_nth_client_bidi_id),
+  munit_void_test(test_ngtcp2_nth_client_uni_id),
+  munit_test_end(),
 };
 
 const MunitSuite conv_suite = {
-    "/conv", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/conv", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 void test_ngtcp2_get_varint(void) {

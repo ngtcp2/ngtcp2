@@ -30,12 +30,12 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_tstamp_elapsed),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_tstamp_elapsed),
+  munit_test_end(),
 };
 
 const MunitSuite tstamp_suite = {
-    "/tstamp", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/tstamp", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 void test_ngtcp2_tstamp_elapsed(void) {

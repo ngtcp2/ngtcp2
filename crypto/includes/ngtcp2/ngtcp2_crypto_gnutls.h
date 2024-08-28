@@ -42,7 +42,7 @@ extern "C" {
  */
 NGTCP2_EXTERN ngtcp2_encryption_level
 ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(
-    gnutls_record_encryption_level_t gtls_level);
+  gnutls_record_encryption_level_t gtls_level);
 
 /**
  * @function
@@ -53,7 +53,7 @@ ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(
  */
 NGTCP2_EXTERN gnutls_record_encryption_level_t
 ngtcp2_crypto_gnutls_from_ngtcp2_encryption_level(
-    ngtcp2_encryption_level encryption_level);
+  ngtcp2_encryption_level encryption_level);
 
 /**
  * @function

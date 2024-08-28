@@ -120,8 +120,8 @@ void ngtcp2_qlog_pkt_sent_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
  * "local", otherwise "remote".
  */
 void ngtcp2_qlog_parameters_set_transport_params(
-    ngtcp2_qlog *qlog, const ngtcp2_transport_params *params, int server,
-    ngtcp2_qlog_side side);
+  ngtcp2_qlog *qlog, const ngtcp2_transport_params *params, int server,
+  ngtcp2_qlog_side side);
 
 /*
  * ngtcp2_qlog_metrics_updated writes metrics_updated event of
@@ -147,7 +147,7 @@ void ngtcp2_qlog_retry_pkt_received(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
  * event for a received Stateless Reset packet.
  */
 void ngtcp2_qlog_stateless_reset_pkt_received(
-    ngtcp2_qlog *qlog, const ngtcp2_pkt_stateless_reset *sr);
+  ngtcp2_qlog *qlog, const ngtcp2_pkt_stateless_reset *sr);
 
 /*
  * ngtcp2_qlog_version_negotiation_pkt_received writes packet_received

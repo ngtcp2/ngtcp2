@@ -205,14 +205,14 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   if (config.verify_client) {
     SSL_CTX_set_verify(ssl_ctx_,
                        SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE |
-                           SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                         SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
                        verify_cb);
   }
 
 #ifdef HAVE_LIBBROTLI
   if (!SSL_CTX_add_cert_compression_alg(
-          ssl_ctx_, ngtcp2::tls::CERTIFICATE_COMPRESSION_ALGO_BROTLI,
-          ngtcp2::tls::cert_compress, ngtcp2::tls::cert_decompress)) {
+        ssl_ctx_, ngtcp2::tls::CERTIFICATE_COMPRESSION_ALGO_BROTLI,
+        ngtcp2::tls::cert_compress, ngtcp2::tls::cert_decompress)) {
     std::cerr << "SSL_CTX_add_cert_compression_alg failed" << std::endl;
     return -1;
   }

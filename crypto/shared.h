@@ -286,10 +286,10 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls);
  * This function returns 0 if it succeeds, or -1.
  */
 int ngtcp2_crypto_derive_and_install_initial_key(
-    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
-    uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
-    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp, uint32_t version,
-    const ngtcp2_cid *client_dcid);
+  ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
+  uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
+  uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp, uint32_t version,
+  const ngtcp2_cid *client_dcid);
 
 /**
  * @function
@@ -337,10 +337,10 @@ int ngtcp2_crypto_derive_and_install_initial_key(
  * This function returns 0 if it succeeds, or -1.
  */
 int ngtcp2_crypto_derive_and_install_vneg_initial_key(
-    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
-    uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
-    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp, uint32_t version,
-    const ngtcp2_cid *client_dcid);
+  ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
+  uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
+  uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp, uint32_t version,
+  const ngtcp2_cid *client_dcid);
 
 /**
  * @function

@@ -30,13 +30,13 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_settings_convert_to_latest),
-    munit_void_test(test_ngtcp2_settings_convert_to_old),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_settings_convert_to_latest),
+  munit_void_test(test_ngtcp2_settings_convert_to_old),
+  munit_test_end(),
 };
 
 const MunitSuite settings_suite = {
-    "/settings", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/settings", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 static void qlog_write(void *user_data, uint32_t flags, const void *data,
