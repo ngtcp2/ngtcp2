@@ -767,7 +767,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest,
     p = ngtcp2_get_uvarint(&range->gap, p);
     p = ngtcp2_get_uvarint(&range->len, p);
   }
-  for (i = max_rangecnt; i < rangecnt; ++i) {
+  for (; i < rangecnt; ++i) {
     p += ngtcp2_get_uvarintlen(p);
     p += ngtcp2_get_uvarintlen(p);
   }
