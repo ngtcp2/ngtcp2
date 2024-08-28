@@ -42,7 +42,7 @@ extern "C" {
  */
 NGTCP2_EXTERN ngtcp2_encryption_level
 ngtcp2_crypto_boringssl_from_ssl_encryption_level(
-    enum ssl_encryption_level_t ssl_level);
+  enum ssl_encryption_level_t ssl_level);
 
 /**
  * @function
@@ -53,7 +53,7 @@ ngtcp2_crypto_boringssl_from_ssl_encryption_level(
  */
 NGTCP2_EXTERN enum ssl_encryption_level_t
 ngtcp2_crypto_boringssl_from_ngtcp2_encryption_level(
-    ngtcp2_encryption_level encryption_level);
+  ngtcp2_encryption_level encryption_level);
 
 /**
  * @function

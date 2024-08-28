@@ -52,7 +52,7 @@ using namespace ngtcp2;
 
 struct HTTPHeader {
   HTTPHeader(const std::string_view &name, const std::string_view &value)
-      : name(name), value(value) {}
+    : name(name), value(value) {}
 
   std::string_view name;
   std::string_view value;
@@ -264,7 +264,7 @@ public:
 
 private:
   std::unordered_map<std::string, Handler *, string_hash, std::equal_to<>>
-      handlers_;
+    handlers_;
   struct ev_loop *loop_;
   std::vector<Endpoint> endpoints_;
   TLSServerContext &tls_ctx_;

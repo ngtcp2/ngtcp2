@@ -349,13 +349,13 @@ int ngtcp2_strm_require_retransmit_stop_sending(const ngtcp2_strm *strm);
  * MAX_STREAM_DATA frame should be retransmitted.
  */
 int ngtcp2_strm_require_retransmit_max_stream_data(
-    const ngtcp2_strm *strm, const ngtcp2_max_stream_data *fr);
+  const ngtcp2_strm *strm, const ngtcp2_max_stream_data *fr);
 
 /*
  * ngtcp2_strm_require_retransmit_stream_data_blocked returns nonzero
  * if STREAM_DATA_BLOCKED frame frame should be retransmitted.
  */
 int ngtcp2_strm_require_retransmit_stream_data_blocked(
-    const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr);
+  const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr);
 
 #endif /* NGTCP2_STRM_H */

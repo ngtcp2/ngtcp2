@@ -73,10 +73,9 @@ int client_hello_cb(gnutls_session_t session, unsigned int htype, unsigned when,
 
 int TLSServerSession::init(const TLSServerContext &tls_ctx,
                            HandlerBase *handler) {
-  if (auto rv =
-          gnutls_init(&session_, GNUTLS_SERVER | GNUTLS_ENABLE_EARLY_DATA |
-                                     GNUTLS_NO_AUTO_SEND_TICKET |
-                                     GNUTLS_NO_END_OF_EARLY_DATA);
+  if (auto rv = gnutls_init(
+        &session_, GNUTLS_SERVER | GNUTLS_ENABLE_EARLY_DATA |
+                     GNUTLS_NO_AUTO_SEND_TICKET | GNUTLS_NO_END_OF_EARLY_DATA);
       rv != 0) {
     std::cerr << "gnutls_init failed: " << gnutls_strerror(rv) << std::endl;
     return -1;
@@ -95,7 +94,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   }
 
   auto rv = gnutls_session_ticket_enable_server(
-      session_, tls_ctx.get_session_ticket_key());
+    session_, tls_ctx.get_session_ticket_key());
   if (rv != 0) {
     std::cerr << "gnutls_session_ticket_enable_server failed: "
               << gnutls_strerror(rv) << std::endl;
@@ -129,12 +128,11 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
 
   // strip the first byte from H3_ALPN_V1
   gnutls_datum_t alpn{
-      .data = const_cast<uint8_t *>(&H3_ALPN_V1[1]),
-      .size = H3_ALPN_V1[0],
+    .data = const_cast<uint8_t *>(&H3_ALPN_V1[1]),
+    .size = H3_ALPN_V1[0],
   };
-  gnutls_alpn_set_protocols(session_, &alpn, 1,
-                            GNUTLS_ALPN_MANDATORY |
-                                GNUTLS_ALPN_SERVER_PRECEDENCE);
+  gnutls_alpn_set_protocols(
+    session_, &alpn, 1, GNUTLS_ALPN_MANDATORY | GNUTLS_ALPN_SERVER_PRECEDENCE);
 
   if (config.verify_client) {
     gnutls_certificate_server_set_request(session_, GNUTLS_CERT_REQUIRE);

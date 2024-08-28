@@ -243,8 +243,8 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
       gap = ngtcp2_strm_get_unacked_range_after(strm, fr->stream.offset);
 
       range.begin = fr->stream.offset;
-      range.end = fr->stream.offset +
-                  ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt);
+      range.end =
+        fr->stream.offset + ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt);
       range = ngtcp2_range_intersect(&range, &gap);
       if (ngtcp2_range_len(&range) == 0) {
         if (!fr->stream.fin) {
@@ -267,7 +267,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
       }
 
       rv = ngtcp2_frame_chain_stream_datacnt_objalloc_new(
-          &nfrc, fr->stream.datacnt, rtb->frc_objalloc, rtb->mem);
+        &nfrc, fr->stream.datacnt, rtb->frc_objalloc, rtb->mem);
       if (rv != 0) {
         return rv;
       }
@@ -298,15 +298,15 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
       gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto, fr->stream.offset);
 
       range.begin = fr->stream.offset;
-      range.end = fr->stream.offset +
-                  ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt);
+      range.end =
+        fr->stream.offset + ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt);
       range = ngtcp2_range_intersect(&range, &gap);
       if (ngtcp2_range_len(&range) == 0) {
         continue;
       }
 
       rv = ngtcp2_frame_chain_stream_datacnt_objalloc_new(
-          &nfrc, fr->stream.datacnt, rtb->frc_objalloc, rtb->mem);
+        &nfrc, fr->stream.datacnt, rtb->frc_objalloc, rtb->mem);
       if (rv != 0) {
         return rv;
       }
@@ -327,8 +327,8 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
       continue;
     case NGTCP2_FRAME_NEW_TOKEN:
       rv = ngtcp2_frame_chain_new_token_objalloc_new(
-          &nfrc, fr->new_token.token, fr->new_token.tokenlen, rtb->frc_objalloc,
-          rtb->mem);
+        &nfrc, fr->new_token.token, fr->new_token.tokenlen, rtb->frc_objalloc,
+        rtb->mem);
       if (rv != 0) {
         return rv;
       }
@@ -365,7 +365,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
     case NGTCP2_FRAME_MAX_STREAM_DATA:
       strm = ngtcp2_conn_find_stream(conn, fr->max_stream_data.stream_id);
       if (strm == NULL || !ngtcp2_strm_require_retransmit_max_stream_data(
-                              strm, &fr->max_stream_data)) {
+                            strm, &fr->max_stream_data)) {
         continue;
       }
 
@@ -373,7 +373,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
     case NGTCP2_FRAME_STREAM_DATA_BLOCKED:
       strm = ngtcp2_conn_find_stream(conn, fr->stream_data_blocked.stream_id);
       if (strm == NULL || !ngtcp2_strm_require_retransmit_stream_data_blocked(
-                              strm, &fr->stream_data_blocked)) {
+                            strm, &fr->stream_data_blocked)) {
         continue;
       }
 
@@ -487,7 +487,7 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
     assert(UINT64_MAX == ent->lost_ts);
 
     reclaimed =
-        rtb_reclaim_frame(rtb, NGTCP2_RECLAIM_FLAG_ON_LOSS, conn, pktns, ent);
+      rtb_reclaim_frame(rtb, NGTCP2_RECLAIM_FLAG_ON_LOSS, conn, pktns, ent);
     if (reclaimed < 0) {
       return (int)reclaimed;
     }
@@ -582,7 +582,7 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
     if (conn->dcid.current.max_udp_payload_size < ent->pktlen) {
       conn->dcid.current.max_udp_payload_size = ent->pktlen;
       conn->cstat.max_tx_udp_payload_size =
-          ngtcp2_conn_get_path_max_tx_udp_payload_size(conn);
+        ngtcp2_conn_get_path_max_tx_udp_payload_size(conn);
     }
 
     if (ngtcp2_pmtud_finished(conn->pmtud)) {
@@ -614,8 +614,8 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 
       prev_stream_offset = ngtcp2_strm_get_acked_offset(strm);
       rv = ngtcp2_strm_ack_data(
-          strm, frc->fr.stream.offset,
-          ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
+        strm, frc->fr.stream.offset,
+        ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
       if (rv != 0) {
         return rv;
       }
@@ -628,8 +628,8 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
         }
 
         rv = conn->callbacks.acked_stream_data_offset(
-            conn, strm->stream_id, prev_stream_offset, datalen, conn->user_data,
-            strm->stream_user_data);
+          conn, strm->stream_id, prev_stream_offset, datalen, conn->user_data,
+          strm->stream_user_data);
         if (rv != 0) {
           return NGTCP2_ERR_CALLBACK_FAILURE;
         }
@@ -643,8 +643,8 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
     case NGTCP2_FRAME_CRYPTO:
       prev_stream_offset = ngtcp2_strm_get_acked_offset(crypto);
       rv = ngtcp2_strm_ack_data(
-          crypto, frc->fr.stream.offset,
-          ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
+        crypto, frc->fr.stream.offset,
+        ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
       if (rv != 0) {
         return rv;
       }
@@ -747,8 +747,8 @@ static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
         pktns->rx.ecn.ack.ect1 > fr->ecn.ect1 ||
         pktns->rx.ecn.ack.ce > fr->ecn.ce ||
         (fr->ecn.ect0 - pktns->rx.ecn.ack.ect0) +
-                (fr->ecn.ce - pktns->rx.ecn.ack.ce) <
-            ecn_acked ||
+            (fr->ecn.ce - pktns->rx.ecn.ack.ce) <
+          ecn_acked ||
         fr->ecn.ect0 > pktns->tx.ecn.ect0 || fr->ecn.ect1))) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "path is not ECN capable");
@@ -987,7 +987,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
 static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_conn_stat *cstat) {
   /* 9/8 is kTimeThreshold */
   ngtcp2_duration loss_delay =
-      ngtcp2_max_uint64(cstat->latest_rtt, cstat->smoothed_rtt) * 9 / 8;
+    ngtcp2_max_uint64(cstat->latest_rtt, cstat->smoothed_rtt) * 9 / 8;
   return ngtcp2_max_uint64(loss_delay, NGTCP2_GRANULARITY);
 }
 
@@ -1001,9 +1001,9 @@ static int conn_all_ecn_pkt_lost(ngtcp2_conn *conn) {
   ngtcp2_pktns *pktns = &conn->pktns;
 
   return (!in_pktns || in_pktns->tx.ecn.validation_pkt_sent ==
-                           in_pktns->tx.ecn.validation_pkt_lost) &&
+                         in_pktns->tx.ecn.validation_pkt_lost) &&
          (!hs_pktns || hs_pktns->tx.ecn.validation_pkt_sent ==
-                           hs_pktns->tx.ecn.validation_pkt_lost) &&
+                         hs_pktns->tx.ecn.validation_pkt_lost) &&
          pktns->tx.ecn.validation_pkt_sent == pktns->tx.ecn.validation_pkt_lost;
 }
 
@@ -1019,7 +1019,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
   ngtcp2_cc *cc = rtb->cc;
   int rv;
   uint64_t pkt_thres =
-      rtb->cc_bytes_in_flight / cstat->max_tx_udp_payload_size / 2;
+    rtb->cc_bytes_in_flight / cstat->max_tx_udp_payload_size / 2;
   size_t ecn_pkt_lost = 0;
   ngtcp2_tstamp start_ts;
   ngtcp2_duration pto = ngtcp2_conn_compute_pto(conn, pktns);
@@ -1046,14 +1046,14 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
          following loop. */
       last_lost_pkt_num = ent->hd.pkt_num + 1;
       max_ack_delay = conn->remote.transport_params
-                          ? conn->remote.transport_params->max_ack_delay
-                          : 0;
+                        ? conn->remote.transport_params->max_ack_delay
+                        : 0;
 
       congestion_period =
-          (cstat->smoothed_rtt +
-           ngtcp2_max_uint64(4 * cstat->rttvar, NGTCP2_GRANULARITY) +
-           max_ack_delay) *
-          NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
+        (cstat->smoothed_rtt +
+         ngtcp2_max_uint64(4 * cstat->rttvar, NGTCP2_GRANULARITY) +
+         max_ack_delay) *
+        NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
       start_ts = ngtcp2_max_uint64(rtb->persistent_congestion_start_ts,
                                    cstat->first_rtt_sample_ts);
@@ -1476,7 +1476,7 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     assert(ent->frc);
 
     reclaimed =
-        rtb_reclaim_frame(rtb, NGTCP2_RECLAIM_FLAG_NONE, conn, pktns, ent);
+      rtb_reclaim_frame(rtb, NGTCP2_RECLAIM_FLAG_NONE, conn, pktns, ent);
     if (reclaimed < 0) {
       return reclaimed;
     }

@@ -44,10 +44,10 @@ static ngtcp2_conn *get_conn(ngtcp2_crypto_conn_ref *conn_ref) {
 }
 
 ClientBase::ClientBase()
-    : conn_ref_{get_conn, this},
-      qlog_(nullptr),
-      conn_(nullptr),
-      ticket_received_(false) {
+  : conn_ref_{get_conn, this},
+    qlog_(nullptr),
+    conn_(nullptr),
+    ticket_received_(false) {
   ngtcp2_ccerr_default(&last_error_);
 }
 
@@ -121,7 +121,7 @@ int ClientBase::read_transport_params(const char *path,
 
     if (util::istarts_with(line, "initial_max_stream_data_bidi_local="sv)) {
       if (auto n = util::parse_uint(
-              line.c_str() + "initial_max_stream_data_bidi_local="sv.size());
+            line.c_str() + "initial_max_stream_data_bidi_local="sv.size());
           !n) {
         return -1;
       } else {
@@ -132,7 +132,7 @@ int ClientBase::read_transport_params(const char *path,
 
     if (util::istarts_with(line, "initial_max_stream_data_bidi_remote="sv)) {
       if (auto n = util::parse_uint(
-              line.c_str() + "initial_max_stream_data_bidi_remote="sv.size());
+            line.c_str() + "initial_max_stream_data_bidi_remote="sv.size());
           !n) {
         return -1;
       } else {
@@ -154,7 +154,7 @@ int ClientBase::read_transport_params(const char *path,
 
     if (util::istarts_with(line, "initial_max_data="sv)) {
       if (auto n =
-              util::parse_uint(line.c_str() + "initial_max_data="sv.size());
+            util::parse_uint(line.c_str() + "initial_max_data="sv.size());
           !n) {
         return -1;
       } else {

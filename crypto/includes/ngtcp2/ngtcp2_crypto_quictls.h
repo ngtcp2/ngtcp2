@@ -70,7 +70,7 @@ extern "C" {
  */
 NGTCP2_EXTERN ngtcp2_encryption_level
 ngtcp2_crypto_quictls_from_ossl_encryption_level(
-    OSSL_ENCRYPTION_LEVEL ossl_level);
+  OSSL_ENCRYPTION_LEVEL ossl_level);
 
 /**
  * @function
@@ -81,7 +81,7 @@ ngtcp2_crypto_quictls_from_ossl_encryption_level(
  */
 NGTCP2_EXTERN OSSL_ENCRYPTION_LEVEL
 ngtcp2_crypto_quictls_from_ngtcp2_encryption_level(
-    ngtcp2_encryption_level encryption_level);
+  ngtcp2_encryption_level encryption_level);
 
 /**
  * @function

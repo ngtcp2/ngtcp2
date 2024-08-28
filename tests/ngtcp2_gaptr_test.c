@@ -31,15 +31,15 @@
 #include "ngtcp2_mem.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_gaptr_push),
-    munit_void_test(test_ngtcp2_gaptr_is_pushed),
-    munit_void_test(test_ngtcp2_gaptr_drop_first_gap),
-    munit_void_test(test_ngtcp2_gaptr_get_first_gap_after),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_gaptr_push),
+  munit_void_test(test_ngtcp2_gaptr_is_pushed),
+  munit_void_test(test_ngtcp2_gaptr_drop_first_gap),
+  munit_void_test(test_ngtcp2_gaptr_get_first_gap_after),
+  munit_test_end(),
 };
 
 const MunitSuite gaptr_suite = {
-    "/gaptr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/gaptr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 void test_ngtcp2_gaptr_push(void) {

@@ -74,7 +74,7 @@ void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log) {
   reno->cc.on_pkt_acked = ngtcp2_cc_reno_cc_on_pkt_acked;
   reno->cc.congestion_event = ngtcp2_cc_reno_cc_congestion_event;
   reno->cc.on_persistent_congestion =
-      ngtcp2_cc_reno_cc_on_persistent_congestion;
+    ngtcp2_cc_reno_cc_on_persistent_congestion;
   reno->cc.on_ack_recv = ngtcp2_cc_reno_cc_on_ack_recv;
   reno->cc.reset = ngtcp2_cc_reno_cc_reset;
 
@@ -163,7 +163,7 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                               cstat->delivery_rate_sec, reno->ack_count);
 
   max_delivery_rate_sec =
-      ngtcp2_window_filter_get_best(&reno->delivery_rate_sec_filter);
+    ngtcp2_window_filter_get_best(&reno->delivery_rate_sec_filter);
 
   if (cstat->min_rtt != UINT64_MAX && max_delivery_rate_sec) {
     target_cwnd = max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
@@ -220,7 +220,7 @@ void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log) {
   cubic->cc.congestion_event = ngtcp2_cc_cubic_cc_congestion_event;
   cubic->cc.on_spurious_congestion = ngtcp2_cc_cubic_cc_on_spurious_congestion;
   cubic->cc.on_persistent_congestion =
-      ngtcp2_cc_cubic_cc_on_persistent_congestion;
+    ngtcp2_cc_cubic_cc_on_persistent_congestion;
   cubic->cc.on_ack_recv = ngtcp2_cc_cubic_cc_on_ack_recv;
   cubic->cc.on_pkt_sent = ngtcp2_cc_cubic_cc_on_pkt_sent;
   cubic->cc.new_rtt_sample = ngtcp2_cc_cubic_cc_new_rtt_sample;
@@ -292,7 +292,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     if (cubic->last_round_min_rtt != UINT64_MAX &&
         cubic->current_round_min_rtt != UINT64_MAX &&
         cstat->cwnd >=
-            NGTCP2_HS_MIN_SSTHRESH * cstat->max_tx_udp_payload_size &&
+          NGTCP2_HS_MIN_SSTHRESH * cstat->max_tx_udp_payload_size &&
         cubic->rtt_sample_count >= NGTCP2_HS_N_RTT_SAMPLE) {
       eta = cubic->last_round_min_rtt / 8;
 
@@ -360,7 +360,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   }
 
   cwnd_thres =
-      (target * (((t + cstat->smoothed_rtt) << 10) / NGTCP2_SECONDS)) >> 10;
+    (target * (((t + cstat->smoothed_rtt) << 10) / NGTCP2_SECONDS)) >> 10;
   if (cwnd_thres < cstat->cwnd) {
     target = cstat->cwnd;
   } else if (2 * cwnd_thres > 3 * cstat->cwnd) {
@@ -503,7 +503,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                               cstat->delivery_rate_sec, cubic->ack_count);
 
   max_delivery_rate_sec =
-      ngtcp2_window_filter_get_best(&cubic->delivery_rate_sec_filter);
+    ngtcp2_window_filter_get_best(&cubic->delivery_rate_sec_filter);
 
   if (cstat->min_rtt != UINT64_MAX && max_delivery_rate_sec) {
     target_cwnd = max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
@@ -543,7 +543,7 @@ void ngtcp2_cc_cubic_cc_new_rtt_sample(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   }
 
   cubic->current_round_min_rtt =
-      ngtcp2_min_uint64(cubic->current_round_min_rtt, cstat->latest_rtt);
+    ngtcp2_min_uint64(cubic->current_round_min_rtt, cstat->latest_rtt);
   ++cubic->rtt_sample_count;
 }
 

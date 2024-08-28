@@ -30,14 +30,14 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_range_intersect),
-    munit_void_test(test_ngtcp2_range_cut),
-    munit_void_test(test_ngtcp2_range_not_after),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_range_intersect),
+  munit_void_test(test_ngtcp2_range_cut),
+  munit_void_test(test_ngtcp2_range_not_after),
+  munit_test_end(),
 };
 
 const MunitSuite range_suite = {
-    "/range", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/range", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 void test_ngtcp2_range_intersect(void) {

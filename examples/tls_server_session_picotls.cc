@@ -51,14 +51,14 @@ int TLSServerSession::init(TLSServerContext &tls_ctx, HandlerBase *handler) {
   *ptls_get_data_ptr(cptls_.ptls) = handler->conn_ref();
 
   cptls_.handshake_properties.additional_extensions =
-      new ptls_raw_extension_t[2]{
-          {
-              .type = UINT16_MAX,
-          },
-          {
-              .type = UINT16_MAX,
-          },
-      };
+    new ptls_raw_extension_t[2]{
+      {
+        .type = UINT16_MAX,
+      },
+      {
+        .type = UINT16_MAX,
+      },
+    };
 
   if (ngtcp2_crypto_picotls_configure_server_session(&cptls_) != 0) {
     std::cerr << "ngtcp2_crypto_picotls_configure_server_session failed"

@@ -131,11 +131,10 @@ int ngtcp2_dcid_verify_uniqueness(const ngtcp2_dcid *dcid, uint64_t seq,
                                   const ngtcp2_cid *cid, const uint8_t *token) {
   if (dcid->seq == seq) {
     return ngtcp2_cid_eq(&dcid->cid, cid) &&
-                   (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) &&
-                   memcmp(dcid->token, token,
-                          NGTCP2_STATELESS_RESET_TOKENLEN) == 0
-               ? 0
-               : NGTCP2_ERR_PROTO;
+               (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) &&
+               memcmp(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN) == 0
+             ? 0
+             : NGTCP2_ERR_PROTO;
   }
 
   return !ngtcp2_cid_eq(&dcid->cid, cid) ? 0 : NGTCP2_ERR_PROTO;
@@ -144,8 +143,7 @@ int ngtcp2_dcid_verify_uniqueness(const ngtcp2_dcid *dcid, uint64_t seq,
 int ngtcp2_dcid_verify_stateless_reset_token(const ngtcp2_dcid *dcid,
                                              const uint8_t *token) {
   return (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) &&
-                 ngtcp2_cmemeq(dcid->token, token,
-                               NGTCP2_STATELESS_RESET_TOKENLEN)
-             ? 0
-             : NGTCP2_ERR_INVALID_ARGUMENT;
+             ngtcp2_cmemeq(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN)
+           ? 0
+           : NGTCP2_ERR_INVALID_ARGUMENT;
 }

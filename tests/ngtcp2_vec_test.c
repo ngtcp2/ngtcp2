@@ -30,14 +30,14 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_vec_split),
-    munit_void_test(test_ngtcp2_vec_merge),
-    munit_void_test(test_ngtcp2_vec_len_varint),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_vec_split),
+  munit_void_test(test_ngtcp2_vec_merge),
+  munit_void_test(test_ngtcp2_vec_len_varint),
+  munit_test_end(),
 };
 
 const MunitSuite vec_suite = {
-    "/vec", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/vec", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 void test_ngtcp2_vec_split(void) {

@@ -35,22 +35,22 @@ namespace ngtcp2 {
 
 namespace {
 const MunitTest tests[]{
-    munit_void_test(test_util_format_durationf),
-    munit_void_test(test_util_format_uint),
-    munit_void_test(test_util_format_uint_iec),
-    munit_void_test(test_util_format_duration),
-    munit_void_test(test_util_parse_uint),
-    munit_void_test(test_util_parse_uint_iec),
-    munit_void_test(test_util_parse_duration),
-    munit_void_test(test_util_normalize_path),
-    munit_void_test(test_util_hexdump),
-    munit_void_test(test_util_format_hex),
-    munit_test_end(),
+  munit_void_test(test_util_format_durationf),
+  munit_void_test(test_util_format_uint),
+  munit_void_test(test_util_format_uint_iec),
+  munit_void_test(test_util_format_duration),
+  munit_void_test(test_util_parse_uint),
+  munit_void_test(test_util_parse_uint_iec),
+  munit_void_test(test_util_parse_duration),
+  munit_void_test(test_util_normalize_path),
+  munit_void_test(test_util_hexdump),
+  munit_void_test(test_util_format_hex),
+  munit_test_end(),
 };
 } // namespace
 
 const MunitSuite util_suite{
-    "/util", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/util", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 namespace util {
@@ -94,8 +94,8 @@ void test_util_format_uint_iec() {
   assert_stdstring_equal("1M", util::format_uint_iec(1 << 20));
   assert_stdstring_equal("1G", util::format_uint_iec(1 << 30));
   assert_stdstring_equal(
-      "18446744073709551615",
-      util::format_uint_iec(std::numeric_limits<uint64_t>::max()));
+    "18446744073709551615",
+    util::format_uint_iec(std::numeric_limits<uint64_t>::max()));
   assert_stdstring_equal("1025K", util::format_uint_iec((1 << 20) + (1 << 10)));
 }
 
@@ -108,8 +108,8 @@ void test_util_format_duration() {
   assert_stdstring_equal("1m", util::format_duration(60000000000ull));
   assert_stdstring_equal("1h", util::format_duration(3600000000000ull));
   assert_stdstring_equal(
-      "18446744073709551615ns",
-      util::format_duration(std::numeric_limits<uint64_t>::max()));
+    "18446744073709551615ns",
+    util::format_duration(std::numeric_limits<uint64_t>::max()));
   assert_stdstring_equal("61s", util::format_duration(61000000000ull));
 }
 
@@ -283,101 +283,101 @@ void test_util_hexdump() {
   };
 
   auto tests = std::to_array<hexdump_testdata>({
-      {
-          .title = "Empty data",
-          .data = ""sv,
-          .dump = ""sv,
-      },
-      {
-          .title = "1 byte",
-          .data = "0"sv,
-          .dump = "00000000  30                                                "
-                  "|0|\n"
-                  "00000001\n"sv,
-      },
-      {
-          .title = "8 bytes",
-          .data = "01234567"sv,
-          .dump = "00000000  30 31 32 33 34 35 36 37                           "
-                  "|01234567|\n"
-                  "00000008\n"sv,
-      },
-      {
-          .title = "9 bytes",
-          .data = "012345678"sv,
-          .dump = "00000000  30 31 32 33 34 35 36 37  38                       "
-                  "|012345678|\n"
-                  "00000009\n"sv,
-      },
-      {
-          .title = "15 bytes",
-          .data = "0123456789abcde"sv,
-          .dump = "00000000  30 31 32 33 34 35 36 37  38 39 61 62 63 64 65     "
-                  "|0123456789abcde|\n"
-                  "0000000f\n"sv,
-      },
-      {
-          .title = "16 bytes",
-          .data = "0123456789abcdef"sv,
-          .dump = "00000000  30 31 32 33 34 35 36 37  38 39 61 62 63 64 65 66  "
-                  "|0123456789abcdef|\n"
-                  "00000010\n"sv,
-      },
-      {
-          .title = "17 bytes",
-          .data = "0123456789abcdefg"sv,
-          .dump = "00000000  30 31 32 33 34 35 36 37  38 39 61 62 63 64 65 66  "
-                  "|0123456789abcdef|\n"
-                  "00000010  67                                                "
-                  "|g|\n"
-                  "00000011\n"sv,
-      },
-      {
-          .title = "Non-printables",
-          .data = "\0\a\b\t\n\v\f\r\x7f"sv,
-          .dump = "00000000  00 07 08 09 0a 0b 0c 0d  7f                       "
-                  "|.........|\n"
-                  "00000009\n"sv,
-      },
-      {
-          .title = "Multiple lines",
-          .data = "alpha bravo charlie delta echo foxtrot golf"sv,
-          .dump = "00000000  61 6c 70 68 61 20 62 72  61 76 6f 20 63 68 61 72  "
-                  "|alpha bravo char|\n"
-                  "00000010  6c 69 65 20 64 65 6c 74  61 20 65 63 68 6f 20 66  "
-                  "|lie delta echo f|\n"
-                  "00000020  6f 78 74 72 6f 74 20 67  6f 6c 66                 "
-                  "|oxtrot golf|\n"
-                  "0000002b\n"sv,
-      },
-      {
-          .title = "Repeated lines",
-          .data = "000000000000000100000000000000010000000000000001000000000000"
-                  "00020000"
-                  "0000000000020000000000000003"sv,
-          .dump = "00000000  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 31  "
-                  "|0000000000000001|\n"
-                  "*\n"
-                  "00000030  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 32  "
-                  "|0000000000000002|\n"
-                  "*\n"
-                  "00000050  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 33  "
-                  "|0000000000000003|\n"
-                  "00000060\n"sv,
-      },
-      {
-          .title = "Ends with the repeated line",
-          .data = ""
-                  "000000000000000100000000000000010000000000000001000000000000"
-                  "00020000000000000002"sv,
-          .dump = "00000000  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 31  "
-                  "|0000000000000001|\n"
-                  "*\n"
-                  "00000030  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 32  "
-                  "|0000000000000002|\n"
-                  "*\n"
-                  "00000050\n"sv,
-      },
+    {
+      .title = "Empty data",
+      .data = ""sv,
+      .dump = ""sv,
+    },
+    {
+      .title = "1 byte",
+      .data = "0"sv,
+      .dump = "00000000  30                                                "
+              "|0|\n"
+              "00000001\n"sv,
+    },
+    {
+      .title = "8 bytes",
+      .data = "01234567"sv,
+      .dump = "00000000  30 31 32 33 34 35 36 37                           "
+              "|01234567|\n"
+              "00000008\n"sv,
+    },
+    {
+      .title = "9 bytes",
+      .data = "012345678"sv,
+      .dump = "00000000  30 31 32 33 34 35 36 37  38                       "
+              "|012345678|\n"
+              "00000009\n"sv,
+    },
+    {
+      .title = "15 bytes",
+      .data = "0123456789abcde"sv,
+      .dump = "00000000  30 31 32 33 34 35 36 37  38 39 61 62 63 64 65     "
+              "|0123456789abcde|\n"
+              "0000000f\n"sv,
+    },
+    {
+      .title = "16 bytes",
+      .data = "0123456789abcdef"sv,
+      .dump = "00000000  30 31 32 33 34 35 36 37  38 39 61 62 63 64 65 66  "
+              "|0123456789abcdef|\n"
+              "00000010\n"sv,
+    },
+    {
+      .title = "17 bytes",
+      .data = "0123456789abcdefg"sv,
+      .dump = "00000000  30 31 32 33 34 35 36 37  38 39 61 62 63 64 65 66  "
+              "|0123456789abcdef|\n"
+              "00000010  67                                                "
+              "|g|\n"
+              "00000011\n"sv,
+    },
+    {
+      .title = "Non-printables",
+      .data = "\0\a\b\t\n\v\f\r\x7f"sv,
+      .dump = "00000000  00 07 08 09 0a 0b 0c 0d  7f                       "
+              "|.........|\n"
+              "00000009\n"sv,
+    },
+    {
+      .title = "Multiple lines",
+      .data = "alpha bravo charlie delta echo foxtrot golf"sv,
+      .dump = "00000000  61 6c 70 68 61 20 62 72  61 76 6f 20 63 68 61 72  "
+              "|alpha bravo char|\n"
+              "00000010  6c 69 65 20 64 65 6c 74  61 20 65 63 68 6f 20 66  "
+              "|lie delta echo f|\n"
+              "00000020  6f 78 74 72 6f 74 20 67  6f 6c 66                 "
+              "|oxtrot golf|\n"
+              "0000002b\n"sv,
+    },
+    {
+      .title = "Repeated lines",
+      .data = "000000000000000100000000000000010000000000000001000000000000"
+              "00020000"
+              "0000000000020000000000000003"sv,
+      .dump = "00000000  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 31  "
+              "|0000000000000001|\n"
+              "*\n"
+              "00000030  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 32  "
+              "|0000000000000002|\n"
+              "*\n"
+              "00000050  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 33  "
+              "|0000000000000003|\n"
+              "00000060\n"sv,
+    },
+    {
+      .title = "Ends with the repeated line",
+      .data = ""
+              "000000000000000100000000000000010000000000000001000000000000"
+              "00020000000000000002"sv,
+      .dump = "00000000  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 31  "
+              "|0000000000000001|\n"
+              "*\n"
+              "00000030  30 30 30 30 30 30 30 30  30 30 30 30 30 30 30 32  "
+              "|0000000000000002|\n"
+              "*\n"
+              "00000050\n"sv,
+    },
   });
 
   for (auto &t : tests) {

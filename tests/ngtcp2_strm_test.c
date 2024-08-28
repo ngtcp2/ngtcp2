@@ -32,15 +32,15 @@
 #include "ngtcp2_frame_chain.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_strm_streamfrq_pop),
-    munit_void_test(test_ngtcp2_strm_streamfrq_unacked_offset),
-    munit_void_test(test_ngtcp2_strm_streamfrq_unacked_pop),
-    munit_void_test(test_ngtcp2_strm_discard_reordered_data),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_strm_streamfrq_pop),
+  munit_void_test(test_ngtcp2_strm_streamfrq_unacked_offset),
+  munit_void_test(test_ngtcp2_strm_streamfrq_unacked_pop),
+  munit_void_test(test_ngtcp2_strm_discard_reordered_data),
+  munit_test_end(),
 };
 
 const MunitSuite strm_suite = {
-    "/strm", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/strm", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 static uint8_t nulldata[1024];
@@ -339,7 +339,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   ngtcp2_strm_streamfrq_push(&strm, frc);
 
   ngtcp2_frame_chain_stream_datacnt_objalloc_new(
-      &frc, NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES + 1, &frc_objalloc, mem);
+    &frc, NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES + 1, &frc_objalloc, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
   frc->fr.stream.fin = 0;
   frc->fr.stream.offset = 17;

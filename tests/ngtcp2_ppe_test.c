@@ -30,14 +30,14 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_ppe_dgram_padding_size),
-    munit_void_test(test_ngtcp2_ppe_padding_size),
-    munit_void_test(test_ngtcp2_ppe_padding_hp_sample),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_ppe_dgram_padding_size),
+  munit_void_test(test_ngtcp2_ppe_padding_size),
+  munit_void_test(test_ngtcp2_ppe_padding_hp_sample),
+  munit_test_end(),
 };
 
 const MunitSuite ppe_suite = {
-    "/ppe", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/ppe", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 static void set_padding_range(uint8_t *buf, size_t buflen, size_t offset,

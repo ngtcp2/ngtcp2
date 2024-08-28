@@ -30,15 +30,15 @@
 #include "ngtcp2_map.h"
 
 static const MunitTest tests[] = {
-    munit_void_test(test_ngtcp2_map),
-    munit_void_test(test_ngtcp2_map_functional),
-    munit_void_test(test_ngtcp2_map_each),
-    munit_void_test(test_ngtcp2_map_clear),
-    munit_test_end(),
+  munit_void_test(test_ngtcp2_map),
+  munit_void_test(test_ngtcp2_map_functional),
+  munit_void_test(test_ngtcp2_map_each),
+  munit_void_test(test_ngtcp2_map_clear),
+  munit_test_end(),
 };
 
 const MunitSuite map_suite = {
-    "/map", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  "/map", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
 typedef struct strentry {

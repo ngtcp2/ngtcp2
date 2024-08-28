@@ -185,11 +185,11 @@ int version_negotiation(ngtcp2_conn *conn, uint32_t version,
 namespace {
 void init_path(ngtcp2_path_storage *ps) {
   addrinfo *local, *remote,
-      hints{
-          .ai_flags = AI_NUMERICHOST | AI_NUMERICSERV,
-          .ai_family = AF_UNSPEC,
-          .ai_socktype = SOCK_DGRAM,
-      };
+    hints{
+      .ai_flags = AI_NUMERICHOST | AI_NUMERICSERV,
+      .ai_family = AF_UNSPEC,
+      .ai_socktype = SOCK_DGRAM,
+    };
 
   auto rv = getaddrinfo("127.0.0.1", "4433", &hints, &local);
 
@@ -210,36 +210,36 @@ void init_path(ngtcp2_path_storage *ps) {
 namespace {
 ngtcp2_conn *setup_conn() {
   ngtcp2_callbacks cb{
-      .recv_client_initial = recv_client_initial,
-      .recv_crypto_data = recv_crypto_data,
-      .encrypt = null_encrypt,
-      .decrypt = null_decrypt,
-      .hp_mask = null_hp_mask,
-      .rand = genrand,
-      .get_new_connection_id = get_new_connection_id,
-      .update_key = update_key,
-      .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
-      .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
-      .get_path_challenge_data = get_path_challenge_data,
-      .version_negotiation = version_negotiation,
+    .recv_client_initial = recv_client_initial,
+    .recv_crypto_data = recv_crypto_data,
+    .encrypt = null_encrypt,
+    .decrypt = null_decrypt,
+    .hp_mask = null_hp_mask,
+    .rand = genrand,
+    .get_new_connection_id = get_new_connection_id,
+    .update_key = update_key,
+    .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
+    .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
+    .get_path_challenge_data = get_path_challenge_data,
+    .version_negotiation = version_negotiation,
   };
   ngtcp2_cid dcid, scid, odcid;
 
   ngtcp2_cid_init(
-      &dcid,
-      reinterpret_cast<const uint8_t *>("\x10\xe7\x43\x2a\xaf\x7a\x19\xb0\x3c"
-                                        "\x34\xb3\x3f\xc1\x8d\xe7\x90\x36"),
-      17);
+    &dcid,
+    reinterpret_cast<const uint8_t *>("\x10\xe7\x43\x2a\xaf\x7a\x19\xb0\x3c"
+                                      "\x34\xb3\x3f\xc1\x8d\xe7\x90\x36"),
+    17);
   ngtcp2_cid_init(
-      &scid,
-      reinterpret_cast<const uint8_t *>("\x8d\x8f\x16\x90\x4e\x41\x90\xb1\x70"
-                                        "\x1e\x5c\x5d\x00\x09\x92\x1d\xdf\xab"),
-      18);
+    &scid,
+    reinterpret_cast<const uint8_t *>("\x8d\x8f\x16\x90\x4e\x41\x90\xb1\x70"
+                                      "\x1e\x5c\x5d\x00\x09\x92\x1d\xdf\xab"),
+    18);
   ngtcp2_cid_init(
-      &odcid,
-      reinterpret_cast<const uint8_t *>("\xaa\x0a\x9d\x0e\xa4\xc7\xb1\x54\x50"
-                                        "\xf5\x51\x94\x5e\xd6\x16\x9d\xe3\x57"),
-      18);
+    &odcid,
+    reinterpret_cast<const uint8_t *>("\xaa\x0a\x9d\x0e\xa4\xc7\xb1\x54\x50"
+                                      "\xf5\x51\x94\x5e\xd6\x16\x9d\xe3\x57"),
+    18);
 
   ngtcp2_path_storage ps;
 
@@ -275,12 +275,12 @@ ngtcp2_conn *setup_conn() {
                          /* mem = */ nullptr, nullptr);
 
   ngtcp2_crypto_ctx crypto_ctx{
-      .aead =
-          {
-              .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
-          },
-      .max_encryption = 9999,
-      .max_decryption_failure = 8888,
+    .aead =
+      {
+        .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
+      },
+    .max_encryption = 9999,
+    .max_decryption_failure = 8888,
   };
 
   ngtcp2_conn_set_initial_crypto_ctx(conn, &crypto_ctx);
@@ -354,7 +354,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   init_path(&ps);
 
   auto pi = ngtcp2_pkt_info{
-      .ecn = NGTCP2_ECN_ECT_1,
+    .ecn = NGTCP2_ECN_ECT_1,
   };
 
   auto conn = setup_conn();
@@ -376,8 +376,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     ngtcp2_pkt_info pi{};
 
     auto spktlen = ngtcp2_conn_writev_stream(
-        conn, &ps.path, &pi, pkt.data(), pkt.size(), nullptr,
-        NGTCP2_WRITE_STREAM_FLAG_NONE, -1, nullptr, 0, ts);
+      conn, &ps.path, &pi, pkt.data(), pkt.size(), nullptr,
+      NGTCP2_WRITE_STREAM_FLAG_NONE, -1, nullptr, 0, ts);
     if (spktlen < 0) {
       break;
     }
