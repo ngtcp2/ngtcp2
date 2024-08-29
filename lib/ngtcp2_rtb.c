@@ -208,10 +208,10 @@ static size_t rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 #define NGTCP2_RECLAIM_FLAG_ON_LOSS 0x01u
 
 /*
- * rtb_reclaim_frame queues unacknowledged frames included in |ent|
- * for retransmission.  The re-queued frames are not deleted from
- * |ent|.  It returns the number of frames queued.  |flags| is bitwise
- * OR of 0 or more of NGTCP2_RECLAIM_FLAG_*.
+ * rtb_reclaim_frame copies and queues frames included in |ent| for
+ * retransmission.  The frames are not deleted from |ent|.  It returns
+ * the number of frames queued.  |flags| is bitwise OR of 0 or more of
+ * NGTCP2_RECLAIM_FLAG_*.
  */
 static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
                                       ngtcp2_conn *conn, ngtcp2_pktns *pktns,
@@ -249,8 +249,8 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
       if (ngtcp2_range_len(&range) == 0) {
         if (!fr->stream.fin) {
           /* 0 length STREAM frame with offset == 0 must be
-             retransmitted if no non-empty data is sent to this stream
-             and no data in this stream is acknowledged. */
+             retransmitted if no non-empty data are sent to this
+             stream, and no data in this stream are acknowledged. */
           if (fr->stream.offset != 0 || fr->stream.datacnt != 0 ||
               strm->tx.offset || (strm->flags & NGTCP2_STRM_FLAG_ANY_ACKED)) {
             continue;
@@ -293,8 +293,8 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
 
       continue;
     case NGTCP2_FRAME_CRYPTO:
-      /* Don't resend CRYPTO frame if the whole region it contains has
-         been acknowledged */
+      /* Do not resend CRYPTO frame if the whole region it contains
+         has been acknowledged */
       gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto, fr->stream.offset);
 
       range.begin = fr->stream.offset;
@@ -970,7 +970,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
 }
 
 /*
- * rtb_compute_pkt_loss_delay computes loss delay.
+ * compute_pkt_loss_delay computes loss delay.
  */
 static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_conn_stat *cstat) {
   /* 9/8 is kTimeThreshold */
@@ -1469,8 +1469,8 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
       return reclaimed;
     }
 
-    /* Mark reclaimed even if reclaimed == 0 so that we can skip it in
-       the next run. */
+    /* Mark ent reclaimed even if reclaimed == 0 so that we can skip
+       it in the next run. */
     ent->flags |= NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED;
 
     assert(rtb->num_retransmittable);
