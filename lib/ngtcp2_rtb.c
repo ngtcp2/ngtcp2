@@ -778,7 +778,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   size_t i;
   int rv;
   ngtcp2_ksl_it it;
-  ngtcp2_ssize num_acked = 0;
+  size_t num_acked = 0;
   ngtcp2_tstamp largest_pkt_sent_ts = UINT64_MAX;
   int64_t pkt_num;
   ngtcp2_cc *cc = rtb->cc;
@@ -843,7 +843,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     ++num_acked;
   }
 
-  for (i = 0; i < fr->rangecnt;) {
+  for (i = 0; i < fr->rangecnt; ++i) {
     largest_ack = min_ack - (int64_t)fr->ranges[i].gap - 2;
     min_ack = largest_ack - (int64_t)fr->ranges[i].len;
 
@@ -867,8 +867,6 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       rtb_remove(rtb, &it, &acked_ent, ent, cstat);
       ++num_acked;
     }
-
-    ++i;
   }
 
   if (largest_pkt_sent_ts != UINT64_MAX && ack_eliciting_pkt_acked) {
@@ -920,13 +918,13 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   }
 
   if (rtb->cc->on_spurious_congestion && num_lost_pkts &&
-      rtb->num_lost_pkts - rtb->num_lost_pmtud_pkts == 0) {
+      rtb->num_lost_pkts == rtb->num_lost_pmtud_pkts) {
     rtb->cc->on_spurious_congestion(cc, cstat, ts);
   }
 
   ngtcp2_rst_on_ack_recv(rtb->rst, cstat, cc_ack.pkt_delivered);
 
-  if (conn && num_acked > 0) {
+  if (conn && num_acked) {
     rv = rtb_detect_lost_pkt(rtb, &cc_ack.bytes_lost, conn, pktns, cstat, ts);
     if (rv != 0) {
       return rv;
@@ -940,7 +938,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     cc->on_ack_recv(cc, cstat, &cc_ack, ts);
   }
 
-  return num_acked;
+  return (ngtcp2_ssize)num_acked;
 
 fail:
   for (ent = acked_ent; ent; ent = acked_ent) {
@@ -1132,23 +1130,22 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
        * persistent congestion there, then it is a lot easier to just
        * not enable it during handshake.
        */
-      if (pktns->id == NGTCP2_PKTNS_ID_APPLICATION && loss_window > 0) {
-        if (loss_window >= congestion_period) {
-          ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                          "persistent congestion loss_window=%" PRIu64
-                          " congestion_period=%" PRIu64,
-                          loss_window, congestion_period);
+      if (pktns->id == NGTCP2_PKTNS_ID_APPLICATION && loss_window &&
+          loss_window >= congestion_period) {
+        ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
+                        "persistent congestion loss_window=%" PRIu64
+                        " congestion_period=%" PRIu64,
+                        loss_window, congestion_period);
 
-          /* Reset min_rtt, srtt, and rttvar here.  Next new RTT
-             sample will be used to recalculate these values. */
-          cstat->min_rtt = UINT64_MAX;
-          cstat->smoothed_rtt = conn->local.settings.initial_rtt;
-          cstat->rttvar = conn->local.settings.initial_rtt / 2;
-          cstat->first_rtt_sample_ts = UINT64_MAX;
+        /* Reset min_rtt, srtt, and rttvar here.  Next new RTT
+           sample will be used to recalculate these values. */
+        cstat->min_rtt = UINT64_MAX;
+        cstat->smoothed_rtt = conn->local.settings.initial_rtt;
+        cstat->rttvar = conn->local.settings.initial_rtt / 2;
+        cstat->first_rtt_sample_ts = UINT64_MAX;
 
-          if (cc->on_persistent_congestion) {
-            cc->on_persistent_congestion(cc, cstat, ts);
-          }
+        if (cc->on_persistent_congestion) {
+          cc->on_persistent_congestion(cc, cstat, ts);
         }
       }
 
@@ -1469,7 +1466,7 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   size_t atmost = num_pkts;
 
   it = ngtcp2_ksl_end(&rtb->ents);
-  for (; !ngtcp2_ksl_it_begin(&it) && num_pkts >= 1;) {
+  for (; !ngtcp2_ksl_it_begin(&it) && num_pkts;) {
     ngtcp2_ksl_it_prev(&it);
     ent = ngtcp2_ksl_it_get(&it);
 
