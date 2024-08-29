@@ -683,9 +683,8 @@ static void pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
   ngtcp2_strm_init(&pktns->crypto.strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL,
                    frc_objalloc, mem);
 
-  ngtcp2_rtb_init(&pktns->rtb, pktns_id, &pktns->crypto.strm, rst, cc,
-                  initial_pkt_num, log, qlog, rtb_entry_objalloc, frc_objalloc,
-                  mem);
+  ngtcp2_rtb_init(&pktns->rtb, pktns_id, rst, cc, initial_pkt_num, log, qlog,
+                  rtb_entry_objalloc, frc_objalloc, mem);
 }
 
 static int pktns_new(ngtcp2_pktns **ppktns, ngtcp2_pktns_id pktns_id,

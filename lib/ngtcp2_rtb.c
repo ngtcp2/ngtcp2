@@ -85,15 +85,13 @@ static int greater(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
   return *(int64_t *)lhs > *(int64_t *)rhs;
 }
 
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
-                     ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
-                     int64_t cc_pkt_num, ngtcp2_log *log, ngtcp2_qlog *qlog,
-                     ngtcp2_objalloc *rtb_entry_objalloc,
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id, ngtcp2_rst *rst,
+                     ngtcp2_cc *cc, int64_t cc_pkt_num, ngtcp2_log *log,
+                     ngtcp2_qlog *qlog, ngtcp2_objalloc *rtb_entry_objalloc,
                      ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem) {
   rtb->rtb_entry_objalloc = rtb_entry_objalloc;
   rtb->frc_objalloc = frc_objalloc;
   ngtcp2_ksl_init(&rtb->ents, greater, sizeof(int64_t), mem);
-  rtb->crypto = crypto;
   rtb->rst = rst;
   rtb->cc = cc;
   rtb->log = log;
@@ -302,7 +300,8 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
     case NGTCP2_FRAME_CRYPTO:
       /* Do not resend CRYPTO frame if the whole region it contains
          has been acknowledged */
-      gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto, fr->stream.offset);
+      gap = ngtcp2_strm_get_unacked_range_after(&pktns->crypto.strm,
+                                                fr->stream.offset);
 
       range.begin = fr->stream.offset;
       range.end =
@@ -562,15 +561,14 @@ static void conn_ack_crypto_data(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   return;
 }
 
-static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
-                                 ngtcp2_conn *conn) {
+static int process_acked_pkt(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn,
+                             ngtcp2_pktns *pktns) {
   ngtcp2_frame_chain *frc;
   uint64_t prev_stream_offset, stream_offset;
   ngtcp2_strm *strm;
   int rv;
   uint64_t datalen;
-  ngtcp2_strm *crypto = rtb->crypto;
-  ngtcp2_pktns *pktns = NULL;
+  ngtcp2_strm *crypto = &pktns->crypto.strm;
 
   if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE) && conn->pmtud &&
       conn->pmtud->tx_pkt_num <= ent->hd.pkt_num) {
@@ -655,20 +653,6 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
       datalen = stream_offset - prev_stream_offset;
       if (datalen == 0) {
         break;
-      }
-
-      switch (rtb->pktns_id) {
-      case NGTCP2_PKTNS_ID_INITIAL:
-        pktns = conn->in_pktns;
-        break;
-      case NGTCP2_PKTNS_ID_HANDSHAKE:
-        pktns = conn->hs_pktns;
-        break;
-      case NGTCP2_PKTNS_ID_APPLICATION:
-        pktns = &conn->pktns;
-        break;
-      default:
-        ngtcp2_unreachable();
       }
 
       conn_ack_crypto_data(conn, pktns, datalen);
@@ -903,7 +887,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         ++ecn_acked;
       }
 
-      rv = rtb_process_acked_pkt(rtb, ent, conn);
+      rv = process_acked_pkt(ent, conn, pktns);
       if (rv != 0) {
         goto fail;
       }

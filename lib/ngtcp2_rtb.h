@@ -156,8 +156,6 @@ typedef struct ngtcp2_rtb {
   /* ents includes ngtcp2_rtb_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;
-  /* crypto is CRYPTO stream. */
-  ngtcp2_strm *crypto;
   ngtcp2_rst *rst;
   ngtcp2_cc *cc;
   ngtcp2_log *log;
@@ -204,10 +202,9 @@ typedef struct ngtcp2_rtb {
 /*
  * ngtcp2_rtb_init initializes |rtb|.
  */
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
-                     ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
-                     int64_t cc_pkt_num, ngtcp2_log *log, ngtcp2_qlog *qlog,
-                     ngtcp2_objalloc *rtb_entry_objalloc,
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id, ngtcp2_rst *rst,
+                     ngtcp2_cc *cc, int64_t cc_pkt_num, ngtcp2_log *log,
+                     ngtcp2_qlog *qlog, ngtcp2_objalloc *rtb_entry_objalloc,
                      ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem);
 
 /*
