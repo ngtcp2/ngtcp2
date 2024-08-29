@@ -227,7 +227,7 @@ int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
  * which has the largest packet number.  If there is no entry,
  * returned value satisfies ngtcp2_ksl_it_end(&it) != 0.
  */
-ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
+ngtcp2_ksl_it ngtcp2_rtb_head(const ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes an acknowledged ngtcp2_rtb_entry from
@@ -270,7 +270,7 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
  * packet tracked by |rtb| was declared lost.  It returns UINT64_MAX
  * if no such packet exists.
  */
-ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(ngtcp2_rtb *rtb);
+ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(const ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_remove_all removes all packets from |rtb|, and prepends
@@ -288,7 +288,7 @@ void ngtcp2_rtb_remove_early_data(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat);
 /*
  * ngtcp2_rtb_empty returns nonzero if |rtb| has no entry.
  */
-int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
+int ngtcp2_rtb_empty(const ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_reset_cc_state resets congestion state in |rtb|.

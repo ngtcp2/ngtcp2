@@ -512,7 +512,7 @@ int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   return 0;
 }
 
-ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb) {
+ngtcp2_ksl_it ngtcp2_rtb_head(const ngtcp2_rtb *rtb) {
   return ngtcp2_ksl_begin(&rtb->ents);
 }
 
@@ -1245,7 +1245,7 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
   }
 }
 
-ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(ngtcp2_rtb *rtb) {
+ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(const ngtcp2_rtb *rtb) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
 
@@ -1452,7 +1452,7 @@ void ngtcp2_rtb_remove_early_data(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat) {
   }
 }
 
-int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
+int ngtcp2_rtb_empty(const ngtcp2_rtb *rtb) {
   return ngtcp2_ksl_len(&rtb->ents) == 0;
 }
 
