@@ -322,6 +322,7 @@ typedef struct ngtcp2_pktns {
 
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
+  ngtcp2_pktns_id id;
 } ngtcp2_pktns;
 
 typedef enum ngtcp2_ecn_state {

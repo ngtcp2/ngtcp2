@@ -175,8 +175,6 @@ typedef struct ngtcp2_rtb {
   size_t num_pto_eliciting;
   /* probe_pkt_left is the number of probe packet to send */
   size_t probe_pkt_left;
-  /* pktns_id is the identifier of packet number space. */
-  ngtcp2_pktns_id pktns_id;
   /* cc_pkt_num is the smallest packet number that is contributed to
      ngtcp2_conn_stat.bytes_in_flight. */
   int64_t cc_pkt_num;
@@ -202,9 +200,9 @@ typedef struct ngtcp2_rtb {
 /*
  * ngtcp2_rtb_init initializes |rtb|.
  */
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id, ngtcp2_rst *rst,
-                     ngtcp2_cc *cc, int64_t cc_pkt_num, ngtcp2_log *log,
-                     ngtcp2_qlog *qlog, ngtcp2_objalloc *rtb_entry_objalloc,
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_rst *rst, ngtcp2_cc *cc,
+                     int64_t cc_pkt_num, ngtcp2_log *log, ngtcp2_qlog *qlog,
+                     ngtcp2_objalloc *rtb_entry_objalloc,
                      ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem);
 
 /*

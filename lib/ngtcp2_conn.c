@@ -677,13 +677,14 @@ static void pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
   pktns->tx.non_ack_pkt_start_ts = UINT64_MAX;
   pktns->rx.max_pkt_num = -1;
   pktns->rx.max_ack_eliciting_pkt_num = -1;
+  pktns->id = pktns_id;
 
   ngtcp2_acktr_init(&pktns->acktr, log, mem);
 
   ngtcp2_strm_init(&pktns->crypto.strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL,
                    frc_objalloc, mem);
 
-  ngtcp2_rtb_init(&pktns->rtb, pktns_id, rst, cc, initial_pkt_num, log, qlog,
+  ngtcp2_rtb_init(&pktns->rtb, rst, cc, initial_pkt_num, log, qlog,
                   rtb_entry_objalloc, frc_objalloc, mem);
 }
 
@@ -843,7 +844,7 @@ static ngtcp2_duration conn_compute_initial_pto(ngtcp2_conn *conn,
   ngtcp2_duration initial_rtt = conn->local.settings.initial_rtt;
   ngtcp2_duration max_ack_delay;
 
-  if (pktns->rtb.pktns_id == NGTCP2_PKTNS_ID_APPLICATION &&
+  if (pktns->id == NGTCP2_PKTNS_ID_APPLICATION &&
       conn->remote.transport_params) {
     max_ack_delay = conn->remote.transport_params->max_ack_delay;
   } else {
@@ -860,7 +861,7 @@ static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn,
   ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_duration max_ack_delay;
 
-  if (pktns->rtb.pktns_id == NGTCP2_PKTNS_ID_APPLICATION &&
+  if (pktns->id == NGTCP2_PKTNS_ID_APPLICATION &&
       conn->remote.transport_params) {
     max_ack_delay = conn->remote.transport_params->max_ack_delay;
   } else {
@@ -1835,8 +1836,9 @@ static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
+static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                             ngtcp2_rtb_entry *ent) {
+  ngtcp2_rtb *rtb = &pktns->rtb;
   int rv;
 
   /* This function implements OnPacketSent, but it handles only
@@ -1847,7 +1849,7 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
   }
 
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) {
-    conn->cstat.last_tx_pkt_ts[rtb->pktns_id] = ent->ts;
+    conn->cstat.last_tx_pkt_ts[pktns->id] = ent->ts;
   }
 
   ngtcp2_conn_set_loss_detection_timer(conn, ent->ts);
@@ -2463,7 +2465,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
       return rv;
     }
 
-    rv = conn_on_pkt_sent(conn, &pktns->rtb, rtbent);
+    rv = conn_on_pkt_sent(conn, pktns, rtbent);
     if (rv != 0) {
       ngtcp2_rtb_entry_objalloc_del(rtbent, &conn->rtb_entry_objalloc,
                                     &conn->frc_objalloc, conn->mem);
@@ -2581,8 +2583,8 @@ static void conn_discard_pktns(ngtcp2_conn *conn, ngtcp2_pktns **ppktns,
 
   conn->cstat.bytes_in_flight -= bytes_in_flight;
   conn->cstat.pto_count = 0;
-  conn->cstat.last_tx_pkt_ts[pktns->rtb.pktns_id] = UINT64_MAX;
-  conn->cstat.loss_time[pktns->rtb.pktns_id] = UINT64_MAX;
+  conn->cstat.last_tx_pkt_ts[pktns->id] = UINT64_MAX;
+  conn->cstat.loss_time[pktns->id] = UINT64_MAX;
 
   conn_call_delete_crypto_aead_ctx(conn, &pktns->crypto.rx.ckm->aead_ctx);
   conn_call_delete_crypto_cipher_ctx(conn, &pktns->crypto.rx.hp_ctx);
@@ -4211,7 +4213,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                      ts);
     }
 
-    rv = conn_on_pkt_sent(conn, &pktns->rtb, ent);
+    rv = conn_on_pkt_sent(conn, pktns, ent);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       ngtcp2_rtb_entry_objalloc_del(ent, &conn->rtb_entry_objalloc,
@@ -4412,7 +4414,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
       return rv;
     }
 
-    rv = conn_on_pkt_sent(conn, &pktns->rtb, rtbent);
+    rv = conn_on_pkt_sent(conn, pktns, rtbent);
     if (rv != 0) {
       ngtcp2_rtb_entry_objalloc_del(rtbent, &conn->rtb_entry_objalloc,
                                     &conn->frc_objalloc, conn->mem);

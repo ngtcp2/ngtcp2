@@ -85,9 +85,9 @@ static int greater(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
   return *(int64_t *)lhs > *(int64_t *)rhs;
 }
 
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id, ngtcp2_rst *rst,
-                     ngtcp2_cc *cc, int64_t cc_pkt_num, ngtcp2_log *log,
-                     ngtcp2_qlog *qlog, ngtcp2_objalloc *rtb_entry_objalloc,
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_rst *rst, ngtcp2_cc *cc,
+                     int64_t cc_pkt_num, ngtcp2_log *log, ngtcp2_qlog *qlog,
+                     ngtcp2_objalloc *rtb_entry_objalloc,
                      ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem) {
   rtb->rtb_entry_objalloc = rtb_entry_objalloc;
   rtb->frc_objalloc = frc_objalloc;
@@ -102,7 +102,6 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id, ngtcp2_rst *rst,
   rtb->num_retransmittable = 0;
   rtb->num_pto_eliciting = 0;
   rtb->probe_pkt_left = 0;
-  rtb->pktns_id = pktns_id;
   rtb->cc_pkt_num = cc_pkt_num;
   rtb->cc_bytes_in_flight = 0;
   rtb->persistent_congestion_start_ts = UINT64_MAX;
@@ -457,7 +456,7 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   } else if (rtb->cc->on_pkt_lost) {
     cc->on_pkt_lost(cc, cstat,
                     ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen,
-                                       rtb->pktns_id, ent->ts, ent->rst.lost,
+                                       pktns->id, ent->ts, ent->rst.lost,
                                        ent->rst.tx_in_flight,
                                        ent->rst.is_app_limited),
                     ts);
@@ -702,7 +701,8 @@ static int process_acked_pkt(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn,
 }
 
 static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
-                             ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
+                             ngtcp2_conn_stat *cstat, const ngtcp2_pktns *pktns,
+                             ngtcp2_tstamp ts) {
   ngtcp2_cc *cc = rtb->cc;
   ngtcp2_cc_pkt pkt;
 
@@ -711,7 +711,7 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   if (cc->on_pkt_acked) {
     cc->on_pkt_acked(cc, cstat,
                      ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen,
-                                        rtb->pktns_id, ent->ts, ent->rst.lost,
+                                        pktns->id, ent->ts, ent->rst.lost,
                                         ent->rst.tx_in_flight,
                                         ent->rst.is_app_limited),
                      ts);
@@ -899,7 +899,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         cc_ack.pkt_delivered = ent->rst.delivered;
       }
 
-      rtb_on_pkt_acked(rtb, ent, cstat, ts);
+      rtb_on_pkt_acked(rtb, ent, cstat, pktns, ts);
       acked_ent = ent->next;
       ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
                                     rtb->frc_objalloc, rtb->mem);
@@ -912,7 +912,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   } else {
     /* For unit tests */
     for (ent = acked_ent; ent; ent = acked_ent) {
-      rtb_on_pkt_acked(rtb, ent, cstat, ts);
+      rtb_on_pkt_acked(rtb, ent, cstat, pktns, ts);
       acked_ent = ent->next;
       ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
                                     rtb->frc_objalloc, rtb->mem);
@@ -954,7 +954,8 @@ fail:
 
 static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
                         const ngtcp2_rtb_entry *ent, ngtcp2_duration loss_delay,
-                        size_t pkt_thres, ngtcp2_tstamp ts) {
+                        size_t pkt_thres, const ngtcp2_pktns *pktns,
+                        ngtcp2_tstamp ts) {
   ngtcp2_tstamp loss_time;
 
   if (ngtcp2_tstamp_elapsed(ent->ts, loss_delay, ts) ||
@@ -962,7 +963,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
     return 1;
   }
 
-  loss_time = cstat->loss_time[rtb->pktns_id];
+  loss_time = cstat->loss_time[pktns->id];
 
   if (loss_time == UINT64_MAX) {
     loss_time = ent->ts + loss_delay;
@@ -970,7 +971,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
     loss_time = ngtcp2_min_uint64(loss_time, ent->ts + loss_delay);
   }
 
-  cstat->loss_time[rtb->pktns_id] = loss_time;
+  cstat->loss_time[pktns->id] = loss_time;
 
   return 0;
 }
@@ -1022,7 +1023,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
 
   pkt_thres = ngtcp2_max_uint64(pkt_thres, NGTCP2_PKT_THRESHOLD);
   pkt_thres = ngtcp2_min_uint64(pkt_thres, 256);
-  cstat->loss_time[rtb->pktns_id] = UINT64_MAX;
+  cstat->loss_time[pktns->id] = UINT64_MAX;
   loss_delay = compute_pkt_loss_delay(cstat);
 
   it = ngtcp2_ksl_lower_bound(&rtb->ents, &rtb->largest_acked_tx_pkt_num);
@@ -1033,7 +1034,8 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
       break;
     }
 
-    if (rtb_pkt_lost(rtb, cstat, ent, loss_delay, (size_t)pkt_thres, ts)) {
+    if (rtb_pkt_lost(rtb, cstat, ent, loss_delay, (size_t)pkt_thres, pktns,
+                     ts)) {
       /* All entries from ent are considered to be lost. */
       latest_ts = oldest_ts = ent->ts;
       /* +1 to pick this packet for persistent congestion in the
@@ -1063,7 +1065,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
         }
 
         if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED)) {
-          if (rtb->pktns_id != NGTCP2_PKTNS_ID_APPLICATION ||
+          if (pktns->id != NGTCP2_PKTNS_ID_APPLICATION ||
               last_lost_pkt_num == -1 ||
               latest_ts - oldest_ts >= congestion_period) {
             break;
@@ -1130,7 +1132,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
        * persistent congestion there, then it is a lot easier to just
        * not enable it during handshake.
        */
-      if (rtb->pktns_id == NGTCP2_PKTNS_ID_APPLICATION && loss_window > 0) {
+      if (pktns->id == NGTCP2_PKTNS_ID_APPLICATION && loss_window > 0) {
         if (loss_window >= congestion_period) {
           ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
                           "persistent congestion loss_window=%" PRIu64
