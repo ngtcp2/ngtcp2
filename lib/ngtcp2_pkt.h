@@ -52,6 +52,7 @@
    LENGTH<1> + PKN<1> */
 #define NGTCP2_MIN_LONG_HEADERLEN (1 + 4 + 1 + 1 + 1 + 1)
 
+/* STREAM frame specific macros */
 #define NGTCP2_STREAM_FIN_BIT 0x01
 #define NGTCP2_STREAM_LEN_BIT 0x02
 #define NGTCP2_STREAM_OFF_BIT 0x04
@@ -98,8 +99,8 @@
 /* NGTCP2_RETRY_TAGLEN is the length of Retry packet integrity tag. */
 #define NGTCP2_RETRY_TAGLEN 16
 
-/* NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE is the maximum UDP payload size
-   that this library can write. */
+/* NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE is the maximum UDP datagram
+   payload size that this library can write. */
 #define NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE ((1 << 24) - 1)
 
 /* NGTCP2_PKT_LENGTHLEN is the number of bytes that is occupied by
@@ -366,7 +367,7 @@ struct ngtcp2_pkt_chain {
   uint8_t *pkt;
   /* pktlen is length of a QUIC packet. */
   size_t pktlen;
-  /* dgramlen is length of UDP datagram that a QUIC packet is
+  /* dgramlen is length of UDP datagram payload that a QUIC packet is
      included. */
   size_t dgramlen;
   ngtcp2_tstamp ts;
@@ -398,11 +399,11 @@ void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.  If
- * |dcid| and/or |scid| is NULL, DCID and SCID of |hd| is empty
- * respectively.  |pkt_numlen| is the number of bytes used to encode
- * |pkt_num| and either 1, 2, or 4.  |version| is QUIC version for
- * long header.  |len| is the length field of Initial, 0RTT, and
- * Handshake packets.
+ * |dcid| and/or |scid| is NULL, Destination Connection ID and/or
+ * Source Connection ID of |hd| is empty respectively.  |pkt_numlen|
+ * is the number of bytes used to encode |pkt_num| and either 1, 2, or
+ * 4.  |version| is QUIC version for long header.  |len| is the length
+ * field of Initial, 0RTT, and Handshake packets.
  */
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
@@ -412,8 +413,8 @@ void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
 /*
  * ngtcp2_pkt_encode_hd_long encodes |hd| as QUIC long header into
  * |out| which has length |outlen|.  It returns the number of bytes
- * written into |outlen| if it succeeds, or one of the following
- * negative error codes:
+ * written into |out| if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_NOBUF
  *     Buffer is too short
@@ -424,8 +425,8 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 /*
  * ngtcp2_pkt_encode_hd_short encodes |hd| as QUIC short header into
  * |out| which has length |outlen|.  It returns the number of bytes
- * written into |outlen| if it succeeds, or one of the following
- * negative error codes:
+ * written into |out| if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_NOBUF
  *     Buffer is too short
@@ -452,7 +453,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
 /**
  * @function
  *
- * `ngtcp2_pkt_encode_frame` encodes a frame |fm| into the buffer
+ * `ngtcp2_pkt_encode_frame` encodes a frame |fr| into the buffer
  * pointed by |out| of length |outlen|.
  *
  * This function returns the number of bytes written to the buffer, or
@@ -538,7 +539,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest,
 /*
  * ngtcp2_pkt_decode_padding_frame decodes contiguous PADDING frames
  * from |payload| of length |payloadlen|.  It continues to parse
- * frames as long as the frame type is PADDING.  This finishes when it
+ * frames as long as the frame type is PADDING.  It finishes when it
  * encounters the frame type which is not PADDING, or all input data
  * is read.  The first byte (payload[0]) must be NGTCP2_FRAME_PADDING.
  * This function returns the exact number of bytes read to decode
@@ -568,7 +569,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
  * ngtcp2_pkt_decode_connection_close_frame decodes CONNECTION_CLOSE
  * frame from |payload| of length |payloadlen|.  The result is stored
  * in the object pointed by |dest|.  CONNECTION_CLOSE frame must start
- * at payload[0].  This function finishes it decodes one
+ * at payload[0].  This function finishes when it decodes one
  * CONNECTION_CLOSE frame, and returns the exact number of bytes read
  * to decode a frame if it succeeds, or one of the following negative
  * error codes:
@@ -692,8 +693,8 @@ ngtcp2_ssize ngtcp2_pkt_decode_streams_blocked_frame(
  *
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include NEW_CONNECTION_ID frame; or the
- *     length of CID is strictly less than NGTCP2_MIN_CIDLEN or
- *     greater than NGTCP2_MAX_CIDLEN.
+ *     length of Connection ID is strictly less than NGTCP2_MIN_CIDLEN
+ *     or greater than NGTCP2_MAX_CIDLEN.
  */
 ngtcp2_ssize ngtcp2_pkt_decode_new_connection_id_frame(
   ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen);
@@ -777,12 +778,13 @@ ngtcp2_ssize ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
                                                size_t payloadlen);
 
 /*
- * ngtcp2_pkt_decode_retire_connection_id_frame decodes RETIRE_CONNECTION_ID
- * frame from |payload| of length |payloadlen|.  The result is stored in the
- * object pointed by |dest|.  RETIRE_CONNECTION_ID frame must start at
- * payload[0].  This function finishes when it decodes one RETIRE_CONNECTION_ID
- * frame, and returns the exact number of bytes read to decode a frame
- * if it succeeds, or one of the following negative error codes:
+ * ngtcp2_pkt_decode_retire_connection_id_frame decodes
+ * RETIRE_CONNECTION_ID frame from |payload| of length |payloadlen|.
+ * The result is stored in the object pointed by |dest|.
+ * RETIRE_CONNECTION_ID frame must start at payload[0].  This function
+ * finishes when it decodes one RETIRE_CONNECTION_ID frame, and
+ * returns the exact number of bytes read to decode a frame if it
+ * succeeds, or one of the following negative error codes:
  *
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include RETIRE_CONNECTION_ID frame.
@@ -1067,8 +1069,9 @@ ngtcp2_ssize ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
                                                const ngtcp2_new_token *fr);
 
 /*
- * ngtcp2_pkt_encode_retire_connection_id_frame encodes RETIRE_CONNECTION_ID
- * frame |fr| into the buffer pointed by |out| of length |outlen|.
+ * ngtcp2_pkt_encode_retire_connection_id_frame encodes
+ * RETIRE_CONNECTION_ID frame |fr| into the buffer pointed by |out| of
+ * length |outlen|.
  *
  * This function returns the number of bytes written if it succeeds,
  * or one of the following negative error codes:
@@ -1107,7 +1110,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_datagram_frame(uint8_t *out, size_t outlen,
                                               const ngtcp2_datagram *fr);
 
 /*
- * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for
+ * ngtcp2_pkt_adjust_pkt_num finds the full 62 bits packet number for
  * |pkt_num|, which is encoded in |pkt_numlen| bytes.  The
  * |max_pkt_num| is the highest successfully authenticated packet
  * number.
@@ -1116,10 +1119,10 @@ int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
                                   size_t pkt_numlen);
 
 /*
- * ngtcp2_pkt_validate_ack checks that ack is malformed or not.
- * |min_pkt_num| is the minimum packet number that an endpoint sends.
- * It is an error to receive acknowledgements for a packet less than
- * |min_pkt_num|.
+ * ngtcp2_pkt_validate_ack verifies whether |fr| is malformed or not.
+ * |min_pkt_num| is the minimum packet number that a local endpoint
+ * sends.  It is an error to receive acknowledgements for a packet
+ * less than |min_pkt_num|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1134,8 +1137,8 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr, int64_t min_pkt_num);
 /*
  * ngtcp2_pkt_stream_max_datalen returns the maximum number of bytes
  * which can be sent for stream denoted by |stream_id|.  |offset| is
- * an offset of within the stream.  |len| is the estimated number of
- * bytes to be sent.  |left| is the size of buffer.  If |left| is too
+ * an offset within the stream.  |len| is the estimated number of
+ * bytes to send.  |left| is the size of buffer.  If |left| is too
  * small to write STREAM frame, this function returns (size_t)-1.
  */
 size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
@@ -1143,10 +1146,10 @@ size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
 
 /*
  * ngtcp2_pkt_crypto_max_datalen returns the maximum number of bytes
- * which can be sent for crypto stream.  |offset| is an offset of
- * within the crypto stream.  |len| is the estimated number of bytes
- * to be sent.  |left| is the size of buffer.  If |left| is too small
- * to write CRYPTO frame, this function returns (size_t)-1.
+ * which can be sent for crypto stream.  |offset| is an offset within
+ * the crypto stream.  |len| is the estimated number of bytes to send.
+ * |left| is the size of buffer.  If |left| is too small to write
+ * CRYPTO frame, this function returns (size_t)-1.
  */
 size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left);
 
