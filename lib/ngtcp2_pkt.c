@@ -1581,7 +1581,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
 }
 
 ngtcp2_ssize ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
-                                         ngtcp2_ack *fr) {
+                                         const ngtcp2_ack *fr) {
   size_t len = 1 + ngtcp2_put_uvarintlen((uint64_t)fr->largest_ack) +
                ngtcp2_put_uvarintlen(fr->ack_delay) +
                ngtcp2_put_uvarintlen(fr->rangecnt) +
