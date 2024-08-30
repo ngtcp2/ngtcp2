@@ -41,7 +41,6 @@
 #define NGTCP2_LONG_RESERVED_BIT_MASK 0x0c
 
 /* Short header specific macros */
-#define NGTCP2_SHORT_SPIN_BIT_MASK 0x20
 #define NGTCP2_SHORT_RESERVED_BIT_MASK 0x18
 #define NGTCP2_SHORT_KEY_PHASE_BIT 0x04
 
@@ -71,9 +70,6 @@
    other than payload for DATAGRAM frame.  That is from type field to
    the beginning of the payload. */
 #define NGTCP2_DATAGRAM_OVERHEAD (1 + 8)
-
-/* NGTCP2_MIN_FRAME_PAYLOADLEN is the minimum frame payload length. */
-#define NGTCP2_MIN_FRAME_PAYLOADLEN 16
 
 /* NGTCP2_MAX_SERVER_STREAM_ID_BIDI is the maximum bidirectional
    server stream ID. */
