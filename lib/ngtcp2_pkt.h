@@ -1132,7 +1132,7 @@ int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
  * NGTCP2_ERR_PROTO
  *     |fr| contains a packet number less than |min_pkt_num|.
  */
-int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr, int64_t min_pkt_num);
+int ngtcp2_pkt_validate_ack(const ngtcp2_ack *fr, int64_t min_pkt_num);
 
 /*
  * ngtcp2_pkt_stream_max_datalen returns the maximum number of bytes

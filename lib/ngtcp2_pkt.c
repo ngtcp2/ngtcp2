@@ -2151,7 +2151,7 @@ int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
   return cand;
 }
 
-int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr, int64_t min_pkt_num) {
+int ngtcp2_pkt_validate_ack(const ngtcp2_ack *fr, int64_t min_pkt_num) {
   int64_t largest_ack = fr->largest_ack;
   size_t i;
 
