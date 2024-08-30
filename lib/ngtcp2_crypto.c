@@ -98,15 +98,15 @@ void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem) {
 
 void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
                                 int64_t pkt_num) {
-  size_t i;
   uint64_t n;
 
-  assert(ivlen >= 8);
+  assert(ivlen >= sizeof(n));
 
   memcpy(dest, iv, ivlen);
-  n = ngtcp2_htonl64((uint64_t)pkt_num);
 
-  for (i = 0; i < 8; ++i) {
-    dest[ivlen - 8 + i] ^= ((uint8_t *)&n)[i];
-  }
+  dest += ivlen - sizeof(n);
+
+  memcpy(&n, dest, sizeof(n));
+  n ^= ngtcp2_htonl64((uint64_t)pkt_num);
+  memcpy(dest, &n, sizeof(n));
 }
