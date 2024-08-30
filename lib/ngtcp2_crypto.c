@@ -42,9 +42,11 @@ int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *secret,
   if (secretlen) {
     memcpy((*pckm)->secret.base, secret, secretlen);
   }
+
   if (aead_ctx) {
     (*pckm)->aead_ctx = *aead_ctx;
   }
+
   memcpy((*pckm)->iv.base, iv, ivlen);
 
   return 0;
