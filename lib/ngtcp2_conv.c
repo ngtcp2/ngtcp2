@@ -33,38 +33,35 @@
 #include "ngtcp2_unreachable.h"
 
 const uint8_t *ngtcp2_get_uint64(uint64_t *dest, const uint8_t *p) {
-  uint64_t n;
-  memcpy(&n, p, sizeof(n));
-  *dest = ngtcp2_ntohl64(n);
-  return p + sizeof(n);
+  memcpy(dest, p, sizeof(*dest));
+  *dest = ngtcp2_ntohl64(*dest);
+  return p + sizeof(*dest);
 }
 
 const uint8_t *ngtcp2_get_uint48(uint64_t *dest, const uint8_t *p) {
-  uint64_t n = 0;
-  memcpy(((uint8_t *)&n) + 2, p, 6);
-  *dest = ngtcp2_ntohl64(n);
+  *dest = 0;
+  memcpy(((uint8_t *)dest) + 2, p, 6);
+  *dest = ngtcp2_ntohl64(*dest);
   return p + 6;
 }
 
 const uint8_t *ngtcp2_get_uint32(uint32_t *dest, const uint8_t *p) {
-  uint32_t n;
-  memcpy(&n, p, sizeof(n));
-  *dest = ngtcp2_ntohl(n);
-  return p + sizeof(n);
+  memcpy(dest, p, sizeof(*dest));
+  *dest = ngtcp2_ntohl(*dest);
+  return p + sizeof(*dest);
 }
 
 const uint8_t *ngtcp2_get_uint24(uint32_t *dest, const uint8_t *p) {
-  uint32_t n = 0;
-  memcpy(((uint8_t *)&n) + 1, p, 3);
-  *dest = ngtcp2_ntohl(n);
+  *dest = 0;
+  memcpy(((uint8_t *)dest) + 1, p, 3);
+  *dest = ngtcp2_ntohl(*dest);
   return p + 3;
 }
 
 const uint8_t *ngtcp2_get_uint16(uint16_t *dest, const uint8_t *p) {
-  uint16_t n;
-  memcpy(&n, p, sizeof(n));
-  *dest = ngtcp2_ntohs(n);
-  return p + sizeof(n);
+  memcpy(dest, p, sizeof(*dest));
+  *dest = ngtcp2_ntohs(*dest);
+  return p + sizeof(*dest);
 }
 
 const uint8_t *ngtcp2_get_uint16be(uint16_t *dest, const uint8_t *p) {
