@@ -44,6 +44,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_nth_server_uni_id),
   munit_void_test(test_ngtcp2_nth_client_bidi_id),
   munit_void_test(test_ngtcp2_nth_client_uni_id),
+  munit_void_test(test_ngtcp2_put_pkt_num),
   munit_test_end(),
 };
 
@@ -448,4 +449,37 @@ void test_ngtcp2_nth_client_uni_id(void) {
   assert_int64(2, ==, ngtcp2_nth_client_uni_id(1));
   assert_int64(6, ==, ngtcp2_nth_client_uni_id(2));
   assert_int64(10, ==, ngtcp2_nth_client_uni_id(3));
+}
+
+void test_ngtcp2_put_pkt_num(void) {
+  int64_t pkt_num;
+  uint8_t buf[4];
+  uint8_t *p;
+  uint32_t n32;
+  uint16_t n16;
+
+  pkt_num = 0x7687898a8b8c8d8ell;
+
+  p = ngtcp2_put_pkt_num(buf, pkt_num, 1);
+
+  assert_ptr_equal(p, buf + 1);
+  assert_uint8(0x8e, ==, *buf);
+
+  p = ngtcp2_put_pkt_num(buf, pkt_num, 2);
+  ngtcp2_get_uint16(&n16, buf);
+
+  assert_ptr_equal(p, buf + 2);
+  assert_uint16(0x8d8e, ==, n16);
+
+  p = ngtcp2_put_pkt_num(buf, pkt_num, 3);
+  ngtcp2_get_uint24(&n32, buf);
+
+  assert_ptr_equal(p, buf + 3);
+  assert_uint32(0x8c8d8e, ==, n32);
+
+  p = ngtcp2_put_pkt_num(buf, pkt_num, 4);
+  ngtcp2_get_uint32(&n32, buf);
+
+  assert_ptr_equal(p, buf + 4);
+  assert_uint32(0x8b8c8d8e, ==, n32);
 }

@@ -207,14 +207,11 @@ uint8_t *ngtcp2_put_pkt_num(uint8_t *p, int64_t pkt_num, size_t len) {
     *p++ = (uint8_t)pkt_num;
     return p;
   case 2:
-    ngtcp2_put_uint16be(p, (uint16_t)pkt_num);
-    return p + 2;
+    return ngtcp2_put_uint16be(p, (uint16_t)pkt_num);
   case 3:
-    ngtcp2_put_uint24be(p, (uint32_t)pkt_num);
-    return p + 3;
+    return ngtcp2_put_uint24be(p, (uint32_t)pkt_num);
   case 4:
-    ngtcp2_put_uint32be(p, (uint32_t)pkt_num);
-    return p + 4;
+    return ngtcp2_put_uint32be(p, (uint32_t)pkt_num);
   default:
     ngtcp2_unreachable();
   }
