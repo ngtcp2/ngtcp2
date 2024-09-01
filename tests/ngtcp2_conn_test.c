@@ -10955,7 +10955,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
 
   assert_ptrdiff(0, <, spktlen);
 
-  ngtcp2_get_uint32(&version, &buf[1]);
+  ngtcp2_get_uint32be(&version, &buf[1]);
 
   assert_uint32(NGTCP2_PROTO_VER_V2, ==, version);
 
@@ -11028,7 +11028,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
 
   assert_ptrdiff(0, <, spktlen);
 
-  ngtcp2_get_uint32(&version, &buf[1]);
+  ngtcp2_get_uint32be(&version, &buf[1]);
 
   assert_uint32(NGTCP2_PROTO_VER_V2, ==, version);
 

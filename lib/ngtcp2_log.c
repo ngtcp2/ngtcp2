@@ -749,7 +749,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
     for (i = 0, p = params->version_info.available_versions;
          i < params->version_info.available_versionslen;
          i += sizeof(uint32_t)) {
-      p = ngtcp2_get_uint32(&version, p);
+      p = ngtcp2_get_uint32be(&version, p);
 
       log->log_printf(
         log->user_data,
