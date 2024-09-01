@@ -1003,7 +1003,7 @@ static void *available_versions_init(void *buf, const uint32_t *versions,
   size_t i;
 
   for (i = 0; i < versionslen; ++i) {
-    buf = ngtcp2_put_uint32(buf, versions[i]);
+    buf = ngtcp2_put_uint32be(buf, versions[i]);
   }
 
   return 0;
