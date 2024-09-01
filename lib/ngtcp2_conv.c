@@ -38,13 +38,6 @@ const uint8_t *ngtcp2_get_uint64be(uint64_t *dest, const uint8_t *p) {
   return p + sizeof(*dest);
 }
 
-const uint8_t *ngtcp2_get_uint48be(uint64_t *dest, const uint8_t *p) {
-  *dest = 0;
-  memcpy(((uint8_t *)dest) + 2, p, 6);
-  *dest = ngtcp2_ntohl64(*dest);
-  return p + 6;
-}
-
 const uint8_t *ngtcp2_get_uint32be(uint32_t *dest, const uint8_t *p) {
   memcpy(dest, p, sizeof(*dest));
   *dest = ngtcp2_ntohl(*dest);
@@ -136,11 +129,6 @@ int64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen) {
 uint8_t *ngtcp2_put_uint64be(uint8_t *p, uint64_t n) {
   n = ngtcp2_htonl64(n);
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
-}
-
-uint8_t *ngtcp2_put_uint48be(uint8_t *p, uint64_t n) {
-  n = ngtcp2_htonl64(n);
-  return ngtcp2_cpymem(p, ((const uint8_t *)&n) + 2, 6);
 }
 
 uint8_t *ngtcp2_put_uint32be(uint8_t *p, uint32_t n) {
