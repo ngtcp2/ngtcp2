@@ -96,45 +96,45 @@ const uint8_t *ngtcp2_get_varint(int64_t *dest, const uint8_t *p);
 int64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen);
 
 /*
- * ngtcp2_put_uint64be writes |n| in host byte order in |p| in network
+ * ngtcp2_put_uint64 writes |n| in host byte order in |p| in network
  * byte order.  It returns the one beyond of the last written
  * position.
  */
-uint8_t *ngtcp2_put_uint64be(uint8_t *p, uint64_t n);
+uint8_t *ngtcp2_put_uint64(uint8_t *p, uint64_t n);
 
 /*
- * ngtcp2_put_uint48be writes |n| in host byte order in |p| in network
+ * ngtcp2_put_uint48 writes |n| in host byte order in |p| in network
  * byte order.  It writes only least significant 48 bits.  It returns
  * the one beyond of the last written position.
  */
-uint8_t *ngtcp2_put_uint48be(uint8_t *p, uint64_t n);
+uint8_t *ngtcp2_put_uint48(uint8_t *p, uint64_t n);
 
 /*
- * ngtcp2_put_uint32be writes |n| in host byte order in |p| in network
+ * ngtcp2_put_uint32 writes |n| in host byte order in |p| in network
  * byte order.  It returns the one beyond of the last written
  * position.
  */
-uint8_t *ngtcp2_put_uint32be(uint8_t *p, uint32_t n);
+uint8_t *ngtcp2_put_uint32(uint8_t *p, uint32_t n);
 
 /*
- * ngtcp2_put_uint24be writes |n| in host byte order in |p| in network
+ * ngtcp2_put_uint24 writes |n| in host byte order in |p| in network
  * byte order.  It writes only least significant 24 bits.  It returns
  * the one beyond of the last written position.
  */
-uint8_t *ngtcp2_put_uint24be(uint8_t *p, uint32_t n);
+uint8_t *ngtcp2_put_uint24(uint8_t *p, uint32_t n);
 
 /*
- * ngtcp2_put_uint16be writes |n| in host byte order in |p| in network
+ * ngtcp2_put_uint16 writes |n| in host byte order in |p| in network
  * byte order.  It returns the one beyond of the last written
  * position.
  */
-uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n);
+uint8_t *ngtcp2_put_uint16(uint8_t *p, uint16_t n);
 
 /*
- * ngtcp2_put_uint16 writes |n| as is in |p|.  It returns the one
+ * ngtcp2_put_uint16be writes |n| as is in |p|.  It returns the one
  * beyond of the last written position.
  */
-uint8_t *ngtcp2_put_uint16(uint8_t *p, uint16_t n);
+uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n);
 
 /*
  * ngtcp2_put_uvarint writes |n| in |p| using variable-length integer

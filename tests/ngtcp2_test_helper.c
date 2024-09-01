@@ -202,7 +202,7 @@ static size_t write_long_pkt(uint8_t *out, size_t outlen, uint8_t flags,
   ngtcp2_ppe_init(&ppe, out, outlen, 0, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   assert(0 == rv);
-  ngtcp2_put_uint32be(&out[1], version);
+  ngtcp2_put_uint32(&out[1], version);
 
   for (i = 0; i < frlen; ++i, ++fr) {
     rv = ngtcp2_ppe_encode_frame(&ppe, fr);
