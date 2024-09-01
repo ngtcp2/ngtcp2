@@ -270,19 +270,19 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
     if (params->preferred_addr.ipv4_present) {
       sa_in = &params->preferred_addr.ipv4;
       p = ngtcp2_cpymem(p, &sa_in->sin_addr, sizeof(sa_in->sin_addr));
-      p = ngtcp2_put_uint16(p, sa_in->sin_port);
+      p = ngtcp2_put_uint16be(p, sa_in->sin_port);
     } else {
       p = ngtcp2_cpymem(p, empty_address, sizeof(sa_in->sin_addr));
-      p = ngtcp2_put_uint16(p, 0);
+      p = ngtcp2_put_uint16be(p, 0);
     }
 
     if (params->preferred_addr.ipv6_present) {
       sa_in6 = &params->preferred_addr.ipv6;
       p = ngtcp2_cpymem(p, &sa_in6->sin6_addr, sizeof(sa_in6->sin6_addr));
-      p = ngtcp2_put_uint16(p, sa_in6->sin6_port);
+      p = ngtcp2_put_uint16be(p, sa_in6->sin6_port);
     } else {
       p = ngtcp2_cpymem(p, empty_address, sizeof(sa_in6->sin6_addr));
-      p = ngtcp2_put_uint16(p, 0);
+      p = ngtcp2_put_uint16be(p, 0);
     }
 
     *p++ = (uint8_t)params->preferred_addr.cid.datalen;
@@ -381,7 +381,7 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
   if (params->version_info_present) {
     p = ngtcp2_put_uvarint(p, NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION);
     p = ngtcp2_put_uvarint(p, version_infolen);
-    p = ngtcp2_put_uint32be(p, params->version_info.chosen_version);
+    p = ngtcp2_put_uint32(p, params->version_info.chosen_version);
     if (params->version_info.available_versionslen) {
       p = ngtcp2_cpymem(p, params->version_info.available_versions,
                         params->version_info.available_versionslen);

@@ -416,7 +416,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 
   ++p;
 
-  p = ngtcp2_put_uint32be(p, hd->version);
+  p = ngtcp2_put_uint32(p, hd->version);
   *p++ = (uint8_t)hd->dcid.datalen;
 
   if (hd->dcid.datalen) {
@@ -2109,7 +2109,7 @@ ngtcp2_ssize ngtcp2_pkt_write_version_negotiation(
   p = dest;
 
   *p++ = 0xc0 | unused_random;
-  p = ngtcp2_put_uint32be(p, 0);
+  p = ngtcp2_put_uint32(p, 0);
   *p++ = (uint8_t)dcidlen;
 
   if (dcidlen) {
@@ -2123,7 +2123,7 @@ ngtcp2_ssize ngtcp2_pkt_write_version_negotiation(
   }
 
   for (i = 0; i < nsv; ++i) {
-    p = ngtcp2_put_uint32be(p, sv[i]);
+    p = ngtcp2_put_uint32(p, sv[i]);
   }
 
   assert((size_t)(p - dest) == len);

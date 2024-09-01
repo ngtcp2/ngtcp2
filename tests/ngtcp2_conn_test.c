@@ -8829,9 +8829,8 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
   conn->negotiated_version = conn->client_chosen_version;
 
-  ngtcp2_put_uint32be(available_versions, NGTCP2_PROTO_VER_V1);
-  ngtcp2_put_uint32be(available_versions + sizeof(uint32_t),
-                      NGTCP2_PROTO_VER_V2);
+  ngtcp2_put_uint32(available_versions, NGTCP2_PROTO_VER_V1);
+  ngtcp2_put_uint32(available_versions + sizeof(uint32_t), NGTCP2_PROTO_VER_V2);
 
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
@@ -8858,11 +8857,11 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
   conn->negotiated_version = 0xff000000u;
 
-  ngtcp2_put_uint32be(conn->vneg.available_versions, NGTCP2_PROTO_VER_V1);
-  ngtcp2_put_uint32be(conn->vneg.available_versions + sizeof(uint32_t),
-                      0xff000000u);
+  ngtcp2_put_uint32(conn->vneg.available_versions, NGTCP2_PROTO_VER_V1);
+  ngtcp2_put_uint32(conn->vneg.available_versions + sizeof(uint32_t),
+                    0xff000000u);
 
-  ngtcp2_put_uint32be(available_versions, 0xff000000u);
+  ngtcp2_put_uint32(available_versions, 0xff000000u);
 
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
@@ -8891,11 +8890,11 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   conn->vneg.preferred_versions[0] = 0xff000000u;
 
-  ngtcp2_put_uint32be(conn->vneg.available_versions, NGTCP2_PROTO_VER_V1);
-  ngtcp2_put_uint32be(conn->vneg.available_versions + sizeof(uint32_t),
-                      0xff000000u);
+  ngtcp2_put_uint32(conn->vneg.available_versions, NGTCP2_PROTO_VER_V1);
+  ngtcp2_put_uint32(conn->vneg.available_versions + sizeof(uint32_t),
+                    0xff000000u);
 
-  ngtcp2_put_uint32be(available_versions, 0xff000000u);
+  ngtcp2_put_uint32(available_versions, 0xff000000u);
 
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
@@ -10921,8 +10920,8 @@ void test_ngtcp2_conn_version_negotiation(void) {
   uint32_t version;
   ngtcp2_tpe tpe;
 
-  ngtcp2_put_uint32be(&available_versions[0], NGTCP2_PROTO_VER_V1);
-  ngtcp2_put_uint32be(&available_versions[4], NGTCP2_PROTO_VER_V2);
+  ngtcp2_put_uint32(&available_versions[0], NGTCP2_PROTO_VER_V1);
+  ngtcp2_put_uint32(&available_versions[4], NGTCP2_PROTO_VER_V2);
 
   /* Client sees the change version in Initial packet which contains
      CRYPTO frame.  It generates new Initial keys and sets negotiated
@@ -11091,8 +11090,8 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
 
   /* version_info.available_versions and preferred_versions do not
      share any version. */
-  ngtcp2_put_uint32be(&client_available_versions[0], 0xff000001);
-  ngtcp2_put_uint32be(&client_available_versions[4], 0xff000002);
+  ngtcp2_put_uint32(&client_available_versions[0], 0xff000001);
+  ngtcp2_put_uint32(&client_available_versions[4], 0xff000002);
 
   version_info.available_versions = client_available_versions;
   version_info.available_versionslen = sizeof(uint32_t) * 2;
@@ -11102,8 +11101,8 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
 
   /* version_info.available_versions and preferred_versions share the
      version. */
-  ngtcp2_put_uint32be(&client_available_versions[0], 0xff000001);
-  ngtcp2_put_uint32be(&client_available_versions[4], NGTCP2_PROTO_VER_V2);
+  ngtcp2_put_uint32(&client_available_versions[0], 0xff000001);
+  ngtcp2_put_uint32(&client_available_versions[4], NGTCP2_PROTO_VER_V2);
 
   version_info.available_versions = client_available_versions;
   version_info.available_versionslen = sizeof(uint32_t) * 2;
@@ -11119,8 +11118,8 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
   conn->vneg.preferred_versions = NULL;
   conn->vneg.preferred_versionslen = 0;
 
-  ngtcp2_put_uint32be(&client_available_versions[0], 0xff000001);
-  ngtcp2_put_uint32be(&client_available_versions[4], NGTCP2_PROTO_VER_V2);
+  ngtcp2_put_uint32(&client_available_versions[0], 0xff000001);
+  ngtcp2_put_uint32(&client_available_versions[4], NGTCP2_PROTO_VER_V2);
 
   version_info.available_versions = client_available_versions;
   version_info.available_versionslen = sizeof(uint32_t) * 2;
@@ -11136,8 +11135,8 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
   conn->vneg.preferred_versions[0] = NGTCP2_PROTO_VER_V1;
   conn->vneg.preferred_versions[1] = NGTCP2_PROTO_VER_V2;
 
-  ngtcp2_put_uint32be(&client_available_versions[0], NGTCP2_PROTO_VER_V2);
-  ngtcp2_put_uint32be(&client_available_versions[4], NGTCP2_PROTO_VER_V1);
+  ngtcp2_put_uint32(&client_available_versions[0], NGTCP2_PROTO_VER_V2);
+  ngtcp2_put_uint32(&client_available_versions[4], NGTCP2_PROTO_VER_V1);
 
   version_info.available_versions = client_available_versions;
   version_info.available_versionslen = sizeof(uint32_t) * 2;

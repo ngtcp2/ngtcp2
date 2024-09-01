@@ -133,32 +133,32 @@ int64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen) {
   }
 }
 
-uint8_t *ngtcp2_put_uint64be(uint8_t *p, uint64_t n) {
+uint8_t *ngtcp2_put_uint64(uint8_t *p, uint64_t n) {
   n = ngtcp2_htonl64(n);
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
 }
 
-uint8_t *ngtcp2_put_uint48be(uint8_t *p, uint64_t n) {
+uint8_t *ngtcp2_put_uint48(uint8_t *p, uint64_t n) {
   n = ngtcp2_htonl64(n);
   return ngtcp2_cpymem(p, ((const uint8_t *)&n) + 2, 6);
 }
 
-uint8_t *ngtcp2_put_uint32be(uint8_t *p, uint32_t n) {
+uint8_t *ngtcp2_put_uint32(uint8_t *p, uint32_t n) {
   n = ngtcp2_htonl(n);
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
 }
 
-uint8_t *ngtcp2_put_uint24be(uint8_t *p, uint32_t n) {
+uint8_t *ngtcp2_put_uint24(uint8_t *p, uint32_t n) {
   n = ngtcp2_htonl(n);
   return ngtcp2_cpymem(p, ((const uint8_t *)&n) + 1, 3);
 }
 
-uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n) {
+uint8_t *ngtcp2_put_uint16(uint8_t *p, uint16_t n) {
   n = ngtcp2_htons(n);
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
 }
 
-uint8_t *ngtcp2_put_uint16(uint8_t *p, uint16_t n) {
+uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n) {
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
 }
 
@@ -169,17 +169,17 @@ uint8_t *ngtcp2_put_uvarint(uint8_t *p, uint64_t n) {
     return p;
   }
   if (n < 16384) {
-    rv = ngtcp2_put_uint16be(p, (uint16_t)n);
+    rv = ngtcp2_put_uint16(p, (uint16_t)n);
     *p |= 0x40;
     return rv;
   }
   if (n < 1073741824) {
-    rv = ngtcp2_put_uint32be(p, (uint32_t)n);
+    rv = ngtcp2_put_uint32(p, (uint32_t)n);
     *p |= 0x80;
     return rv;
   }
   assert(n < 4611686018427387904ULL);
-  rv = ngtcp2_put_uint64be(p, n);
+  rv = ngtcp2_put_uint64(p, n);
   *p |= 0xc0;
   return rv;
 }
@@ -189,7 +189,7 @@ uint8_t *ngtcp2_put_uvarint30(uint8_t *p, uint32_t n) {
 
   assert(n < 1073741824);
 
-  rv = ngtcp2_put_uint32be(p, n);
+  rv = ngtcp2_put_uint32(p, n);
   *p |= 0x80;
 
   return rv;
@@ -201,11 +201,11 @@ uint8_t *ngtcp2_put_pkt_num(uint8_t *p, int64_t pkt_num, size_t len) {
     *p++ = (uint8_t)pkt_num;
     return p;
   case 2:
-    return ngtcp2_put_uint16be(p, (uint16_t)pkt_num);
+    return ngtcp2_put_uint16(p, (uint16_t)pkt_num);
   case 3:
-    return ngtcp2_put_uint24be(p, (uint32_t)pkt_num);
+    return ngtcp2_put_uint24(p, (uint32_t)pkt_num);
   case 4:
-    return ngtcp2_put_uint32be(p, (uint32_t)pkt_num);
+    return ngtcp2_put_uint32(p, (uint32_t)pkt_num);
   default:
     ngtcp2_unreachable();
   }

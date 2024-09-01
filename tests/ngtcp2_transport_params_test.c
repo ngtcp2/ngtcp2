@@ -67,7 +67,7 @@ void test_ngtcp2_transport_params_encode(void) {
   memset(&nparams, 0, sizeof(nparams));
 
   for (i = 0; i < sizeof(available_versions); i += sizeof(uint32_t)) {
-    ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xff000000u + i));
+    ngtcp2_put_uint32(&available_versions[i], (uint32_t)(0xff000000u + i));
   }
 
   params.initial_max_stream_data_bidi_local = 1000000007;
@@ -254,7 +254,7 @@ void test_ngtcp2_transport_params_decode_new(void) {
   memset(&nparams, 0, sizeof(nparams));
 
   for (i = 0; i < sizeof(available_versions); i += sizeof(uint32_t)) {
-    ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xff000000u + i));
+    ngtcp2_put_uint32(&available_versions[i], (uint32_t)(0xff000000u + i));
   }
 
   params.initial_max_stream_data_bidi_local = 1000000007;

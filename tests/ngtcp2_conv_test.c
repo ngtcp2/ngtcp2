@@ -185,7 +185,7 @@ void test_ngtcp2_get_uint64(void) {
 
   /* 0 */
   n = 1;
-  p = ngtcp2_put_uint64be(buf, 0);
+  p = ngtcp2_put_uint64(buf, 0);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -196,7 +196,7 @@ void test_ngtcp2_get_uint64(void) {
 
   /* 12345678900 */
   n = 0;
-  p = ngtcp2_put_uint64be(buf, 12345678900ULL);
+  p = ngtcp2_put_uint64(buf, 12345678900ULL);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -207,7 +207,7 @@ void test_ngtcp2_get_uint64(void) {
 
   /* 18446744073709551615 */
   n = 0;
-  p = ngtcp2_put_uint64be(buf, 18446744073709551615ULL);
+  p = ngtcp2_put_uint64(buf, 18446744073709551615ULL);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -224,7 +224,7 @@ void test_ngtcp2_get_uint48(void) {
 
   /* 0 */
   n = 1;
-  p = ngtcp2_put_uint48be(buf, 0);
+  p = ngtcp2_put_uint48(buf, 0);
 
   assert_ptrdiff(6, ==, p - buf);
 
@@ -235,7 +235,7 @@ void test_ngtcp2_get_uint48(void) {
 
   /* 123456789 */
   n = 0;
-  p = ngtcp2_put_uint48be(buf, 123456789);
+  p = ngtcp2_put_uint48(buf, 123456789);
 
   assert_ptrdiff(6, ==, p - buf);
 
@@ -246,7 +246,7 @@ void test_ngtcp2_get_uint48(void) {
 
   /* 281474976710655 */
   n = 0;
-  p = ngtcp2_put_uint48be(buf, 281474976710655ULL);
+  p = ngtcp2_put_uint48(buf, 281474976710655ULL);
 
   assert_ptrdiff(6, ==, p - buf);
 
@@ -263,7 +263,7 @@ void test_ngtcp2_get_uint32(void) {
 
   /* 0 */
   n = 1;
-  p = ngtcp2_put_uint32be(buf, 0);
+  p = ngtcp2_put_uint32(buf, 0);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -274,7 +274,7 @@ void test_ngtcp2_get_uint32(void) {
 
   /* 123456 */
   n = 0;
-  p = ngtcp2_put_uint32be(buf, 123456);
+  p = ngtcp2_put_uint32(buf, 123456);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -285,7 +285,7 @@ void test_ngtcp2_get_uint32(void) {
 
   /* 4294967295 */
   n = 0;
-  p = ngtcp2_put_uint32be(buf, 4294967295UL);
+  p = ngtcp2_put_uint32(buf, 4294967295UL);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -302,7 +302,7 @@ void test_ngtcp2_get_uint24(void) {
 
   /* 0 */
   n = 1;
-  p = ngtcp2_put_uint24be(buf, 0);
+  p = ngtcp2_put_uint24(buf, 0);
 
   assert_ptrdiff(3, ==, p - buf);
 
@@ -313,7 +313,7 @@ void test_ngtcp2_get_uint24(void) {
 
   /* 12345 */
   n = 0;
-  p = ngtcp2_put_uint24be(buf, 12345);
+  p = ngtcp2_put_uint24(buf, 12345);
 
   assert_ptrdiff(3, ==, p - buf);
 
@@ -324,7 +324,7 @@ void test_ngtcp2_get_uint24(void) {
 
   /* 16777215 */
   n = 0;
-  p = ngtcp2_put_uint24be(buf, 16777215);
+  p = ngtcp2_put_uint24(buf, 16777215);
 
   assert_ptrdiff(3, ==, p - buf);
 
@@ -341,7 +341,7 @@ void test_ngtcp2_get_uint16(void) {
 
   /* 0 */
   n = 1;
-  p = ngtcp2_put_uint16be(buf, 0);
+  p = ngtcp2_put_uint16(buf, 0);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -352,7 +352,7 @@ void test_ngtcp2_get_uint16(void) {
 
   /* 1234 */
   n = 0;
-  p = ngtcp2_put_uint16be(buf, 1234);
+  p = ngtcp2_put_uint16(buf, 1234);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -363,7 +363,7 @@ void test_ngtcp2_get_uint16(void) {
 
   /* 65535 */
   n = 0;
-  p = ngtcp2_put_uint16be(buf, 65535);
+  p = ngtcp2_put_uint16(buf, 65535);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -380,7 +380,7 @@ void test_ngtcp2_get_uint16be(void) {
 
   /* 0 */
   n = 1;
-  p = ngtcp2_put_uint16(buf, 0);
+  p = ngtcp2_put_uint16be(buf, 0);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -391,7 +391,7 @@ void test_ngtcp2_get_uint16be(void) {
 
   /* 1234 */
   n = 0;
-  p = ngtcp2_put_uint16(buf, ngtcp2_htons(1234));
+  p = ngtcp2_put_uint16be(buf, ngtcp2_htons(1234));
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
@@ -402,7 +402,7 @@ void test_ngtcp2_get_uint16be(void) {
 
   /* 65535 */
   n = 0;
-  p = ngtcp2_put_uint16(buf, 65535);
+  p = ngtcp2_put_uint16be(buf, 65535);
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
 
