@@ -95,7 +95,7 @@ int ngtcp2_pkt_decode_version_cid(ngtcp2_version_cid *dest, const uint8_t *data,
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
-    ngtcp2_get_uint32(&version, &data[1]);
+    ngtcp2_get_uint32be(&version, &data[1]);
 
     supported_version = ngtcp2_is_supported_version(version);
 
@@ -193,7 +193,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  ngtcp2_get_uint32(&version, &pkt[1]);
+  ngtcp2_get_uint32be(&version, &pkt[1]);
 
   if (version == 0) {
     type = NGTCP2_PKT_VERSION_NEGOTIATION;
@@ -2139,7 +2139,7 @@ size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
   assert((payloadlen % sizeof(uint32_t)) == 0);
 
   for (; payload != end;) {
-    payload = ngtcp2_get_uint32(dest++, payload);
+    payload = ngtcp2_get_uint32be(dest++, payload);
   }
 
   return payloadlen / sizeof(uint32_t);

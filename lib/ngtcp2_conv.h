@@ -32,46 +32,46 @@
 #include <ngtcp2/ngtcp2.h>
 
 /*
- * ngtcp2_get_uint64 reads 8 bytes from |p| as 64 bits unsigned
+ * ngtcp2_get_uint64be reads 8 bytes from |p| as 64 bits unsigned
  * integer encoded as network byte order, and stores it in the buffer
  * pointed by |dest| in host byte order.  It returns |p| + 8.
  */
-const uint8_t *ngtcp2_get_uint64(uint64_t *dest, const uint8_t *p);
+const uint8_t *ngtcp2_get_uint64be(uint64_t *dest, const uint8_t *p);
 
 /*
- * ngtcp2_get_uint48 reads 6 bytes from |p| as 48 bits unsigned
+ * ngtcp2_get_uint48be reads 6 bytes from |p| as 48 bits unsigned
  * integer encoded as network byte order, and stores it in the buffer
  * pointed by |dest| in host byte order.  It returns |p| + 6.
  */
-const uint8_t *ngtcp2_get_uint48(uint64_t *dest, const uint8_t *p);
+const uint8_t *ngtcp2_get_uint48be(uint64_t *dest, const uint8_t *p);
 
 /*
- * ngtcp2_get_uint32 reads 4 bytes from |p| as 32 bits unsigned
+ * ngtcp2_get_uint32be reads 4 bytes from |p| as 32 bits unsigned
  * integer encoded as network byte order, and stores it in the buffer
  * pointed by |dest| in host byte order.  It returns |p| + 4.
  */
-const uint8_t *ngtcp2_get_uint32(uint32_t *dest, const uint8_t *p);
+const uint8_t *ngtcp2_get_uint32be(uint32_t *dest, const uint8_t *p);
 
 /*
- * ngtcp2_get_uint24 reads 3 bytes from |p| as 24 bits unsigned
+ * ngtcp2_get_uint24be reads 3 bytes from |p| as 24 bits unsigned
  * integer encoded as network byte order, and stores it in the buffer
  * pointed by |dest| in host byte order.  It returns |p| + 3.
  */
-const uint8_t *ngtcp2_get_uint24(uint32_t *dest, const uint8_t *p);
-
-/*
- * ngtcp2_get_uint16 reads 2 bytes from |p| as 16 bits unsigned
- * integer encoded as network byte order, and stores it in the buffer
- * pointed by |dest| in host byte order.  It returns |p| + 2.
- */
-const uint8_t *ngtcp2_get_uint16(uint16_t *dest, const uint8_t *p);
+const uint8_t *ngtcp2_get_uint24be(uint32_t *dest, const uint8_t *p);
 
 /*
  * ngtcp2_get_uint16be reads 2 bytes from |p| as 16 bits unsigned
  * integer encoded as network byte order, and stores it in the buffer
- * pointed by |dest| as is.  It returns |p| + 2.
+ * pointed by |dest| in host byte order.  It returns |p| + 2.
  */
 const uint8_t *ngtcp2_get_uint16be(uint16_t *dest, const uint8_t *p);
+
+/*
+ * ngtcp2_get_uint16 reads 2 bytes from |p| as 16 bits unsigned
+ * integer encoded as network byte order, and stores it in the buffer
+ * pointed by |dest| as is.  It returns |p| + 2.
+ */
+const uint8_t *ngtcp2_get_uint16(uint16_t *dest, const uint8_t *p);
 
 /*
  * ngtcp2_get_uvarint reads variable-length unsigned integer from |p|,

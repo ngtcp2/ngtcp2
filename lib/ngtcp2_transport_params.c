@@ -631,7 +631,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       sa_in = &params->preferred_addr.ipv4;
 
       p = ngtcp2_get_bytes(&sa_in->sin_addr, p, sizeof(sa_in->sin_addr));
-      p = ngtcp2_get_uint16be(&sa_in->sin_port, p);
+      p = ngtcp2_get_uint16(&sa_in->sin_port, p);
 
       if (sa_in->sin_port || memcmp(empty_address, &sa_in->sin_addr,
                                     sizeof(sa_in->sin_addr)) != 0) {
@@ -642,7 +642,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       sa_in6 = &params->preferred_addr.ipv6;
 
       p = ngtcp2_get_bytes(&sa_in6->sin6_addr, p, sizeof(sa_in6->sin6_addr));
-      p = ngtcp2_get_uint16be(&sa_in6->sin6_port, p);
+      p = ngtcp2_get_uint16(&sa_in6->sin6_port, p);
 
       if (sa_in6->sin6_port || memcmp(empty_address, &sa_in6->sin6_addr,
                                       sizeof(sa_in6->sin6_addr)) != 0) {
@@ -732,7 +732,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       if (valuelen < sizeof(uint32_t) || (valuelen & 0x3)) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
-      p = ngtcp2_get_uint32(&params->version_info.chosen_version, p);
+      p = ngtcp2_get_uint32be(&params->version_info.chosen_version, p);
       if (params->version_info.chosen_version == 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
@@ -742,7 +742,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
           (size_t)valuelen - sizeof(uint32_t);
 
         for (lend = p + (valuelen - sizeof(uint32_t)); p != lend;) {
-          p = ngtcp2_get_uint32(&version, p);
+          p = ngtcp2_get_uint32be(&version, p);
           if (version == 0) {
             return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
           }

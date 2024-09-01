@@ -5976,7 +5976,7 @@ static int vneg_available_versions_includes(const uint8_t *available_versions,
   }
 
   for (i = 0; i < available_versionslen; i += sizeof(uint32_t)) {
-    available_versions = ngtcp2_get_uint32(&v, available_versions);
+    available_versions = ngtcp2_get_uint32be(&v, available_versions);
 
     if (version == v) {
       return 1;
@@ -6671,7 +6671,7 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
 
       if ((pkt[0] & NGTCP2_HEADER_FORM_BIT) && pktlen > 4) {
         /* Not a Version Negotiation packet */
-        ngtcp2_get_uint32(&version, &pkt[1]);
+        ngtcp2_get_uint32be(&version, &pkt[1]);
         if (ngtcp2_pkt_get_type_long(version, pkt[0]) == NGTCP2_PKT_INITIAL) {
           if (conn->server) {
             if (is_unrecoverable_error((int)nread)) {
@@ -11147,7 +11147,7 @@ static uint32_t select_preferred_version(const uint32_t *preferred_versions,
     }
     for (j = 0, p = available_versions; j < available_versionslen;
          j += sizeof(uint32_t)) {
-      p = ngtcp2_get_uint32(&v, p);
+      p = ngtcp2_get_uint32be(&v, p);
 
       if (preferred_versions[i] == v) {
         return v;

@@ -1925,7 +1925,7 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
 
   ++p;
 
-  p = ngtcp2_get_uint32(&v, p);
+  p = ngtcp2_get_uint32be(&v, p);
 
   assert_uint32(0, ==, v);
 
@@ -1946,7 +1946,7 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
   p += scid.datalen;
 
   for (i = 0; i < ngtcp2_arraylen(sv); ++i) {
-    p = ngtcp2_get_uint32(&v, p);
+    p = ngtcp2_get_uint32be(&v, p);
 
     assert_uint32(sv[i], ==, v);
   }
