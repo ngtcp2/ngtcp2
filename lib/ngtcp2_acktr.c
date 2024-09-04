@@ -283,7 +283,7 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr) {
 
   min_ack = largest_ack - (int64_t)fr->first_ack_range;
 
-  if (min_ack <= ent->pkt_num && ent->pkt_num <= largest_ack) {
+  if (min_ack <= ent->pkt_num) {
     acktr_on_ack(acktr, rb, j);
     return;
   }
