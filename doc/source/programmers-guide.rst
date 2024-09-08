@@ -24,6 +24,7 @@ for which we provide crypto helper libraries:
 * aws-lc
 * Picotls
 * wolfSSL
+* LibreSSL
 
 Creating ngtcp2_conn object
 ---------------------------
