@@ -1873,8 +1873,9 @@ typedef struct ngtcp2_settings {
    */
   uint8_t no_pmtud;
   /**
-   * :member:`pkt_num` is the initial packet number for each packet
-   * number space.  It must be in range [0, INT32_MAX], inclusive.
+   * :member:`initial_pkt_num` is the initial packet number for each
+   * packet number space.  It must be in range [0, INT32_MAX],
+   * inclusive.
    */
   uint32_t initial_pkt_num;
   /* The following fields have been added since NGTCP2_SETTINGS_V2. */
