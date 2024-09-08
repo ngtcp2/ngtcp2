@@ -65,6 +65,7 @@ directory require at least one of the following TLS backends:
   or aws-lc >= 1.19.0
 - Picotls (commit 89fe56f4d79200a5801a08ed3b6ac8322e01ccd5)
 - wolfSSL >= 5.5.0
+- LibreSSL >= v3.9.2
 
 Before building from git
 ------------------------
