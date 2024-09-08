@@ -255,7 +255,7 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, ngtcp2_ringbuf *rb,
 
     assert(ent->pkt_num > ack_ent->largest_ack);
 
-    if (ack_ent->largest_ack >= ent->pkt_num - (int64_t)(ent->len - 1)) {
+    if (ack_ent->largest_ack + (int64_t)ent->len > ent->pkt_num) {
       ent->len = (size_t)(ent->pkt_num - ack_ent->largest_ack);
     }
   }
