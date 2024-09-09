@@ -74,15 +74,6 @@ typedef enum {
    unreceived data. */
 #define NGTCP2_MAX_REORDERED_CRYPTO_DATA 65536
 
-/* NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA is the maximum offset of received
-   crypto stream in Initial packet.  We set this hard limit here
-   because crypto stream is unbounded. */
-#define NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA 65536
-/* NGTCP2_MAX_RX_HANDSHAKE_CRYPTO_DATA is the maximum offset of
-   received crypto stream in Handshake packet.  We set this hard limit
-   here because crypto stream is unbounded. */
-#define NGTCP2_MAX_RX_HANDSHAKE_CRYPTO_DATA 65536
-
 /* NGTCP2_MAX_RETRIES is the number of Retry packet which client can
    accept. */
 #define NGTCP2_MAX_RETRIES 3
