@@ -48,7 +48,7 @@ typedef struct ngtcp2_map {
   ngtcp2_map_bucket *table;
   const ngtcp2_mem *mem;
   size_t size;
-  size_t tablelenbits;
+  size_t hashbits;
 } ngtcp2_map;
 
 /*
