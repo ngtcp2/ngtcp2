@@ -27,7 +27,7 @@
 #ifdef WIN32
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
-#else
+#elif defined(HAVE_NETINET_IN_H)
 #  include <netinet/in.h>
 #endif
 
