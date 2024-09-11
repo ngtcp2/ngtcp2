@@ -70,23 +70,23 @@ static const uint8_t *get_uvarint(uint64_t *dest, const uint8_t *p) {
     uint64_t n64;
   } n;
 
-  switch (1u << (*p >> 6)) {
-  case 1:
+  switch (*p >> 6) {
+  case 0:
     *dest = *p++;
     return p;
-  case 2:
+  case 1:
     memcpy(&n, p, 2);
     n.n8 &= 0x3f;
     *dest = ngtcp2_ntohs(n.n16);
 
     return p + 2;
-  case 4:
+  case 2:
     memcpy(&n, p, 4);
     n.n8 &= 0x3f;
     *dest = ngtcp2_ntohl(n.n32);
 
     return p + 4;
-  case 8:
+  case 3:
     memcpy(&n, p, 8);
     n.n8 &= 0x3f;
     *dest = ngtcp2_ntohl64(n.n64);
