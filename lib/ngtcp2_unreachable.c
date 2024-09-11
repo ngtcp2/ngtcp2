@@ -26,15 +26,17 @@
 
 #include <stdio.h>
 #include <errno.h>
-#ifdef HAVE_UNISTD_H
-#  include <unistd.h>
-#endif /* HAVE_UNISTD_H */
 #include <stdlib.h>
-#ifdef WIN32
+#ifdef HAVE_UNISTD_H
+#  define NGTCP2_UNREACHABLE_LOG
+#  include <unistd.h>
+#elif defined(WIN32)
+#  define NGTCP2_UNREACHABLE_LOG
 #  include <io.h>
-#endif /* WIN32 */
+#endif
 
 void ngtcp2_unreachable_fail(const char *file, int line, const char *func) {
+#ifdef NGTCP2_UNREACHABLE_LOG
   char *buf;
   size_t buflen;
   int rv;
@@ -66,6 +68,7 @@ void ngtcp2_unreachable_fail(const char *file, int line, const char *func) {
 #endif /* WIN32 */
 
   free(buf);
+#endif /* NGTCP2_UNREACHABLE_LOG */
 
   abort();
 }
