@@ -24,7 +24,7 @@
  */
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <assert.h>
 
@@ -39,9 +39,9 @@
 #define PRINTF_DEBUG 0
 #if PRINTF_DEBUG
 #  define DEBUG_MSG(...) fprintf(stderr, __VA_ARGS__)
-#else
+#else /* !PRINTF_DEBUG */
 #  define DEBUG_MSG(...) (void)0
-#endif
+#endif /* !PRINTF_DEBUG */
 
 ngtcp2_crypto_aead *ngtcp2_crypto_aead_aes_128_gcm(ngtcp2_crypto_aead *aead) {
   return ngtcp2_crypto_aead_init(aead, (void *)wolfSSL_EVP_aes_128_gcm());
@@ -531,7 +531,7 @@ int ngtcp2_crypto_wolfssl_configure_server_context(WOLFSSL_CTX *ssl_ctx) {
   crypto_wolfssl_configure_context(ssl_ctx);
 #if PRINTF_DEBUG
   wolfSSL_Debugging_ON();
-#endif
+#endif /* PRINTF_DEBUG */
   return 0;
 }
 
@@ -540,6 +540,6 @@ int ngtcp2_crypto_wolfssl_configure_client_context(WOLFSSL_CTX *ssl_ctx) {
   wolfSSL_CTX_UseSessionTicket(ssl_ctx);
 #if PRINTF_DEBUG
   wolfSSL_Debugging_ON();
-#endif
+#endif /* PRINTF_DEBUG */
   return 0;
 }

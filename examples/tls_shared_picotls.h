@@ -27,10 +27,10 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <picotls.h>
 
 extern ptls_log_event_t log_event;
 
-#endif // TLS_SHARED_PICOTLS_H
+#endif // !defined(TLS_SHARED_PICOTLS_H)

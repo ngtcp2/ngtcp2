@@ -24,7 +24,7 @@
  */
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <assert.h>
 #include <string.h>
@@ -413,12 +413,12 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
     AES_ecb_encrypt(sample, dest, &ctx->aes_key, 1);
     return 0;
   case NGTCP2_CRYPTO_BORINGSSL_CIPHER_TYPE_CHACHA20:
-#if defined(WORDS_BIGENDIAN)
+#ifdef WORDS_BIGENDIAN
     counter = (uint32_t)sample[0] + (uint32_t)(sample[1] << 8) +
               (uint32_t)(sample[2] << 16) + (uint32_t)(sample[3] << 24);
-#else  /* !WORDS_BIGENDIAN */
+#else  /* !defined(WORDS_BIGENDIAN) */
     memcpy(&counter, sample, sizeof(counter));
-#endif /* !WORDS_BIGENDIAN */
+#endif /* !defined(WORDS_BIGENDIAN) */
     CRYPTO_chacha_20(dest, PLAINTEXT, sizeof(PLAINTEXT) - 1, ctx->key,
                      sample + sizeof(counter), counter);
     return 0;

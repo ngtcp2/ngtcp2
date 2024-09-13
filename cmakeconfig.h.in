@@ -35,8 +35,11 @@
 /* Define to 1 if you have the <linux/rtnetlink.h> header file. */
 #cmakedefine HAVE_LINUX_RTNETLINK_H 1
 
-/* Define to 1 if you have the `be64toh' function. */
-#cmakedefine HAVE_BE64TOH 1
+/* Define to 1 if you have the `be64toh' function, otherwise 0. */
+#cmakedefine01 HAVE_DECL_BE64TOH
+
+/* Define to 1 if you have the `bswap_64' function, otherwise 0. */
+#cmakedefine01 HAVE_DECL_BSWAP_64
 
 /* Define WORDS_BIGENDIAN to 1 if target architecture is big
    endian. */

@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -1220,4 +1220,4 @@ uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type);
  */
 uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c);
 
-#endif /* NGTCP2_PKT_H */
+#endif /* !defined(NGTCP2_PKT_H) */

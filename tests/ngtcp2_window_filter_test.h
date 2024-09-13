@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #define MUNIT_ENABLE_ASSERT_ALIASES
 
@@ -37,4 +37,4 @@ extern const MunitSuite window_filter_suite;
 
 munit_void_test_decl(test_ngtcp2_window_filter_update);
 
-#endif /* NGTCP2_WINDOW_FILTER_TEST_H */
+#endif /* !defined(NGTCP2_WINDOW_FILTER_TEST_H) */

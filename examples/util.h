@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <sys/socket.h>
 
@@ -360,4 +360,4 @@ std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);
 
 } // namespace ngtcp2
 
-#endif // UTIL_H
+#endif // !defined(UTIL_H)

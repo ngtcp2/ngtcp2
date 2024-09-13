@@ -33,22 +33,22 @@
 #include <unistd.h>
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
-#endif // HAVE_NETINET_IN_H
+#endif // defined(HAVE_NETINET_IN_H)
 #ifdef HAVE_NETINET_UDP_H
 #  include <netinet/udp.h>
-#endif // HAVE_NETINET_UDP_H
+#endif // defined(HAVE_NETINET_UDP_H)
 #ifdef HAVE_NETINET_IP_H
 #  include <netinet/ip.h>
-#endif // HAVE_NETINET_IP_H
+#endif // defined(HAVE_NETINET_IP_H)
 #ifdef HAVE_ASM_TYPES_H
 #  include <asm/types.h>
-#endif // HAVE_ASM_TYPES_H
+#endif // defined(HAVE_ASM_TYPES_H)
 #ifdef HAVE_LINUX_NETLINK_H
 #  include <linux/netlink.h>
-#endif // HAVE_LINUX_NETLINK_H
+#endif // defined(HAVE_LINUX_NETLINK_H)
 #ifdef HAVE_LINUX_RTNETLINK_H
 #  include <linux/rtnetlink.h>
-#endif // HAVE_LINUX_RTNETLINK_H
+#endif // defined(HAVE_LINUX_RTNETLINK_H)
 
 #include "template.h"
 
@@ -61,9 +61,9 @@ unsigned int msghdr_get_ecn(msghdr *msg, int family) {
       if (cmsg->cmsg_level == IPPROTO_IP &&
 #ifdef __APPLE__
           cmsg->cmsg_type == IP_RECVTOS
-#else  // !__APPLE__
+#else  // !defined(__APPLE__)
           cmsg->cmsg_type == IP_TOS
-#endif // !__APPLE__
+#endif // !defined(__APPLE__)
           && cmsg->cmsg_len) {
         return *reinterpret_cast<uint8_t *>(CMSG_DATA(cmsg)) & IPTOS_ECN_MASK;
       }
@@ -159,7 +159,7 @@ void fd_set_udp_gro(int fd) {
                  static_cast<socklen_t>(sizeof(val))) == -1) {
     std::cerr << "setsockopt: UDP_GRO: " << strerror(errno) << std::endl;
   }
-#endif // UDP_GRO
+#endif // defined(UDP_GRO)
 }
 
 std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
@@ -209,7 +209,7 @@ size_t msghdr_get_udp_gro(msghdr *msg) {
       break;
     }
   }
-#endif // UDP_GRO
+#endif // defined(UDP_GRO)
 
   return static_cast<size_t>(gso_size);
 }
@@ -470,7 +470,7 @@ int get_local_addr(in_addr_union &iau, const Address &remote_addr) {
   return recv_netlink_msg(iau, fd, seq);
 }
 
-#endif // HAVE_LINUX_NETLINK_H
+#endif // defined(HAVE_LINUX_NETLINK_H)
 
 bool addreq(const sockaddr *sa, const in_addr_union &iau) {
   switch (sa->sa_family) {

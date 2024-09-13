@@ -345,9 +345,9 @@ Handler::Handler(struct ev_loop *loop, Server *server)
     no_gso_{
 #ifdef UDP_SEGMENT
       false
-#else  // !UDP_SEGMENT
+#else  // !defined(UDP_SEGMENT)
       true
-#endif // !UDP_SEGMENT
+#endif // !defined(UDP_SEGMENT)
     },
     tx_{
       .data = std::unique_ptr<uint8_t[]>(new uint8_t[64_k]),
@@ -2412,7 +2412,7 @@ Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
     uint16_t n = gso_size;
     memcpy(CMSG_DATA(cm), &n, sizeof(n));
   }
-#endif // UDP_SEGMENT
+#endif // defined(UDP_SEGMENT)
 
   controllen += CMSG_SPACE(sizeof(int));
   cm = CMSG_NXTHDR(&msg, cm);
@@ -2462,7 +2462,7 @@ Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
                            gso_size);
       }
       break;
-#endif // UDP_SEGMENT
+#endif // defined(UDP_SEGMENT)
     }
 
     std::cerr << "sendmsg: " << strerror(errno) << std::endl;

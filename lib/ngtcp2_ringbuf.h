@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -129,4 +129,4 @@ int ngtcp2_ringbuf_full(ngtcp2_ringbuf *rb);
     ngtcp2_ringbuf_buf_init(&srb->rb, (NMEMB), (SIZE), srb->buf, NULL);        \
   }
 
-#endif /* NGTCP2_RINGBUF_H */
+#endif /* !defined(NGTCP2_RINGBUF_H) */

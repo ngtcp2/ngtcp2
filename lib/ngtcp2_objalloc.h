@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -118,7 +118,7 @@ void ngtcp2_objalloc_clear(ngtcp2_objalloc *objalloc);
                                                                                \
       return ngtcp2_struct_of(oplent, TYPE, OPLENTFIELD);                      \
     }
-#else /* NOMEMPOOL */
+#else /* defined(NOMEMPOOL) */
 #  define ngtcp2_objalloc_decl(NAME, TYPE, OPLENTFIELD)                        \
     inline static void ngtcp2_objalloc_##NAME##_init(                          \
       ngtcp2_objalloc *objalloc, size_t nmemb, const ngtcp2_mem *mem) {        \
@@ -142,6 +142,6 @@ void ngtcp2_objalloc_clear(ngtcp2_objalloc *objalloc);
     }
 
 #  define ngtcp2_objalloc_def(NAME, TYPE, OPLENTFIELD)
-#endif /* NOMEMPOOL */
+#endif /* defined(NOMEMPOOL) */
 
-#endif /* NGTCP2_OBJALLOC_H */
+#endif /* !defined(NGTCP2_OBJALLOC_H) */

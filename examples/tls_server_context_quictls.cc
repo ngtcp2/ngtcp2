@@ -219,7 +219,7 @@ SSL_TICKET_RETURN decrypt_ticket_cb(SSL *ssl, SSL_SESSION *session,
   }
 }
 } // namespace
-#endif // !LIBRESSL_VERSION_NUMBER
+#endif // !defined(LIBRESSL_VERSION_NUMBER)
 
 int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                            AppProtocol app_proto) {
@@ -245,7 +245,7 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                             SSL_OP_CIPHER_SERVER_PREFERENCE
 #ifndef LIBRESSL_VERSION_NUMBER
                             | SSL_OP_NO_ANTI_REPLAY
-#endif // !LIBRESSL_VERSION_NUMBER
+#endif // !defined(LIBRESSL_VERSION_NUMBER)
     ;
 
   SSL_CTX_set_options(ssl_ctx_, ssl_opts);
@@ -305,7 +305,7 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
 #ifndef LIBRESSL_VERSION_NUMBER
   SSL_CTX_set_session_ticket_cb(ssl_ctx_, gen_ticket_cb, decrypt_ticket_cb,
                                 nullptr);
-#endif // !LIBRESSL_VERSION_NUMBER
+#endif // !defined(LIBRESSL_VERSION_NUMBER)
 
   return 0;
 }

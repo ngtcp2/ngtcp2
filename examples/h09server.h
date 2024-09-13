@@ -22,12 +22,12 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef SERVER_H
-#define SERVER_H
+#ifndef H09SERVER_H
+#define H09SERVER_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <vector>
 #include <unordered_map>
@@ -254,4 +254,4 @@ private:
   size_t stateless_reset_bucket_;
 };
 
-#endif // SERVER_H
+#endif // !defined(H09SERVER_H)

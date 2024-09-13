@@ -32,14 +32,14 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif // defined(__cplusplus)
 
 #include "ngtcp2_conn.h"
 #include "ngtcp2_transport_params.h"
 
 #ifdef __cplusplus
 }
-#endif
+#endif // defined(__cplusplus)
 
 namespace {
 constexpr size_t NGTCP2_FAKE_AEAD_OVERHEAD = NGTCP2_INITIAL_AEAD_OVERHEAD;

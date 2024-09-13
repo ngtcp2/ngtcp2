@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <vector>
 #include <unordered_map>
@@ -273,4 +273,4 @@ private:
   size_t stateless_reset_bucket_;
 };
 
-#endif // SERVER_H
+#endif // !defined(SERVER_H)

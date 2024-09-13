@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -119,4 +119,4 @@ size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t dstcnt,
  */
 void ngtcp2_vec_copy(ngtcp2_vec *dst, const ngtcp2_vec *src, size_t cnt);
 
-#endif /* NGTCP2_VEC_H */
+#endif /* !defined(NGTCP2_VEC_H) */

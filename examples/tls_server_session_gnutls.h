@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include "tls_session_base_gnutls.h"
 
@@ -43,4 +43,4 @@ public:
   int send_session_ticket();
 };
 
-#endif // TLS_SERVER_SESSION_GNUTLS_H
+#endif // !defined(TLS_SERVER_SESSION_GNUTLS_H)

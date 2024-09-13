@@ -33,7 +33,7 @@
 #elif defined(WIN32)
 #  define NGTCP2_UNREACHABLE_LOG
 #  include <io.h>
-#endif
+#endif /* defined(WIN32) */
 
 void ngtcp2_unreachable_fail(const char *file, int line, const char *func) {
 #ifdef NGTCP2_UNREACHABLE_LOG
@@ -63,12 +63,12 @@ void ngtcp2_unreachable_fail(const char *file, int line, const char *func) {
 #  ifndef WIN32
   while (write(STDERR_FILENO, buf, (size_t)rv) == -1 && errno == EINTR)
     ;
-#  else  /* WIN32 */
+#  else  /* defined(WIN32) */
   _write(_fileno(stderr), buf, (unsigned int)rv);
-#  endif /* WIN32 */
+#  endif /* defined(WIN32) */
 
   free(buf);
-#endif /* NGTCP2_UNREACHABLE_LOG */
+#endif /* defined(NGTCP2_UNREACHABLE_LOG) */
 
   abort();
 }

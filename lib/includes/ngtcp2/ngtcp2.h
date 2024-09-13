@@ -30,12 +30,12 @@
    libcurl) */
 #if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
 #  define WIN32
-#endif
+#endif /* (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32) */
 
 #ifdef _MSC_VER
 #  pragma warning(push)
 #  pragma warning(disable : 4324)
-#endif
+#endif /* defined(_MSC_VER) */
 
 #include <stdlib.h>
 #if defined(_MSC_VER) && (_MSC_VER < 1800)
@@ -54,13 +54,13 @@
 #  ifdef WIN32
 #    ifndef WIN32_LEAN_AND_MEAN
 #      define WIN32_LEAN_AND_MEAN
-#    endif /* WIN32_LEAN_AND_MEAN */
+#    endif /* !defined(WIN32_LEAN_AND_MEAN) */
 #    include <ws2tcpip.h>
-#  else /* !WIN32 */
+#  else /* !defined(WIN32) */
 #    include <sys/socket.h>
 #    include <netinet/in.h>
-#  endif /* !WIN32 */
-#endif   /* NGTCP2_USE_GENERIC_SOCKADDR */
+#  endif /* !defined(WIN32) */
+#endif   /* !defined(NGTCP2_USE_GENERIC_SOCKADDR) */
 
 #include <ngtcp2/version.h>
 
@@ -69,26 +69,26 @@
 #elif defined(WIN32)
 #  ifdef BUILDING_NGTCP2
 #    define NGTCP2_EXTERN __declspec(dllexport)
-#  else /* !BUILDING_NGTCP2 */
+#  else /* !defined(BUILDING_NGTCP2) */
 #    define NGTCP2_EXTERN __declspec(dllimport)
-#  endif /* !BUILDING_NGTCP2 */
-#else    /* !defined(WIN32) */
+#  endif /* !defined(BUILDING_NGTCP2) */
+#else    /* !(defined(NGTCP2_STATICLIB) || defined(WIN32)) */
 #  ifdef BUILDING_NGTCP2
 #    define NGTCP2_EXTERN __attribute__((visibility("default")))
-#  else /* !BUILDING_NGTCP2 */
+#  else /* !defined(BUILDING_NGTCP2) */
 #    define NGTCP2_EXTERN
-#  endif /* !BUILDING_NGTCP2 */
-#endif   /* !defined(WIN32) */
+#  endif /* !defined(BUILDING_NGTCP2) */
+#endif   /* !(defined(NGTCP2_STATICLIB) || defined(WIN32)) */
 
 #ifdef _MSC_VER
 #  define NGTCP2_ALIGN(N) __declspec(align(N))
-#else /* !_MSC_VER */
+#else /* !defined(_MSC_VER) */
 #  define NGTCP2_ALIGN(N) __attribute__((aligned(N)))
-#endif /* !_MSC_VER */
+#endif /* !defined(_MSC_VER) */
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* defined(__cplusplus) */
 
 /**
  * @typedef
@@ -1229,11 +1229,11 @@ typedef struct ngtcp2_pkt_stateless_reset {
 #ifdef NGTCP2_USE_GENERIC_SOCKADDR
 #  ifndef NGTCP2_AF_INET
 #    error NGTCP2_AF_INET must be defined
-#  endif /* !NGTCP2_AF_INET */
+#  endif /* !defined(NGTCP2_AF_INET) */
 
 #  ifndef NGTCP2_AF_INET6
 #    error NGTCP2_AF_INET6 must be defined
-#  endif /* !NGTCP2_AF_INET6 */
+#  endif /* !defined(NGTCP2_AF_INET6) */
 
 typedef unsigned short int ngtcp2_sa_family;
 typedef uint16_t ngtcp2_in_port;
@@ -1267,7 +1267,7 @@ typedef struct ngtcp2_sockaddr_in6 {
 } ngtcp2_sockaddr_in6;
 
 typedef uint32_t ngtcp2_socklen;
-#else /* !NGTCP2_USE_GENERIC_SOCKADDR */
+#else /* !defined(NGTCP2_USE_GENERIC_SOCKADDR) */
 #  define NGTCP2_AF_INET AF_INET
 #  define NGTCP2_AF_INET6 AF_INET6
 
@@ -1303,7 +1303,7 @@ typedef struct sockaddr_in6 ngtcp2_sockaddr_in6;
  * uint32_t.
  */
 typedef socklen_t ngtcp2_socklen;
-#endif /* !NGTCP2_USE_GENERIC_SOCKADDR */
+#endif /* !defined(NGTCP2_USE_GENERIC_SOCKADDR) */
 
 /**
  * @struct
@@ -5906,10 +5906,10 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
 
 #ifdef _MSC_VER
 #  pragma warning(pop)
-#endif
+#endif /* defined(_MSC_VER) */
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* defined(__cplusplus) */
 
-#endif /* NGTCP2_H */
+#endif /* !defined(NGTCP2_H) */

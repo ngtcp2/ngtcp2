@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -358,4 +358,4 @@ int ngtcp2_strm_require_retransmit_max_stream_data(
 int ngtcp2_strm_require_retransmit_stream_data_blocked(
   const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr);
 
-#endif /* NGTCP2_STRM_H */
+#endif /* !defined(NGTCP2_STRM_H) */

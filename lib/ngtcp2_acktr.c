@@ -78,7 +78,7 @@ void ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
 #ifdef NOMEMPOOL
   ngtcp2_ksl_it it;
-#endif /* NOMEMPOOL */
+#endif /* defined(NOMEMPOOL) */
 
   if (acktr == NULL) {
     return;
@@ -89,7 +89,7 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
        ngtcp2_ksl_it_next(&it)) {
     ngtcp2_acktr_entry_objalloc_del(ngtcp2_ksl_it_get(&it), &acktr->objalloc);
   }
-#endif /* NOMEMPOOL */
+#endif /* defined(NOMEMPOOL) */
 
   ngtcp2_ksl_free(&acktr->ents);
 

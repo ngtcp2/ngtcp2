@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -95,4 +95,4 @@ int ngtcp2_gaptr_is_pushed(const ngtcp2_gaptr *gaptr, uint64_t offset,
  */
 void ngtcp2_gaptr_drop_first_gap(ngtcp2_gaptr *gaptr);
 
-#endif /* NGTCP2_GAPTR_H */
+#endif /* !defined(NGTCP2_GAPTR_H) */

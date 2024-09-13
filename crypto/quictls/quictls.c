@@ -24,7 +24,7 @@
  */
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <assert.h>
 
@@ -991,7 +991,7 @@ static SSL_QUIC_METHOD quic_method = {
 #ifdef LIBRESSL_VERSION_NUMBER
   NULL,
   NULL,
-#endif /* LIBRESSL_VERSION_NUMBER */
+#endif /* defined(LIBRESSL_VERSION_NUMBER) */
 };
 
 static void crypto_quictls_configure_context(SSL_CTX *ssl_ctx) {

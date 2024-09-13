@@ -216,7 +216,7 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     std::cerr << "SSL_CTX_add_cert_compression_alg failed" << std::endl;
     return -1;
   }
-#endif // HAVE_LIBBROTLI
+#endif // defined(HAVE_LIBBROTLI)
 
   return 0;
 }

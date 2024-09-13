@@ -96,9 +96,9 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
   }
   std::cerr << "new_session_cb: wrote " << sz << " of session data"
             << std::endl;
-#else
+#else  // !defined(HAVE_SESSION_TICKET)
   std::cerr << "TLS session tickets not enabled in wolfSSL " << std::endl;
-#endif
+#endif // !defined(HAVE_SESSION_TICKET)
   return 0;
 }
 } // namespace
@@ -176,10 +176,10 @@ void keylog_callback(const WOLFSSL *ssl, const char *line) {
   keylog_file.flush();
 }
 } // namespace
-#endif
+#endif // defined(HAVE_SECRET_CALLBACK)
 
 void TLSClientContext::enable_keylog() {
 #ifdef HAVE_SECRET_CALLBACK
   wolfSSL_CTX_set_keylog_callback(ssl_ctx_, keylog_callback);
-#endif
+#endif // defined(HAVE_SECRET_CALLBACK)
 }

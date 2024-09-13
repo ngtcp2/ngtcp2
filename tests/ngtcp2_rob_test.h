@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #define MUNIT_ENABLE_ASSERT_ALIASES
 
@@ -40,4 +40,4 @@ munit_void_test_decl(test_ngtcp2_rob_push_random);
 munit_void_test_decl(test_ngtcp2_rob_data_at);
 munit_void_test_decl(test_ngtcp2_rob_remove_prefix);
 
-#endif /* NGTCP2_ROB_TEST_H */
+#endif /* !defined(NGTCP2_ROB_TEST_H) */

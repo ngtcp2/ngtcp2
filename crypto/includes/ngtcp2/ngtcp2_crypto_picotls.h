@@ -31,7 +31,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* defined(__cplusplus) */
 
 /**
  * @struct
@@ -241,6 +241,6 @@ NGTCP2_EXTERN int ngtcp2_crypto_picotls_collected_extensions(
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* defined(__cplusplus) */
 
-#endif /* NGTCP2_CRYPTO_PICOTLS_H */
+#endif /* !defined(NGTCP2_CRYPTO_PICOTLS_H) */

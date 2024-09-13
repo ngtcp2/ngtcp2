@@ -29,14 +29,14 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* defined(__cplusplus) */
 
 #ifdef WIN32
 #  ifndef WIN32_LEAN_AND_MEAN
 #    define WIN32_LEAN_AND_MEAN
-#  endif
+#  endif /* !defined(WIN32_LEAN_AND_MEAN) */
 #  include <ws2tcpip.h>
-#endif /* WIN32 */
+#endif /* defined(WIN32) */
 
 /**
  * @function
@@ -833,6 +833,6 @@ typedef struct ngtcp2_crypto_conn_ref {
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* defined(__cplusplus) */
 
-#endif /* NGTCP2_CRYPTO_H */
+#endif /* !defined(NGTCP2_CRYPTO_H) */

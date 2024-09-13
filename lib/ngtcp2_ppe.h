@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -166,4 +166,4 @@ size_t ngtcp2_ppe_padding_size(ngtcp2_ppe *ppe, size_t n);
  */
 int ngtcp2_ppe_ensure_hp_sample(ngtcp2_ppe *ppe);
 
-#endif /* NGTCP2_PPE_H */
+#endif /* !defined(NGTCP2_PPE_H) */

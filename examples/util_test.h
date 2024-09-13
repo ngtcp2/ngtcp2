@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #define MUNIT_ENABLE_ASSERT_ALIASES
 
@@ -50,4 +50,4 @@ munit_void_test_decl(test_util_format_hex);
 
 } // namespace ngtcp2
 
-#endif // UTIL_TEST_H
+#endif // !defined(UTIL_TEST_H)

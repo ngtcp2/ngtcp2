@@ -334,7 +334,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
 #ifndef NDEBUG
   p += nlonglen;
-#endif /* NDEBUG */
+#endif /* !defined(NDEBUG) */
 
   assert((size_t)(p - pkt) == len);
 

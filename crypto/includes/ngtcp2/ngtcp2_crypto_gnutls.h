@@ -31,7 +31,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* defined(__cplusplus) */
 
 /**
  * @function
@@ -103,6 +103,6 @@ ngtcp2_crypto_gnutls_configure_client_session(gnutls_session_t session);
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* defined(__cplusplus) */
 
-#endif /* NGTCP2_CRYPTO_GNUTLS_H */
+#endif /* !defined(NGTCP2_CRYPTO_GNUTLS_H) */

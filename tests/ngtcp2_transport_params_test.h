@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #define MUNIT_ENABLE_ASSERT_ALIASES
 
@@ -40,4 +40,4 @@ munit_void_test_decl(test_ngtcp2_transport_params_decode_new);
 munit_void_test_decl(test_ngtcp2_transport_params_convert_to_latest);
 munit_void_test_decl(test_ngtcp2_transport_params_convert_to_old);
 
-#endif /* NGTCP2_TRANSPORT_PARAMS_TEST_H */
+#endif /* !defined(NGTCP2_TRANSPORT_PARAMS_TEST_H) */

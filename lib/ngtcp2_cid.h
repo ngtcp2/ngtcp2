@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -173,4 +173,4 @@ int ngtcp2_dcid_verify_uniqueness(const ngtcp2_dcid *dcid, uint64_t seq,
 int ngtcp2_dcid_verify_stateless_reset_token(const ngtcp2_dcid *dcid,
                                              const uint8_t *token);
 
-#endif /* NGTCP2_CID_H */
+#endif /* !defined(NGTCP2_CID_H) */

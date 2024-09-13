@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <optional>
 
@@ -83,4 +83,4 @@ bool addreq(const sockaddr *sa, const in_addr_union &iau);
 
 } // namespace ngtcp2
 
-#endif // SHARED_H
+#endif // !defined(SHARED_H)

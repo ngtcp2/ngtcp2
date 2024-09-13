@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <gnutls/gnutls.h>
 
@@ -47,4 +47,4 @@ private:
   gnutls_certificate_credentials_t cred_;
 };
 
-#endif // TLS_CLIENT_CONTEXT_GNUTLS_H
+#endif // !defined(TLS_CLIENT_CONTEXT_GNUTLS_H)

@@ -27,7 +27,7 @@
 #include <stdio.h>
 #ifdef HAVE_UNISTD_H
 #  include <unistd.h>
-#endif
+#endif /* defined(HAVE_UNISTD_H) */
 #include <assert.h>
 #include <string.h>
 

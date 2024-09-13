@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <gnutls/gnutls.h>
 
@@ -56,4 +56,4 @@ private:
   gnutls_anti_replay_t anti_replay_;
 };
 
-#endif // TLS_SERVER_CONTEXT_GNUTLS_H
+#endif // !defined(TLS_SERVER_CONTEXT_GNUTLS_H)

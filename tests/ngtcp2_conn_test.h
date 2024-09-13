@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #define MUNIT_ENABLE_ASSERT_ALIASES
 
@@ -118,4 +118,4 @@ munit_void_test_decl(test_ngtcp2_select_version);
 munit_void_test_decl(test_ngtcp2_pkt_write_connection_close);
 munit_void_test_decl(test_ngtcp2_ccerr_set_liberr);
 
-#endif /* NGTCP2_CONN_TEST_H */
+#endif /* !defined(NGTCP2_CONN_TEST_H) */
