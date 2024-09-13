@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -397,4 +397,4 @@ void ngtcp2_cc_cubic_cc_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
 uint64_t ngtcp2_cbrt(uint64_t n);
 
-#endif /* NGTCP2_CC_H */
+#endif /* !defined(NGTCP2_CC_H) */

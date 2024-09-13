@@ -29,7 +29,7 @@
 #  include <ws2tcpip.h>
 #elif defined(HAVE_NETINET_IN_H)
 #  include <netinet/in.h>
-#endif
+#endif /* defined(HAVE_NETINET_IN_H) */
 
 #include <string.h>
 #include <assert.h>

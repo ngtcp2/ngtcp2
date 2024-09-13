@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -213,4 +213,4 @@ int ngtcp2_acktr_require_active_ack(const ngtcp2_acktr *acktr,
  */
 void ngtcp2_acktr_immediate_ack(ngtcp2_acktr *acktr);
 
-#endif /* NGTCP2_ACKTR_H */
+#endif /* !defined(NGTCP2_ACKTR_H) */

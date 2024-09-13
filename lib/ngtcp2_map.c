@@ -114,7 +114,7 @@ void ngtcp2_map_print_distance(const ngtcp2_map *map) {
             hash(bkt->key, map->hashbits), bkt->key, idx, bkt->psl);
   }
 }
-#endif /* !WIN32 */
+#endif /* !defined(WIN32) */
 
 static int insert(ngtcp2_map_bucket *table, size_t hashbits,
                   ngtcp2_map_key_type key, void *data) {

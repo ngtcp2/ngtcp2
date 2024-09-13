@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <string>
 #include <string_view>
@@ -50,4 +50,4 @@ protected:
   gnutls_session_t session_;
 };
 
-#endif // TLS_SESSION_BASE_GNUTLS_H
+#endif // !defined(TLS_SESSION_BASE_GNUTLS_H)

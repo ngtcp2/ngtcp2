@@ -98,7 +98,7 @@ int TLSClientSession::init(bool &early_data_enabled,
           early_data_enabled = true;
           SSL_set_quic_early_data_enabled(ssl_, 1);
         }
-#endif // !LIBRESSL_VERSION_NUMBER
+#endif // !defined(LIBRESSL_VERSION_NUMBER)
         SSL_SESSION_free(session);
       }
     }

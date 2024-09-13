@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include "tls_session_base_picotls.h"
 
@@ -44,4 +44,4 @@ public:
   int send_session_ticket() { return 0; }
 };
 
-#endif // TLS_SERVER_SESSION_PICOTLS_H
+#endif // !defined(TLS_SERVER_SESSION_PICOTLS_H)

@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <openssl/ssl.h>
 
@@ -51,4 +51,4 @@ private:
   SSL_CTX *ssl_ctx_;
 };
 
-#endif // TLS_SERVER_CONTEXT_QUICTLS_H
+#endif // !defined(TLS_SERVER_CONTEXT_QUICTLS_H)

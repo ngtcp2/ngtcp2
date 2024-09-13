@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
@@ -48,4 +48,4 @@ private:
   WOLFSSL_CTX *ssl_ctx_;
 };
 
-#endif // TLS_CLIENT_CONTEXT_WOLFSSL_H
+#endif // !defined(TLS_CLIENT_CONTEXT_WOLFSSL_H)

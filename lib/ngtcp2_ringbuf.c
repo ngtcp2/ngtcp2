@@ -27,7 +27,7 @@
 #include <assert.h>
 #ifdef WIN32
 #  include <intrin.h>
-#endif
+#endif /* defined(WIN32) */
 
 #include "ngtcp2_macro.h"
 
@@ -42,7 +42,8 @@ static unsigned int __popcnt(unsigned int x) {
 
   return c;
 }
-#endif
+#endif /* defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) ||      \
+          defined(_M_ARM64)) */
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         const ngtcp2_mem *mem) {
@@ -61,9 +62,9 @@ void ngtcp2_ringbuf_buf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                              uint8_t *buf, const ngtcp2_mem *mem) {
 #ifdef WIN32
   assert(1 == __popcnt((unsigned int)nmemb));
-#else
+#else  /* !defined(WIN32) */
   assert(1 == __builtin_popcount((unsigned int)nmemb));
-#endif
+#endif /* !defined(WIN32) */
 
   rb->buf = buf;
   rb->mem = mem;

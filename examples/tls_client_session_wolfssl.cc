@@ -143,9 +143,9 @@ int TLSClientSession::init(bool &early_data_enabled,
     }
     wolfSSL_UseSessionTicket(ssl_);
     wolfSSL_set_SessionTicket_cb(ssl_, wolfssl_session_ticket_cb, nullptr);
-#else
+#else  // !defined(HAVE_SESSION_TICKET)
     std::cerr << "TLS session im-/export not enabled in wolfSSL" << std::endl;
-#endif
+#endif // !defined(HAVE_SESSION_TICKET)
   }
 
   return 0;
@@ -155,7 +155,7 @@ bool TLSClientSession::get_early_data_accepted() const {
   // wolfSSL_get_early_data_status works after handshake completes.
 #ifdef WOLFSSL_EARLY_DATA
   return wolfSSL_get_early_data_status(ssl_) == SSL_EARLY_DATA_ACCEPTED;
-#else
+#else  // !defined(WOLFSSL_EARLY_DATA)
   return 0;
-#endif
+#endif // !defined(WOLFSSL_EARLY_DATA)
 }

@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #define MUNIT_ENABLE_ASSERT_ALIASES
 
@@ -41,4 +41,4 @@ munit_void_test_decl(test_ngtcp2_rtb_lost_pkt_ts);
 munit_void_test_decl(test_ngtcp2_rtb_remove_expired_lost_pkt);
 munit_void_test_decl(test_ngtcp2_rtb_remove_excessive_lost_pkt);
 
-#endif /* NGTCP2_RTB_TEST_H */
+#endif /* !defined(NGTCP2_RTB_TEST_H) */

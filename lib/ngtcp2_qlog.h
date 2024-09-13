@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -158,4 +158,4 @@ void ngtcp2_qlog_version_negotiation_pkt_received(ngtcp2_qlog *qlog,
                                                   const uint32_t *sv,
                                                   size_t nsv);
 
-#endif /* NGTCP2_QLOG_H */
+#endif /* !defined(NGTCP2_QLOG_H) */

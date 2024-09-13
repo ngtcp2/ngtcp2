@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <picotls.h>
 #include <picotls/openssl.h>
@@ -50,4 +50,4 @@ private:
   ptls_openssl_sign_certificate_t sign_cert_;
 };
 
-#endif // TLS_CLIENT_CONTEXT_PICOTLS_H
+#endif // !defined(TLS_CLIENT_CONTEXT_PICOTLS_H)

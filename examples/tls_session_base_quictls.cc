@@ -60,8 +60,9 @@ std::string_view TLSSessionBase::get_negotiated_group() const {
   return name;
 #elif defined(LIBRESSL_VERSION_NUMBER)
   return ""sv;
-#else  // !OPENSSL_IS_BORINGSSL && !OPENSSL_IS_AWSLC && OPENSSL_VERSION_NUMBER <
-       // 0x30000000L
+#else  // !(defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC) ||
+       // OPENSSL_VERSION_NUMBER >= 0x30000000L ||
+       // defined(LIBRESSL_VERSION_NUMBER))
   EVP_PKEY *key;
 
   if (!SSL_get_tmp_key(ssl_, &key)) {
@@ -84,8 +85,9 @@ std::string_view TLSSessionBase::get_negotiated_group() const {
   }
 
   return name;
-#endif // !OPENSSL_IS_BORINGSSL && !OPENSSL_IS_AWSLC && OPENSSL_VERSION_NUMBER <
-       // 0x30000000L
+#endif // !(defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC) ||
+       // OPENSSL_VERSION_NUMBER >= 0x30000000L ||
+       // defined(LIBRESSL_VERSION_NUMBER))
 }
 
 std::string TLSSessionBase::get_selected_alpn() const {

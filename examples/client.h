@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <vector>
 #include <deque>
@@ -186,4 +186,4 @@ private:
   } tx_;
 };
 
-#endif // CLIENT_H
+#endif // !defined(CLIENT_H)

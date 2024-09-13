@@ -27,10 +27,10 @@
 
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
-#endif // HAVE_ARPA_INET_H
+#endif // defined(HAVE_ARPA_INET_H)
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
-#endif
+#endif // defined(HAVE_NETINET_IN_H)
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -716,14 +716,14 @@ int create_nonblock_socket(int domain, int type, int protocol) {
   if (fd == -1) {
     return -1;
   }
-#else  // !SOCK_NONBLOCK
+#else  // !defined(SOCK_NONBLOCK)
   auto fd = socket(domain, type, protocol);
   if (fd == -1) {
     return -1;
   }
 
   make_socket_nonblocking(fd);
-#endif // !SOCK_NONBLOCK
+#endif // !defined(SOCK_NONBLOCK)
 
   return fd;
 }

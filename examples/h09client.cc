@@ -1140,7 +1140,7 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
   return 0;
 }
 } // namespace
-#endif // HAVE_LINUX_RTNETLINK_H
+#endif // defined(HAVE_LINUX_RTNETLINK_H)
 
 #ifndef HAVE_LINUX_RTNETLINK_H
 namespace {
@@ -1161,7 +1161,7 @@ int connect_sock(Address &local_addr, int fd, const Address &remote_addr) {
   return 0;
 }
 } // namespace
-#endif // !HAVE_LINUX_RTNETLINK_H
+#endif // !defined(HAVE_LINUX_RTNETLINK_H)
 
 namespace {
 int udp_sock(int family) {
@@ -1233,7 +1233,7 @@ std::optional<Endpoint *> Client::endpoint_for(const Address &remote_addr) {
   if (addreq(&current_ep->addr.su.sa, iau)) {
     return current_ep;
   }
-#endif // HAVE_LINUX_RTNETLINK_H
+#endif // defined(HAVE_LINUX_RTNETLINK_H)
 
   auto fd = udp_sock(remote_addr.su.sa.sa_family);
   if (fd == -1) {
@@ -1247,12 +1247,12 @@ std::optional<Endpoint *> Client::endpoint_for(const Address &remote_addr) {
     close(fd);
     return nullptr;
   }
-#else  // !HAVE_LINUX_RTNETLINK_H
+#else  // !defined(HAVE_LINUX_RTNETLINK_H)
   if (connect_sock(local_addr, fd, remote_addr) != 0) {
     close(fd);
     return nullptr;
   }
-#endif // !HAVE_LINUX_RTNETLINK_H
+#endif // !defined(HAVE_LINUX_RTNETLINK_H)
 
   endpoints_.emplace_back();
   auto &ep = endpoints_.back();
@@ -1296,12 +1296,12 @@ int Client::change_local_addr() {
     close(nfd);
     return -1;
   }
-#else  // !HAVE_LINUX_RTNETLINK_H
+#else  // !defined(HAVE_LINUX_RTNETLINK_H)
   if (connect_sock(local_addr, nfd, remote_addr_) != 0) {
     close(nfd);
     return -1;
   }
-#endif // !HAVE_LINUX_RTNETLINK_H
+#endif // !defined(HAVE_LINUX_RTNETLINK_H)
 
   if (!config.quiet) {
     std::cerr << "Local address is now "
@@ -1421,7 +1421,7 @@ int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
 #ifdef HAVE_LINUX_RTNETLINK_H
   msg.msg_name = const_cast<sockaddr *>(remote_addr.addr);
   msg.msg_namelen = remote_addr.addrlen;
-#endif // HAVE_LINUX_RTNETLINK_H
+#endif // defined(HAVE_LINUX_RTNETLINK_H)
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
@@ -1752,12 +1752,12 @@ int run(Client &c, const char *addr, const char *port,
     close(fd);
     return -1;
   }
-#else  // !HAVE_LINUX_RTNETLINK_H
+#else  // !defined(HAVE_LINUX_RTNETLINK_H)
   if (connect_sock(local_addr, fd, remote_addr) != 0) {
     close(fd);
     return -1;
   }
-#endif // !HAVE_LINUX_RTNETLINK_H
+#endif // !defined(HAVE_LINUX_RTNETLINK_H)
 
   if (c.init(fd, local_addr, remote_addr, addr, port, tls_ctx) != 0) {
     return -1;

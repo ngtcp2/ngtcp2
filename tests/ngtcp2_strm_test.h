@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #define MUNIT_ENABLE_ASSERT_ALIASES
 
@@ -40,4 +40,4 @@ munit_void_test_decl(test_ngtcp2_strm_streamfrq_unacked_offset);
 munit_void_test_decl(test_ngtcp2_strm_streamfrq_unacked_pop);
 munit_void_test_decl(test_ngtcp2_strm_discard_reordered_data);
 
-#endif /* NGTCP2_STRM_TEST_H */
+#endif /* !defined(NGTCP2_STRM_TEST_H) */

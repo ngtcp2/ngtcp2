@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -123,6 +123,6 @@ int ngtcp2_map_each(const ngtcp2_map *map, int (*func)(void *data, void *ptr),
 
 #ifndef WIN32
 void ngtcp2_map_print_distance(const ngtcp2_map *map);
-#endif /* !WIN32 */
+#endif /* !defined(WIN32) */
 
-#endif /* NGTCP2_MAP_H */
+#endif /* !defined(NGTCP2_MAP_H) */

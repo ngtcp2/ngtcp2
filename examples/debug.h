@@ -27,12 +27,12 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #ifndef __STDC_FORMAT_MACROS
 // For travis and PRIu64
 #  define __STDC_FORMAT_MACROS
-#endif // __STDC_FORMAT_MACROS
+#endif // !defined(__STDC_FORMAT_MACROS)
 
 #include <cinttypes>
 #include <string_view>
@@ -124,4 +124,4 @@ std::string_view secret_title(ngtcp2_encryption_level level);
 
 } // namespace ngtcp2
 
-#endif // DEBUG_H
+#endif // !defined(DEBUG_H)

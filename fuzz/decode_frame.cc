@@ -1,12 +1,12 @@
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif // defined(__cplusplus)
 
 #include "ngtcp2_conn.h"
 
 #ifdef __cplusplus
 }
-#endif
+#endif // defined(__cplusplus)
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   for (; size;) {

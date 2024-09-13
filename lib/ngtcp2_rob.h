@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -188,4 +188,4 @@ uint64_t ngtcp2_rob_first_gap_offset(const ngtcp2_rob *rob);
  */
 int ngtcp2_rob_data_buffered(const ngtcp2_rob *rob);
 
-#endif /* NGTCP2_ROB_H */
+#endif /* !defined(NGTCP2_ROB_H) */

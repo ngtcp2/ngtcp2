@@ -31,7 +31,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* defined(__cplusplus) */
 
 /**
  * @macrosection
@@ -142,6 +142,6 @@ NGTCP2_EXTERN int ngtcp2_crypto_quictls_init(void);
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* defined(__cplusplus) */
 
-#endif /* NGTCP2_CRYPTO_QUICTLS_H */
+#endif /* !defined(NGTCP2_CRYPTO_QUICTLS_H) */

@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -191,4 +191,4 @@ int64_t ngtcp2_nth_client_uni_id(uint64_t n);
  */
 uint64_t ngtcp2_ord_stream_id(int64_t stream_id);
 
-#endif /* NGTCP2_CONV_H */
+#endif /* !defined(NGTCP2_CONV_H) */

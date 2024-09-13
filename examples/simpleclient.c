@@ -24,7 +24,7 @@
  */
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <time.h>
 #include <sys/types.h>
@@ -244,13 +244,13 @@ static int extend_max_local_streams_bidi(ngtcp2_conn *conn,
   c->stream.datalen = sizeof(MESSAGE) - 1;
 
   return 0;
-#else  /* !MESSAGE */
+#else  /* !defined(MESSAGE) */
   (void)conn;
   (void)max_streams;
   (void)user_data;
 
   return 0;
-#endif /* !MESSAGE */
+#endif /* !defined(MESSAGE) */
 }
 
 static void log_printf(void *user_data, const char *fmt, ...) {

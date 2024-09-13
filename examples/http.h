@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <string>
 
@@ -41,4 +41,4 @@ std::string get_reason_phrase(unsigned int status_code);
 
 } // namespace ngtcp2
 
-#endif // HTTP_H
+#endif // !defined(HTTP_H)

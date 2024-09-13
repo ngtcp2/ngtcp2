@@ -68,4 +68,4 @@ constexpr unsigned long long operator""_g(unsigned long long g) {
   return g * 1024 * 1024 * 1024;
 }
 
-#endif // TEMPLATE_H
+#endif // !defined(TEMPLATE_H)

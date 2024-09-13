@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include <vector>
 #include <deque>
@@ -195,4 +195,4 @@ protected:
   ngtcp2_ccerr last_error_;
 };
 
-#endif // SERVER_BASE_H
+#endif // !defined(SERVER_BASE_H)

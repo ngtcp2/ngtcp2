@@ -5,13 +5,13 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif // defined(__cplusplus)
 
 #include "ngtcp2_ksl.h"
 
 #ifdef __cplusplus
 }
-#endif
+#endif // defined(__cplusplus)
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   using KeyType = uint64_t;

@@ -48,4 +48,4 @@
  */
 #define NGTCP2_VERSION_NUM @PACKAGE_VERSION_NUM@
 
-#endif /* VERSION_H */
+#endif /* !defined(VERSION_H) */

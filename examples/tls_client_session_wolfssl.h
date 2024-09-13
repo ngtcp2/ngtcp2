@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif // defined(HAVE_CONFIG_H)
 
 #include "tls_session_base_wolfssl.h"
 #include "shared.h"
@@ -49,4 +49,4 @@ public:
   bool get_early_data_accepted() const;
 };
 
-#endif // TLS_CLIENT_SESSION_WOLFSSL_H
+#endif // !defined(TLS_CLIENT_SESSION_WOLFSSL_H)

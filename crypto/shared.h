@@ -22,12 +22,12 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_SHARED_H
-#define NGTCP2_SHARED_H
+#ifndef SHARED_H
+#define SHARED_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
@@ -394,4 +394,4 @@ int ngtcp2_crypto_hkdf_expand_label(uint8_t *dest, size_t destlen,
                                     const uint8_t *secret, size_t secretlen,
                                     const uint8_t *label, size_t labellen);
 
-#endif /* NGTCP2_SHARED_H */
+#endif /* !defined(SHARED_H) */
