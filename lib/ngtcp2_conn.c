@@ -5906,7 +5906,7 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num,
     if (pktns->rx.max_ack_eliciting_pkt_num != -1) {
       if (pkt_num < pktns->rx.max_ack_eliciting_pkt_num) {
         ngtcp2_acktr_immediate_ack(&pktns->acktr);
-      } else if (pkt_num > pktns->rx.max_ack_eliciting_pkt_num) {
+      } else if (pkt_num != pktns->rx.max_ack_eliciting_pkt_num + 1) {
         r = ngtcp2_gaptr_get_first_gap_after(
           &pktns->rx.pngap, (uint64_t)pktns->rx.max_ack_eliciting_pkt_num);
 
