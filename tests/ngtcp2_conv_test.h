@@ -43,10 +43,6 @@ munit_void_test_decl(test_ngtcp2_get_uint32be);
 munit_void_test_decl(test_ngtcp2_get_uint24be);
 munit_void_test_decl(test_ngtcp2_get_uint16be);
 munit_void_test_decl(test_ngtcp2_get_uint16);
-munit_void_test_decl(test_ngtcp2_nth_server_bidi_id);
-munit_void_test_decl(test_ngtcp2_nth_server_uni_id);
-munit_void_test_decl(test_ngtcp2_nth_client_bidi_id);
-munit_void_test_decl(test_ngtcp2_nth_client_uni_id);
 munit_void_test_decl(test_ngtcp2_put_pkt_num);
 
 #endif /* !defined(NGTCP2_CONV_TEST_H) */

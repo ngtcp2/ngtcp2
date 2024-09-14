@@ -39,10 +39,6 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_get_uint24be),
   munit_void_test(test_ngtcp2_get_uint16be),
   munit_void_test(test_ngtcp2_get_uint16),
-  munit_void_test(test_ngtcp2_nth_server_bidi_id),
-  munit_void_test(test_ngtcp2_nth_server_uni_id),
-  munit_void_test(test_ngtcp2_nth_client_bidi_id),
-  munit_void_test(test_ngtcp2_nth_client_uni_id),
   munit_void_test(test_ngtcp2_put_pkt_num),
   munit_test_end(),
 };
@@ -381,34 +377,6 @@ void test_ngtcp2_put_uvarintlen(void) {
   assert_size(4, ==, ngtcp2_put_uvarintlen(1073741823));
   assert_size(8, ==, ngtcp2_put_uvarintlen(1073741824));
   assert_size(8, ==, ngtcp2_put_uvarintlen(4611686018427387903ULL));
-}
-
-void test_ngtcp2_nth_server_bidi_id(void) {
-  assert_int64(0, ==, ngtcp2_nth_server_bidi_id(0));
-  assert_int64(1, ==, ngtcp2_nth_server_bidi_id(1));
-  assert_int64(5, ==, ngtcp2_nth_server_bidi_id(2));
-  assert_int64(9, ==, ngtcp2_nth_server_bidi_id(3));
-}
-
-void test_ngtcp2_nth_server_uni_id(void) {
-  assert_int64(0, ==, ngtcp2_nth_server_uni_id(0));
-  assert_int64(3, ==, ngtcp2_nth_server_uni_id(1));
-  assert_int64(7, ==, ngtcp2_nth_server_uni_id(2));
-  assert_int64(11, ==, ngtcp2_nth_server_uni_id(3));
-}
-
-void test_ngtcp2_nth_client_bidi_id(void) {
-  assert_int64(0, ==, ngtcp2_nth_client_bidi_id(0));
-  assert_int64(0, ==, ngtcp2_nth_client_bidi_id(1));
-  assert_int64(4, ==, ngtcp2_nth_client_bidi_id(2));
-  assert_int64(8, ==, ngtcp2_nth_client_bidi_id(3));
-}
-
-void test_ngtcp2_nth_client_uni_id(void) {
-  assert_int64(0, ==, ngtcp2_nth_client_uni_id(0));
-  assert_int64(2, ==, ngtcp2_nth_client_uni_id(1));
-  assert_int64(6, ==, ngtcp2_nth_client_uni_id(2));
-  assert_int64(10, ==, ngtcp2_nth_client_uni_id(3));
 }
 
 void test_ngtcp2_put_pkt_num(void) {
