@@ -155,38 +155,6 @@ size_t ngtcp2_get_uvarintlen(const uint8_t *p);
 size_t ngtcp2_put_uvarintlen(uint64_t n);
 
 /*
- * ngtcp2_nth_server_bidi_id returns |n|-th server bidirectional
- * stream ID.  If |n| is 0, it returns 0.  If the |n|-th stream ID is
- * larger than NGTCP2_MAX_SERVER_STREAM_ID_BIDI, this function returns
- * NGTCP2_MAX_SERVER_STREAM_ID_BIDI.
- */
-int64_t ngtcp2_nth_server_bidi_id(uint64_t n);
-
-/*
- * ngtcp2_nth_client_bidi_id returns |n|-th client bidirectional
- * stream ID.  If |n| is 0, it returns 0.  If the |n|-th stream ID is
- * larger than NGTCP2_MAX_CLIENT_STREAM_ID_BIDI, this function returns
- * NGTCP2_MAX_CLIENT_STREAM_ID_BIDI.
- */
-int64_t ngtcp2_nth_client_bidi_id(uint64_t n);
-
-/*
- * ngtcp2_nth_server_uni_id returns |n|-th server unidirectional
- * stream ID.  If |n| is 0, it returns 0.  If the |n|-th stream ID is
- * larger than NGTCP2_MAX_SERVER_STREAM_ID_UNI, this function returns
- * NGTCP2_MAX_SERVER_STREAM_ID_UNI.
- */
-int64_t ngtcp2_nth_server_uni_id(uint64_t n);
-
-/*
- * ngtcp2_nth_client_uni_id returns |n|-th client unidirectional
- * stream ID.  If |n| is 0, it returns 0.  If the |n|-th stream ID is
- * larger than NGTCP2_MAX_CLIENT_STREAM_ID_UNI, this function returns
- * NGTCP2_MAX_CLIENT_STREAM_ID_UNI.
- */
-int64_t ngtcp2_nth_client_uni_id(uint64_t n);
-
-/*
  * ngtcp2_ord_stream_id returns the ordinal number of |stream_id|.
  */
 uint64_t ngtcp2_ord_stream_id(int64_t stream_id);
