@@ -43,9 +43,9 @@
    compliant.  See compiler macros and version number in
    https://sourceforge.net/p/predef/wiki/Compilers/ */
 #  include <stdint.h>
-#else /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
+#else /* !(defined(_MSC_VER) && (_MSC_VER < 1800)) */
 #  include <inttypes.h>
-#endif /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
+#endif /* !(defined(_MSC_VER) && (_MSC_VER < 1800)) */
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stddef.h>

@@ -62,7 +62,7 @@
 #  define ngtcp2_ntohl64(N) be64toh(N)
 #  define ngtcp2_htonl64(N) htobe64(N)
 #else /* !HAVE_DECL_BE64TOH */
-#  if defined(WORDS_BIGENDIAN)
+#  ifdef WORDS_BIGENDIAN
 #    define ngtcp2_ntohl64(N) (N)
 #    define ngtcp2_htonl64(N) (N)
 #  else /* !defined(WORDS_BIGENDIAN) */
