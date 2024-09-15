@@ -905,6 +905,10 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
     }
     p = write_datagram_frame(p, &fr->datagram);
     break;
+  case NGTCP2_FRAME_ACK_FREQUENCY:
+  case NGTCP2_FRAME_IMMEDIATE_ACK:
+    /* TODO No schema is defined for these frames. */
+    return;
   default:
     ngtcp2_unreachable();
   }
