@@ -200,6 +200,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_ACK_FREQ_IN_FLIGHT is set when ACK_FREQUENCY frame
    is in-flight and not acknowledged yet. */
 #define NGTCP2_CONN_FLAG_ACK_FREQ_IN_FLIGHT 0x20000u
+/* NGTCP2_CONN_FLAG_ECN_CE_MARKED is set when the last ack-eliciting
+   packet is CE marked. */
+#define NGTCP2_CONN_FLAG_ECN_CE_MARKED 0x40000u
 
 typedef struct ngtcp2_pktns {
   struct {

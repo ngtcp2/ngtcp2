@@ -122,6 +122,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_ack_freq_out_of_order_pkt),
   munit_void_test(test_ngtcp2_conn_send_ack_frequency),
   munit_void_test(test_ngtcp2_conn_recv_immediate_ack),
+  munit_void_test(test_ngtcp2_conn_ack_thres_ecn),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
   munit_void_test(test_ngtcp2_conn_post_handshake_failmalloc),
   munit_void_test(test_ngtcp2_accept),
@@ -13383,6 +13384,77 @@ void test_ngtcp2_conn_recv_immediate_ack(void) {
   assert_int(0, ==, rv);
   assert_uint64(t, ==, conn->ack_freq.rx.last_immediate_ack_ts);
   assert_true(conn->pktns.acktr.flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_ack_thres_ecn(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_tpe tpe;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_ssize spktlen;
+  uint8_t buf[1200];
+  int rv;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_pkt_info pi = {0};
+
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->ack_freq.local.ack_thresh = 10;
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &pi, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_false(conn->pktns.acktr.flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_ECN_CE_MARKED);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  pi.ecn = NGTCP2_ECN_CE;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &pi, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_true(conn->pktns.acktr.flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_ECN_CE_MARKED);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &pi, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_false(conn->pktns.acktr.flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_ECN_CE_MARKED);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  pi.ecn = NGTCP2_ECN_NOT_ECT;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &pi, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_false(conn->pktns.acktr.flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_ECN_CE_MARKED);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  pi.ecn = NGTCP2_ECN_CE;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &pi, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_true(conn->pktns.acktr.flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_ECN_CE_MARKED);
 
   ngtcp2_conn_del(conn);
 }
