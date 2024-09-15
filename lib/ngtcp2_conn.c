@@ -9686,10 +9686,21 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   pktns_increase_ecn_counts(pktns, pi);
 
-  if (require_ack &&
-      (++pktns->acktr.rx_npkt >= conn->ack_freq.local.ack_thresh ||
-       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
+  if (require_ack) {
+    if (++pktns->acktr.rx_npkt >= conn->ack_freq.local.ack_thresh ||
+        (conn->ack_freq.local.ack_thresh <= 2 &&
+         (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE) ||
+        (conn->ack_freq.local.ack_thresh > 2 &&
+         !(conn->flags & NGTCP2_CONN_FLAG_ECN_CE_MARKED) &&
+         (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
+      ngtcp2_acktr_immediate_ack(&pktns->acktr);
+    }
+
+    if ((pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE) {
+      conn->flags |= NGTCP2_CONN_FLAG_ECN_CE_MARKED;
+    } else {
+      conn->flags &= ~NGTCP2_CONN_FLAG_ECN_CE_MARKED;
+    }
   }
 
   rv =
