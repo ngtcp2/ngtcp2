@@ -115,6 +115,7 @@ munit_void_test_decl(test_ngtcp2_conn_persistent_congestion);
 munit_void_test_decl(test_ngtcp2_conn_ack_freq_out_of_order_pkt);
 munit_void_test_decl(test_ngtcp2_conn_send_ack_frequency);
 munit_void_test_decl(test_ngtcp2_conn_recv_immediate_ack);
+munit_void_test_decl(test_ngtcp2_conn_ack_thres_ecn);
 munit_void_test_decl(test_ngtcp2_conn_new_failmalloc);
 munit_void_test_decl(test_ngtcp2_accept);
 munit_void_test_decl(test_ngtcp2_select_version);
