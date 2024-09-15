@@ -4063,7 +4063,13 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     if (ngtcp2_tstamp_elapsed(pktns->tx.non_ack_pkt_start_ts,
                               cstat->smoothed_rtt, ts) ||
         keep_alive_expired || conn->pktns.rtb.probe_pkt_left) {
-      lfr.type = NGTCP2_FRAME_PING;
+      if (conn->pktns.rtb.probe_pkt_left &&
+          conn->remote.transport_params->min_ack_delay) {
+        assert(NGTCP2_PKT_1RTT);
+        lfr.type = NGTCP2_FRAME_IMMEDIATE_ACK;
+      } else {
+        lfr.type = NGTCP2_FRAME_PING;
+      }
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
       if (rv != 0) {
@@ -4594,7 +4600,11 @@ static ngtcp2_ssize conn_write_pmtud_probe(ngtcp2_conn *conn,
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "sending PMTUD probe packet len=%zu", probelen);
 
-  lfr.type = NGTCP2_FRAME_PING;
+  if (conn->remote.transport_params->min_ack_delay) {
+    lfr.type = NGTCP2_FRAME_IMMEDIATE_ACK;
+  } else {
+    lfr.type = NGTCP2_FRAME_PING;
+  }
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
     conn, pi, dest, probelen, NGTCP2_PKT_1RTT,
