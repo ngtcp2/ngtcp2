@@ -10167,6 +10167,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     return res;
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
+    pending_early_datalen = 0;
+
     if (!conn_handshake_probe_left(conn) && conn_cwnd_is_zero(conn)) {
       destlen = 0;
     } else {
@@ -10189,7 +10191,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     }
 
     if (!conn_is_tls_handshake_completed(conn)) {
-      if (!(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
+      if (pending_early_datalen &&
+          !(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
         nwrite = conn_retransmit_retry_early(
           conn, pi, dest, destlen, (size_t)res, NGTCP2_WRITE_PKT_FLAG_NONE, ts);
         if (nwrite < 0) {
