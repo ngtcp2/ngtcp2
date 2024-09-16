@@ -6538,6 +6538,11 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     case NGTCP2_FRAME_PING:
       require_ack = 1;
       break;
+    case NGTCP2_FRAME_ACK_FREQUENCY:
+    case NGTCP2_FRAME_IMMEDIATE_ACK:
+      /* TODO Ignore these frames for now */
+      require_ack = 1;
+      break;
     default:
       return NGTCP2_ERR_PROTO;
     }
@@ -8621,6 +8626,9 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
       break;
     case NGTCP2_FRAME_CRYPTO:
     case NGTCP2_FRAME_PING:
+      /* TODO Ignore the following 2 frames for now */
+    case NGTCP2_FRAME_ACK_FREQUENCY:
+    case NGTCP2_FRAME_IMMEDIATE_ACK:
       require_ack = 1;
       break;
     default:
