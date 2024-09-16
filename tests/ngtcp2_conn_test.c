@@ -3452,6 +3452,8 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_strm *strm;
   ngtcp2_crypto_aead aead = {0};
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
 
   dcid_init(&dcid);
   setup_handshake_client(&conn);
@@ -3630,6 +3632,64 @@ void test_ngtcp2_conn_recv_retry(void) {
   strm = ngtcp2_conn_find_stream(conn, stream_id);
 
   assert_size(0, ==, ngtcp2_ksl_len(strm->tx.streamfrq));
+
+  ngtcp2_conn_del(conn);
+
+  /* Make sure that empty stream data in 0RTT packets is
+     retransmitted */
+  setup_early_client(&conn);
+  conn->callbacks.recv_retry = recv_retry;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                      &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                      stream_id, NULL, 0, ++t);
+
+  assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==, spktlen);
+  assert_ptrdiff(0, ==, datalen);
+
+  spktlen =
+    ngtcp2_pkt_write_retry(buf, sizeof(buf), NGTCP2_PROTO_VER_V1, &conn->oscid,
+                           &dcid, ngtcp2_conn_get_dcid(conn), token,
+                           strsize(token), null_encrypt, &aead, &aead_ctx);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf,
+                            (size_t)spktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  assert_true(ngtcp2_ksl_it_end(&it));
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  /* Make sure that resent 0RTT packet is padded */
+  assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==, spktlen);
+  assert_int64(1, ==, conn->pktns.tx.last_pkt_num);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_size(0, ==, ngtcp2_ksl_len(strm->tx.streamfrq));
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  assert_false(ngtcp2_ksl_it_end(&it));
+
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_uint64(NGTCP2_FRAME_STREAM, ==, ent->frc->fr.type);
+  assert_uint64(0, ==, ent->frc->fr.stream.offset);
+  assert_uint64(
+    0, ==,
+    ngtcp2_vec_len(ent->frc->fr.stream.data, ent->frc->fr.stream.datacnt));
+  assert_int64(stream_id, ==, ent->frc->fr.stream.stream_id);
+  assert_false(ent->frc->fr.stream.fin);
 
   ngtcp2_conn_del(conn);
 }
