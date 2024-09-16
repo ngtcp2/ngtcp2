@@ -3895,7 +3895,7 @@ int main(int argc, char **argv) {
           config.initial_pkt_num = static_cast<uint32_t>(*n);
         }
         break;
-      case 32:
+      case 32: {
         // --pmtud-probes
         auto l = util::split_str(optarg);
         for (auto &s : l) {
@@ -3912,6 +3912,7 @@ int main(int argc, char **argv) {
           }
         }
         break;
+      }
       }
       break;
     default:
