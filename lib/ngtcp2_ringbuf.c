@@ -31,7 +31,7 @@
 
 #include "ngtcp2_macro.h"
 
-#if defined(_MSC_VER) && !defined(__clang__) &&                                \
+#if defined(_MSC_VER) && !defined(__clang__) && (_MSC_VER < 1940) &&           \
   (defined(_M_ARM) || defined(_M_ARM64))
 static unsigned int __popcnt(unsigned int x) {
   unsigned int c = 0;
@@ -42,8 +42,8 @@ static unsigned int __popcnt(unsigned int x) {
 
   return c;
 }
-#endif /* defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) ||      \
-          defined(_M_ARM64)) */
+#endif /* defined(_MSC_VER) && !defined(__clang__) && (_MSC_VER < 1940) &&     \
+  (defined(_M_ARM) || defined(_M_ARM64)) */
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         const ngtcp2_mem *mem) {
