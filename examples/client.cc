@@ -805,6 +805,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   params.max_idle_timeout = config.timeout;
   params.active_connection_id_limit = 7;
   params.grease_quic_bit = 1;
+  params.min_ack_delay = config.min_ack_delay;
 
   auto path = ngtcp2_path{
     .local =
@@ -2668,6 +2669,10 @@ Options:
   --pmtud-probes=<SIZE>[[,<SIZE>]...]
               Specify UDP datagram payload sizes  to probe in Path MTU
               Discovery.  <SIZE> must be strictly larger than 1200.
+  --min-ack-delay=<DURATION>
+              Set the  minimum ack delay.  Setting  this value nonzero
+              advertises  the  support   of  ack-frequency  extension.
+              <DURATION> must be less than or equal to 25ms.
   -h, --help  Display this help and exit.
 
 ---
@@ -2752,6 +2757,7 @@ int main(int argc, char **argv) {
       {"wait-for-ticket", no_argument, &flag, 41},
       {"initial-pkt-num", required_argument, &flag, 42},
       {"pmtud-probes", required_argument, &flag, 43},
+      {"min-ack-delay", required_argument, &flag, 44},
       {},
     };
 
@@ -3195,6 +3201,20 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      case 44:
+        // --min-ack-delay
+        if (auto t = util::parse_duration(optarg); !t) {
+          std::cerr << "min-ack-delay: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (*t > NGTCP2_DEFAULT_MAX_ACK_DELAY) {
+          std::cerr << "min-ack-delay: must not exceed "
+                    << util::format_duration(NGTCP2_DEFAULT_MAX_ACK_DELAY)
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.min_ack_delay = *t;
+        }
+        break;
       }
       break;
     default:
