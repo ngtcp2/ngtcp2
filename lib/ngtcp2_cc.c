@@ -34,10 +34,6 @@
 #include "ngtcp2_conn_stat.h"
 #include "ngtcp2_unreachable.h"
 
-/* NGTCP2_CC_DELIVERY_RATE_SEC_FILTERLEN is the window length of
-   delivery rate filter driven by ACK clocking. */
-#define NGTCP2_CC_DELIVERY_RATE_SEC_FILTERLEN 10
-
 uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   uint64_t n = 2 * max_udp_payload_size;
   n = ngtcp2_max_uint64(n, 14720);
@@ -59,13 +55,7 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
   return pkt;
 }
 
-static void reno_cc_reset(ngtcp2_cc_reno *reno) {
-  ngtcp2_window_filter_init(&reno->delivery_rate_sec_filter,
-                            NGTCP2_CC_DELIVERY_RATE_SEC_FILTERLEN);
-  reno->ack_count = 0;
-  reno->target_cwnd = 0;
-  reno->pending_add = 0;
-}
+static void reno_cc_reset(ngtcp2_cc_reno *reno) { reno->pending_add = 0; }
 
 void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log) {
   memset(reno, 0, sizeof(*reno));
@@ -75,7 +65,6 @@ void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log) {
   reno->cc.congestion_event = ngtcp2_cc_reno_cc_congestion_event;
   reno->cc.on_persistent_congestion =
     ngtcp2_cc_reno_cc_on_persistent_congestion;
-  reno->cc.on_ack_recv = ngtcp2_cc_reno_cc_on_ack_recv;
   reno->cc.reset = ngtcp2_cc_reno_cc_reset;
 
   reno_cc_reset(reno);
@@ -94,11 +83,7 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   uint64_t m;
   (void)ts;
 
-  if (in_congestion_recovery(cstat, pkt->sent_ts)) {
-    return;
-  }
-
-  if (reno->target_cwnd && reno->target_cwnd < cstat->cwnd) {
+  if (in_congestion_recovery(cstat, pkt->sent_ts) || pkt->is_app_limited) {
     return;
   }
 
@@ -149,35 +134,6 @@ void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *cc,
   cstat->congestion_recovery_start_ts = UINT64_MAX;
 }
 
-void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                   const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
-  ngtcp2_cc_reno *reno = ngtcp2_struct_of(cc, ngtcp2_cc_reno, cc);
-  uint64_t target_cwnd, initcwnd;
-  uint64_t max_delivery_rate_sec;
-  (void)ack;
-  (void)ts;
-
-  ++reno->ack_count;
-
-  ngtcp2_window_filter_update(&reno->delivery_rate_sec_filter,
-                              cstat->delivery_rate_sec, reno->ack_count);
-
-  max_delivery_rate_sec =
-    ngtcp2_window_filter_get_best(&reno->delivery_rate_sec_filter);
-
-  if (cstat->min_rtt != UINT64_MAX && max_delivery_rate_sec) {
-    target_cwnd = max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
-    initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
-    reno->target_cwnd = ngtcp2_max_uint64(initcwnd, target_cwnd) * 289 / 100;
-
-    ngtcp2_log_info(reno->cc.log, NGTCP2_LOG_EVENT_CCA,
-                    "target_cwnd=%" PRIu64 " max_delivery_rate_sec=%" PRIu64
-                    " smoothed_rtt=%" PRIu64,
-                    reno->target_cwnd, max_delivery_rate_sec,
-                    cstat->smoothed_rtt);
-  }
-}
-
 void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                              ngtcp2_tstamp ts) {
   ngtcp2_cc_reno *reno = ngtcp2_struct_of(cc, ngtcp2_cc_reno, cc);
@@ -188,10 +144,6 @@ void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 }
 
 static void cubic_cc_reset(ngtcp2_cc_cubic *cubic) {
-  ngtcp2_window_filter_init(&cubic->delivery_rate_sec_filter,
-                            NGTCP2_CC_DELIVERY_RATE_SEC_FILTERLEN);
-  cubic->ack_count = 0;
-  cubic->target_cwnd = 0;
   cubic->w_last_max = 0;
   cubic->w_tcp = 0;
   cubic->origin_point = 0;
@@ -221,7 +173,6 @@ void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log) {
   cubic->cc.on_spurious_congestion = ngtcp2_cc_cubic_cc_on_spurious_congestion;
   cubic->cc.on_persistent_congestion =
     ngtcp2_cc_cubic_cc_on_persistent_congestion;
-  cubic->cc.on_ack_recv = ngtcp2_cc_cubic_cc_on_ack_recv;
   cubic->cc.on_pkt_sent = ngtcp2_cc_cubic_cc_on_pkt_sent;
   cubic->cc.new_rtt_sample = ngtcp2_cc_cubic_cc_new_rtt_sample;
   cubic->cc.reset = ngtcp2_cc_cubic_cc_reset;
@@ -281,7 +232,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
   if (cstat->cwnd < cstat->ssthresh) {
     /* slow-start */
-    if (cubic->target_cwnd == 0 || cubic->target_cwnd > cstat->cwnd) {
+    if (!pkt->is_app_limited) {
       cstat->cwnd += pkt->pktlen;
     }
 
@@ -393,7 +344,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     }
   }
 
-  if (cubic->target_cwnd == 0 || cubic->target_cwnd > cstat->cwnd) {
+  if (!pkt->is_app_limited) {
     cstat->cwnd += add;
   }
 
@@ -486,36 +437,6 @@ void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *cc,
 
   cstat->cwnd = 2 * cstat->max_tx_udp_payload_size;
   cstat->congestion_recovery_start_ts = UINT64_MAX;
-}
-
-void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                    const ngtcp2_cc_ack *ack,
-                                    ngtcp2_tstamp ts) {
-  ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
-  uint64_t target_cwnd, initcwnd;
-  uint64_t max_delivery_rate_sec;
-  (void)ack;
-  (void)ts;
-
-  ++cubic->ack_count;
-
-  ngtcp2_window_filter_update(&cubic->delivery_rate_sec_filter,
-                              cstat->delivery_rate_sec, cubic->ack_count);
-
-  max_delivery_rate_sec =
-    ngtcp2_window_filter_get_best(&cubic->delivery_rate_sec_filter);
-
-  if (cstat->min_rtt != UINT64_MAX && max_delivery_rate_sec) {
-    target_cwnd = max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
-    initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
-    cubic->target_cwnd = ngtcp2_max_uint64(initcwnd, target_cwnd) * 289 / 100;
-
-    ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
-                    "target_cwnd=%" PRIu64 " max_delivery_rate_sec=%" PRIu64
-                    " smoothed_rtt=%" PRIu64,
-                    cubic->target_cwnd, max_delivery_rate_sec,
-                    cstat->smoothed_rtt);
-  }
 }
 
 void ngtcp2_cc_cubic_cc_on_pkt_sent(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
