@@ -11692,7 +11692,8 @@ static ngtcp2_ssize conn_write_vmsg_wrapper(ngtcp2_conn *conn,
     conn->rst.is_cwnd_limited = 1;
   }
 
-  if (nwrite == 0 && cstat->bytes_in_flight < cstat->cwnd) {
+  if (nwrite == 0 && cstat->bytes_in_flight < cstat->cwnd &&
+      conn_pacing_pkt_tx_allowed(conn, ts)) {
     conn->rst.app_limited = conn->rst.delivered + cstat->bytes_in_flight;
 
     if (conn->rst.app_limited == 0) {
