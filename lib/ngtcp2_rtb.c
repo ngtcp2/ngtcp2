@@ -922,12 +922,14 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     rtb->cc->on_spurious_congestion(cc, cstat, ts);
   }
 
-  ngtcp2_rst_on_ack_recv(rtb->rst, cstat, cc_ack.pkt_delivered);
+  if (num_acked) {
+    ngtcp2_rst_on_ack_recv(rtb->rst, cstat, cc_ack.pkt_delivered);
 
-  if (conn && num_acked) {
-    rv = rtb_detect_lost_pkt(rtb, &cc_ack.bytes_lost, conn, pktns, cstat, ts);
-    if (rv != 0) {
-      return rv;
+    if (conn) {
+      rv = rtb_detect_lost_pkt(rtb, &cc_ack.bytes_lost, conn, pktns, cstat, ts);
+      if (rv != 0) {
+        return rv;
+      }
     }
   }
 
