@@ -32,7 +32,6 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_pktns_id.h"
-#include "ngtcp2_window_filter.h"
 
 #define NGTCP2_LOSS_REDUCTION_FACTOR_BITS 1
 #define NGTCP2_PERSISTENT_CONGESTION_THRESHOLD 3
@@ -305,9 +304,6 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 /* ngtcp2_cc_reno is the RENO congestion controller. */
 typedef struct ngtcp2_cc_reno {
   ngtcp2_cc cc;
-  ngtcp2_window_filter delivery_rate_sec_filter;
-  uint64_t ack_count;
-  uint64_t target_cwnd;
   uint64_t pending_add;
 } ngtcp2_cc_reno;
 
@@ -324,18 +320,12 @@ void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *cc,
                                                 ngtcp2_conn_stat *cstat,
                                                 ngtcp2_tstamp ts);
 
-void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                   const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
-
 void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                              ngtcp2_tstamp ts);
 
 /* ngtcp2_cc_cubic is CUBIC congestion controller. */
 typedef struct ngtcp2_cc_cubic {
   ngtcp2_cc cc;
-  ngtcp2_window_filter delivery_rate_sec_filter;
-  uint64_t ack_count;
-  uint64_t target_cwnd;
   uint64_t w_last_max;
   uint64_t w_tcp;
   uint64_t origin_point;
@@ -379,9 +369,6 @@ void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *ccx,
 void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *cc,
                                                  ngtcp2_conn_stat *cstat,
                                                  ngtcp2_tstamp ts);
-
-void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                    const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
 
 void ngtcp2_cc_cubic_cc_on_pkt_sent(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt);
