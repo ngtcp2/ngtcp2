@@ -31,6 +31,8 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_window_filter.h"
+
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 typedef struct ngtcp2_conn_stat ngtcp2_conn_stat;
 
@@ -61,10 +63,13 @@ void ngtcp2_rs_init(ngtcp2_rs *rs);
  */
 typedef struct ngtcp2_rst {
   ngtcp2_rs rs;
+  ngtcp2_window_filter wf;
   uint64_t delivered;
   ngtcp2_tstamp delivered_ts;
   ngtcp2_tstamp first_sent_ts;
   uint64_t app_limited;
+  uint64_t next_round_delivered;
+  uint64_t round_count;
   uint64_t lost;
   /* last_seq is the sequence number of packets across all packet
      number spaces.  If we would adopt single packet number sequence
@@ -78,7 +83,8 @@ void ngtcp2_rst_init(ngtcp2_rst *rst);
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
                             const ngtcp2_conn_stat *cstat);
-void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
+void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat,
+                            uint64_t pkt_delivered);
 void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts);
 void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
