@@ -31,19 +31,17 @@
 
 #include "ngtcp2_macro.h"
 
+static int ispow2(size_t n) {
 #if defined(_MSC_VER) && !defined(__clang__) &&                                \
   (defined(_M_ARM) || (defined(_M_ARM64) && _MSC_VER < 1941))
-static unsigned int __popcnt(unsigned int x) {
-  unsigned int c = 0;
-
-  for (; x; ++c) {
-    x &= x - 1;
-  }
-
-  return c;
+  return n && !(n & (n - 1));
+#elif defined(WIN32)
+  return 1 == __popcnt((unsigned int)n);
+#else /* !((defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) ||    \
+         (defined(_M_ARM64) && _MSC_VER < 1941))) || defined(WIN32)) */
+  return 1 == __builtin_popcount((unsigned int)n);
+#endif
 }
-#endif /* defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) ||      \
-          (defined(_M_ARM64) && _MSC_VER < 1941)) */
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         const ngtcp2_mem *mem) {
@@ -60,11 +58,7 @@ int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
 
 void ngtcp2_ringbuf_buf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                              uint8_t *buf, const ngtcp2_mem *mem) {
-#ifdef WIN32
-  assert(1 == __popcnt((unsigned int)nmemb));
-#else  /* !defined(WIN32) */
-  assert(1 == __builtin_popcount((unsigned int)nmemb));
-#endif /* !defined(WIN32) */
+  assert(ispow2(nmemb));
 
   rb->buf = buf;
   rb->mem = mem;
