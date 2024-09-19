@@ -37,10 +37,11 @@ static int ispow2(size_t n) {
   return n && !(n & (n - 1));
 #elif defined(WIN32)
   return 1 == __popcnt((unsigned int)n);
-#else /* !((defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) ||    \
-         (defined(_M_ARM64) && _MSC_VER < 1941))) || defined(WIN32)) */
+#else  /* !((defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) ||   \
+          (defined(_M_ARM64) && _MSC_VER < 1941))) || defined(WIN32)) */
   return 1 == __builtin_popcount((unsigned int)n);
-#endif
+#endif /* !((defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) ||   \
+          (defined(_M_ARM64) && _MSC_VER < 1941))) || defined(WIN32)) */
 }
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
