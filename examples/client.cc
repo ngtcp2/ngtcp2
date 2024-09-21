@@ -2704,6 +2704,10 @@ int main(int argc, char **argv) {
       switch (flag) {
       case 1:
         // --ciphers
+        if (util::crypto_default_ciphers()[0] == '\0') {
+          std::cerr << "ciphers: not supported" << std::endl;
+          exit(EXIT_FAILURE);
+        }
         config.ciphers = optarg;
         break;
       case 2:
