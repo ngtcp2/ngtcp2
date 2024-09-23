@@ -227,7 +227,7 @@ static uint64_t cubic_cc_compute_w_cubic(ngtcp2_cc_cubic *cubic,
   ngtcp2_duration t = ts - cubic->current.epoch_start;
   uint64_t delta;
   uint64_t tx = (t << 10) / NGTCP2_SECONDS;
-  uint64_t kx = (cubic->current.k << 10);
+  uint64_t kx = (cubic->current.k << 10) / NGTCP2_SECONDS;
   uint64_t time_delta;
 
   if (tx < kx) {
@@ -239,7 +239,7 @@ static uint64_t cubic_cc_compute_w_cubic(ngtcp2_cc_cubic *cubic,
   delta = cstat->max_tx_udp_payload_size *
           ((((time_delta * time_delta) >> 10) * time_delta) >> 10) * 4 / 10;
 
-  return cubic->current.w_max + (delta >>= 10);
+  return cubic->current.w_max + (delta >> 10);
 }
 
 void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
@@ -327,17 +327,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     return;
   case NGTCP2_CUBIC_STATE_RECOVERY:
     cubic->current.state = NGTCP2_CUBIC_STATE_CONGESTION_AVOIDANCE;
-
     cubic->current.epoch_start = ts;
-    cubic->current.w_est = cstat->cwnd;
-
-    if (cstat->cwnd < cubic->current.w_max) {
-      cubic->current.k = ngtcp2_cbrt((cubic->current.w_max - cstat->cwnd) * 10 /
-                                     4 / cstat->max_tx_udp_payload_size);
-    } else {
-      cubic->current.k = 0;
-    }
-
     break;
   default:
     break;
@@ -429,6 +419,18 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
   cubic->current.cwnd_prior = cstat->cwnd;
   cstat->cwnd = cstat->ssthresh;
+
+  cubic->current.w_est = cstat->cwnd;
+
+  if (cstat->cwnd < cubic->current.w_max) {
+    cubic->current.k =
+      ngtcp2_cbrt(((cubic->current.w_max - cstat->cwnd) << 10) * 10 / 4 /
+                  cstat->max_tx_udp_payload_size) *
+      NGTCP2_SECONDS;
+    cubic->current.k >>= 10;
+  } else {
+    cubic->current.k = 0;
+  }
 
   ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                   "reduce cwnd because of packet loss cwnd=%" PRIu64,

@@ -342,7 +342,7 @@ typedef enum ngtcp2_cubic_state {
 typedef struct ngtcp2_cubic_vars {
   uint64_t cwnd_prior;
   uint64_t w_max;
-  uint64_t k;
+  ngtcp2_duration k;
   ngtcp2_tstamp epoch_start;
   uint64_t w_est;
 
