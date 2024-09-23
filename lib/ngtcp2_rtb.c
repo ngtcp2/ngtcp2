@@ -756,7 +756,7 @@ static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   if (fr->type == NGTCP2_FRAME_ACK_ECN) {
     if (cc->congestion_event && largest_pkt_sent_ts != UINT64_MAX &&
         fr->ecn.ce > pktns->rx.ecn.ack.ce) {
-      cc->congestion_event(cc, cstat, largest_pkt_sent_ts, ts);
+      cc->congestion_event(cc, cstat, largest_pkt_sent_ts, 0, ts);
     }
 
     pktns->rx.ecn.ack.ect0 = fr->ecn.ect0;
@@ -1121,7 +1121,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
       }
 
       if (cc->congestion_event) {
-        cc->congestion_event(cc, cstat, latest_ts, ts);
+        cc->congestion_event(cc, cstat, latest_ts, bytes_lost, ts);
       }
 
       loss_window = latest_ts - oldest_ts;

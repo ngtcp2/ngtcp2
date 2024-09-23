@@ -1332,8 +1332,10 @@ static void bbr_cc_on_pkt_lost(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 }
 
 static void bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                    ngtcp2_tstamp sent_ts, ngtcp2_tstamp ts) {
+                                    ngtcp2_tstamp sent_ts, uint64_t bytes_lost,
+                                    ngtcp2_tstamp ts) {
   ngtcp2_cc_bbr *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr, cc);
+  (void)bytes_lost;
 
   if (bbr->in_loss_recovery ||
       bbr->congestion_recovery_start_ts != UINT64_MAX ||
