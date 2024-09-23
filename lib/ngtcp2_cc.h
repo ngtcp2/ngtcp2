@@ -372,18 +372,19 @@ typedef struct ngtcp2_cc_cubic {
     uint64_t ssthresh;
   } undo;
   /* HyStart++ variables */
-  size_t rtt_sample_count;
-  uint64_t current_round_min_rtt;
-  uint64_t last_round_min_rtt;
-  int64_t window_end;
+  struct {
+    ngtcp2_duration current_round_min_rtt;
+    ngtcp2_duration last_round_min_rtt;
+    ngtcp2_duration curr_rtt;
+    size_t rtt_sample_count;
+    uint64_t next_round_delivered;
+    ngtcp2_duration css_baseline_min_rtt;
+    size_t css_round;
+  } hs;
 } ngtcp2_cc_cubic;
 
 void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cc, ngtcp2_log *log,
                           ngtcp2_rst *rst);
-
-void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                     const ngtcp2_cc_pkt *pkt,
-                                     ngtcp2_tstamp ts);
 
 void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
@@ -399,12 +400,6 @@ void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *ccx,
 void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *cc,
                                                  ngtcp2_conn_stat *cstat,
                                                  ngtcp2_tstamp ts);
-
-void ngtcp2_cc_cubic_cc_on_pkt_sent(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                    const ngtcp2_cc_pkt *pkt);
-
-void ngtcp2_cc_cubic_cc_new_rtt_sample(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                       ngtcp2_tstamp ts);
 
 void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                               ngtcp2_tstamp ts);
