@@ -166,6 +166,9 @@ typedef struct ngtcp2_pkt_retry {
 #define NGTCP2_FRAME_HANDSHAKE_DONE 0x1e
 #define NGTCP2_FRAME_DATAGRAM 0x30
 #define NGTCP2_FRAME_DATAGRAM_LEN 0x31
+/* https://datatracker.ietf.org/doc/html/draft-ietf-quic-reliable-stream-reset
+ */
+#define NGTCP2_FRAME_RESET_STREAM_AT 0x24
 
 /* ngtcp2_stream represents STREAM and CRYPTO frames. */
 typedef struct ngtcp2_stream {
@@ -228,6 +231,9 @@ typedef struct ngtcp2_reset_stream {
   int64_t stream_id;
   uint64_t app_error_code;
   uint64_t final_size;
+  /* reliable_size is ignored when encoded as RESET_STREAM.  It is
+     zero when decoded as RESET_STREAM. */
+  uint64_t reliable_size;
 } ngtcp2_reset_stream;
 
 typedef struct ngtcp2_connection_close {

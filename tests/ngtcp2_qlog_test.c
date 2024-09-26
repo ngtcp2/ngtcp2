@@ -192,6 +192,27 @@ void test_ngtcp2_qlog_write_frame(void) {
   {
     memset(&exfr, 0, sizeof(exfr));
 
+    fr->type = NGTCP2_FRAME_RESET_STREAM_AT;
+    fr->reset_stream.stream_id = 1000000009;
+    fr->reset_stream.app_error_code = 761111;
+    fr->reset_stream.final_size = 1000000007;
+    fr->reset_stream.reliable_size = 1000000021;
+
+    ngtcp2_qlog_write_frame(&qlog, fr);
+    *qlog.buf.last = '\0';
+
+    assert_string_equal(
+      "{\"frame_type\":\"reset_stream_at\",\"stream_id\":1000000009,"
+      "\"error_code\":761111,\"final_size\":1000000007,"
+      "\"reliable_size\":1000000021},",
+      (const char *)qlog.buf.begin);
+  }
+
+  ngtcp2_buf_reset(&qlog.buf);
+
+  {
+    memset(&exfr, 0, sizeof(exfr));
+
     fr->type = NGTCP2_FRAME_STOP_SENDING;
     fr->stop_sending.stream_id = 1000000009;
     fr->stop_sending.app_error_code = 3119999;
