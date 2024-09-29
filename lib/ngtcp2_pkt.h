@@ -353,6 +353,11 @@ typedef union ngtcp2_frame {
   ngtcp2_retire_connection_id retire_connection_id;
   ngtcp2_handshake_done handshake_done;
   ngtcp2_datagram datagram;
+  /* Extend ngtcp2_frame so that ngtcp2_stream has at least additional
+     3 ngtcp2_vec, totaling 4 slots, which can store HEADERS header,
+     HEADERS payload, DATA header, and DATA payload in the standard
+     sized ngtcp2_frame_chain. */
+  uint8_t pad[sizeof(ngtcp2_stream) + sizeof(ngtcp2_vec) * 3];
 } ngtcp2_frame;
 
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
