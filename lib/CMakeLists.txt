@@ -105,11 +105,11 @@ if(ENABLE_SHARED_LIB)
   foreach(include_DIR IN LISTS ngtcp2_INCLUDE_DIRS)
     target_include_directories(ngtcp2 PUBLIC $<BUILD_INTERFACE:${include_DIR}>)
   endforeach()
-  
+
   target_include_directories(ngtcp2 PUBLIC $<INSTALL_INTERFACE:./include>)
 
   install(TARGETS ngtcp2
-    EXPORT ${NGTCP2_TARGETS_EXPORT_NAME} 
+    EXPORT ${NGTCP2_TARGETS_EXPORT_NAME}
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
@@ -128,11 +128,11 @@ if(ENABLE_STATIC_LIB)
   foreach(include_DIR IN LISTS ngtcp2_INCLUDE_DIRS)
     target_include_directories(ngtcp2_static PUBLIC $<BUILD_INTERFACE:${include_DIR}>)
   endforeach()
-  
+
   target_include_directories(ngtcp2_static PUBLIC $<INSTALL_INTERFACE:./include>)
 
   install(TARGETS ngtcp2_static
-    EXPORT ${NGTCP2_TARGETS_EXPORT_NAME} 
+    EXPORT ${NGTCP2_TARGETS_EXPORT_NAME}
     DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif()
 
