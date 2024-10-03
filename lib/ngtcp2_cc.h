@@ -377,10 +377,10 @@ typedef struct ngtcp2_cc_cubic {
     ngtcp2_duration last_round_min_rtt;
     ngtcp2_duration curr_rtt;
     size_t rtt_sample_count;
-    uint64_t next_round_delivered;
     ngtcp2_duration css_baseline_min_rtt;
     size_t css_round;
   } hs;
+  uint64_t next_round_delivered;
 } ngtcp2_cc_cubic;
 
 void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cc, ngtcp2_log *log,

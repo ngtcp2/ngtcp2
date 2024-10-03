@@ -169,9 +169,10 @@ static void cubic_cc_reset(ngtcp2_cc_cubic *cubic) {
   cubic->hs.last_round_min_rtt = UINT64_MAX;
   cubic->hs.curr_rtt = UINT64_MAX;
   cubic->hs.rtt_sample_count = 0;
-  cubic->hs.next_round_delivered = 0;
   cubic->hs.css_baseline_min_rtt = UINT64_MAX;
   cubic->hs.css_round = 0;
+
+  cubic->next_round_delivered = 0;
 }
 
 void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log,
@@ -250,13 +251,14 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
   uint64_t w_cubic, w_cubic_next, target, m;
   ngtcp2_duration rtt_thresh;
+  int round_start;
 
   if (in_congestion_recovery(cstat, ack->largest_pkt_sent_ts)) {
     return;
   }
 
   if (cubic->current.state == NGTCP2_CUBIC_STATE_CONGESTION_AVOIDANCE) {
-    if (cubic->rst->rs.is_app_limited) {
+    if (cubic->rst->rs.is_app_limited && !cubic->rst->is_cwnd_limited) {
       if (cubic->current.app_limited_start_ts == UINT64_MAX) {
         cubic->current.app_limited_start_ts = ts;
       }
@@ -269,8 +271,15 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
         ts - cubic->current.app_limited_start_ts;
       cubic->current.app_limited_start_ts = UINT64_MAX;
     }
-  } else if (cubic->rst->rs.is_app_limited) {
+  } else if (cubic->rst->rs.is_app_limited && !cubic->rst->is_cwnd_limited) {
     return;
+  }
+
+  round_start = ack->pkt_delivered >= cubic->next_round_delivered;
+  if (round_start) {
+    cubic->next_round_delivered = cubic->rst->delivered;
+
+    cubic->rst->is_cwnd_limited = 0;
   }
 
   if (cstat->cwnd < cstat->ssthresh) {
@@ -285,9 +294,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                     "%" PRIu64 " bytes acked, slow start cwnd=%" PRIu64,
                     ack->bytes_delivered, cstat->cwnd);
 
-    if (ack->pkt_delivered >= cubic->hs.next_round_delivered) {
-      cubic->hs.next_round_delivered = cubic->rst->delivered;
-
+    if (round_start) {
       cubic->hs.last_round_min_rtt = cubic->hs.current_round_min_rtt;
       cubic->hs.current_round_min_rtt = UINT64_MAX;
       cubic->hs.rtt_sample_count = 0;
