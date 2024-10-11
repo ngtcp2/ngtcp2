@@ -32,7 +32,6 @@
 static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_ppe_dgram_padding_size),
   munit_void_test(test_ngtcp2_ppe_padding_size),
-  munit_void_test(test_ngtcp2_ppe_padding_hp_sample),
   munit_test_end(),
 };
 
@@ -142,15 +141,6 @@ void test_ngtcp2_ppe_padding_size(void) {
   ngtcp2_ppe_padding_size(&ppe, 1400);
 
   assert_memory_equal(1280, pkt, buf);
-}
-
-void test_ngtcp2_ppe_padding_hp_sample(void) {
-  ngtcp2_ppe ppe;
-  ngtcp2_crypto_cc cc = {0};
-  uint8_t buf[2048];
-  uint8_t pkt[2048];
-
-  cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   /* Add padding to ensure header protection sample */
   ngtcp2_ppe_init(&ppe, buf, 1280, /* should be ignored */ 1, &cc);
@@ -160,7 +150,7 @@ void test_ngtcp2_ppe_padding_hp_sample(void) {
   set_padding_range(pkt, sizeof(pkt), 5, 3);
   memset(buf, 0xff, sizeof(buf));
 
-  ngtcp2_ppe_padding_hp_sample(&ppe);
+  ngtcp2_ppe_padding_size(&ppe, 0);
 
   assert_memory_equal(NGTCP2_MAX_UDP_PAYLOAD_SIZE, pkt, buf);
 
@@ -172,7 +162,7 @@ void test_ngtcp2_ppe_padding_hp_sample(void) {
   set_padding_range(pkt, sizeof(pkt), 0, 0);
   memset(buf, 0xff, sizeof(buf));
 
-  ngtcp2_ppe_padding_hp_sample(&ppe);
+  ngtcp2_ppe_padding_size(&ppe, 0);
 
   assert_memory_equal(NGTCP2_MAX_UDP_PAYLOAD_SIZE, pkt, buf);
 }
