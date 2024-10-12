@@ -117,6 +117,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_send_data_blocked),
   munit_void_test(test_ngtcp2_conn_send_new_connection_id),
   munit_void_test(test_ngtcp2_conn_persistent_congestion),
+  munit_void_test(test_ngtcp2_conn_ack_padding),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
   munit_void_test(test_ngtcp2_accept),
   munit_void_test(test_ngtcp2_select_version),
@@ -841,25 +842,21 @@ static void conn_set_scid_used(ngtcp2_conn *conn) {
   assert(0 == rv);
 }
 
-static void
-setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
-                              const ngtcp2_settings *settings,
-                              const ngtcp2_transport_params *params) {
+static void setup_default_server_cid_settings(
+  ngtcp2_conn **pconn, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
+  const ngtcp2_path *path, const ngtcp2_settings *settings,
+  const ngtcp2_transport_params *params) {
   ngtcp2_callbacks cb;
-  ngtcp2_cid dcid, scid;
   ngtcp2_transport_params remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
 
-  dcid_init(&dcid);
-  scid_init(&scid);
-
   init_crypto_ctx(&crypto_ctx);
 
   server_default_callbacks(&cb);
 
-  ngtcp2_conn_server_new(pconn, &dcid, &scid, path, NGTCP2_PROTO_VER_V1, &cb,
+  ngtcp2_conn_server_new(pconn, dcid, scid, path, NGTCP2_PROTO_VER_V1, &cb,
                          settings, params,
                          /* mem = */ NULL, NULL);
   ngtcp2_conn_set_initial_crypto_ctx(*pconn, &crypto_ctx);
@@ -902,6 +899,18 @@ setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
   (*pconn)->tx.max_offset = remote_params.initial_max_data;
   (*pconn)->negotiated_version = (*pconn)->client_chosen_version;
   (*pconn)->pktns.rtb.persistent_congestion_start_ts = 0;
+}
+
+static void
+setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
+                              const ngtcp2_settings *settings,
+                              const ngtcp2_transport_params *params) {
+  ngtcp2_cid dcid, scid;
+  dcid_init(&dcid);
+  scid_init(&scid);
+
+  setup_default_server_cid_settings(pconn, &dcid, &scid, path, settings,
+                                    params);
 }
 
 static void setup_default_server(ngtcp2_conn **pconn) {
@@ -12711,6 +12720,115 @@ void test_ngtcp2_conn_persistent_congestion(void) {
   assert_size(2, ==, strm->tx.loss_count);
   /* Persistent congestion resets min_rtt */
   assert_uint64(UINT64_MAX, ==, conn->cstat.min_rtt);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_ack_padding(void) {
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+  ngtcp2_conn *conn;
+  uint8_t buf[1200];
+  ngtcp2_ssize spktlen;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_frame fr[2];
+  ngtcp2_tpe tpe;
+  size_t pktlen;
+  int rv;
+  ngtcp2_cid dcid, scid;
+
+  dcid.datalen = 0;
+  scid_init(&scid);
+
+  server_default_settings(&settings);
+  server_default_transport_params(&params);
+
+  /* ACK only packet which is padded to make packet at minimum size is
+     not counted toward CWND. */
+  setup_default_server_cid_settings(&conn, &dcid, &scid, &null_path.path,
+                                    &settings, &params);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, t);
+
+  assert_ptrdiff(0, ==, spktlen);
+
+  fr[0].type = NGTCP2_FRAME_ACK;
+  fr[0].ack.largest_ack = 0;
+  fr[0].ack.ack_delay = 0;
+  fr[0].ack.first_ack_range = 0;
+  fr[0].ack.rangecnt = 0;
+
+  fr[1].type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 2);
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_rtb_empty(&conn->pktns.rtb));
+  assert_uint64(0, ==, conn->cstat.bytes_in_flight);
+
+  fr[0].type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+
+  /* PING frame is included along side ACK this time. */
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_false(ngtcp2_rtb_empty(&conn->pktns.rtb));
+
+  fr[0].type = NGTCP2_FRAME_ACK;
+  fr[0].ack.largest_ack = 2;
+  fr[0].ack.ack_delay = 0;
+  fr[0].ack.first_ack_range = 1;
+  fr[0].ack.rangecnt = 0;
+
+  fr[1].type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 2);
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_rtb_empty(&conn->pktns.rtb));
+  assert_uint64(0, ==, conn->cstat.bytes_in_flight);
+
+  /* Make CWND limited */
+  conn->cstat.bytes_in_flight = conn->cstat.cwnd;
+
+  t += 30 * NGTCP2_MILLISECONDS;
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_rtb_empty(&conn->pktns.rtb));
 
   ngtcp2_conn_del(conn);
 }

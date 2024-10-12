@@ -112,6 +112,7 @@ munit_void_test_decl(test_ngtcp2_conn_send_stream_data_blocked);
 munit_void_test_decl(test_ngtcp2_conn_send_data_blocked);
 munit_void_test_decl(test_ngtcp2_conn_send_new_connection_id);
 munit_void_test_decl(test_ngtcp2_conn_persistent_congestion);
+munit_void_test_decl(test_ngtcp2_conn_ack_padding);
 munit_void_test_decl(test_ngtcp2_conn_new_failmalloc);
 munit_void_test_decl(test_ngtcp2_accept);
 munit_void_test_decl(test_ngtcp2_select_version);
