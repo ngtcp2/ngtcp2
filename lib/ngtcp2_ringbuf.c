@@ -31,6 +31,7 @@
 
 #include "ngtcp2_macro.h"
 
+#ifndef NDEBUG
 static int ispow2(size_t n) {
 #if defined(_MSC_VER) && !defined(__clang__) &&                                \
   (defined(_M_ARM) || (defined(_M_ARM64) && _MSC_VER < 1941))
@@ -43,6 +44,7 @@ static int ispow2(size_t n) {
 #endif /* !((defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) ||   \
           (defined(_M_ARM64) && _MSC_VER < 1941))) || defined(WIN32)) */
 }
+#endif
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         const ngtcp2_mem *mem) {
