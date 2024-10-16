@@ -649,7 +649,7 @@ jobs:
     - uses: microsoft/setup-msbuild@v2
     - name: Configure cmake
       run: |
-        cmake -B build -DENABLE_WERROR=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows
+        cmake -B build -DENABLE_WERROR=ON -DENABLE_OPENSSL=OFF -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows
     - name: Build ngtcp2
       run: |
         cmake --build build
