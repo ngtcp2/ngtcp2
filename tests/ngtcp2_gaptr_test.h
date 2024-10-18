@@ -35,9 +35,9 @@
 
 extern const MunitSuite gaptr_suite;
 
-munit_void_test_decl(test_ngtcp2_gaptr_push);
-munit_void_test_decl(test_ngtcp2_gaptr_is_pushed);
-munit_void_test_decl(test_ngtcp2_gaptr_drop_first_gap);
-munit_void_test_decl(test_ngtcp2_gaptr_get_first_gap_after);
+munit_void_test_decl(test_ngtcp2_gaptr_push)
+munit_void_test_decl(test_ngtcp2_gaptr_is_pushed)
+munit_void_test_decl(test_ngtcp2_gaptr_drop_first_gap)
+munit_void_test_decl(test_ngtcp2_gaptr_get_first_gap_after)
 
 #endif /* !defined(NGTCP2_GAPTR_TEST_H) */

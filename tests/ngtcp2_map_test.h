@@ -36,9 +36,9 @@
 
 extern const MunitSuite map_suite;
 
-munit_void_test_decl(test_ngtcp2_map);
-munit_void_test_decl(test_ngtcp2_map_functional);
-munit_void_test_decl(test_ngtcp2_map_each);
-munit_void_test_decl(test_ngtcp2_map_clear);
+munit_void_test_decl(test_ngtcp2_map)
+munit_void_test_decl(test_ngtcp2_map_functional)
+munit_void_test_decl(test_ngtcp2_map_each)
+munit_void_test_decl(test_ngtcp2_map_clear)
 
 #endif /* !defined(NGTCP2_MAP_TEST_H) */

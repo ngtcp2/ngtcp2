@@ -35,6 +35,6 @@
 
 extern const MunitSuite idtr_suite;
 
-munit_void_test_decl(test_ngtcp2_idtr_open);
+munit_void_test_decl(test_ngtcp2_idtr_open)
 
 #endif /* !defined(NGTCP2_IDTR_TEST_H) */

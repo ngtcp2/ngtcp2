@@ -35,7 +35,7 @@
 
 extern const MunitSuite pv_suite;
 
-munit_void_test_decl(test_ngtcp2_pv_add_entry);
-munit_void_test_decl(test_ngtcp2_pv_validate);
+munit_void_test_decl(test_ngtcp2_pv_add_entry)
+munit_void_test_decl(test_ngtcp2_pv_validate)
 
 #endif /* !defined(NGTCP2_PV_TEST_H) */

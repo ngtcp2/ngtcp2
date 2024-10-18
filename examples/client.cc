@@ -2178,7 +2178,7 @@ const std::vector<uint32_t> &Client::get_offered_versions() const {
   return offered_versions_;
 }
 
-bool Client::get_early_data() const { return early_data_; };
+bool Client::get_early_data() const { return early_data_; }
 
 namespace {
 int run(Client &c, const char *addr, const char *port,

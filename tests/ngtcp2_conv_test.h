@@ -35,14 +35,14 @@
 
 extern const MunitSuite conv_suite;
 
-munit_void_test_decl(test_ngtcp2_get_varint);
-munit_void_test_decl(test_ngtcp2_get_uvarintlen);
-munit_void_test_decl(test_ngtcp2_put_uvarintlen);
-munit_void_test_decl(test_ngtcp2_get_uint64be);
-munit_void_test_decl(test_ngtcp2_get_uint32be);
-munit_void_test_decl(test_ngtcp2_get_uint24be);
-munit_void_test_decl(test_ngtcp2_get_uint16be);
-munit_void_test_decl(test_ngtcp2_get_uint16);
-munit_void_test_decl(test_ngtcp2_put_pkt_num);
+munit_void_test_decl(test_ngtcp2_get_varint)
+munit_void_test_decl(test_ngtcp2_get_uvarintlen)
+munit_void_test_decl(test_ngtcp2_put_uvarintlen)
+munit_void_test_decl(test_ngtcp2_get_uint64be)
+munit_void_test_decl(test_ngtcp2_get_uint32be)
+munit_void_test_decl(test_ngtcp2_get_uint24be)
+munit_void_test_decl(test_ngtcp2_get_uint16be)
+munit_void_test_decl(test_ngtcp2_get_uint16)
+munit_void_test_decl(test_ngtcp2_put_pkt_num)
 
 #endif /* !defined(NGTCP2_CONV_TEST_H) */

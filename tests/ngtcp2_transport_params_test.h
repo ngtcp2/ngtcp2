@@ -35,9 +35,9 @@
 
 extern const MunitSuite transport_params_suite;
 
-munit_void_test_decl(test_ngtcp2_transport_params_encode);
-munit_void_test_decl(test_ngtcp2_transport_params_decode_new);
-munit_void_test_decl(test_ngtcp2_transport_params_convert_to_latest);
-munit_void_test_decl(test_ngtcp2_transport_params_convert_to_old);
+munit_void_test_decl(test_ngtcp2_transport_params_encode)
+munit_void_test_decl(test_ngtcp2_transport_params_decode_new)
+munit_void_test_decl(test_ngtcp2_transport_params_convert_to_latest)
+munit_void_test_decl(test_ngtcp2_transport_params_convert_to_old)
 
 #endif /* !defined(NGTCP2_TRANSPORT_PARAMS_TEST_H) */

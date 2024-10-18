@@ -51,7 +51,7 @@ public:
   }
   std::string get_selected_alpn() const;
   // TODO make keylog work with picotls
-  void enable_keylog() {};
+  void enable_keylog() {}
 
 protected:
   ngtcp2_crypto_picotls_ctx cptls_;

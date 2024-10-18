@@ -52,7 +52,7 @@
    packet payload that should be coalesced to a long packet. */
 #define NGTCP2_MIN_COALESCED_PAYLOADLEN 128
 
-ngtcp2_objalloc_def(strm, ngtcp2_strm, oplent);
+ngtcp2_objalloc_def(strm, ngtcp2_strm, oplent)
 
 /*
  * conn_local_stream returns nonzero if |stream_id| indicates that it

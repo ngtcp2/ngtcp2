@@ -35,7 +35,7 @@
 
 static ngtcp2_ksl_blk null_blk = {{{NULL, NULL, 0, 0, {0}}}};
 
-ngtcp2_objalloc_def(ksl_blk, ngtcp2_ksl_blk, oplent);
+ngtcp2_objalloc_def(ksl_blk, ngtcp2_ksl_blk, oplent)
 
 static size_t ksl_nodelen(size_t keylen) {
   assert(keylen >= sizeof(uint64_t));

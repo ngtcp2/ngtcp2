@@ -35,9 +35,9 @@
 
 extern const MunitSuite rob_suite;
 
-munit_void_test_decl(test_ngtcp2_rob_push);
-munit_void_test_decl(test_ngtcp2_rob_push_random);
-munit_void_test_decl(test_ngtcp2_rob_data_at);
-munit_void_test_decl(test_ngtcp2_rob_remove_prefix);
+munit_void_test_decl(test_ngtcp2_rob_push)
+munit_void_test_decl(test_ngtcp2_rob_push_random)
+munit_void_test_decl(test_ngtcp2_rob_data_at)
+munit_void_test_decl(test_ngtcp2_rob_remove_prefix)
 
 #endif /* !defined(NGTCP2_ROB_TEST_H) */

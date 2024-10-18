@@ -35,6 +35,6 @@
 
 extern const MunitSuite pmtud_suite;
 
-munit_void_test_decl(test_ngtcp2_pmtud_probe);
+munit_void_test_decl(test_ngtcp2_pmtud_probe)
 
 #endif /* !defined(NGTCP2_PMTUD_TEST_H) */

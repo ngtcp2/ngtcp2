@@ -35,9 +35,9 @@
 
 extern const MunitSuite strm_suite;
 
-munit_void_test_decl(test_ngtcp2_strm_streamfrq_pop);
-munit_void_test_decl(test_ngtcp2_strm_streamfrq_unacked_offset);
-munit_void_test_decl(test_ngtcp2_strm_streamfrq_unacked_pop);
-munit_void_test_decl(test_ngtcp2_strm_discard_reordered_data);
+munit_void_test_decl(test_ngtcp2_strm_streamfrq_pop)
+munit_void_test_decl(test_ngtcp2_strm_streamfrq_unacked_offset)
+munit_void_test_decl(test_ngtcp2_strm_streamfrq_unacked_pop)
+munit_void_test_decl(test_ngtcp2_strm_discard_reordered_data)
 
 #endif /* !defined(NGTCP2_STRM_TEST_H) */

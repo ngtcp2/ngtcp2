@@ -35,6 +35,6 @@
 
 extern const MunitSuite qlog_suite;
 
-munit_void_test_decl(test_ngtcp2_qlog_write_frame);
+munit_void_test_decl(test_ngtcp2_qlog_write_frame)
 
 #endif /* !defined(NGTCP2_QLOG_TEST_H) */
