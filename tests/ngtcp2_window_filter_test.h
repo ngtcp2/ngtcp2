@@ -35,6 +35,6 @@
 
 extern const MunitSuite window_filter_suite;
 
-munit_void_test_decl(test_ngtcp2_window_filter_update);
+munit_void_test_decl(test_ngtcp2_window_filter_update)
 
 #endif /* !defined(NGTCP2_WINDOW_FILTER_TEST_H) */

@@ -38,7 +38,7 @@
 #include "ngtcp2_tstamp.h"
 #include "ngtcp2_frame_chain.h"
 
-ngtcp2_objalloc_def(rtb_entry, ngtcp2_rtb_entry, oplent);
+ngtcp2_objalloc_def(rtb_entry, ngtcp2_rtb_entry, oplent)
 
 static void rtb_entry_init(ngtcp2_rtb_entry *ent, const ngtcp2_pkt_hd *hd,
                            ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,

@@ -35,6 +35,6 @@
 
 extern const MunitSuite tstamp_suite;
 
-munit_void_test_decl(test_ngtcp2_tstamp_elapsed);
+munit_void_test_decl(test_ngtcp2_tstamp_elapsed)
 
 #endif /* !defined(NGTCP2_TSTAMP_TEST_H) */

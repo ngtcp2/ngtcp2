@@ -35,6 +35,6 @@
 
 extern const MunitSuite cc_suite;
 
-munit_void_test_decl(test_ngtcp2_cbrt);
+munit_void_test_decl(test_ngtcp2_cbrt)
 
 #endif /* !defined(NGTCP2_CC_TEST_H) */

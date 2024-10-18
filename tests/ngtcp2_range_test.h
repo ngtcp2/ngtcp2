@@ -35,8 +35,8 @@
 
 extern const MunitSuite range_suite;
 
-munit_void_test_decl(test_ngtcp2_range_intersect);
-munit_void_test_decl(test_ngtcp2_range_cut);
-munit_void_test_decl(test_ngtcp2_range_not_after);
+munit_void_test_decl(test_ngtcp2_range_intersect)
+munit_void_test_decl(test_ngtcp2_range_cut)
+munit_void_test_decl(test_ngtcp2_range_not_after)
 
 #endif /* !defined(NGTCP2_RANGE_TEST_H) */
