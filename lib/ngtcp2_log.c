@@ -477,6 +477,27 @@ static void log_fr_datagram(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   ngtcp2_vec_len(fr->data, fr->datacnt));
 }
 
+static void log_fr_ack_frequency(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                 const ngtcp2_ack_frequency *fr,
+                                 const char *dir) {
+  log->log_printf(
+    log->user_data,
+    (NGTCP2_LOG_PKT " ACK_FREQUENCY(0x%02" PRIx64 ") seq=%" PRIu64
+                    " ack_eliciting_threshold=%" PRIu64
+                    " requested_max_ack_delay=%" PRIu64
+                    " reordering_threshold=%" PRIu64),
+    NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq, fr->ack_eliciting_thresh,
+    fr->req_max_ack_delay / NGTCP2_MICROSECONDS, fr->reordering_thresh);
+}
+
+static void log_fr_immediate_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                 const ngtcp2_immediate_ack *fr,
+                                 const char *dir) {
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_PKT " IMMEDIATE_ACK(0x%02" PRIx64 ")"),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type);
+}
+
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                    const ngtcp2_frame *fr, const char *dir) {
   switch (fr->type) {
@@ -547,6 +568,12 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   case NGTCP2_FRAME_DATAGRAM:
   case NGTCP2_FRAME_DATAGRAM_LEN:
     log_fr_datagram(log, hd, &fr->datagram, dir);
+    break;
+  case NGTCP2_FRAME_ACK_FREQUENCY:
+    log_fr_ack_frequency(log, hd, &fr->ack_frequency, dir);
+    break;
+  case NGTCP2_FRAME_IMMEDIATE_ACK:
+    log_fr_immediate_ack(log, hd, &fr->immediate_ack, dir);
     break;
   default:
     ngtcp2_unreachable();
@@ -757,6 +784,10 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
         NGTCP2_LOG_TP_HD_FIELDS, i >> 2, version);
     }
   }
+
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " min_ack_delay=%" PRIu64),
+                  NGTCP2_LOG_TP_HD_FIELDS,
+                  params->min_ack_delay / NGTCP2_MICROSECONDS);
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,

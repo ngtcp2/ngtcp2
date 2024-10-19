@@ -191,6 +191,8 @@ struct Config {
   uint32_t initial_pkt_num;
   // pmtud_probes is the array of UDP datagram payload size to probes.
   std::vector<uint16_t> pmtud_probes;
+  // min_ack_delay is the minimum ack delay.
+  ngtcp2_duration min_ack_delay;
 };
 
 class ClientBase {
