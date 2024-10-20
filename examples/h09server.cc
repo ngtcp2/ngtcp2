@@ -1725,7 +1725,7 @@ int Server::init(const char *addr, const char *port) {
 
 int Server::on_read(Endpoint &ep) {
   sockaddr_union su;
-  std::array<uint8_t, 64_k - 1> buf;
+  std::array<uint8_t, 64_k> buf;
   size_t pktcnt = 0;
   ngtcp2_pkt_info pi;
 
