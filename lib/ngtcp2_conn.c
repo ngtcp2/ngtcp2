@@ -51,6 +51,10 @@
 /* NGTCP2_MIN_COALESCED_PAYLOADLEN is the minimum length of QUIC
    packet payload that should be coalesced to a long packet. */
 #define NGTCP2_MIN_COALESCED_PAYLOADLEN 128
+/* NGTCP2_MAX_ACK_PER_PKT is the maximum number of ACK frame per an
+   incoming QUIC packet to process.  ACK frames that exceed this limit
+   are not processed. */
+#define NGTCP2_MAX_ACK_PER_PKT 1
 
 ngtcp2_objalloc_def(strm, ngtcp2_strm, oplent)
 
@@ -6109,6 +6113,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_strm *crypto;
   ngtcp2_encryption_level encryption_level;
   int invalid_reserved_bits = 0;
+  size_t num_ack_processed = 0;
 
   if (pktlen == 0) {
     return 0;
@@ -6561,6 +6566,9 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
     case NGTCP2_FRAME_ACK_ECN:
+      if (num_ack_processed >= NGTCP2_MAX_ACK_PER_PKT) {
+        break;
+      }
       if (!conn->server && hd.type == NGTCP2_PKT_HANDSHAKE) {
         conn->flags |= NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
       }
@@ -6568,6 +6576,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (rv != 0) {
         return rv;
       }
+      ++num_ack_processed;
       break;
     case NGTCP2_FRAME_PADDING:
       break;
@@ -8676,6 +8685,7 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
   int rv;
   int require_ack = 0;
   ngtcp2_pktns *pktns;
+  size_t num_ack_processed = 0;
 
   assert(hd->type == NGTCP2_PKT_HANDSHAKE);
 
@@ -8710,6 +8720,9 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
     case NGTCP2_FRAME_ACK_ECN:
+      if (num_ack_processed >= NGTCP2_MAX_ACK_PER_PKT) {
+        break;
+      }
       if (!conn->server) {
         conn->flags |= NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
       }
@@ -8717,6 +8730,7 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
       if (rv != 0) {
         return rv;
       }
+      ++num_ack_processed;
       break;
     case NGTCP2_FRAME_PADDING:
       break;
@@ -8878,6 +8892,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   int recv_ncid = 0;
   int new_cid_used = 0;
   int path_challenge_recved = 0;
+  size_t num_ack_processed = 0;
 
   if (conn->server && conn->local.transport_params.disable_active_migration &&
       !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
@@ -9228,6 +9243,9 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
     case NGTCP2_FRAME_ACK_ECN:
+      if (num_ack_processed >= NGTCP2_MAX_ACK_PER_PKT) {
+        break;
+      }
       if (!conn->server) {
         conn->flags |= NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
       }
@@ -9236,6 +9254,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         return rv;
       }
       non_probing_pkt = 1;
+      ++num_ack_processed;
       break;
     case NGTCP2_FRAME_STREAM:
       rv = conn_recv_stream(conn, &fr->stream);
