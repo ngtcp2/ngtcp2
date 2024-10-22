@@ -233,6 +233,7 @@ StatementMacros:
   - Q_UNUSED
   - QT_REQUIRE_VERSION
   - munit_void_test_decl
+  - ngtcp2_ksl_search_def
   - ngtcp2_max_def
   - ngtcp2_min_def
   - ngtcp2_objalloc_decl

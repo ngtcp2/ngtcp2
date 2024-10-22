@@ -81,17 +81,14 @@ void ngtcp2_rtb_entry_objalloc_del(ngtcp2_rtb_entry *ent,
   ngtcp2_objalloc_rtb_entry_release(objalloc, ent);
 }
 
-static int greater(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
-  return *(int64_t *)lhs > *(int64_t *)rhs;
-}
-
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_rst *rst, ngtcp2_cc *cc,
                      int64_t cc_pkt_num, ngtcp2_log *log, ngtcp2_qlog *qlog,
                      ngtcp2_objalloc *rtb_entry_objalloc,
                      ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem) {
   rtb->rtb_entry_objalloc = rtb_entry_objalloc;
   rtb->frc_objalloc = frc_objalloc;
-  ngtcp2_ksl_init(&rtb->ents, greater, sizeof(int64_t), mem);
+  ngtcp2_ksl_init(&rtb->ents, ngtcp2_ksl_int64_greater,
+                  ngtcp2_ksl_int64_greater_search, sizeof(int64_t), mem);
   rtb->rst = rst;
   rtb->cc = cc;
   rtb->log = log;
