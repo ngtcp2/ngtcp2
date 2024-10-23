@@ -3427,10 +3427,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         ngtcp2_acktr_commit_ack(&pktns->acktr);
         ngtcp2_acktr_add_ack(&pktns->acktr, hd->pkt_num,
                              ackfr->ack.largest_ack);
-        if (type == NGTCP2_PKT_1RTT) {
-          conn_handle_unconfirmed_key_update_from_remote(
-            conn, ackfr->ack.largest_ack, ts);
-        }
+        assert(NGTCP2_PKT_1RTT == type);
+        conn_handle_unconfirmed_key_update_from_remote(
+          conn, ackfr->ack.largest_ack, ts);
         pkt_empty = 0;
       }
     }
