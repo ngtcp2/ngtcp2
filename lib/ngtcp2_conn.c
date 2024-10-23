@@ -771,6 +771,8 @@ static int cid_less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
   return ngtcp2_cid_less(lhs, rhs);
 }
 
+ngtcp2_ksl_search_def(cid_less, cid_less)
+
 static int retired_ts_less(const ngtcp2_pq_entry *lhs,
                            const ngtcp2_pq_entry *rhs) {
   const ngtcp2_scid *a = ngtcp2_struct_of(lhs, ngtcp2_scid, pe);
@@ -1163,7 +1165,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_gaptr_init(&(*pconn)->dcid.seqgap, mem);
 
-  ngtcp2_ksl_init(&(*pconn)->scid.set, cid_less, sizeof(ngtcp2_cid), mem);
+  ngtcp2_ksl_init(&(*pconn)->scid.set, cid_less, ksl_cid_less_search,
+                  sizeof(ngtcp2_cid), mem);
 
   ngtcp2_pq_init(&(*pconn)->scid.used, retired_ts_less, mem);
 

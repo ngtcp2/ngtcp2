@@ -43,10 +43,6 @@ const MunitSuite ksl_suite = {
   "/ksl", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
 };
 
-static int less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
-  return *(int64_t *)lhs < *(int64_t *)rhs;
-}
-
 void test_ngtcp2_ksl_insert(void) {
   static const int64_t keys[] = {10, 3,  8, 11, 16, 12, 1, 5, 4,
                                  0,  13, 7, 9,  2,  14, 6, 15};
@@ -56,7 +52,8 @@ void test_ngtcp2_ksl_insert(void) {
   ngtcp2_ksl_it it;
   int64_t k;
 
-  ngtcp2_ksl_init(&ksl, less, sizeof(int64_t), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_int64_less, ngtcp2_ksl_int64_less_search,
+                  sizeof(int64_t), mem);
 
   for (i = 0; i < ngtcp2_arraylen(keys); ++i) {
     assert_int(0, ==, ngtcp2_ksl_insert(&ksl, NULL, &keys[i], NULL));
@@ -76,7 +73,8 @@ void test_ngtcp2_ksl_insert(void) {
   ngtcp2_ksl_free(&ksl);
 
   /* check the case that the right end range is removed */
-  ngtcp2_ksl_init(&ksl, less, sizeof(int64_t), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_int64_less, ngtcp2_ksl_int64_less_search,
+                  sizeof(int64_t), mem);
 
   for (i = 0; i < 32; ++i) {
     k = (int64_t)i;
@@ -102,7 +100,8 @@ void test_ngtcp2_ksl_insert(void) {
   /* Check the case that the intermediate node contains smaller key
      than ancestor node.  Make sure that inserting key larger than
      that still works.*/
-  ngtcp2_ksl_init(&ksl, less, sizeof(int64_t), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_int64_less, ngtcp2_ksl_int64_less_search,
+                  sizeof(int64_t), mem);
 
   for (i = 0; i < 760; ++i) {
     k = (int64_t)i;
@@ -125,7 +124,8 @@ void test_ngtcp2_ksl_insert(void) {
   ngtcp2_ksl_free(&ksl);
 
   /* check merge node (head) */
-  ngtcp2_ksl_init(&ksl, less, sizeof(int64_t), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_int64_less, ngtcp2_ksl_int64_less_search,
+                  sizeof(int64_t), mem);
 
   for (i = 0; i < 32; ++i) {
     k = (int64_t)i;
@@ -145,7 +145,8 @@ void test_ngtcp2_ksl_insert(void) {
   ngtcp2_ksl_free(&ksl);
 
   /* check merge node (non head) */
-  ngtcp2_ksl_init(&ksl, less, sizeof(int64_t), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_int64_less, ngtcp2_ksl_int64_less_search,
+                  sizeof(int64_t), mem);
 
   for (i = 0; i < 32 + 18; ++i) {
     k = (int64_t)i;
@@ -167,7 +168,8 @@ void test_ngtcp2_ksl_insert(void) {
   ngtcp2_ksl_free(&ksl);
 
   /* Iterate backwards */
-  ngtcp2_ksl_init(&ksl, less, sizeof(int64_t), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_int64_less, ngtcp2_ksl_int64_less_search,
+                  sizeof(int64_t), mem);
 
   /* split nodes */
   for (i = 0; i < 100; ++i) {
@@ -211,7 +213,8 @@ void test_ngtcp2_ksl_clear(void) {
   size_t i;
   int64_t k;
 
-  ngtcp2_ksl_init(&ksl, less, sizeof(int64_t), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_int64_less, ngtcp2_ksl_int64_less_search,
+                  sizeof(int64_t), mem);
 
   for (i = 0; i < 100; ++i) {
     k = (int64_t)i;
@@ -248,12 +251,13 @@ void test_ngtcp2_ksl_range(void) {
   ngtcp2_ksl_it it;
   ngtcp2_ksl_node *node;
 
-  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, sizeof(ngtcp2_range), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, ngtcp2_ksl_range_search,
+                  sizeof(ngtcp2_range), mem);
 
   for (i = 0; i < ngtcp2_arraylen(keys); ++i) {
     assert_int(0, ==, ngtcp2_ksl_insert(&ksl, NULL, &keys[i], NULL));
-    it = ngtcp2_ksl_lower_bound_compar(&ksl, &keys[i],
-                                       ngtcp2_ksl_range_exclusive_compar);
+    it = ngtcp2_ksl_lower_bound_search(&ksl, &keys[i],
+                                       ngtcp2_ksl_range_exclusive_search);
     r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
     assert_true(ngtcp2_range_eq(&keys[i], &r));
@@ -261,8 +265,8 @@ void test_ngtcp2_ksl_range(void) {
 
   for (i = 0; i < ngtcp2_arraylen(keys); ++i) {
     assert_int(0, ==, ngtcp2_ksl_remove(&ksl, NULL, &keys[i]));
-    it = ngtcp2_ksl_lower_bound_compar(&ksl, &keys[i],
-                                       ngtcp2_ksl_range_exclusive_compar);
+    it = ngtcp2_ksl_lower_bound_search(&ksl, &keys[i],
+                                       ngtcp2_ksl_range_exclusive_search);
 
     if (!ngtcp2_ksl_it_end(&it)) {
       r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
@@ -274,7 +278,8 @@ void test_ngtcp2_ksl_range(void) {
   ngtcp2_ksl_free(&ksl);
 
   /* check merge node (head) */
-  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, sizeof(ngtcp2_range), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, ngtcp2_ksl_range_search,
+                  sizeof(ngtcp2_range), mem);
 
   for (i = 0; i < 32; ++i) {
     ngtcp2_range_init(&r, i, i + 1);
@@ -296,7 +301,8 @@ void test_ngtcp2_ksl_range(void) {
   ngtcp2_ksl_free(&ksl);
 
   /* check merge node (non head) */
-  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, sizeof(ngtcp2_range), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, ngtcp2_ksl_range_search,
+                  sizeof(ngtcp2_range), mem);
 
   for (i = 0; i < 32 + 18; ++i) {
     ngtcp2_range_init(&r, i, i + 1);
@@ -320,7 +326,8 @@ void test_ngtcp2_ksl_range(void) {
   ngtcp2_ksl_free(&ksl);
 
   /* shift_left */
-  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, sizeof(ngtcp2_range), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, ngtcp2_ksl_range_search,
+                  sizeof(ngtcp2_range), mem);
 
   for (i = 1; i < 6400; i += 100) {
     ngtcp2_range_init(&r, i, i + 1);
@@ -341,7 +348,8 @@ void test_ngtcp2_ksl_range(void) {
   ngtcp2_ksl_free(&ksl);
 
   /* shift_right */
-  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, sizeof(ngtcp2_range), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, ngtcp2_ksl_range_search,
+                  sizeof(ngtcp2_range), mem);
 
   for (i = 0; i < 32; ++i) {
     ngtcp2_range_init(&r, i, i + 1);
@@ -374,7 +382,8 @@ void test_ngtcp2_ksl_update_key_range(void) {
   ngtcp2_range r;
   ngtcp2_ksl_it it;
 
-  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, sizeof(ngtcp2_range), mem);
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, ngtcp2_ksl_range_search,
+                  sizeof(ngtcp2_range), mem);
 
   for (i = 0; i < ngtcp2_arraylen(ranges); ++i) {
     assert_int(0, ==, ngtcp2_ksl_insert(&ksl, NULL, &ranges[i], NULL));
@@ -395,7 +404,7 @@ void test_ngtcp2_ksl_update_key_range(void) {
   r.begin = 74;
   r.end = 75;
   it =
-    ngtcp2_ksl_lower_bound_compar(&ksl, &r, ngtcp2_ksl_range_exclusive_compar);
+    ngtcp2_ksl_lower_bound_search(&ksl, &r, ngtcp2_ksl_range_exclusive_search);
 
   r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
@@ -429,7 +438,8 @@ void test_ngtcp2_ksl_dup(void) {
   }
 
   for (j = 0; j < 10; ++j) {
-    ngtcp2_ksl_init(&ksl, less, sizeof(int64_t), mem);
+    ngtcp2_ksl_init(&ksl, ngtcp2_ksl_int64_less, ngtcp2_ksl_int64_less_search,
+                    sizeof(int64_t), mem);
 
     shuffle(keys, ngtcp2_arraylen(keys));
 
@@ -487,7 +497,8 @@ void test_ngtcp2_ksl_remove_hint(void) {
   }
 
   for (j = 0; j < 10; ++j) {
-    ngtcp2_ksl_init(&ksl, less, sizeof(int64_t), mem);
+    ngtcp2_ksl_init(&ksl, ngtcp2_ksl_int64_less, ngtcp2_ksl_int64_less_search,
+                    sizeof(int64_t), mem);
 
     shuffle(keys, ngtcp2_arraylen(keys));
 
