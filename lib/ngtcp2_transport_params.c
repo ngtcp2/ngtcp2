@@ -34,21 +34,13 @@
 
 void ngtcp2_transport_params_default_versioned(
   int transport_params_version, ngtcp2_transport_params *params) {
-  size_t len;
-
-  switch (transport_params_version) {
-  case NGTCP2_TRANSPORT_PARAMS_VERSION:
-    len = sizeof(*params);
-
-    break;
-  default:
-    ngtcp2_unreachable();
-  }
+  size_t len = ngtcp2_transport_paramslen_version(transport_params_version);
 
   memset(params, 0, len);
 
   switch (transport_params_version) {
   case NGTCP2_TRANSPORT_PARAMS_VERSION:
+  case NGTCP2_TRANSPORT_PARAMS_V1:
     params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
     params->active_connection_id_limit =
       NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
@@ -239,6 +231,9 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
     len += ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
            ngtcp2_put_uvarintlen(version_infolen) + version_infolen;
   }
+  if (params->reliable_stream_reset) {
+    len += zero_paramlen(NGTCP2_TRANSPORT_PARAM_RELIABLE_STREAM_RESET);
+  }
 
   if (dest == NULL && destlen == 0) {
     return (ngtcp2_ssize)len;
@@ -386,6 +381,10 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
       p = ngtcp2_cpymem(p, params->version_info.available_versions,
                         params->version_info.available_versionslen);
     }
+  }
+
+  if (params->reliable_stream_reset) {
+    p = write_zero_param(p, NGTCP2_TRANSPORT_PARAM_RELIABLE_STREAM_RESET);
   }
 
   assert((size_t)(p - dest) == len);
@@ -750,6 +749,12 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       }
       params->version_info_present = 1;
       break;
+    case NGTCP2_TRANSPORT_PARAM_RELIABLE_STREAM_RESET:
+      if (decode_zero_param(&p, end) != 0) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      params->reliable_stream_reset = 1;
+      break;
     default:
       /* Ignore unknown parameter */
       if (decode_varint(&valuelen, &p, end) != 0) {
@@ -852,14 +857,8 @@ static void transport_params_copy(ngtcp2_transport_params *dest,
                                   int transport_params_version) {
   assert(transport_params_version != NGTCP2_TRANSPORT_PARAMS_VERSION);
 
-  switch (transport_params_version) {
-  case NGTCP2_TRANSPORT_PARAMS_V1:
-    memcpy(dest, src,
-           offsetof(ngtcp2_transport_params, version_info_present) +
-             sizeof(src->version_info_present));
-
-    break;
-  }
+  memcpy(dest, src,
+         ngtcp2_transport_paramslen_version(transport_params_version));
 }
 
 const ngtcp2_transport_params *
@@ -883,4 +882,18 @@ void ngtcp2_transport_params_convert_to_old(
   assert(transport_params_version != NGTCP2_TRANSPORT_PARAMS_VERSION);
 
   transport_params_copy(dest, src, transport_params_version);
+}
+
+size_t ngtcp2_transport_paramslen_version(int transport_params_version) {
+  ngtcp2_transport_params params;
+
+  switch (transport_params_version) {
+  case NGTCP2_TRANSPORT_PARAMS_VERSION:
+    return sizeof(params);
+  case NGTCP2_TRANSPORT_PARAMS_V1:
+    return offsetof(ngtcp2_transport_params, version_info_present) +
+           sizeof(params.version_info_present);
+  default:
+    ngtcp2_unreachable();
+  }
 }
