@@ -359,9 +359,9 @@ int ngtcp2_ksl_it_begin(const ngtcp2_ksl_it *it);
 
 /*
  * ngtcp2_ksl_range_compar is an implementation of ngtcp2_ksl_compar.
- * lhs->ptr and rhs->ptr must point to ngtcp2_range object and the
- * function returns nonzero if (const ngtcp2_range *)(lhs->ptr)->begin
- * < (const ngtcp2_range *)(rhs->ptr)->begin.
+ * |lhs| and |rhs| must point to ngtcp2_range object, and the function
+ * returns nonzero if ((const ngtcp2_range *)lhs)->begin < ((const
+ * ngtcp2_range *)rhs)->begin.
  */
 int ngtcp2_ksl_range_compar(const ngtcp2_ksl_key *lhs,
                             const ngtcp2_ksl_key *rhs);
@@ -375,10 +375,10 @@ size_t ngtcp2_ksl_range_search(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
 
 /*
  * ngtcp2_ksl_range_exclusive_compar is an implementation of
- * ngtcp2_ksl_compar.  lhs->ptr and rhs->ptr must point to
- * ngtcp2_range object and the function returns nonzero if (const
- * ngtcp2_range *)(lhs->ptr)->begin < (const ngtcp2_range
- * *)(rhs->ptr)->begin and the 2 ranges do not intersect.
+ * ngtcp2_ksl_compar.  |lhs| and |rhs| must point to ngtcp2_range
+ * object, and the function returns nonzero if ((const ngtcp2_range
+ * *)lhs)->begin < ((const ngtcp2_range *)rhs)->begin, and the 2
+ * ranges do not intersect.
  */
 int ngtcp2_ksl_range_exclusive_compar(const ngtcp2_ksl_key *lhs,
                                       const ngtcp2_ksl_key *rhs);
