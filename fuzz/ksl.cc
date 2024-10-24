@@ -13,19 +13,24 @@ extern "C" {
 }
 #endif // defined(__cplusplus)
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  using KeyType = uint64_t;
-  using DataType = int64_t;
-  constexpr size_t keylen = sizeof(KeyType);
+using KeyType = uint64_t;
+using DataType = int64_t;
 
-  auto compar = [](auto *lhs, auto *rhs) -> int {
-    return *static_cast<const KeyType *>(lhs) <
-           *static_cast<const KeyType *>(rhs);
-  };
+namespace {
+int less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
+  return *static_cast<const KeyType *>(lhs) <
+         *static_cast<const KeyType *>(rhs);
+}
+} // namespace
+
+ngtcp2_ksl_search_def(less, less)
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+  constexpr size_t keylen = sizeof(KeyType);
 
   ngtcp2_ksl ksl;
 
-  ngtcp2_ksl_init(&ksl, compar, keylen, ngtcp2_mem_default());
+  ngtcp2_ksl_init(&ksl, less, ksl_less_search, keylen, ngtcp2_mem_default());
 
   for (; size >= keylen; ++data, --size) {
     KeyType d;
