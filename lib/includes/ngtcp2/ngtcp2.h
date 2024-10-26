@@ -1777,6 +1777,13 @@ typedef struct ngtcp2_settings {
    * or :member:`ngtcp2_transport_params.initial_max_stream_data_uni`,
    * depending on the type of stream.  The window size is scaled up to
    * the value specified in this field.
+   *
+   * Please note that the auto-tuning is done per stream.  Even if the
+   * previous stream gets larger window as a result of auto-tuning,
+   * the new stream still starts with the initial value set in
+   * transport parameters.  This might become a bottleneck if
+   * congestion window of a remote server is wide open.  If this
+   * causes an issue, do not enable auto-tuning.
    */
   uint64_t max_stream_window;
   /**
