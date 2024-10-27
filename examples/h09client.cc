@@ -1863,11 +1863,9 @@ void config_set_default(Config &config) {
   config.version = NGTCP2_PROTO_VER_V1;
   config.timeout = 30 * NGTCP2_SECONDS;
   config.http_method = "GET"sv;
-  config.max_data = 15_m;
-  config.max_stream_data_bidi_local = 6_m;
-  config.max_stream_data_uni = 6_m;
-  config.max_window = 24_m;
-  config.max_stream_window = 16_m;
+  config.max_data = 24_m;
+  config.max_stream_data_bidi_local = 16_m;
+  config.max_stream_data_uni = 16_m;
   config.max_streams_uni = 100;
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
