@@ -2908,7 +2908,7 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
   uint64_t inc = strm->rx.unsent_max_offset - strm->rx.max_offset;
   (void)conn;
 
-  return strm->rx.window < 2 * inc;
+  return strm->rx.window < 4 * inc;
 }
 
 /*
@@ -2918,7 +2918,7 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
   uint64_t inc = conn->rx.unsent_max_offset - conn->rx.max_offset;
 
-  return conn->rx.window < 2 * inc;
+  return conn->rx.window < 4 * inc;
 }
 
 /*
