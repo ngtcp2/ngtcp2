@@ -830,16 +830,16 @@ size_t ngtcp2_ksl_range_exclusive_search(const ngtcp2_ksl *ksl,
   return ksl_range_exclusive_search(ksl, blk, key);
 }
 
-int ngtcp2_ksl_int64_less(const ngtcp2_ksl_key *lhs,
-                          const ngtcp2_ksl_key *rhs) {
-  return *(int64_t *)lhs < *(int64_t *)rhs;
+int ngtcp2_ksl_uint64_less(const ngtcp2_ksl_key *lhs,
+                           const ngtcp2_ksl_key *rhs) {
+  return *(uint64_t *)lhs < *(uint64_t *)rhs;
 }
 
-ngtcp2_ksl_search_def(int64_less, ngtcp2_ksl_int64_less)
+ngtcp2_ksl_search_def(uint64_less, ngtcp2_ksl_uint64_less)
 
-size_t ngtcp2_ksl_int64_less_search(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
-                                    const ngtcp2_ksl_key *key) {
-  return ksl_int64_less_search(ksl, blk, key);
+size_t ngtcp2_ksl_uint64_less_search(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
+                                     const ngtcp2_ksl_key *key) {
+  return ksl_uint64_less_search(ksl, blk, key);
 }
 
 int ngtcp2_ksl_int64_greater(const ngtcp2_ksl_key *lhs,

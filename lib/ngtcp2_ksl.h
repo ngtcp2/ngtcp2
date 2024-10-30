@@ -392,18 +392,19 @@ size_t ngtcp2_ksl_range_exclusive_search(const ngtcp2_ksl *ksl,
                                          const ngtcp2_ksl_key *key);
 
 /*
- * ngtcp2_ksl_int64_less is an implementation of ngtcp2_ksl_compar.
- * |lhs| and |rhs| must point to int64_t objects, and the function
- * returns nonzero if *(int64_t *)|lhs| < *(int64_t *)|rhs|.
+ * ngtcp2_ksl_uint64_less is an implementation of ngtcp2_ksl_compar.
+ * |lhs| and |rhs| must point to uint64_t objects, and the function
+ * returns nonzero if *(uint64_t *)|lhs| < *(uint64_t *)|rhs|.
  */
-int ngtcp2_ksl_int64_less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs);
+int ngtcp2_ksl_uint64_less(const ngtcp2_ksl_key *lhs,
+                           const ngtcp2_ksl_key *rhs);
 
 /*
- * ngtcp2_ksl_int64_less_search is an implementation of
- * ngtcp2_ksl_search that uses ngtcp2_ksl_int64_less.
+ * ngtcp2_ksl_uint64_less_search is an implementation of
+ * ngtcp2_ksl_search that uses ngtcp2_ksl_uint64_less.
  */
-size_t ngtcp2_ksl_int64_less_search(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
-                                    const ngtcp2_ksl_key *key);
+size_t ngtcp2_ksl_uint64_less_search(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
+                                     const ngtcp2_ksl_key *key);
 
 /*
  * ngtcp2_ksl_int64_greater is an implementation of ngtcp2_ksl_compar.
