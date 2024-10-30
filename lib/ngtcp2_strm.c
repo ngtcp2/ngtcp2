@@ -176,8 +176,8 @@ static int strm_streamfrq_init(ngtcp2_strm *strm) {
     return NGTCP2_ERR_NOMEM;
   }
 
-  ngtcp2_ksl_init(streamfrq, ngtcp2_ksl_int64_less,
-                  ngtcp2_ksl_int64_less_search, sizeof(uint64_t), strm->mem);
+  ngtcp2_ksl_init(streamfrq, ngtcp2_ksl_uint64_less,
+                  ngtcp2_ksl_uint64_less_search, sizeof(uint64_t), strm->mem);
 
   strm->tx.streamfrq = streamfrq;
 
