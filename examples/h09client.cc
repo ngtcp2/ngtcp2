@@ -1708,16 +1708,16 @@ int Client::select_preferred_address(Address &selected_addr,
     return -1;
   }
 
-  char host[NI_MAXHOST], service[NI_MAXSERV];
-  if (auto rv =
-        getnameinfo(&selected_addr.su.sa, selected_addr.len, host, sizeof(host),
-                    service, sizeof(service), NI_NUMERICHOST | NI_NUMERICSERV);
-      rv != 0) {
-    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
-    return -1;
-  }
-
   if (!config.quiet) {
+    char host[NI_MAXHOST], service[NI_MAXSERV];
+    if (auto rv = getnameinfo(&selected_addr.su.sa, selected_addr.len, host,
+                              sizeof(host), service, sizeof(service),
+                              NI_NUMERICHOST | NI_NUMERICSERV);
+        rv != 0) {
+      std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
+      return -1;
+    }
+
     std::cerr << "selected server preferred_address is [" << host
               << "]:" << service << std::endl;
   }

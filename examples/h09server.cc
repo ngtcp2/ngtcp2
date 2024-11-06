@@ -2244,18 +2244,19 @@ int Server::send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
 
 int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                                const sockaddr *sa, socklen_t salen) {
-  std::array<char, NI_MAXHOST> host;
-  std::array<char, NI_MAXSERV> port;
   int rv;
 
-  if (auto rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
-                            port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
-      rv != 0) {
-    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
-    return -1;
-  }
-
   if (!config.quiet) {
+    std::array<char, NI_MAXHOST> host;
+    std::array<char, NI_MAXSERV> port;
+
+    if (auto rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
+                              port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
+        rv != 0) {
+      std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
+      return -1;
+    }
+
     std::cerr << "Verifying Retry token from [" << host.data()
               << "]:" << port.data() << std::endl;
     util::hexdump(stderr, hd->token, hd->tokenlen);
