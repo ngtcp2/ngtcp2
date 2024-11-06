@@ -1875,21 +1875,27 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
         return;
       }
 
-      if (hd.token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY &&
+      if (hd.token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY2 &&
           hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
         send_stateless_connection_close(&hd, ep, local_addr, sa, salen);
         return;
       }
 
       switch (hd.token[0]) {
-      case NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY:
-        if (verify_retry_token(&ocid, &hd, sa, salen) != 0) {
+      case NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY2:
+        switch (verify_retry_token(&ocid, &hd, sa, salen)) {
+        case 0:
+          pocid = &ocid;
+          token_type = NGTCP2_TOKEN_TYPE_RETRY;
+          break;
+        case -1:
           send_stateless_connection_close(&hd, ep, local_addr, sa, salen);
           return;
+        case 1:
+          hd.token = nullptr;
+          hd.tokenlen = 0;
+          break;
         }
-        pocid = &ocid;
-
-        token_type = NGTCP2_TOKEN_TYPE_RETRY;
 
         break;
       case NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR:
@@ -2079,13 +2085,13 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
     return -1;
   }
 
-  std::array<uint8_t, NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN> token;
+  std::array<uint8_t, NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN2> token;
 
   auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(
              std::chrono::system_clock::now().time_since_epoch())
              .count();
 
-  auto tokenlen = ngtcp2_crypto_generate_retry_token(
+  auto tokenlen = ngtcp2_crypto_generate_retry_token2(
     token.data(), config.static_secret.data(), config.static_secret.size(),
     chd->version, sa, salen, &scid, &chd->dcid, t);
   if (tokenlen < 0) {
@@ -2240,6 +2246,7 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                                const sockaddr *sa, socklen_t salen) {
   std::array<char, NI_MAXHOST> host;
   std::array<char, NI_MAXSERV> port;
+  int rv;
 
   if (auto rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
                             port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
@@ -2258,13 +2265,22 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
              std::chrono::system_clock::now().time_since_epoch())
              .count();
 
-  if (ngtcp2_crypto_verify_retry_token(
-        ocid, hd->token, hd->tokenlen, config.static_secret.data(),
-        config.static_secret.size(), hd->version, sa, salen, &hd->dcid,
-        10 * NGTCP2_SECONDS, t) != 0) {
+  rv = ngtcp2_crypto_verify_retry_token2(
+    ocid, hd->token, hd->tokenlen, config.static_secret.data(),
+    config.static_secret.size(), hd->version, sa, salen, &hd->dcid,
+    10 * NGTCP2_SECONDS, t);
+  switch (rv) {
+  case 0:
+    break;
+  case NGTCP2_CRYPTO_ERR_VERIFY_TOKEN:
     std::cerr << "Could not verify Retry token" << std::endl;
 
     return -1;
+  default:
+    std::cerr << "Could not read Retry token.  Continue without the token"
+              << std::endl;
+
+    return 1;
   }
 
   if (!config.quiet) {
