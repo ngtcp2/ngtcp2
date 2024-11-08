@@ -19,5 +19,5 @@ add_library(wolfssl::wolfssl ALIAS PkgConfig::wolfssl)
 # to TRUE if all listed variables are TRUE and the requested version
 # matches.
 find_package_handle_standard_args(wolfssl REQUIRED_VARS
-        wolfssl_LINK_LIBRARIES wolfssl_INCLUDE_DIRS
-        VERSION_VAR WOLFSSL_VERSION)
+                                  wolfssl_LINK_LIBRARIES wolfssl_INCLUDE_DIRS
+                                  VERSION_VAR WOLFSSL_VERSION)

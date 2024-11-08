@@ -347,7 +347,7 @@ set(PKGDATADIR "${CMAKE_INSTALL_FULL_DATADIR}/${CMAKE_PROJECT_NAME}")
 install(FILES README.rst DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 
 
-set(NGTCP2_TARGETS_EXPORT_NAME "${PROJECT_NAME}Targets" )
+set(NGTCP2_TARGETS_EXPORT_NAME "${PROJECT_NAME}Targets")
 add_subdirectory(lib)
 if(BUILD_TESTING)
   add_subdirectory(tests)
@@ -398,9 +398,9 @@ foreach(t wolfssl::wolfssl)
         foreach(c ${_cfg})
             get_target_property(_prop ${t} IMPORTED_LOCATION_${c})
             string(APPEND _libs_msg "    ${_name}[${c}]: ${_prop}\n")
-        endforeach ()
+        endforeach()
     endif()
-endforeach ()
+endforeach()
 message(STATUS "Dependencies:
 ${_libs_msg}
 ")
