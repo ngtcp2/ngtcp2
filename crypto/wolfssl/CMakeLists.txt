@@ -31,6 +31,7 @@ set(ngtcp2_crypto_wolfssl_SOURCES
 set(ngtcp2_crypto_wolfssl_INCLUDE_DIRS
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../includes>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../lib>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
@@ -50,7 +51,7 @@ if(ENABLE_SHARED_LIB)
   )
   target_include_directories(ngtcp2_crypto_wolfssl PUBLIC
     ${ngtcp2_crypto_wolfssl_INCLUDE_DIRS})
-  target_link_libraries(ngtcp2_crypto_wolfssl PUBLIC ngtcp2 wolfssl::wolfssl)
+  target_link_libraries(ngtcp2_crypto_wolfssl PUBLIC ngtcp2 ${WOLFSSL_LINK_TARGET})
 
   install(TARGETS ngtcp2_crypto_wolfssl
     EXPORT ${NGTCP2_TARGETS_EXPORT_NAME}
@@ -71,7 +72,7 @@ if(ENABLE_STATIC_LIB)
     ${ngtcp2_crypto_wolfssl_INCLUDE_DIRS})
   # There is no linking for static lib, but it brings required include paths
   # and compile definitions from dependencies
-  target_link_libraries(ngtcp2_crypto_wolfssl_static PUBLIC ngtcp2_static wolfssl::wolfssl)
+  target_link_libraries(ngtcp2_crypto_wolfssl_static PUBLIC ngtcp2_static ${WOLFSSL_LINK_TARGET})
 
   install(TARGETS ngtcp2_crypto_wolfssl_static
     EXPORT ${NGTCP2_TARGETS_EXPORT_NAME}

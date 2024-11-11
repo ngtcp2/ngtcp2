@@ -129,7 +129,6 @@ if(ENABLE_STATIC_LIB)
   foreach(include_DIR IN LISTS ngtcp2_INCLUDE_DIRS)
     target_include_directories(ngtcp2_static PUBLIC $<BUILD_INTERFACE:${include_DIR}>)
   endforeach()
-  target_include_directories(ngtcp2_static PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
   target_include_directories(ngtcp2_static PUBLIC $<INSTALL_INTERFACE:./include>)
 
