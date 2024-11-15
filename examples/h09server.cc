@@ -45,6 +45,7 @@
 #include <libgen.h>
 
 #include <http-parser/http_parser.h>
+#include <urlparse.h>
 
 #include "h09server.h"
 #include "network.h"
@@ -116,20 +117,18 @@ struct Request {
 
 namespace {
 Request request_path(const std::string_view &uri) {
-  http_parser_url u;
+  urlparse_url u;
   Request req;
 
-  http_parser_url_init(&u);
-
-  if (auto rv = http_parser_parse_url(uri.data(), uri.size(),
-                                      /* is_connect = */ 0, &u);
+  if (auto rv = urlparse_parse_url(uri.data(), uri.size(),
+                                   /* is_connect = */ 0, &u);
       rv != 0) {
     return req;
   }
 
-  if (u.field_set & (1 << UF_PATH)) {
-    req.path = std::string(uri.data() + u.field_data[UF_PATH].off,
-                           u.field_data[UF_PATH].len);
+  if (u.field_set & (1 << URLPARSE_PATH)) {
+    req.path = std::string(uri.data() + u.field_data[URLPARSE_PATH].off,
+                           u.field_data[URLPARSE_PATH].len);
     if (req.path.find('%') != std::string::npos) {
       req.path = util::percent_decode(std::begin(req.path), std::end(req.path));
     }

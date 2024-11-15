@@ -29,6 +29,7 @@ AM_CPPFLAGS = \
 	-I$(top_builddir)/lib/includes \
 	-I$(top_srcdir)/crypto/includes \
 	-I$(top_srcdir)/third-party \
+	-I$(top_srcdir)/third-party/urlparse \
 	@LIBEV_CFLAGS@ \
 	@LIBNGHTTP3_CFLAGS@ \
 	@LIBBROTLIENC_CFLAGS@ \
@@ -39,6 +40,7 @@ AM_LDFLAGS = -no-install \
 	@LIBTOOL_LDFLAGS@
 LDADD = $(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/libhttp-parser.la \
+	$(top_builddir)/third-party/liburlparse.la \
 	@LIBEV_LIBS@ \
 	@LIBNGHTTP3_LIBS@ \
 	@LIBBROTLIENC_LIBS@ \
