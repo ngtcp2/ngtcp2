@@ -51,6 +51,7 @@ if(LIBEV_FOUND AND HAVE_OPENSSL AND LIBNGHTTP3_FOUND)
     ${CMAKE_SOURCE_DIR}/lib/includes
     ${CMAKE_BINARY_DIR}/lib/includes
     ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/third-party/urlparse
     ${CMAKE_SOURCE_DIR}/crypto/includes
 
     ${JEMALLOC_INCLUDE_DIRS}
@@ -68,8 +69,14 @@ if(LIBEV_FOUND AND HAVE_OPENSSL AND LIBNGHTTP3_FOUND)
     ${LIBNGHTTP3_LIBRARIES}
   )
 
-  add_executable(qtlsclient ${qtlsclient_SOURCES} $<TARGET_OBJECTS:http-parser>)
-  add_executable(qtlsserver ${qtlsserver_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  add_executable(qtlsclient ${qtlsclient_SOURCES}
+    $<TARGET_OBJECTS:http-parser>
+    $<TARGET_OBJECTS:urlparse>
+  )
+  add_executable(qtlsserver ${qtlsserver_SOURCES}
+    $<TARGET_OBJECTS:http-parser>
+    $<TARGET_OBJECTS:urlparse>
+  )
   set_target_properties(qtlsclient PROPERTIES
     COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_QUICTLS -DWITH_EXAMPLE_QUICTLS"
     CXX_STANDARD 20
@@ -118,6 +125,7 @@ if(LIBEV_FOUND AND HAVE_GNUTLS AND LIBNGHTTP3_FOUND)
     ${CMAKE_SOURCE_DIR}/lib/includes
     ${CMAKE_BINARY_DIR}/lib/includes
     ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/third-party/urlparse
     ${CMAKE_SOURCE_DIR}/crypto/includes
 
     ${JEMALLOC_INCLUDE_DIRS}
@@ -135,8 +143,14 @@ if(LIBEV_FOUND AND HAVE_GNUTLS AND LIBNGHTTP3_FOUND)
     ${LIBNGHTTP3_LIBRARIES}
   )
 
-  add_executable(gtlsclient ${gtlsclient_SOURCES} $<TARGET_OBJECTS:http-parser>)
-  add_executable(gtlsserver ${gtlsserver_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  add_executable(gtlsclient ${gtlsclient_SOURCES}
+    $<TARGET_OBJECTS:http-parser>
+    $<TARGET_OBJECTS:urlparse>
+  )
+  add_executable(gtlsserver ${gtlsserver_SOURCES}
+    $<TARGET_OBJECTS:http-parser>
+    $<TARGET_OBJECTS:urlparse>
+  )
   set_target_properties(gtlsclient PROPERTIES
     COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_GNUTLS -DWITH_EXAMPLE_GNUTLS"
     CXX_STANDARD 20
@@ -187,6 +201,7 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     ${CMAKE_SOURCE_DIR}/lib/includes
     ${CMAKE_BINARY_DIR}/lib/includes
     ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/third-party/urlparse
     ${CMAKE_SOURCE_DIR}/crypto/includes
 
     ${JEMALLOC_INCLUDE_DIRS}
@@ -208,8 +223,14 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     ${LIBBROTLIDEC_LIBRARIES}
   )
 
-  add_executable(bsslclient ${bsslclient_SOURCES} $<TARGET_OBJECTS:http-parser>)
-  add_executable(bsslserver ${bsslserver_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  add_executable(bsslclient ${bsslclient_SOURCES}
+    $<TARGET_OBJECTS:http-parser>
+    $<TARGET_OBJECTS:urlparse>
+  )
+  add_executable(bsslserver ${bsslserver_SOURCES}
+    $<TARGET_OBJECTS:http-parser>
+    $<TARGET_OBJECTS:urlparse>
+  )
   set_target_properties(bsslclient PROPERTIES
     COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_BORINGSSL -DWITH_EXAMPLE_BORINGSSL"
     CXX_STANDARD 20
@@ -260,6 +281,7 @@ if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
     ${CMAKE_SOURCE_DIR}/lib/includes
     ${CMAKE_BINARY_DIR}/lib/includes
     ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/third-party/urlparse
     ${CMAKE_SOURCE_DIR}/crypto/includes
 
     ${JEMALLOC_INCLUDE_DIRS}
@@ -279,8 +301,14 @@ if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
     ${LIBNGHTTP3_LIBRARIES}
   )
 
-  add_executable(ptlsclient ${ptlsclient_SOURCES} $<TARGET_OBJECTS:http-parser>)
-  add_executable(ptlsserver ${ptlsserver_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  add_executable(ptlsclient ${ptlsclient_SOURCES}
+    $<TARGET_OBJECTS:http-parser>
+    $<TARGET_OBJECTS:urlparse>
+  )
+  add_executable(ptlsserver ${ptlsserver_SOURCES}
+    $<TARGET_OBJECTS:http-parser>
+    $<TARGET_OBJECTS:urlparse>
+  )
   set_target_properties(ptlsclient PROPERTIES
     COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_PICOTLS -DWITH_EXAMPLE_PICOTLS"
     CXX_STANDARD 20
@@ -329,6 +357,7 @@ if(LIBEV_FOUND AND HAVE_WOLFSSL AND LIBNGHTTP3_FOUND)
     ${CMAKE_SOURCE_DIR}/lib/includes
     ${CMAKE_BINARY_DIR}/lib/includes
     ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/third-party/urlparse
     ${CMAKE_SOURCE_DIR}/crypto/includes
 
     ${JEMALLOC_INCLUDE_DIRS}
@@ -346,8 +375,14 @@ if(LIBEV_FOUND AND HAVE_WOLFSSL AND LIBNGHTTP3_FOUND)
     ${LIBNGHTTP3_LIBRARIES}
   )
 
-  add_executable(wsslclient ${wsslclient_SOURCES} $<TARGET_OBJECTS:http-parser>)
-  add_executable(wsslserver ${wsslserver_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  add_executable(wsslclient ${wsslclient_SOURCES}
+    $<TARGET_OBJECTS:http-parser>
+    $<TARGET_OBJECTS:urlparse>
+  )
+  add_executable(wsslserver ${wsslserver_SOURCES}
+    $<TARGET_OBJECTS:http-parser>
+    $<TARGET_OBJECTS:urlparse>
+  )
   set_target_properties(wsslclient PROPERTIES
     COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_WOLFSSL -DWITH_EXAMPLE_WOLFSSL"
     CXX_STANDARD 20

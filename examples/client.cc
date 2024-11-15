@@ -42,7 +42,7 @@
 #include <sys/mman.h>
 #include <libgen.h>
 
-#include <http-parser/http_parser.h>
+#include <urlparse.h>
 
 #include "client.h"
 #include "network.h"
@@ -2226,8 +2226,8 @@ int run(Client &c, const char *addr, const char *port,
 } // namespace
 
 namespace {
-std::string_view get_string(const char *uri, const http_parser_url &u,
-                            http_parser_url_fields f) {
+std::string_view get_string(const char *uri, const urlparse_url &u,
+                            urlparse_url_fields f) {
   auto p = &u.field_data[f];
   return {uri + p->off, p->len};
 }
@@ -2235,20 +2235,20 @@ std::string_view get_string(const char *uri, const http_parser_url &u,
 
 namespace {
 int parse_uri(Request &req, const char *uri) {
-  http_parser_url u;
+  urlparse_url u;
 
-  http_parser_url_init(&u);
-  if (http_parser_parse_url(uri, strlen(uri), /* is_connect = */ 0, &u) != 0) {
+  if (urlparse_parse_url(uri, strlen(uri), /* is_connect = */ 0, &u) != 0) {
     return -1;
   }
 
-  if (!(u.field_set & (1 << UF_SCHEMA)) || !(u.field_set & (1 << UF_HOST))) {
+  if (!(u.field_set & (1 << URLPARSE_SCHEMA)) ||
+      !(u.field_set & (1 << URLPARSE_HOST))) {
     return -1;
   }
 
-  req.scheme = get_string(uri, u, UF_SCHEMA);
+  req.scheme = get_string(uri, u, URLPARSE_SCHEMA);
 
-  auto host = std::string(get_string(uri, u, UF_HOST));
+  auto host = std::string(get_string(uri, u, URLPARSE_HOST));
   if (util::numeric_host(host.c_str(), AF_INET6)) {
     req.authority = '[';
     req.authority += host;
@@ -2257,20 +2257,20 @@ int parse_uri(Request &req, const char *uri) {
     req.authority = std::move(host);
   }
 
-  if (u.field_set & (1 << UF_PORT)) {
+  if (u.field_set & (1 << URLPARSE_PORT)) {
     req.authority += ':';
-    req.authority += get_string(uri, u, UF_PORT);
+    req.authority += get_string(uri, u, URLPARSE_PORT);
   }
 
-  if (u.field_set & (1 << UF_PATH)) {
-    req.path = get_string(uri, u, UF_PATH);
+  if (u.field_set & (1 << URLPARSE_PATH)) {
+    req.path = get_string(uri, u, URLPARSE_PATH);
   } else {
     req.path = "/";
   }
 
-  if (u.field_set & (1 << UF_QUERY)) {
+  if (u.field_set & (1 << URLPARSE_QUERY)) {
     req.path += '?';
-    req.path += get_string(uri, u, UF_QUERY);
+    req.path += get_string(uri, u, URLPARSE_QUERY);
   }
 
   return 0;

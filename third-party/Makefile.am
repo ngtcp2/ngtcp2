@@ -29,3 +29,9 @@ noinst_LTLIBRARIES = libhttp-parser.la
 libhttp_parser_la_SOURCES = \
 	http-parser/http_parser.c \
 	http-parser/http_parser.h
+
+noinst_LTLIBRARIES += liburlparse.la
+liburlparse_la_SOURCES = \
+	urlparse/urlparse.c \
+	urlparse/urlparse.h
+liburlparse_la_CPPFLAGS = -I${srcdir}/urlparse

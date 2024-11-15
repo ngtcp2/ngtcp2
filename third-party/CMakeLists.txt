@@ -31,4 +31,11 @@ add_library(http-parser OBJECT ${LIBHTTP_PARSER_SOURCES})
 set_target_properties(http-parser PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
+set(URLPARSE_SOURCES
+  urlparse/urlparse.c
+)
+add_library(urlparse OBJECT ${URLPARSE_SOURCES})
+set_target_properties(urlparse PROPERTIES
+  POSITION_INDEPENDENT_CODE ON)
+
 endif()

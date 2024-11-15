@@ -45,6 +45,7 @@
 #include <libgen.h>
 
 #include <http-parser/http_parser.h>
+#include <urlparse.h>
 
 #include "server.h"
 #include "network.h"
@@ -122,22 +123,20 @@ struct Request {
 
 namespace {
 Request request_path(const std::string_view &uri, bool is_connect) {
-  http_parser_url u;
+  urlparse_url u;
   Request req;
 
   req.pri.urgency = -1;
   req.pri.inc = -1;
 
-  http_parser_url_init(&u);
-
-  if (auto rv = http_parser_parse_url(uri.data(), uri.size(), is_connect, &u);
+  if (auto rv = urlparse_parse_url(uri.data(), uri.size(), is_connect, &u);
       rv != 0) {
     return req;
   }
 
-  if (u.field_set & (1 << UF_PATH)) {
-    req.path = std::string(uri.data() + u.field_data[UF_PATH].off,
-                           u.field_data[UF_PATH].len);
+  if (u.field_set & (1 << URLPARSE_PATH)) {
+    req.path = std::string(uri.data() + u.field_data[URLPARSE_PATH].off,
+                           u.field_data[URLPARSE_PATH].len);
     if (req.path.find('%') != std::string::npos) {
       req.path = util::percent_decode(std::begin(req.path), std::end(req.path));
     }
@@ -153,11 +152,11 @@ Request request_path(const std::string_view &uri, bool is_connect) {
     req.path = "/index.html";
   }
 
-  if (u.field_set & (1 << UF_QUERY)) {
+  if (u.field_set & (1 << URLPARSE_QUERY)) {
     static constexpr auto urgency_prefix = "u="sv;
     static constexpr auto inc_prefix = "i="sv;
-    auto q = std::string(uri.data() + u.field_data[UF_QUERY].off,
-                         u.field_data[UF_QUERY].len);
+    auto q = std::string(uri.data() + u.field_data[URLPARSE_QUERY].off,
+                         u.field_data[URLPARSE_QUERY].len);
     for (auto p = std::begin(q); p != std::end(q);) {
       if (util::istarts_with(p, std::end(q), std::begin(urgency_prefix),
                              std::end(urgency_prefix))) {
