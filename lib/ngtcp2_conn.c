@@ -1664,8 +1664,9 @@ static int conn_ensure_ack_ranges(ngtcp2_conn *conn, size_t n) {
  * ACK.
  */
 static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
-  return ngtcp2_min_uint64(conn->local.transport_params.max_ack_delay,
-                           conn->cstat.smoothed_rtt / 8);
+  return ngtcp2_min_uint64(
+    conn->local.transport_params.max_ack_delay,
+    ngtcp2_max_uint64(conn->cstat.smoothed_rtt / 8, NGTCP2_NANOSECONDS));
 }
 
 int ngtcp2_conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
@@ -12816,6 +12817,8 @@ int ngtcp2_conn_get_tls_early_data_rejected(ngtcp2_conn *conn) {
 int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
                            ngtcp2_duration ack_delay, ngtcp2_tstamp ts) {
   ngtcp2_conn_stat *cstat = &conn->cstat;
+
+  assert(rtt > 0);
 
   if (cstat->min_rtt == UINT64_MAX) {
     cstat->latest_rtt = rtt;

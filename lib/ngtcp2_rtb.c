@@ -867,7 +867,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   }
 
   if (largest_pkt_sent_ts != UINT64_MAX && ack_eliciting_pkt_acked) {
-    cc_ack.rtt = pkt_ts - largest_pkt_sent_ts;
+    cc_ack.rtt =
+      ngtcp2_max_uint64(pkt_ts - largest_pkt_sent_ts, NGTCP2_NANOSECONDS);
 
     rv = ngtcp2_conn_update_rtt(conn, cc_ack.rtt, fr->ack_delay_unscaled, ts);
     if (rv == 0 && cc->new_rtt_sample) {
