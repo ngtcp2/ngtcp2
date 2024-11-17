@@ -4216,7 +4216,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       ngtcp2_rtb_entry_objalloc_new(&ent, hd, NULL, ts, (size_t)nwrite,
                                     rtb_entry_flags, &conn->rtb_entry_objalloc);
     if (rv != 0) {
-      assert(ngtcp2_err_is_fatal((int)nwrite));
+      assert(ngtcp2_err_is_fatal(rv));
       return rv;
     }
 
