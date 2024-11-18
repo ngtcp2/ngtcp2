@@ -11,7 +11,7 @@ env:
   AWSLC_VERSION: v1.36.1
   PICOTLS_VERSION: e7d65c7e7389ea0807d62ae730486532ef655b30
   WOLFSSL_VERSION: v5.7.4-stable
-  LIBRESSL_VERSION: v3.9.2
+  LIBRESSL_VERSION: v4.0.0
   NGHTTP3_VERSION: head
 
 jobs:
@@ -533,13 +533,11 @@ jobs:
 
         if [ "${{ matrix.tls }}" = "group-c" ]; then
           # libressl does not support resumption, earlydata,
-          # TLS_AES_128_CCM_SHA256, and X25519.  Moreover, libressl
-          # server does not fail handshake if server requires client
-          # certificate, but client does not offer it.  Resumption
-          # does not work between libressl flavored picotls server and
+          # TLS_AES_128_CCM_SHA256, and X25519.  Resumption does not
+          # work between libressl flavored picotls server and
           # boringssl client.  The one of the reasons is the lack of
           # X25519 support in libressl.
-          EXPR="$EXPR and not ((quictls and (resume or earlydata or TLS_AES_128_CCM_SHA256)) or (quictls- and test_04_01) or (picotls-boringssl and (resume or earlydata)))"
+          EXPR="$EXPR and not ((quictls and (resume or earlydata or TLS_AES_128_CCM_SHA256)) or (picotls-boringssl and (resume or earlydata)))"
         fi
 
         pytest-3 -v -k "$EXPR"
