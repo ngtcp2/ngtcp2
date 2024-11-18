@@ -120,6 +120,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_ack_padding),
   munit_void_test(test_ngtcp2_conn_super_small_rtt),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
+  munit_void_test(test_ngtcp2_conn_post_handshake_failmalloc),
   munit_void_test(test_ngtcp2_accept),
   munit_void_test(test_ngtcp2_select_version),
   munit_void_test(test_ngtcp2_pkt_write_connection_close),
@@ -846,7 +847,7 @@ static void conn_set_scid_used(ngtcp2_conn *conn) {
 static void setup_default_server_cid_settings(
   ngtcp2_conn **pconn, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
   const ngtcp2_path *path, const ngtcp2_settings *settings,
-  const ngtcp2_transport_params *params) {
+  const ngtcp2_transport_params *params, const ngtcp2_mem *mem) {
   ngtcp2_callbacks cb;
   ngtcp2_transport_params remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
@@ -858,8 +859,7 @@ static void setup_default_server_cid_settings(
   server_default_callbacks(&cb);
 
   ngtcp2_conn_server_new(pconn, dcid, scid, path, NGTCP2_PROTO_VER_V1, &cb,
-                         settings, params,
-                         /* mem = */ NULL, NULL);
+                         settings, params, mem, NULL);
   ngtcp2_conn_set_initial_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
                                   &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
@@ -910,8 +910,8 @@ setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
   dcid_init(&dcid);
   scid_init(&scid);
 
-  setup_default_server_cid_settings(pconn, &dcid, &scid, path, settings,
-                                    params);
+  setup_default_server_cid_settings(pconn, &dcid, &scid, path, settings, params,
+                                    /* mem = */ NULL);
 }
 
 static void setup_default_server(ngtcp2_conn **pconn) {
@@ -12747,7 +12747,7 @@ void test_ngtcp2_conn_ack_padding(void) {
   /* ACK only packet which is padded to make packet at minimum size is
      not counted toward CWND. */
   setup_default_server_cid_settings(&conn, &dcid, &scid, &null_path.path,
-                                    &settings, &params);
+                                    &settings, &params, /* mem = */ NULL);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   spktlen =
@@ -12956,19 +12956,21 @@ static void *failmalloc_realloc(void *ptr, size_t size, void *user_data) {
   return realloc(ptr, size);
 }
 
+static void setup_failmalloc_mem(ngtcp2_mem *mem, failmalloc *mc) {
+  mem->user_data = mc;
+  mem->malloc = failmalloc_malloc;
+  mem->free = failmalloc_free;
+  mem->calloc = failmalloc_calloc;
+  mem->realloc = failmalloc_realloc;
+}
+
 void test_ngtcp2_conn_new_failmalloc(void) {
   ngtcp2_conn *conn;
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
   failmalloc mc;
-  ngtcp2_mem mem = {
-    &mc,
-    failmalloc_malloc,
-    failmalloc_free,
-    failmalloc_calloc,
-    failmalloc_realloc,
-  };
+  ngtcp2_mem mem;
   uint8_t token[] = "token";
   size_t tokenlen = strsize(token);
   uint32_t preferred_versions[] = {
@@ -12984,6 +12986,8 @@ void test_ngtcp2_conn_new_failmalloc(void) {
   int rv;
   size_t i;
   size_t nmalloc;
+
+  setup_failmalloc_mem(&mem, &mc);
 
   dcid_init(&dcid);
   scid_init(&scid);
@@ -13079,6 +13083,149 @@ void test_ngtcp2_conn_new_failmalloc(void) {
   assert_int(0, ==, rv);
 
   ngtcp2_conn_del(conn);
+}
+
+static size_t server_perform_post_handshake(size_t nmalloc_fail_start) {
+  ngtcp2_conn *conn;
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+  failmalloc mc;
+  ngtcp2_mem mem;
+  ngtcp2_cid dcid, scid;
+  int rv;
+  uint8_t buf[1200];
+  ngtcp2_tstamp t = 0;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_tpe tpe;
+  ngtcp2_ssize spktlen;
+
+  setup_failmalloc_mem(&mem, &mc);
+
+  dcid_init(&dcid);
+  scid_init(&scid);
+
+  server_default_settings(&settings);
+  server_default_transport_params(&params);
+
+  mc.nmalloc = 0;
+  mc.fail_start = SIZE_MAX;
+
+  setup_default_server_cid_settings(&conn, &dcid, &scid, &null_path.path,
+                                    &settings, &params, &mem);
+
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  mc.nmalloc = 0;
+  mc.fail_start = nmalloc_fail_start;
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, t);
+
+  if (mc.nmalloc >= mc.fail_start) {
+    rv = (int)spktlen;
+    goto fail;
+  }
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  t += 22 * NGTCP2_MILLISECONDS;
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
+
+  if (mc.nmalloc >= mc.fail_start) {
+    goto fail;
+  }
+
+  assert_int(0, ==, rv);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 1;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 1008;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  t += 5 * NGTCP2_MILLISECONDS;
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
+
+  if (mc.nmalloc >= mc.fail_start) {
+    goto fail;
+  }
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, 4,
+                                     null_data, 1111, t);
+
+  if (mc.nmalloc >= mc.fail_start) {
+    rv = (int)spktlen;
+    goto fail;
+  }
+
+  assert_ptrdiff(0, <, spktlen);
+
+  t = ngtcp2_conn_get_expiry(conn);
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  if (mc.nmalloc >= mc.fail_start) {
+    goto fail;
+  }
+
+  assert_int(0, ==, rv);
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, 4, NULL, 0, t);
+
+  if (mc.nmalloc >= mc.fail_start) {
+    rv = (int)spktlen;
+    goto fail;
+  }
+
+  assert_ptrdiff(0, <, spktlen);
+
+fail:
+  if (rv < 0) {
+    assert_int(NGTCP2_ERR_NOMEM, ==, rv);
+  }
+
+  ngtcp2_conn_del(conn);
+
+  return mc.nmalloc;
+}
+
+void test_ngtcp2_conn_post_handshake_failmalloc(void) {
+  size_t nmalloc, n;
+  size_t i;
+
+  nmalloc = server_perform_post_handshake(SIZE_MAX);
+
+  for (i = 0; i < nmalloc; ++i) {
+    n = server_perform_post_handshake(i + 1);
+
+    assert_size(i + 1, ==, n);
+  }
+
+  n = server_perform_post_handshake(i + 1);
+
+  assert_size(nmalloc, ==, n);
 }
 
 void test_ngtcp2_accept(void) {
