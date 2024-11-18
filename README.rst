@@ -169,8 +169,10 @@ Build with libressl
 
 .. code-block:: shell
 
-   $ git clone --depth 1 -b v3.9.2 https://github.com/libressl/portable.git libressl
+   $ git clone --depth 1 -b v4.0.0 https://github.com/libressl/portable.git libressl
    $ cd libressl
+   $ # Workaround autogen.sh failure
+   $ export LIBRESSL_GIT_OPTIONS="-b libressl-v4.0.0"
    $ ./autogen.sh
    $ ./configure --prefix=$PWD/build
    $ make -j$(nproc) install
