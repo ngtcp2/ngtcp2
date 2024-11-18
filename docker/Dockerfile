@@ -7,7 +7,7 @@ RUN apt-get update && \
         git g++ clang-15 make binutils autoconf automake autotools-dev libtool \
         pkg-config libev-dev libjemalloc-dev \
         ca-certificates mime-support && \
-    git clone --depth 1 -b v5.7.2-stable https://github.com/wolfSSL/wolfssl && \
+    git clone --depth 1 -b v5.7.4-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
     ./configure --disable-dependency-tracking --enable-static --enable-all \
         --enable-aesni --enable-harden --enable-keylog-export --disable-ech && \
