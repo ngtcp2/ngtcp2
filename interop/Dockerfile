@@ -21,7 +21,7 @@ RUN apt-get update && \
 
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then export WSSLFLAGS="--enable-aesni"; fi && \
     if [ "$TARGETPLATFORM" = "linux/arm64" ]; then export WSSLFLAGS="--enable-armasm"; fi && \
-    git clone --depth 1 -b v5.7.2-stable https://github.com/wolfSSL/wolfssl && \
+    git clone --depth 1 -b v5.7.4-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
     ./configure --disable-dependency-tracking --enable-static --enable-all \
         --enable-harden --enable-keylog-export --disable-ech \
