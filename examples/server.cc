@@ -2284,15 +2284,19 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
         continue;
       }
 
+#ifdef IPV6_RECVPKTINFO
       if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &val,
                      static_cast<socklen_t>(sizeof(val))) == -1) {
         close(fd);
         continue;
       }
+#endif // IPV6_RECVPKTINFO
+#ifdef IP_PKTINFO
     } else if (setsockopt(fd, IPPROTO_IP, IP_PKTINFO, &val,
                           static_cast<socklen_t>(sizeof(val))) == -1) {
       close(fd);
       continue;
+#endif // IP_PKTINFO
     }
 
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
@@ -2373,11 +2377,13 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
       close(fd);
       return -1;
     }
+#ifdef IP_PKTINFO
   } else if (setsockopt(fd, IPPROTO_IP, IP_PKTINFO, &val,
                         static_cast<socklen_t>(sizeof(val))) == -1) {
     std::cerr << "setsockopt: " << strerror(errno) << std::endl;
     close(fd);
     return -1;
+#endif // IP_PKTINFO
   }
 
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
@@ -3113,6 +3119,7 @@ Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
 
   auto cm = CMSG_FIRSTHDR(&msg);
 
+#if defined(IP_PKTINFO) && defined(IPV6_PKTINFO)
   switch (local_addr.addr->sa_family) {
   case AF_INET: {
     controllen += CMSG_SPACE(sizeof(in_pktinfo));
@@ -3141,6 +3148,7 @@ Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
   default:
     assert(0);
   }
+#endif // defined(IP_PKTINFO) && defined(IPV6_PKTINFO)
 
 #ifdef UDP_SEGMENT
   if (data.size() > gso_size) {
