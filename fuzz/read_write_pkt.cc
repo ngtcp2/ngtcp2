@@ -30,6 +30,8 @@
 #include <cstring>
 #include <array>
 
+#include <fuzzer/FuzzedDataProvider.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif // defined(__cplusplus)
@@ -354,6 +356,7 @@ ngtcp2_conn *setup_conn() {
 } // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+  FuzzedDataProvider fuzzed_data_provider(data, size);
   std::array<uint8_t, 1500> pkt;
 
   ngtcp2_path_storage ps;
@@ -368,10 +371,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   ngtcp2_tstamp ts{};
 
-  for (size_t i = 0; i < 10; ++i) {
-    ts = i * NGTCP2_MILLISECONDS;
+  while (fuzzed_data_provider.remaining_bytes() > 0) {
+    auto recv_pkt_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
+    
+    auto recv_pkt = fuzzed_data_provider.ConsumeBytes<uint8_t>(recv_pkt_len);
+    
+    ts += NGTCP2_MILLISECONDS;
 
-    auto rv = ngtcp2_conn_read_pkt(conn, &ps.path, &pi, data, size, ts);
+    auto rv = ngtcp2_conn_read_pkt(conn, &ps.path, &pi, recv_pkt.data(), recv_pkt.size(), ts);
     if (rv != 0) {
       break;
     }
