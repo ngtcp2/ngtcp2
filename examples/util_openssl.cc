@@ -138,7 +138,13 @@ const char *crypto_default_ciphers() {
 #endif // !(defined(ENABLE_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_QUICTLS))
 }
 
-const char *crypto_default_groups() { return "X25519:P-256:P-384:P-521"; }
+const char *crypto_default_groups() {
+  return "X25519:P-256:P-384:P-521"
+#if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
+         ":X25519MLKEM768"
+#endif // defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
+    ;
+}
 
 } // namespace util
 
