@@ -94,6 +94,9 @@ public:
 
   int send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
                   unsigned int ecn, std::span<const uint8_t> data);
+  std::pair<std::span<const uint8_t>, int>
+  send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
+              unsigned int ecn, std::span<const uint8_t> data, size_t gso_size);
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   int on_extend_max_streams();
   int handle_error();
@@ -131,7 +134,8 @@ public:
   int http_stream_close(int64_t stream_id, uint64_t app_error_code);
 
   void on_send_blocked(const Endpoint &ep, const ngtcp2_addr &remote_addr,
-                       unsigned int ecn, size_t datalen);
+                       unsigned int ecn, std::span<const uint8_t> data,
+                       size_t gso_size);
   void start_wev_endpoint(const Endpoint &ep);
   int send_blocked_packet();
 
@@ -172,16 +176,20 @@ private:
   // handshake_confirmed_ gets true after handshake has been
   // confirmed.
   bool handshake_confirmed_;
+  bool no_gso_;
 
   struct {
     bool send_blocked;
+    size_t num_blocked;
+    size_t num_blocked_sent;
     // blocked field is effective only when send_blocked is true.
     struct {
       const Endpoint *endpoint;
       Address remote_addr;
       unsigned int ecn;
-      size_t datalen;
-    } blocked;
+      std::span<const uint8_t> data;
+      size_t gso_size;
+    } blocked[2];
     std::array<uint8_t, 64_k> data;
   } tx_;
 };

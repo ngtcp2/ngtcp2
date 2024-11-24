@@ -41,6 +41,7 @@
 #include <netdb.h>
 #include <sys/mman.h>
 #include <libgen.h>
+#include <netinet/udp.h>
 
 #include <urlparse.h>
 
@@ -187,6 +188,13 @@ Client::Client(struct ev_loop *loop, uint32_t client_chosen_version,
     original_version_(original_version),
     early_data_(false),
     handshake_confirmed_(false),
+    no_gso_{
+#ifdef UDP_SEGMENT
+      false
+#else  // !defined(UDP_SEGMENT)
+      true
+#endif // !defined(UDP_SEGMENT)
+    },
     tx_{} {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   wev_.data = this;
@@ -949,9 +957,9 @@ int Client::on_write() {
     if (tx_.send_blocked) {
       return 0;
     }
-
-    ev_io_stop(loop_, &wev_);
   }
+
+  ev_io_stop(loop_, &wev_);
 
   if (auto rv = write_streams(); rv != 0) {
     return rv;
@@ -968,15 +976,21 @@ int Client::on_write() {
 
 int Client::write_streams() {
   ngtcp2_vec vec;
-  ngtcp2_path_storage ps;
-  size_t pktcnt = 0;
+  ngtcp2_path_storage ps, prev_ps;
+  uint32_t prev_ecn = 0;
   auto max_udp_payload_size = ngtcp2_conn_get_max_tx_udp_payload_size(conn_);
-  auto max_pktcnt =
-    std::max(ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size,
-             static_cast<size_t>(1));
+  auto path_max_udp_payload_size =
+    ngtcp2_conn_get_path_max_tx_udp_payload_size(conn_);
+  ngtcp2_pkt_info pi;
+  size_t gso_size = 0;
   auto ts = util::timestamp();
+  auto txbuf =
+    std::span{tx_.data.data(), std::max(ngtcp2_conn_get_send_quantum(conn_),
+                                        path_max_udp_payload_size)};
+  auto buf = txbuf;
 
   ngtcp2_path_storage_zero(&ps);
+  ngtcp2_path_storage_zero(&prev_ps);
 
   for (;;) {
     int64_t stream_id = -1;
@@ -995,11 +1009,14 @@ int Client::write_streams() {
     }
 
     ngtcp2_ssize ndatalen;
-    ngtcp2_pkt_info pi;
 
-    auto nwrite = ngtcp2_conn_writev_stream(
-      conn_, &ps.path, &pi, tx_.data.data(), max_udp_payload_size, &ndatalen,
-      flags, stream_id, &vec, vcnt, ts);
+    auto buflen = buf.size() >= max_udp_payload_size
+                    ? max_udp_payload_size
+                    : path_max_udp_payload_size;
+
+    auto nwrite =
+      ngtcp2_conn_writev_stream(conn_, &ps.path, &pi, buf.data(), buflen,
+                                &ndatalen, flags, stream_id, &vec, vcnt, ts);
     if (nwrite < 0) {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
@@ -1031,31 +1048,80 @@ int Client::write_streams() {
     }
 
     if (nwrite == 0) {
+      auto data = std::span{std::begin(txbuf), std::begin(buf)};
+      if (!data.empty()) {
+        auto &ep = *static_cast<Endpoint *>(prev_ps.path.user_data);
+
+        if (auto [rest, rv] =
+              send_packet(ep, prev_ps.path.remote, prev_ecn, data, gso_size);
+            rv != NETWORK_ERR_OK) {
+          assert(NETWORK_ERR_SEND_BLOCKED == rv);
+
+          on_send_blocked(ep, prev_ps.path.remote, prev_ecn, rest, gso_size);
+        }
+      }
+
       // We are congestion limited.
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       return 0;
     }
 
-    auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
+    auto last_pkt = buf.first(nwrite);
 
-    if (auto rv = send_packet(ep, ps.path.remote, pi.ecn,
-                              {tx_.data.data(), static_cast<size_t>(nwrite)});
-        rv != NETWORK_ERR_OK) {
-      if (rv != NETWORK_ERR_SEND_BLOCKED) {
-        ngtcp2_ccerr_set_liberr(&last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
-        disconnect();
+    buf = buf.subspan(nwrite);
 
-        return rv;
+    if (std::begin(last_pkt) == std::begin(txbuf)) {
+      ngtcp2_path_copy(&prev_ps.path, &ps.path);
+      prev_ecn = pi.ecn;
+      gso_size = nwrite;
+    } else if (!ngtcp2_path_eq(&prev_ps.path, &ps.path) || prev_ecn != pi.ecn ||
+               static_cast<size_t>(nwrite) > gso_size ||
+               (gso_size > path_max_udp_payload_size &&
+                static_cast<size_t>(nwrite) != gso_size)) {
+      auto &ep = *static_cast<Endpoint *>(prev_ps.path.user_data);
+      auto data = std::span{std::begin(txbuf), std::begin(last_pkt)};
+
+      if (auto [rest, rv] =
+            send_packet(ep, prev_ps.path.remote, prev_ecn, data, gso_size);
+          rv != 0) {
+        assert(NETWORK_ERR_SEND_BLOCKED == rv);
+
+        on_send_blocked(ep, prev_ps.path.remote, prev_ecn, rest, gso_size);
+        on_send_blocked(*static_cast<Endpoint *>(ps.path.user_data),
+                        ps.path.remote, pi.ecn, last_pkt, last_pkt.size());
+      } else {
+        auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
+
+        if (auto [rest, rv] = send_packet(ep, ps.path.remote, pi.ecn, last_pkt,
+                                          last_pkt.size());
+            rv != 0) {
+          assert(rest.size() == last_pkt.size());
+          assert(NETWORK_ERR_SEND_BLOCKED == rv);
+
+          on_send_blocked(ep, ps.path.remote, pi.ecn, rest, rest.size());
+        }
       }
 
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
-      on_send_blocked(ep, ps.path.remote, pi.ecn, nwrite);
 
       return 0;
     }
 
-    if (++pktcnt == max_pktcnt) {
+    if (buf.size() < path_max_udp_payload_size ||
+        static_cast<size_t>(nwrite) < gso_size) {
+      auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
+      auto data = std::span{std::begin(txbuf), std::begin(buf)};
+
+      if (auto [rest, rv] =
+            send_packet(ep, ps.path.remote, pi.ecn, data, gso_size);
+          rv != 0) {
+        assert(NETWORK_ERR_SEND_BLOCKED == rv);
+
+        on_send_blocked(ep, ps.path.remote, pi.ecn, rest, gso_size);
+      }
+
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
+
       return 0;
     }
   }
@@ -1406,11 +1472,38 @@ void Client::start_delay_stream_timer() {
 
 int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
                         unsigned int ecn, std::span<const uint8_t> data) {
+  auto [_, rv] = send_packet(ep, remote_addr, ecn, data, data.size());
+
+  return rv;
+}
+
+std::pair<std::span<const uint8_t>, int>
+Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
+                    unsigned int ecn, std::span<const uint8_t> data,
+                    size_t gso_size) {
+  assert(gso_size);
+
   if (debug::packet_lost(config.tx_loss_prob)) {
     if (!config.quiet) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
     }
-    return NETWORK_ERR_OK;
+    return {{}, NETWORK_ERR_OK};
+  }
+
+  if (no_gso_ && data.size() > gso_size) {
+    for (; !data.empty();) {
+      auto len = std::min(gso_size, data.size());
+
+      auto [_, rv] =
+        send_packet(ep, remote_addr, ecn, {std::begin(data), len}, len);
+      if (rv != 0) {
+        return {data, rv};
+      }
+
+      data = data.subspan(len);
+    }
+
+    return {{}, 0};
   }
 
   iovec msg_iov;
@@ -1425,14 +1518,17 @@ int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
-  uint8_t msg_ctrl[CMSG_SPACE(sizeof(int))];
+  uint8_t msg_ctrl[CMSG_SPACE(sizeof(int)) + CMSG_SPACE(sizeof(uint16_t))];
 
   memset(msg_ctrl, 0, sizeof(msg_ctrl));
 
   msg.msg_control = msg_ctrl;
   msg.msg_controllen = sizeof(msg_ctrl);
 
+  size_t controllen = 0;
+
   auto cm = CMSG_FIRSTHDR(&msg);
+  controllen += CMSG_SPACE(sizeof(int));
   cm->cmsg_len = CMSG_LEN(sizeof(int));
   memcpy(CMSG_DATA(cm), &ecn, sizeof(ecn));
 
@@ -1451,6 +1547,20 @@ int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
     assert(0);
   }
 
+#ifdef UDP_SEGMENT
+  if (data.size() > gso_size) {
+    controllen += CMSG_SPACE(sizeof(uint16_t));
+    cm = CMSG_NXTHDR(&msg, cm);
+    cm->cmsg_level = SOL_UDP;
+    cm->cmsg_type = UDP_SEGMENT;
+    cm->cmsg_len = CMSG_LEN(sizeof(uint16_t));
+    uint16_t n = gso_size;
+    memcpy(CMSG_DATA(cm), &n, sizeof(n));
+  }
+#endif // UDP_SEGMENT
+
+  msg.msg_controllen = controllen;
+
   ssize_t nwrite = 0;
 
   do {
@@ -1458,14 +1568,32 @@ int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
   } while (nwrite == -1 && errno == EINTR);
 
   if (nwrite == -1) {
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      return NETWORK_ERR_SEND_BLOCKED;
+    switch (errno) {
+    case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+    case EWOULDBLOCK:
+#endif // EAGAIN != EWOULDBLOCK
+      return {data, NETWORK_ERR_SEND_BLOCKED};
+#ifdef UDP_SEGMENT
+    case EIO:
+      if (data.size() > gso_size) {
+        // GSO failure; send each packet in a separate sendmsg call.
+        std::cerr << "sendmsg: disabling GSO due to " << strerror(errno)
+                  << std::endl;
+
+        no_gso_ = true;
+
+        return send_packet(ep, remote_addr, ecn, data, gso_size);
+      }
+      break;
+#endif // defined(UDP_SEGMENT)
     }
+
     std::cerr << "sendmsg: " << strerror(errno) << std::endl;
-    if (errno == EMSGSIZE) {
-      return 0;
-    }
-    return NETWORK_ERR_FATAL;
+
+    // TODO We have packet which is expected to fail to send (e.g.,
+    // path validation to old path).
+    return {{}, NETWORK_ERR_OK};
   }
 
   assert(static_cast<size_t>(nwrite) == data.size());
@@ -1478,20 +1606,27 @@ int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
               << " bytes" << std::endl;
   }
 
-  return NETWORK_ERR_OK;
+  return {{}, NETWORK_ERR_OK};
 }
 
 void Client::on_send_blocked(const Endpoint &ep, const ngtcp2_addr &remote_addr,
-                             unsigned int ecn, size_t datalen) {
-  assert(!tx_.send_blocked);
+                             unsigned int ecn, std::span<const uint8_t> data,
+                             size_t gso_size) {
+  assert(tx_.num_blocked || !tx_.send_blocked);
+  assert(tx_.num_blocked < 2);
+  assert(gso_size);
 
   tx_.send_blocked = true;
 
-  memcpy(&tx_.blocked.remote_addr.su, remote_addr.addr, remote_addr.addrlen);
-  tx_.blocked.remote_addr.len = remote_addr.addrlen;
-  tx_.blocked.ecn = ecn;
-  tx_.blocked.datalen = datalen;
-  tx_.blocked.endpoint = &ep;
+  auto &p = tx_.blocked[tx_.num_blocked++];
+
+  memcpy(&p.remote_addr.su, remote_addr.addr, remote_addr.addrlen);
+
+  p.remote_addr.len = remote_addr.addrlen;
+  p.endpoint = &ep;
+  p.ecn = ecn;
+  p.data = data;
+  p.gso_size = gso_size;
 
   start_wev_endpoint(ep);
 }
@@ -1513,27 +1648,30 @@ void Client::start_wev_endpoint(const Endpoint &ep) {
 int Client::send_blocked_packet() {
   assert(tx_.send_blocked);
 
-  ngtcp2_addr remote_addr{
-    .addr = &tx_.blocked.remote_addr.su.sa,
-    .addrlen = tx_.blocked.remote_addr.len,
-  };
+  for (; tx_.num_blocked_sent < tx_.num_blocked; ++tx_.num_blocked_sent) {
+    auto &p = tx_.blocked[tx_.num_blocked_sent];
 
-  auto rv = send_packet(*tx_.blocked.endpoint, remote_addr, tx_.blocked.ecn,
-                        {tx_.data.data(), tx_.blocked.datalen});
-  if (rv != 0) {
-    if (rv == NETWORK_ERR_SEND_BLOCKED) {
-      assert(wev_.fd == tx_.blocked.endpoint->fd);
+    ngtcp2_addr remote_addr{
+      .addr = &p.remote_addr.su.sa,
+      .addrlen = p.remote_addr.len,
+    };
+
+    auto [rest, rv] =
+      send_packet(*p.endpoint, remote_addr, p.ecn, p.data, p.gso_size);
+    if (rv != 0) {
+      assert(NETWORK_ERR_SEND_BLOCKED == rv);
+
+      p.data = rest;
+
+      start_wev_endpoint(*p.endpoint);
 
       return 0;
     }
-
-    ngtcp2_ccerr_set_liberr(&last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
-    disconnect();
-
-    return rv;
   }
 
   tx_.send_blocked = false;
+  tx_.num_blocked = 0;
+  tx_.num_blocked_sent = 0;
 
   return 0;
 }
