@@ -24,7 +24,10 @@ on [ngtcp2 issue tracker](https://github.com/ngtcp2/ngtcp2/issues)
 which notifies that the upcoming release will have a security fix.
 The `SECURITY` label is attached to this kind of issue.  The issue is
 not opened if a vulnerability is already disclosed, and it is publicly
-known that ngtcp2 is affected by that.
+known that ngtcp2 is affected by that.  The issue might not be created
+if CVE only affects the latest version released very recently.  In
+this case, we would like to release a fix without waiting a week to
+avoid widespread use of the version.
 
 Before few hours of new release, we merge the fixes to the master
 branch (and/or a release branch if necessary) and make a new release.
