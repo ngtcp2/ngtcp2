@@ -42,7 +42,7 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 # See versioning rule:
 #  https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 AC_SUBST(LT_CURRENT, 18)
-AC_SUBST(LT_REVISION, 6)
+AC_SUBST(LT_REVISION, 7)
 AC_SUBST(LT_AGE, 2)
 
 AC_SUBST(CRYPTO_QUICTLS_LT_CURRENT, 5)
