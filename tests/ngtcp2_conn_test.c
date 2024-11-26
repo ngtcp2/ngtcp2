@@ -280,6 +280,11 @@ typedef struct {
     int64_t stream_id;
     uint64_t app_error_code;
   } stream_close;
+  struct {
+    int64_t stream_id;
+    uint64_t final_size;
+    uint64_t app_error_code;
+  } stream_reset;
 } my_user_data;
 
 static int client_initial(ngtcp2_conn *conn, void *user_data) {
@@ -622,6 +627,22 @@ static int recv_stream_data_deferred_shutdown_stream_read(
                    stream_user_data);
 
   conn->callbacks.recv_stream_data = recv_stream_data_shutdown_stream_read;
+
+  return 0;
+}
+
+static int stream_reset(ngtcp2_conn *conn, int64_t stream_id,
+                        uint64_t final_size, uint64_t app_error_code,
+                        void *user_data, void *stream_user_data) {
+  my_user_data *ud = user_data;
+  (void)conn;
+  (void)stream_user_data;
+
+  if (ud) {
+    ud->stream_reset.stream_id = stream_id;
+    ud->stream_reset.final_size = final_size;
+    ud->stream_reset.app_error_code = app_error_code;
+  }
 
   return 0;
 }
@@ -1783,6 +1804,94 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   assert_ptrdiff(0, ==, spktlen);
 
   ngtcp2_conn_del(conn);
+
+  /* Check that stream is closed when reset_stream_at is satisfied. */
+  setup_default_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->remote.transport_params->reliable_stream_reset = 1;
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = stream_id;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 0;
+
+  tpe.app.last_pkt_num = 118;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 1);
+
+  assert_int(0, ==, rv);
+  assert_not_null(ngtcp2_conn_find_stream(conn, stream_id));
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 33, 1);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_shutdown_stream_write(conn, NGTCP2_SHUT_STREAM_FLAG_FLUSH,
+                                         stream_id, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_uint64(33, ==, strm->tx.reset_stream_at);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 2);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  /* Incoming FIN does not close stream */
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.fin = 1;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 0;
+
+  tpe.app.last_pkt_num = 120;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 2);
+
+  assert_int(0, ==, rv);
+  assert_not_null(ngtcp2_conn_find_stream(conn, stream_id));
+
+  /* ACK for RESET_STREAM_AT does not close stream */
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  tpe.app.last_pkt_num = 331;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 3);
+
+  assert_int(0, ==, rv);
+  assert_not_null(ngtcp2_conn_find_stream(conn, stream_id));
+
+  /* ACK for in-flight STREAM closes stream */
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 1;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 3);
+
+  assert_int(0, ==, rv);
+  assert_null(ngtcp2_conn_find_stream(conn, stream_id));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_shutdown_stream_read(void) {
@@ -1931,6 +2040,59 @@ void test_ngtcp2_conn_shutdown_stream_read(void) {
   assert_false(strm->flags & NGTCP2_STRM_FLAG_SEND_STOP_SENDING);
 
   ngtcp2_conn_del(conn);
+
+  /* Send STOP_SENDING if RESET_STREAM_AT has been received but
+     reliable_size is not satisfied yet. */
+  setup_default_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->local.transport_params.reliable_stream_reset = 1;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = stream_id;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 1;
+  fr.reset_stream.reliable_size = 1;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, stream_id, NGTCP2_APP_ERR02);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_uint64(NGTCP2_APP_ERR01, ==, strm->app_error_code);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_SEND_STOP_SENDING);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  assert_false(ngtcp2_ksl_it_end(&it));
+
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  assert_int64(stream_id, ==, frc->fr.stop_sending.stream_id);
+  assert_uint64(NGTCP2_APP_ERR02, ==, frc->fr.stop_sending.app_error_code);
+  assert_null(frc->next);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_reset_stream(void) {
@@ -1943,6 +2105,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   ngtcp2_strm *strm;
   int64_t stream_id;
   ngtcp2_tpe tpe;
+  my_user_data ud;
 
   /* Receive RESET_STREAM */
   setup_default_server(&conn);
@@ -2463,6 +2626,392 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   assert_int(0, ==, rv);
   assert_not_null(ngtcp2_conn_find_stream(conn, 4));
   assert_uint64(128 * 1024 + 956 + 1, ==, conn->rx.unsent_max_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving RESET_STREAM_AT when the local endpoint does not
+     express its will to receive it. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 1000;
+  fr.reset_stream.reliable_size = 1000;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving RESET_STREAM_AT with final_size < reliable_size. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->local.transport_params.reliable_stream_reset = 1;
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 997;
+  fr.reset_stream.reliable_size = 998;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving multiple RESET_STREAM_AT frames that disagree with
+     final_size. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->local.transport_params.reliable_stream_reset = 1;
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 999;
+  fr.reset_stream.reliable_size = 997;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 1000;
+  fr.reset_stream.reliable_size = 997;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(NGTCP2_ERR_STREAM_STATE, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving RESET_STREAM_AT with nonzero reliable_size. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->local.transport_params.reliable_stream_reset = 1;
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 999;
+  fr.reset_stream.reliable_size = 997;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_uint64(997, ==, strm->rx.reliable_offset);
+  assert_uint64(999, ==, strm->rx.final_offset);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
+  assert_false(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving multiple RESET_STREAM_AT frames to shrink
+     reliable_size. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->local.transport_params.reliable_stream_reset = 1;
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 999;
+  fr.reset_stream.reliable_size = 997;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_uint64(997, ==, strm->rx.reliable_offset);
+  assert_uint64(999, ==, strm->rx.final_offset);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
+  assert_false(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 999;
+  fr.reset_stream.reliable_size = 995;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+  assert_uint64(995, ==, strm->rx.reliable_offset);
+  assert_uint64(999, ==, strm->rx.final_offset);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
+  assert_false(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 999;
+  fr.reset_stream.reliable_size = 996;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+  assert_uint64(995, ==, strm->rx.reliable_offset);
+  assert_uint64(999, ==, strm->rx.final_offset);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
+  assert_false(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+
+  ngtcp2_conn_del(conn);
+
+  /* reliable_size is satisfied on 2nd RESET_STREAM_AT that shrinks
+     reliable_size. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->callbacks.stream_reset = stream_reset;
+  conn->local.transport_params.reliable_stream_reset = 1;
+  conn->user_data = &ud;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 911;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_uint64(911, ==, strm->rx.last_offset);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 999;
+  fr.reset_stream.reliable_size = 912;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  ud.stream_reset.stream_id = -1;
+  ud.stream_reset.app_error_code = 0;
+  ud.stream_reset.final_size = 0;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+  assert_int64(-1, ==, ud.stream_reset.stream_id);
+  assert_false(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 999;
+  fr.reset_stream.reliable_size = 911;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+  assert_int64(0, ==, ud.stream_reset.stream_id);
+  assert_uint64(NGTCP2_APP_ERR01, ==, ud.stream_reset.app_error_code);
+  assert_uint64(999, ==, ud.stream_reset.final_size);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+  assert_uint64(128 * 1024 + 999 - 911, ==, conn->rx.unsent_max_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* reliable_size is satisfied on 2nd STREAM which fills the gap. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->callbacks.stream_reset = stream_reset;
+  conn->local.transport_params.reliable_stream_reset = 1;
+  conn->user_data = &ud;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 1;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 197;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_uint64(198, ==, strm->rx.last_offset);
+  assert_uint64(0, ==, ngtcp2_strm_rx_offset(strm));
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 199;
+  fr.reset_stream.reliable_size = 198;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  ud.stream_reset.stream_id = -1;
+  ud.stream_reset.app_error_code = 0;
+  ud.stream_reset.final_size = 0;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+  assert_int64(-1, ==, ud.stream_reset.stream_id);
+  assert_false(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 1;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+  assert_int64(0, ==, ud.stream_reset.stream_id);
+  assert_uint64(NGTCP2_APP_ERR01, ==, ud.stream_reset.app_error_code);
+  assert_uint64(199, ==, ud.stream_reset.final_size);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+  assert_uint64(128 * 1024 + 199 - 198, ==, conn->rx.unsent_max_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* First receive RESET_STREAM_AT, and then STREAM satisfies
+     reliable_size. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->callbacks.stream_reset = stream_reset;
+  conn->local.transport_params.reliable_stream_reset = 1;
+  conn->user_data = &ud;
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 2;
+  fr.reset_stream.reliable_size = 1;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  ud.stream_reset.stream_id = -1;
+  ud.stream_reset.app_error_code = 0;
+  ud.stream_reset.final_size = 0;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_int64(-1, ==, ud.stream_reset.stream_id);
+  assert_false(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 1;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+  assert_uint64(2, ==, strm->rx.last_offset);
+  assert_uint64(1, ==, ngtcp2_strm_rx_offset(strm));
+  assert_int64(0, ==, ud.stream_reset.stream_id);
+  assert_uint64(NGTCP2_APP_ERR01, ==, ud.stream_reset.app_error_code);
+  assert_uint64(2, ==, ud.stream_reset.final_size);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+  assert_uint64(128 * 1024 + 2 - 1, ==, conn->rx.unsent_max_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* First receive STREAM, and then RESET_STREAM_AT with nonzero
+     reliable_size satisfies reliable_size. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->callbacks.stream_reset = stream_reset;
+  conn->local.transport_params.reliable_stream_reset = 1;
+  conn->user_data = &ud;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 1;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.reset_stream.stream_id = 0;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.reset_stream.final_size = 2;
+  fr.reset_stream.reliable_size = 1;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  ud.stream_reset.stream_id = -1;
+  ud.stream_reset.app_error_code = 0;
+  ud.stream_reset.final_size = 0;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_uint64(2, ==, strm->rx.last_offset);
+  assert_uint64(1, ==, ngtcp2_strm_rx_offset(strm));
+  assert_int64(0, ==, ud.stream_reset.stream_id);
+  assert_uint64(NGTCP2_APP_ERR01, ==, ud.stream_reset.app_error_code);
+  assert_uint64(2, ==, ud.stream_reset.final_size);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+  assert_uint64(128 * 1024 + 2 - 1, ==, conn->rx.unsent_max_offset);
 
   ngtcp2_conn_del(conn);
 }
@@ -4397,6 +4946,41 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   assert_size(0, ==, strm->tx.loss_count);
   assert_true(ngtcp2_strm_streamfrq_empty(strm));
+
+  ngtcp2_conn_del(conn);
+
+  /* Retransmit STREAM frame until reliable_size is fulfilled. */
+  setup_default_client(&conn);
+
+  conn->remote.transport_params->reliable_stream_reset = 1;
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 11, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_shutdown_stream_write(conn, NGTCP2_SHUT_STREAM_FLAG_FLUSH,
+                                         stream_id, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  t += NGTCP2_SECONDS;
+
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 1000;
+  ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_size(1, ==, strm->tx.loss_count);
+  assert_false(ngtcp2_strm_streamfrq_empty(strm));
 
   ngtcp2_conn_del(conn);
 
@@ -11395,6 +11979,8 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   /* client side */
   setup_default_client(&conn);
 
+  conn->remote.transport_params->reliable_stream_reset = 1;
+
   slen = ngtcp2_conn_encode_0rtt_transport_params(conn, buf, sizeof(buf));
 
   assert_ptrdiff(0, <, slen);
@@ -11410,6 +11996,7 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   assert_uint64(64 * 1024, ==, early_params.initial_max_stream_data_uni);
   assert_uint64(64 * 1024, ==, early_params.initial_max_data);
   assert_uint64(8, ==, early_params.active_connection_id_limit);
+  assert_true(early_params.reliable_stream_reset);
 
   ngtcp2_conn_del(conn);
 
@@ -11449,6 +12036,8 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
                 conn->remote.transport_params->initial_max_data);
   assert_uint64(early_params.active_connection_id_limit, ==,
                 conn->remote.transport_params->active_connection_id_limit);
+  assert_uint8(early_params.reliable_stream_reset, ==,
+               conn->remote.transport_params->reliable_stream_reset);
 
   ngtcp2_conn_del(conn);
 
@@ -11456,6 +12045,7 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   server_default_settings(&settings);
   server_default_transport_params(&params);
   params.disable_active_migration = 1;
+  params.reliable_stream_reset = 1;
   setup_default_server_settings(&conn, &null_path.path, &settings, &params);
 
   slen = ngtcp2_conn_encode_0rtt_transport_params(conn, buf, sizeof(buf));
@@ -11483,6 +12073,8 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
                 early_params.max_udp_payload_size);
   assert_uint8(params.disable_active_migration, ==,
                early_params.disable_active_migration);
+  assert_uint8(params.reliable_stream_reset, ==,
+               early_params.reliable_stream_reset);
 
   ngtcp2_conn_del(conn);
 }
