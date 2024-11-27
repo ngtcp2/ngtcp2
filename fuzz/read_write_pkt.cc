@@ -376,7 +376,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     
     auto recv_pkt = fuzzed_data_provider.ConsumeBytes<uint8_t>(recv_pkt_len);
     
-    ts += NGTCP2_MILLISECONDS;
+    ts = fuzzed_data_provider.ConsumeIntegralInRange<ngtcp2_tstamp>(
+      ts, std::numeric_limits<ngtcp2_tstamp>::max() - 1);
 
     auto rv = ngtcp2_conn_read_pkt(conn, &ps.path, &pi, recv_pkt.data(), recv_pkt.size(), ts);
     if (rv != 0) {
