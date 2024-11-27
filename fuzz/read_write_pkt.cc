@@ -208,6 +208,11 @@ void init_path(ngtcp2_path_storage *ps) {
 } // namespace
 
 namespace {
+void qlog_write(void *user_data, uint32_t flags, const void *data,
+                size_t datalen) {}
+} // namespace
+
+namespace {
 ngtcp2_conn *setup_conn() {
   ngtcp2_callbacks cb{
     .recv_client_initial = recv_client_initial,
@@ -248,6 +253,8 @@ ngtcp2_conn *setup_conn() {
   ngtcp2_settings settings;
 
   ngtcp2_settings_default(&settings);
+
+  settings.qlog_write = qlog_write;
 
   ngtcp2_transport_params params;
 
