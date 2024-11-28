@@ -215,7 +215,7 @@ void qlog_write(void *user_data, uint32_t flags, const void *data,
 } // namespace
 
 namespace {
-ngtcp2_conn *setup_conn() {
+ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider) {
   ngtcp2_callbacks cb{
     .recv_client_initial = recv_client_initial,
     .recv_crypto_data = recv_crypto_data,
@@ -257,6 +257,8 @@ ngtcp2_conn *setup_conn() {
   ngtcp2_settings_default(&settings);
 
   settings.qlog_write = qlog_write;
+  settings.cc_algo = fuzzed_data_provider.PickValueInArray(
+    {NGTCP2_CC_ALGO_RENO, NGTCP2_CC_ALGO_CUBIC, NGTCP2_CC_ALGO_BBR});
 
   ngtcp2_transport_params params;
 
@@ -367,7 +369,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     .ecn = NGTCP2_ECN_ECT_1,
   };
 
-  auto conn = setup_conn();
+  auto conn = setup_conn(fuzzed_data_provider);
 
   ngtcp2_tstamp ts{};
 
