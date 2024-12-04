@@ -44,7 +44,6 @@
 #include <net/if.h>
 #include <libgen.h>
 
-#include <http-parser/http_parser.h>
 #include <urlparse.h>
 
 #include "server.h"
