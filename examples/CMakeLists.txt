@@ -70,11 +70,9 @@ if(LIBEV_FOUND AND HAVE_OPENSSL AND LIBNGHTTP3_FOUND)
   )
 
   add_executable(qtlsclient ${qtlsclient_SOURCES}
-    $<TARGET_OBJECTS:http-parser>
     $<TARGET_OBJECTS:urlparse>
   )
   add_executable(qtlsserver ${qtlsserver_SOURCES}
-    $<TARGET_OBJECTS:http-parser>
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(qtlsclient PROPERTIES
@@ -144,11 +142,9 @@ if(LIBEV_FOUND AND HAVE_GNUTLS AND LIBNGHTTP3_FOUND)
   )
 
   add_executable(gtlsclient ${gtlsclient_SOURCES}
-    $<TARGET_OBJECTS:http-parser>
     $<TARGET_OBJECTS:urlparse>
   )
   add_executable(gtlsserver ${gtlsserver_SOURCES}
-    $<TARGET_OBJECTS:http-parser>
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(gtlsclient PROPERTIES
@@ -224,11 +220,9 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
   )
 
   add_executable(bsslclient ${bsslclient_SOURCES}
-    $<TARGET_OBJECTS:http-parser>
     $<TARGET_OBJECTS:urlparse>
   )
   add_executable(bsslserver ${bsslserver_SOURCES}
-    $<TARGET_OBJECTS:http-parser>
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(bsslclient PROPERTIES
@@ -302,11 +296,9 @@ if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
   )
 
   add_executable(ptlsclient ${ptlsclient_SOURCES}
-    $<TARGET_OBJECTS:http-parser>
     $<TARGET_OBJECTS:urlparse>
   )
   add_executable(ptlsserver ${ptlsserver_SOURCES}
-    $<TARGET_OBJECTS:http-parser>
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(ptlsclient PROPERTIES
@@ -376,11 +368,9 @@ if(LIBEV_FOUND AND HAVE_WOLFSSL AND LIBNGHTTP3_FOUND)
   )
 
   add_executable(wsslclient ${wsslclient_SOURCES}
-    $<TARGET_OBJECTS:http-parser>
     $<TARGET_OBJECTS:urlparse>
   )
   add_executable(wsslserver ${wsslserver_SOURCES}
-    $<TARGET_OBJECTS:http-parser>
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(wsslclient PROPERTIES
