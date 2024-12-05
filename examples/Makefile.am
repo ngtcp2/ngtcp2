@@ -28,7 +28,6 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/lib/includes \
 	-I$(top_builddir)/lib/includes \
 	-I$(top_srcdir)/crypto/includes \
-	-I$(top_srcdir)/third-party \
 	-I$(top_srcdir)/third-party/urlparse \
 	@LIBEV_CFLAGS@ \
 	@LIBNGHTTP3_CFLAGS@ \
@@ -39,7 +38,6 @@ AM_CPPFLAGS = \
 AM_LDFLAGS = -no-install \
 	@LIBTOOL_LDFLAGS@
 LDADD = $(top_builddir)/lib/libngtcp2.la \
-	$(top_builddir)/third-party/libhttp-parser.la \
 	$(top_builddir)/third-party/liburlparse.la \
 	@LIBEV_LIBS@ \
 	@LIBNGHTTP3_LIBS@ \
@@ -217,8 +215,10 @@ h09wsslclient_SOURCES = h09client.cc h09client.h ${CLIENT_SRCS} \
 	tls_session_base_wolfssl.cc tls_session_base_wolfssl.h \
 	util_wolfssl.cc
 
-h09wsslserver_CPPFLAGS = ${wsslclient_CPPFLAGS}
-h09wsslserver_LDADD = ${wsslclient_LDADD}
+h09wsslserver_CPPFLAGS = ${wsslclient_CPPFLAGS} \
+	-I$(top_srcdir)/third-party
+h09wsslserver_LDADD = ${wsslclient_LDADD} \
+	$(top_builddir)/third-party/libhttp-parser.la
 h09wsslserver_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
 	tls_server_context_wolfssl.cc tls_server_context_wolfssl.h \
 	tls_server_session_wolfssl.cc tls_server_session_wolfssl.h \
