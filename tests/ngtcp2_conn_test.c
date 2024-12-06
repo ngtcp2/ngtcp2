@@ -4527,6 +4527,73 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   assert_true(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_conn_del(conn);
+
+  /* Retransmit 0 length STREAM frames; one without fin and one with
+     it */
+  setup_default_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->local.bidi.max_streams = 2;
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id_a, NULL);
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, ++t);
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id_a,
+                                     NULL, 0, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_FIN, stream_id_a,
+                                     NULL, 0, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id_b, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id_b,
+                                     NULL, 0, t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id_a);
+
+  assert_true(!ngtcp2_strm_streamfrq_empty(strm));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_send_max_stream_data(void) {

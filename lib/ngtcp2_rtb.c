@@ -249,9 +249,12 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
         if (!fr->stream.fin) {
           /* 0 length STREAM frame with offset == 0 must be
              retransmitted if no non-empty data are sent to this
-             stream, and no data in this stream are acknowledged. */
+             stream, fin flag is not set, and no data in this stream
+             are acknowledged. */
           if (fr->stream.offset != 0 || fr->stream.datacnt != 0 ||
-              strm->tx.offset || (strm->flags & NGTCP2_STRM_FLAG_ANY_ACKED)) {
+              strm->tx.offset ||
+              (strm->flags &
+               (NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_ANY_ACKED))) {
             continue;
           }
         } else if (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED) {
