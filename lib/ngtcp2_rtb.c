@@ -1287,14 +1287,6 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     return 0;
   }
 
-  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE) {
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                    "pkn=%" PRId64
-                    " is a PMTUD probe packet, no retransmission is necessary",
-                    ent->hd.pkt_num);
-    return 0;
-  }
-
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED) {
     --rtb->num_lost_pkts;
 
