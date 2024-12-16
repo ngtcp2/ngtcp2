@@ -354,14 +354,24 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider) {
 
   ngtcp2_transport_params remote_params{};
 
-  remote_params.initial_max_stream_data_bidi_local = 64 * 1024;
-  remote_params.initial_max_stream_data_bidi_remote = 64 * 1024;
-  remote_params.initial_max_stream_data_uni = 64 * 1024;
-  remote_params.initial_max_streams_bidi = 0;
-  remote_params.initial_max_streams_uni = 1;
-  remote_params.initial_max_data = 64 * 1024;
-  remote_params.active_connection_id_limit = 8;
-  remote_params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
+  remote_params.initial_max_stream_data_bidi_local =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  remote_params.initial_max_stream_data_bidi_remote =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  remote_params.initial_max_stream_data_uni =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  remote_params.initial_max_streams_bidi =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  remote_params.initial_max_streams_uni =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  remote_params.initial_max_data =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  remote_params.active_connection_id_limit =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(
+      NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT, NGTCP2_MAX_VARINT);
+  remote_params.max_udp_payload_size =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(
+      NGTCP2_MAX_UDP_PAYLOAD_SIZE, NGTCP2_MAX_VARINT);
 
   ngtcp2_transport_params_copy_new(&conn->remote.transport_params,
                                    &remote_params, conn->mem);
