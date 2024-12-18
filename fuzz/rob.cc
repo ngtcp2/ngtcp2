@@ -22,6 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <cassert>
+
 #include <fuzzer/FuzzedDataProvider.h>
 
 #ifdef __cplusplus
@@ -45,7 +47,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   ngtcp2_rob_init(&rob, 8 << 10, ngtcp2_mem_default());
 
-  uint64_t pop_offset = 0;
+  uint64_t data_offset = 0;
 
   for (; fuzzed_data_provider.remaining_bytes();) {
     auto offset = fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(
@@ -58,15 +60,20 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       break;
     }
 
-    const uint8_t *d;
+    for (;;) {
+      const uint8_t *data;
 
-    ngtcp2_rob_data_at(&rob, &d, pop_offset);
+      auto datalen = ngtcp2_rob_data_at(&rob, &data, data_offset);
+      if (datalen == 0) {
+        break;
+      }
 
-    auto gap_offset = ngtcp2_rob_first_gap_offset(&rob);
-    if (gap_offset > pop_offset) {
-      ngtcp2_rob_pop(&rob, offset, gap_offset - pop_offset);
-      pop_offset = gap_offset;
+      ngtcp2_rob_pop(&rob, data_offset, datalen);
+
+      data_offset += datalen;
     }
+
+    assert(data_offset == ngtcp2_rob_first_gap_offset(&rob));
   }
 
   ngtcp2_rob_free(&rob);
