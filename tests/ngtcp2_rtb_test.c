@@ -78,7 +78,7 @@ void test_ngtcp2_rtb_add(void) {
                   &frc_objalloc, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
-                     1000000007, 1, NGTCP2_PROTO_VER_V1, 0);
+                     1000000007, 1, NGTCP2_PROTO_VER_V1);
 
   rv = ngtcp2_rtb_entry_objalloc_new(
     &ent, &hd, NULL, 10, 0, NGTCP2_RTB_ENTRY_FLAG_NONE, &rtb_entry_objalloc);
@@ -88,7 +88,7 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_rtb_add(&rtb, ent, &cstat);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
-                     1000000008, 2, NGTCP2_PROTO_VER_V1, 0);
+                     1000000008, 2, NGTCP2_PROTO_VER_V1);
 
   rv = ngtcp2_rtb_entry_objalloc_new(
     &ent, &hd, NULL, 9, 0, NGTCP2_RTB_ENTRY_FLAG_NONE, &rtb_entry_objalloc);
@@ -98,7 +98,7 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_rtb_add(&rtb, ent, &cstat);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
-                     1000000009, 4, NGTCP2_PROTO_VER_V1, 0);
+                     1000000009, 4, NGTCP2_PROTO_VER_V1);
 
   rv = ngtcp2_rtb_entry_objalloc_new(
     &ent, &hd, NULL, 11, 0, NGTCP2_RTB_ENTRY_FLAG_NONE, &rtb_entry_objalloc);
@@ -145,7 +145,7 @@ static void add_rtb_entry_range(ngtcp2_rtb *rtb, int64_t base_pkt_num,
 
   for (i = 0; i < len; ++i) {
     ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
-                       base_pkt_num + (int64_t)i, 1, NGTCP2_PROTO_VER_V1, 0);
+                       base_pkt_num + (int64_t)i, 1, NGTCP2_PROTO_VER_V1);
     ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, 0, 0,
                                   NGTCP2_RTB_ENTRY_FLAG_NONE, objalloc);
     ngtcp2_rtb_add(rtb, ent, cstat);
@@ -193,7 +193,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
 
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, NULL, NULL, 0,
-                     1, NGTCP2_PROTO_VER_V1, 0);
+                     1, NGTCP2_PROTO_VER_V1);
   pktns.id = NGTCP2_PKTNS_ID_HANDSHAKE;
 
   /* no ack block */

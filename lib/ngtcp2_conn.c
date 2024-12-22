@@ -2280,7 +2280,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
 
   ngtcp2_pkt_hd_init(
     &hd, conn_pkt_flags_long(conn), type, &conn->dcid.current.cid, &conn->oscid,
-    pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns), version, 0);
+    pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns), version);
 
   if (!conn->server && type == NGTCP2_PKT_INITIAL &&
       conn->local.settings.tokenlen) {
@@ -3376,7 +3376,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     ngtcp2_pkt_hd_init(hd, hd_flags, type, &conn->dcid.current.cid, scid,
                        pktns->tx.last_pkt_num + 1,
-                       pktns_select_pkt_numlen(pktns), version, 0);
+                       pktns_select_pkt_numlen(pktns), version);
 
     ngtcp2_ppe_init(ppe, dest, destlen, dgram_offset, cc);
 
@@ -4342,7 +4342,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
 
   ngtcp2_pkt_hd_init(&hd, hd_flags, type, dcid, scid,
                      pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns),
-                     version, 0);
+                     version);
 
   ngtcp2_ppe_init(&ppe, dest, destlen, 0, &cc);
 
@@ -13737,8 +13737,7 @@ ngtcp2_ssize ngtcp2_pkt_write_connection_close(
   int rv;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_INITIAL, dcid,
-                     scid, /* pkt_num = */ 0, /* pkt_numlen = */ 1, version,
-                     /* len = */ 0);
+                     scid, /* pkt_num = */ 0, /* pkt_numlen = */ 1, version);
 
   ngtcp2_vec_init(&ckm.secret, NULL, 0);
   ngtcp2_vec_init(&ckm.iv, iv, 12);
