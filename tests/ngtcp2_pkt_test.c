@@ -429,9 +429,8 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   }
 
   /* 4 bytes packet number without Fixed Bit set */
-  ngtcp2_pkt_hd_init(&hd,
-                     NGTCP2_PKT_FLAG_NONE | NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
-                     NGTCP2_PKT_1RTT, &dcid, NULL, 0xe1e2e3e4u, 4, 0xd1d2d3d4u);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR, NGTCP2_PKT_1RTT,
+                     &dcid, NULL, 0xe1e2e3e4u, 4, 0xd1d2d3d4u);
 
   expectedlen = 1 + dcid.datalen + 4;
 
