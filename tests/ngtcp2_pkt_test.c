@@ -295,7 +295,8 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
 
   /* Handshake */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
-                     &dcid, &scid, 0xe1e2e3e4u, 4, NGTCP2_PROTO_VER_V1, 16383);
+                     &dcid, &scid, 0xe1e2e3e4u, 4, NGTCP2_PROTO_VER_V1);
+  hd.len = 16383;
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
 
@@ -325,8 +326,8 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   /* Handshake without Fixed Bit set */
   ngtcp2_pkt_hd_init(
     &hd, NGTCP2_PKT_FLAG_LONG_FORM | NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
-    NGTCP2_PKT_HANDSHAKE, &dcid, &scid, 0xe1e2e3e4u, 4, NGTCP2_PROTO_VER_V1,
-    16383);
+    NGTCP2_PKT_HANDSHAKE, &dcid, &scid, 0xe1e2e3e4u, 4, NGTCP2_PROTO_VER_V1);
+  hd.len = 16383;
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
 
@@ -356,7 +357,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   /* VN */
   /* Set random packet type */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
-                     &dcid, &scid, 0, 4, NGTCP2_PROTO_VER_V1, 0);
+                     &dcid, &scid, 0, 4, NGTCP2_PROTO_VER_V1);
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
   /* Set version field to 0 */
@@ -399,7 +400,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   /* 4 bytes packet number */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
-                     0xe1e2e3e4u, 4, 0xd1d2d3d4u, 0);
+                     0xe1e2e3e4u, 4, 0xd1d2d3d4u);
 
   expectedlen = 1 + dcid.datalen + 4;
 
@@ -428,9 +429,9 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   }
 
   /* 4 bytes packet number without Fixed Bit set */
-  ngtcp2_pkt_hd_init(
-    &hd, NGTCP2_PKT_FLAG_NONE | NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
-    NGTCP2_PKT_1RTT, &dcid, NULL, 0xe1e2e3e4u, 4, 0xd1d2d3d4u, 0);
+  ngtcp2_pkt_hd_init(&hd,
+                     NGTCP2_PKT_FLAG_NONE | NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
+                     NGTCP2_PKT_1RTT, &dcid, NULL, 0xe1e2e3e4u, 4, 0xd1d2d3d4u);
 
   expectedlen = 1 + dcid.datalen + 4;
 
@@ -460,7 +461,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   /* 2 bytes packet number */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
-                     0xe1e2e3e4u, 2, 0xd1d2d3d4u, 0);
+                     0xe1e2e3e4u, 2, 0xd1d2d3d4u);
 
   expectedlen = 1 + dcid.datalen + 2;
 
@@ -489,7 +490,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   /* 1 byte packet number */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
-                     0xe1e2e3e4u, 1, 0xd1d2d3d4u, 0);
+                     0xe1e2e3e4u, 1, 0xd1d2d3d4u);
 
   expectedlen = 1 + dcid.datalen + 1;
 
@@ -518,7 +519,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   /* With Key Phase */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_KEY_PHASE, NGTCP2_PKT_1RTT, &dcid,
-                     NULL, 0xe1e2e3e4u, 4, 0xd1d2d3d4u, 0);
+                     NULL, 0xe1e2e3e4u, 4, 0xd1d2d3d4u);
 
   expectedlen = 1 + dcid.datalen + 4;
 
@@ -549,7 +550,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   /* With empty DCID */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, NULL, NULL,
-                     0xe1e2e3e4u, 4, 0xd1d2d3d4u, 0);
+                     0xe1e2e3e4u, 4, 0xd1d2d3d4u);
 
   expectedlen = 1 + 4;
 

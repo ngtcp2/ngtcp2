@@ -134,7 +134,7 @@ static size_t write_short_pkt(uint8_t *out, size_t outlen, uint8_t flags,
   cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_1RTT, dcid, NULL, pkt_num, 4,
-                     NGTCP2_PROTO_VER_V1, 0);
+                     NGTCP2_PROTO_VER_V1);
 
   ngtcp2_ppe_init(&ppe, out, outlen, 0, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
@@ -193,8 +193,7 @@ static size_t write_long_pkt(uint8_t *out, size_t outlen, uint8_t flags,
     &hd, NGTCP2_PKT_FLAG_LONG_FORM | flags, pkt_type, dcid, scid, pkt_num, 4,
     version != NGTCP2_PROTO_VER_V1 && version != NGTCP2_PROTO_VER_V2
       ? NGTCP2_PROTO_VER_V1
-      : version,
-    0);
+      : version);
 
   hd.token = token;
   hd.tokenlen = tokenlen;
