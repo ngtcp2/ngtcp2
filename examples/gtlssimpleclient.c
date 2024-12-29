@@ -312,57 +312,32 @@ static int client_quic_init(struct client *c,
                             const struct sockaddr *local_addr,
                             socklen_t local_addrlen) {
   ngtcp2_path path = {
-    {
-      (struct sockaddr *)local_addr,
-      local_addrlen,
-    },
-    {
-      (struct sockaddr *)remote_addr,
-      remote_addrlen,
-    },
-    NULL,
+    .local =
+      {
+        .addr = (struct sockaddr *)local_addr,
+        .addrlen = local_addrlen,
+      },
+    .remote =
+      {
+        .addr = (struct sockaddr *)remote_addr,
+        .addrlen = remote_addrlen,
+      },
   };
   ngtcp2_callbacks callbacks = {
-    ngtcp2_crypto_client_initial_cb,
-    NULL, /* recv_client_initial */
-    ngtcp2_crypto_recv_crypto_data_cb,
-    NULL, /* handshake_completed */
-    NULL, /* recv_version_negotiation */
-    ngtcp2_crypto_encrypt_cb,
-    ngtcp2_crypto_decrypt_cb,
-    ngtcp2_crypto_hp_mask_cb,
-    NULL, /* recv_stream_data */
-    NULL, /* acked_stream_data_offset */
-    NULL, /* stream_open */
-    NULL, /* stream_close */
-    NULL, /* recv_stateless_reset */
-    ngtcp2_crypto_recv_retry_cb,
-    extend_max_local_streams_bidi,
-    NULL, /* extend_max_local_streams_uni */
-    rand_cb,
-    get_new_connection_id_cb,
-    NULL, /* remove_connection_id */
-    ngtcp2_crypto_update_key_cb,
-    NULL, /* path_validation */
-    NULL, /* select_preferred_address */
-    NULL, /* stream_reset */
-    NULL, /* extend_max_remote_streams_bidi */
-    NULL, /* extend_max_remote_streams_uni */
-    NULL, /* extend_max_stream_data */
-    NULL, /* dcid_status */
-    NULL, /* handshake_confirmed */
-    NULL, /* recv_new_token */
-    ngtcp2_crypto_delete_crypto_aead_ctx_cb,
-    ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
-    NULL, /* recv_datagram */
-    NULL, /* ack_datagram */
-    NULL, /* lost_datagram */
-    ngtcp2_crypto_get_path_challenge_data_cb,
-    NULL, /* stream_stop_sending */
-    ngtcp2_crypto_version_negotiation_cb,
-    NULL, /* recv_rx_key */
-    NULL, /* recv_tx_key */
-    NULL, /* early_data_rejected */
+    .client_initial = ngtcp2_crypto_client_initial_cb,
+    .recv_crypto_data = ngtcp2_crypto_recv_crypto_data_cb,
+    .encrypt = ngtcp2_crypto_encrypt_cb,
+    .decrypt = ngtcp2_crypto_decrypt_cb,
+    .hp_mask = ngtcp2_crypto_hp_mask_cb,
+    .recv_retry = ngtcp2_crypto_recv_retry_cb,
+    .extend_max_local_streams_bidi = extend_max_local_streams_bidi,
+    .rand = rand_cb,
+    .get_new_connection_id = get_new_connection_id_cb,
+    .update_key = ngtcp2_crypto_update_key_cb,
+    .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
+    .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
+    .get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb,
+    .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
   };
   ngtcp2_cid dcid, scid;
   ngtcp2_settings settings;
@@ -408,7 +383,10 @@ static int client_quic_init(struct client *c,
 static int client_read(struct client *c) {
   uint8_t buf[65536];
   struct sockaddr_storage addr;
-  struct iovec iov = {buf, sizeof(buf)};
+  struct iovec iov = {
+    .iov_base = buf,
+    .iov_len = sizeof(buf),
+  };
   struct msghdr msg = {0};
   ssize_t nread;
   ngtcp2_path path;
@@ -458,7 +436,10 @@ static int client_read(struct client *c) {
 
 static int client_send_packet(struct client *c, const uint8_t *data,
                               size_t datalen) {
-  struct iovec iov = {(uint8_t *)data, datalen};
+  struct iovec iov = {
+    .iov_base = (uint8_t *)data,
+    .iov_len = datalen,
+  };
   struct msghdr msg = {0};
   ssize_t nwrite;
 

@@ -38,7 +38,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite acktr_suite = {
-  "/acktr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/acktr",
+  .tests = tests,
 };
 
 void test_ngtcp2_acktr_add(void) {

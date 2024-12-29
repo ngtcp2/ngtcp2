@@ -39,7 +39,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite rob_suite = {
-  "/rob", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/rob",
+  .tests = tests,
 };
 
 void test_ngtcp2_rob_push(void) {

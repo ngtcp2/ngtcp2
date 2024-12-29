@@ -37,7 +37,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite vec_suite = {
-  "/vec", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/vec",
+  .tests = tests,
 };
 
 void test_ngtcp2_vec_split(void) {
@@ -422,13 +423,27 @@ void test_ngtcp2_vec_len_varint(void) {
 
 #if SIZE_MAX == UINT64_MAX
   {
-    ngtcp2_vec v[] = {{NULL, NGTCP2_MAX_VARINT}, {NULL, 1}};
+    ngtcp2_vec v[] = {
+      {
+        .len = NGTCP2_MAX_VARINT,
+      },
+      {
+        .len = 1,
+      },
+    };
 
     assert_int64(-1, ==, ngtcp2_vec_len_varint(v, ngtcp2_arraylen(v)));
   }
 
   {
-    ngtcp2_vec v[] = {{NULL, NGTCP2_MAX_VARINT - 1}, {NULL, 1}};
+    ngtcp2_vec v[] = {
+      {
+        .len = NGTCP2_MAX_VARINT - 1,
+      },
+      {
+        .len = 1,
+      },
+    };
 
     assert_int64(NGTCP2_MAX_VARINT, ==,
                  ngtcp2_vec_len_varint(v, ngtcp2_arraylen(v)));

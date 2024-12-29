@@ -36,7 +36,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite pv_suite = {
-  "/pv", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/pv",
+  .tests = tests,
 };
 
 void test_ngtcp2_pv_add_entry(void) {

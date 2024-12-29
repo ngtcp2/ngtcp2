@@ -129,7 +129,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite conn_suite = {
-  "/conn", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/conn",
+  .tests = tests,
 };
 
 static void qlog_write(void *user_data, uint32_t flags, const void *data,
@@ -224,7 +225,12 @@ static uint8_t null_iv[16];
 static uint8_t null_data[4096];
 
 static ngtcp2_crypto_km null_ckm = {
-  {NULL, 0}, {0}, {null_iv, sizeof(null_iv)}, -1, 0, NGTCP2_CRYPTO_KM_FLAG_NONE,
+  .iv =
+    {
+      .base = null_iv,
+      .len = sizeof(null_iv),
+    },
+  .pkt_num = -1,
 };
 
 static ngtcp2_path_storage null_path;
@@ -1032,7 +1038,9 @@ static void setup_handshake_client_version(ngtcp2_conn **pconn,
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
   ngtcp2_cid rcid, scid;
-  ngtcp2_crypto_aead retry_aead = {0, NGTCP2_FAKE_AEAD_OVERHEAD};
+  ngtcp2_crypto_aead retry_aead = {
+    .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
+  };
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
@@ -1095,7 +1103,7 @@ static void setup_early_client_scid(ngtcp2_conn **pconn,
                                     const ngtcp2_cid *scid) {
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
-  ngtcp2_transport_params params;
+  ngtcp2_transport_params params = {0};
   ngtcp2_cid rcid;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
@@ -1116,7 +1124,6 @@ static void setup_early_client_scid(ngtcp2_conn **pconn,
   ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
                                   &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
 
-  memset(&params, 0, sizeof(params));
   params.initial_max_stream_data_bidi_local = 64 * 1024;
   params.initial_max_stream_data_bidi_remote = 64 * 1024;
   params.initial_max_stream_data_uni = 64 * 1024;
@@ -5874,7 +5881,10 @@ void test_ngtcp2_conn_writev_stream(void) {
   ngtcp2_tstamp t = 0;
   int rv;
   int64_t stream_id;
-  ngtcp2_vec datav = {null_data, 10};
+  ngtcp2_vec datav = {
+    .base = null_data,
+    .len = 10,
+  };
   ngtcp2_ssize datalen;
   size_t left;
   ngtcp2_strm *strm;
@@ -6246,7 +6256,10 @@ void test_ngtcp2_conn_writev_datagram(void) {
   uint8_t buf[2048];
   ngtcp2_ssize spktlen;
   ngtcp2_tstamp t = 0;
-  ngtcp2_vec datav = {null_data, 10};
+  ngtcp2_vec datav = {
+    .base = null_data,
+    .len = 10,
+  };
   ngtcp2_vec vec;
   int accepted;
   my_user_data ud;
@@ -8806,7 +8819,9 @@ void test_ngtcp2_conn_send_initial_token(void) {
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
   ngtcp2_cid rcid, scid;
-  ngtcp2_crypto_aead retry_aead = {0, NGTCP2_FAKE_AEAD_OVERHEAD};
+  ngtcp2_crypto_aead retry_aead = {
+    .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
+  };
   uint8_t token[] = "this is token";
   ngtcp2_ssize spktlen, shdlen;
   ngtcp2_tstamp t = 0;
@@ -10242,7 +10257,7 @@ void test_ngtcp2_conn_tls_early_data_rejected(void) {
   size_t pktlen;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
-  ngtcp2_transport_params params;
+  ngtcp2_transport_params params = {0};
   ngtcp2_tstamp t = 0;
   ngtcp2_tpe tpe;
 
@@ -10314,7 +10329,6 @@ void test_ngtcp2_conn_tls_early_data_rejected(void) {
 
   /* Stream limits in transport parameters can be reduced if early
      data is rejected. */
-  memset(&params, 0, sizeof(params));
   ngtcp2_cid_init(&params.initial_scid, conn->dcid.current.cid.data,
                   conn->dcid.current.cid.datalen);
   params.initial_scid_present = 1;
@@ -13460,7 +13474,9 @@ void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];
   ngtcp2_cid dcid, scid;
-  ngtcp2_crypto_aead aead = {0, NGTCP2_INITIAL_AEAD_OVERHEAD};
+  ngtcp2_crypto_aead aead = {
+    .max_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD,
+  };
   ngtcp2_crypto_cipher hp_mask = {0};
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};

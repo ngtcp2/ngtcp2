@@ -43,7 +43,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite rtb_suite = {
-  "/rtb", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/rtb",
+  .tests = tests,
 };
 
 static void conn_stat_init(ngtcp2_conn_stat *cstat) {

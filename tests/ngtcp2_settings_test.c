@@ -36,7 +36,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite settings_suite = {
-  "/settings", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/settings",
+  .tests = tests,
 };
 
 static void qlog_write(void *user_data, uint32_t flags, const void *data,

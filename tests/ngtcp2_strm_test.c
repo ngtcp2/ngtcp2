@@ -40,7 +40,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite strm_suite = {
-  "/strm", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/strm",
+  .tests = tests,
 };
 
 static uint8_t nulldata[1024];

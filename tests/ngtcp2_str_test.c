@@ -37,7 +37,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite str_suite = {
-  "/str", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/str",
+  .tests = tests,
 };
 
 void test_ngtcp2_encode_ipv4(void) {

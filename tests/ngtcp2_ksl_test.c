@@ -40,7 +40,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite ksl_suite = {
-  "/ksl", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/ksl",
+  .tests = tests,
 };
 
 void test_ngtcp2_ksl_insert(void) {

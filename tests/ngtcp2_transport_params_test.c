@@ -41,7 +41,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite transport_params_suite = {
-  "/transport_params", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/transport_params",
+  .tests = tests,
 };
 
 static size_t varint_paramlen(ngtcp2_transport_param_id id, uint64_t value) {
@@ -50,7 +51,7 @@ static size_t varint_paramlen(ngtcp2_transport_param_id id, uint64_t value) {
 }
 
 void test_ngtcp2_transport_params_encode(void) {
-  ngtcp2_transport_params params, nparams;
+  ngtcp2_transport_params params = {0}, nparams = {0};
   uint8_t buf[512];
   ngtcp2_ssize nwrite;
   int rv;
@@ -62,9 +63,6 @@ void test_ngtcp2_transport_params_encode(void) {
   rcid_init(&rcid);
   scid_init(&scid);
   dcid_init(&dcid);
-
-  memset(&params, 0, sizeof(params));
-  memset(&nparams, 0, sizeof(nparams));
 
   for (i = 0; i < sizeof(available_versions); i += sizeof(uint32_t)) {
     ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xff000000u + i));
@@ -237,7 +235,7 @@ void test_ngtcp2_transport_params_encode(void) {
 }
 
 void test_ngtcp2_transport_params_decode_new(void) {
-  ngtcp2_transport_params params, *nparams;
+  ngtcp2_transport_params params = {0}, *nparams;
   uint8_t buf[512];
   ngtcp2_ssize nwrite;
   int rv;
@@ -249,9 +247,6 @@ void test_ngtcp2_transport_params_decode_new(void) {
   rcid_init(&rcid);
   scid_init(&scid);
   dcid_init(&dcid);
-
-  memset(&params, 0, sizeof(params));
-  memset(&nparams, 0, sizeof(nparams));
 
   for (i = 0; i < sizeof(available_versions); i += sizeof(uint32_t)) {
     ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xff000000u + i));
