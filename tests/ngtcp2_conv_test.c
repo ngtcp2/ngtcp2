@@ -44,7 +44,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite conv_suite = {
-  "/conv", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/conv",
+  .tests = tests,
 };
 
 void test_ngtcp2_get_varint(void) {

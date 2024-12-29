@@ -35,7 +35,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite pmtud_suite = {
-  "/pmtud", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/pmtud",
+  .tests = tests,
 };
 
 void test_ngtcp2_pmtud_probe(void) {

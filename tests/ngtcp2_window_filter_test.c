@@ -36,7 +36,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite window_filter_suite = {
-  "/window_filter", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/window_filter",
+  .tests = tests,
 };
 
 void test_ngtcp2_window_filter_update(void) {

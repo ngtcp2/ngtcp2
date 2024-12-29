@@ -39,7 +39,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite gaptr_suite = {
-  "/gaptr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/gaptr",
+  .tests = tests,
 };
 
 void test_ngtcp2_gaptr_push(void) {

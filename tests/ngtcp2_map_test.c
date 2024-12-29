@@ -38,7 +38,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite map_suite = {
-  "/map", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/map",
+  .tests = tests,
 };
 
 typedef struct strentry {

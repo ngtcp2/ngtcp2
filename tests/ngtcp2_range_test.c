@@ -37,7 +37,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite range_suite = {
-  "/range", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/range",
+  .tests = tests,
 };
 
 void test_ngtcp2_range_intersect(void) {

@@ -73,7 +73,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite pkt_suite = {
-  "/pkt", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/pkt",
+  .tests = tests,
 };
 
 static int null_retry_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,

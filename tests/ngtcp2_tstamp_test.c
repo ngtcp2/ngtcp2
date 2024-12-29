@@ -35,7 +35,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite tstamp_suite = {
-  "/tstamp", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/tstamp",
+  .tests = tests,
 };
 
 void test_ngtcp2_tstamp_elapsed(void) {

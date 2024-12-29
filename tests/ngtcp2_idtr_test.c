@@ -36,7 +36,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite idtr_suite = {
-  "/idtr", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/idtr",
+  .tests = tests,
 };
 
 static int64_t stream_id_from_id(uint64_t id) { return (int64_t)(id * 4); }

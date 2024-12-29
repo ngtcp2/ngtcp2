@@ -81,10 +81,12 @@ int main(int argc, char *argv[]) {
     window_filter_suite,
     settings_suite,
     ppe_suite,
-    {NULL, NULL, NULL, 0, MUNIT_SUITE_OPTION_NONE},
+    {0},
   };
   const MunitSuite suite = {
-    "", NULL, suites, 1, MUNIT_SUITE_OPTION_NONE,
+    .prefix = "",
+    .suites = suites,
+    .iterations = 1,
   };
 
   init_static_path();

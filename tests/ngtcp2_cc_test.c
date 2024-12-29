@@ -36,7 +36,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite cc_suite = {
-  "/cc", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/cc",
+  .tests = tests,
 };
 
 void test_ngtcp2_cbrt(void) {

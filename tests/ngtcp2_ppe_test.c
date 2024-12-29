@@ -36,7 +36,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite ppe_suite = {
-  "/ppe", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/ppe",
+  .tests = tests,
 };
 
 static void set_padding_range(uint8_t *buf, size_t buflen, size_t offset,

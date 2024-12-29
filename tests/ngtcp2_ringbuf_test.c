@@ -36,7 +36,8 @@ static const MunitTest tests[] = {
 };
 
 const MunitSuite ringbuf_suite = {
-  "/ringbuf", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/ringbuf",
+  .tests = tests,
 };
 
 typedef struct {
