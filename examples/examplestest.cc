@@ -35,10 +35,12 @@
 int main(int argc, char *argv[]) {
   const MunitSuite suites[] = {
     ngtcp2::util_suite,
-    {NULL, NULL, NULL, 0, MUNIT_SUITE_OPTION_NONE},
+    {},
   };
   const MunitSuite suite = {
-    "", NULL, suites, 1, MUNIT_SUITE_OPTION_NONE,
+    .prefix = "",
+    .suites = suites,
+    .iterations = 1,
   };
 
   return munit_suite_main(&suite, NULL, argc, argv);

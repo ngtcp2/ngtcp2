@@ -50,7 +50,8 @@ const MunitTest tests[]{
 } // namespace
 
 const MunitSuite util_suite{
-  "/util", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE,
+  .prefix = "/util",
+  .tests = tests,
 };
 
 namespace util {
