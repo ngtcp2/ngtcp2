@@ -169,9 +169,10 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
       if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO) {
         in_pktinfo pktinfo;
         memcpy(&pktinfo, CMSG_DATA(cmsg), sizeof(pktinfo));
-        Address res{};
-        res.ifindex = pktinfo.ipi_ifindex;
-        res.len = sizeof(res.su.in);
+        Address res{
+          .len = sizeof(res.su.in),
+          .ifindex = static_cast<uint32_t>(pktinfo.ipi_ifindex),
+        };
         auto &sa = res.su.in;
         sa.sin_family = AF_INET;
         sa.sin_addr = pktinfo.ipi_addr;
@@ -184,9 +185,10 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
       if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
         in6_pktinfo pktinfo;
         memcpy(&pktinfo, CMSG_DATA(cmsg), sizeof(pktinfo));
-        Address res{};
-        res.ifindex = pktinfo.ipi6_ifindex;
-        res.len = sizeof(res.su.in6);
+        Address res{
+          .len = sizeof(res.su.in6),
+          .ifindex = static_cast<uint32_t>(pktinfo.ipi6_ifindex),
+        };
         auto &sa = res.su.in6;
         sa.sin6_family = AF_INET6;
         sa.sin6_addr = pktinfo.ipi6_addr;
@@ -240,15 +242,23 @@ struct nlmsg {
 
 namespace {
 int send_netlink_msg(int fd, const Address &remote_addr, uint32_t seq) {
-  nlmsg nlmsg{};
-  nlmsg.hdr.nlmsg_type = RTM_GETROUTE;
-  nlmsg.hdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
-  nlmsg.hdr.nlmsg_seq = seq;
-
-  nlmsg.msg.rtm_family = remote_addr.su.sa.sa_family;
-  nlmsg.msg.rtm_protocol = RTPROT_KERNEL;
-
-  nlmsg.dst.rta_type = RTA_DST;
+  nlmsg nlmsg{
+    .hdr =
+      {
+        .nlmsg_type = RTM_GETROUTE,
+        .nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK,
+        .nlmsg_seq = seq,
+      },
+    .msg =
+      {
+        .rtm_family = static_cast<unsigned char>(remote_addr.su.sa.sa_family),
+        .rtm_protocol = RTPROT_KERNEL,
+      },
+    .dst =
+      {
+        .rta_type = RTA_DST,
+      },
+  };
 
   switch (remote_addr.su.sa.sa_family) {
   case AF_INET:
@@ -267,15 +277,20 @@ int send_netlink_msg(int fd, const Address &remote_addr, uint32_t seq) {
 
   nlmsg.hdr.nlmsg_len = NLMSG_LENGTH(sizeof(nlmsg.msg) + nlmsg.dst.rta_len);
 
-  sockaddr_nl sa{};
-  sa.nl_family = AF_NETLINK;
+  sockaddr_nl sa{
+    .nl_family = AF_NETLINK,
+  };
 
-  iovec iov{&nlmsg, nlmsg.hdr.nlmsg_len};
-  msghdr msg{};
-  msg.msg_name = &sa;
-  msg.msg_namelen = sizeof(sa);
-  msg.msg_iov = &iov;
-  msg.msg_iovlen = 1;
+  iovec iov{
+    .iov_base = &nlmsg,
+    .iov_len = nlmsg.hdr.nlmsg_len,
+  };
+  msghdr msg{
+    .msg_name = &sa,
+    .msg_namelen = sizeof(sa),
+    .msg_iov = &iov,
+    .msg_iovlen = 1,
+  };
 
   ssize_t nwrite;
 
@@ -296,15 +311,17 @@ int send_netlink_msg(int fd, const Address &remote_addr, uint32_t seq) {
 namespace {
 int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
   std::array<uint8_t, 8192> buf;
-  iovec iov = {buf.data(), buf.size()};
+  iovec iov = {
+    .iov_base = buf.data(),
+    .iov_len = buf.size(),
+  };
   sockaddr_nl sa{};
-  msghdr msg{};
-
-  msg.msg_name = &sa;
-  msg.msg_namelen = sizeof(sa);
-  msg.msg_iov = &iov;
-  msg.msg_iovlen = 1;
-
+  msghdr msg{
+    .msg_name = &sa,
+    .msg_namelen = sizeof(sa),
+    .msg_iov = &iov,
+    .msg_iovlen = 1,
+  };
   ssize_t nread;
 
   do {
@@ -443,8 +460,9 @@ int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
 } // namespace
 
 int get_local_addr(in_addr_union &iau, const Address &remote_addr) {
-  sockaddr_nl sa{};
-  sa.nl_family = AF_NETLINK;
+  sockaddr_nl sa{
+    .nl_family = AF_NETLINK,
+  };
 
   auto fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
   if (fd == -1) {

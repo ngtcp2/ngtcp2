@@ -105,9 +105,10 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
     return -1;
   }
 
-  gnutls_datum_t s;
-  s.data = const_cast<uint8_t *>(data.data());
-  s.size = data.size();
+  gnutls_datum_t s{
+    .data = const_cast<uint8_t *>(data.data()),
+    .size = static_cast<unsigned int>(data.size()),
+  };
 
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_encode2(type.data(), &s, &d); rv < 0) {
