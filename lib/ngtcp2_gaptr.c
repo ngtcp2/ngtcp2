@@ -152,6 +152,9 @@ int ngtcp2_gaptr_is_pushed(const ngtcp2_gaptr *gaptr, uint64_t offset,
 
   it = ngtcp2_ksl_lower_bound_search(&gaptr->gap, &q,
                                      ngtcp2_ksl_range_exclusive_search);
+
+  assert(!ngtcp2_ksl_it_end(&it));
+
   m = ngtcp2_range_intersect(&q, (ngtcp2_range *)ngtcp2_ksl_it_key(&it));
 
   return ngtcp2_range_len(&m) == 0;
