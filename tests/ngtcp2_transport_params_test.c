@@ -417,7 +417,7 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   const ngtcp2_transport_params *dest;
   size_t v1len;
   ngtcp2_cid rcid, scid, dcid;
-  uint8_t available_versions[sizeof(uint32_t) * 3];
+  uint8_t available_versions[sizeof(uint32_t) * 3] = {};
   ngtcp2_sockaddr_in6 *sa_in6;
 
   rcid_init(&rcid);
