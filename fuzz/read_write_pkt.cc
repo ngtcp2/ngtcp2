@@ -225,7 +225,32 @@ void qlog_write(void *user_data, uint32_t flags, const void *data,
 } // namespace
 
 namespace {
-ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider) {
+void *fuzzed_malloc(size_t size, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? nullptr : malloc(size);
+}
+} // namespace
+
+namespace {
+void *fuzzed_calloc(size_t nmemb, size_t size, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? nullptr : calloc(nmemb, size);
+}
+} // namespace
+
+namespace {
+void *fuzzed_realloc(void *ptr, size_t size, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? nullptr : realloc(ptr, size);
+}
+} // namespace
+
+namespace {
+ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
+                        const ngtcp2_mem &mem) {
   ngtcp2_callbacks cb{
     .client_initial = client_initial,
     .recv_client_initial = recv_client_initial,
@@ -295,13 +320,19 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider) {
     params.original_dcid_present = 1;
     params.stateless_reset_token_present = 1;
 
-    ngtcp2_conn_server_new(&conn, &dcid, &scid, &ps.path, NGTCP2_PROTO_VER_V1,
-                           &cb, &settings, &params,
-                           /* mem = */ nullptr, nullptr);
+    auto rv =
+      ngtcp2_conn_server_new(&conn, &dcid, &scid, &ps.path, NGTCP2_PROTO_VER_V1,
+                             &cb, &settings, &params, &mem, nullptr);
+    if (rv != 0) {
+      return nullptr;
+    }
   } else {
-    ngtcp2_conn_client_new(&conn, &dcid, &scid, &ps.path, NGTCP2_PROTO_VER_V1,
-                           &cb, &settings, &params,
-                           /* mem = */ nullptr, nullptr);
+    auto rv =
+      ngtcp2_conn_client_new(&conn, &dcid, &scid, &ps.path, NGTCP2_PROTO_VER_V1,
+                             &cb, &settings, &params, &mem, nullptr);
+    if (rv != 0) {
+      return nullptr;
+    }
   }
 
   ngtcp2_crypto_ctx crypto_ctx{
@@ -318,20 +349,43 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider) {
   ngtcp2_crypto_aead_ctx aead_ctx{};
   ngtcp2_crypto_cipher_ctx hp_ctx{};
 
-  ngtcp2_conn_install_initial_key(conn, &aead_ctx, null_iv, &hp_ctx, &aead_ctx,
-                                  null_iv, &hp_ctx, sizeof(null_iv));
+  auto rv = ngtcp2_conn_install_initial_key(conn, &aead_ctx, null_iv, &hp_ctx,
+                                            &aead_ctx, null_iv, &hp_ctx,
+                                            sizeof(null_iv));
+  if (rv != 0) {
+    ngtcp2_conn_del(conn);
+    return nullptr;
+  }
 
   ngtcp2_conn_set_crypto_ctx(conn, &crypto_ctx);
 
-  ngtcp2_conn_install_rx_handshake_key(conn, &aead_ctx, null_iv,
-                                       sizeof(null_iv), &hp_ctx);
-  ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
-                                       sizeof(null_iv), &hp_ctx);
+  rv = ngtcp2_conn_install_rx_handshake_key(conn, &aead_ctx, null_iv,
+                                            sizeof(null_iv), &hp_ctx);
+  if (rv != 0) {
+    ngtcp2_conn_del(conn);
+    return nullptr;
+  }
 
-  ngtcp2_conn_install_rx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
-                             null_iv, sizeof(null_iv), &hp_ctx);
-  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
-                             null_iv, sizeof(null_iv), &hp_ctx);
+  rv = ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
+                                            sizeof(null_iv), &hp_ctx);
+  if (rv != 0) {
+    ngtcp2_conn_del(conn);
+    return nullptr;
+  }
+
+  rv = ngtcp2_conn_install_rx_key(conn, null_secret, sizeof(null_secret),
+                                  &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
+  if (rv != 0) {
+    ngtcp2_conn_del(conn);
+    return nullptr;
+  }
+
+  rv = ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret),
+                                  &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
+  if (rv != 0) {
+    ngtcp2_conn_del(conn);
+    return nullptr;
+  }
 
   ngtcp2_conn_discard_initial_state(conn, 0);
   ngtcp2_conn_discard_handshake_state(conn, 0);
@@ -349,7 +403,11 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider) {
 
     scid->flags |= NGTCP2_SCID_FLAG_USED;
 
-    ngtcp2_pq_push(&conn->scid.used, &scid->pe);
+    rv = ngtcp2_pq_push(&conn->scid.used, &scid->pe);
+    if (rv != 0) {
+      ngtcp2_conn_del(conn);
+      return nullptr;
+    }
   }
 
   ngtcp2_transport_params remote_params{};
@@ -373,8 +431,12 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider) {
     fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(
       NGTCP2_MAX_UDP_PAYLOAD_SIZE, NGTCP2_MAX_VARINT);
 
-  ngtcp2_transport_params_copy_new(&conn->remote.transport_params,
-                                   &remote_params, conn->mem);
+  rv = ngtcp2_transport_params_copy_new(&conn->remote.transport_params,
+                                        &remote_params, conn->mem);
+  if (rv != 0) {
+    ngtcp2_conn_del(conn);
+    return nullptr;
+  }
 
   conn->local.bidi.max_streams = remote_params.initial_max_streams_bidi;
   conn->local.uni.max_streams = remote_params.initial_max_streams_uni;
@@ -398,7 +460,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     .ecn = NGTCP2_ECN_ECT_1,
   };
 
-  auto conn = setup_conn(fuzzed_data_provider);
+  ngtcp2_mem mem = *ngtcp2_mem_default();
+  mem.user_data = &fuzzed_data_provider;
+  mem.malloc = fuzzed_malloc;
+  mem.calloc = fuzzed_calloc;
+  mem.realloc = fuzzed_realloc;
+
+  auto conn = setup_conn(fuzzed_data_provider, mem);
+  if (conn == nullptr) {
+    return 0;
+  }
 
   ngtcp2_tstamp ts{};
 
