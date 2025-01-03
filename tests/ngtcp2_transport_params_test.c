@@ -419,10 +419,15 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   ngtcp2_cid rcid, scid, dcid;
   uint8_t available_versions[sizeof(uint32_t) * 3];
   ngtcp2_sockaddr_in6 *sa_in6;
+  size_t i;
 
   rcid_init(&rcid);
   scid_init(&scid);
   dcid_init(&dcid);
+
+  for (i = 0; i < sizeof(available_versions); i += sizeof(uint32_t)) {
+    ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xff000000u + i));
+  }
 
   ngtcp2_transport_params_default_versioned(NGTCP2_TRANSPORT_PARAMS_V1,
                                             &srcbuf);
