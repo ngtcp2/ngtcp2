@@ -609,46 +609,31 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   port_ = port;
 
   auto callbacks = ngtcp2_callbacks{
-    ngtcp2_crypto_client_initial_cb,
-    nullptr, // recv_client_initial
-    ::recv_crypto_data,
-    ::handshake_completed,
-    ::recv_version_negotiation,
-    ngtcp2_crypto_encrypt_cb,
-    ngtcp2_crypto_decrypt_cb,
-    do_hp_mask,
-    ::recv_stream_data,
-    ::acked_stream_data_offset,
-    nullptr, // stream_open
-    stream_close,
-    nullptr, // recv_stateless_reset
-    ngtcp2_crypto_recv_retry_cb,
-    extend_max_local_streams_bidi,
-    nullptr, // extend_max_local_streams_uni
-    rand,
-    get_new_connection_id,
-    nullptr, // remove_connection_id
-    ::update_key,
-    path_validation,
-    ::select_preferred_address,
-    nullptr, // stream_reset
-    nullptr, // extend_max_remote_streams_bidi,
-    nullptr, // extend_max_remote_streams_uni,
-    ::extend_max_stream_data,
-    nullptr, // dcid_status
-    ::handshake_confirmed,
-    ::recv_new_token,
-    ngtcp2_crypto_delete_crypto_aead_ctx_cb,
-    ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
-    nullptr, // recv_datagram
-    nullptr, // ack_datagram
-    nullptr, // lost_datagram
-    ngtcp2_crypto_get_path_challenge_data_cb,
-    nullptr, // stream_stop_sending
-    ngtcp2_crypto_version_negotiation_cb,
-    nullptr, // recv_rx_key
-    nullptr, // recv_tx_key
-    ::early_data_rejected,
+    .client_initial = ngtcp2_crypto_client_initial_cb,
+    .recv_crypto_data = ::recv_crypto_data,
+    .handshake_completed = ::handshake_completed,
+    .recv_version_negotiation = ::recv_version_negotiation,
+    .encrypt = ngtcp2_crypto_encrypt_cb,
+    .decrypt = ngtcp2_crypto_decrypt_cb,
+    .hp_mask = do_hp_mask,
+    .recv_stream_data = ::recv_stream_data,
+    .acked_stream_data_offset = ::acked_stream_data_offset,
+    .stream_close = stream_close,
+    .recv_retry = ngtcp2_crypto_recv_retry_cb,
+    .extend_max_local_streams_bidi = extend_max_local_streams_bidi,
+    .rand = rand,
+    .get_new_connection_id = get_new_connection_id,
+    .update_key = ::update_key,
+    .path_validation = path_validation,
+    .select_preferred_addr = ::select_preferred_address,
+    .extend_max_stream_data = ::extend_max_stream_data,
+    .handshake_confirmed = ::handshake_confirmed,
+    .recv_new_token = ::recv_new_token,
+    .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
+    .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
+    .get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb,
+    .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
+    .tls_early_data_rejected = ::early_data_rejected,
   };
 
   ngtcp2_cid scid, dcid;
@@ -757,15 +742,17 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   params.grease_quic_bit = 1;
 
   auto path = ngtcp2_path{
-    {
-      const_cast<sockaddr *>(&ep.addr.su.sa),
-      ep.addr.len,
-    },
-    {
-      const_cast<sockaddr *>(&remote_addr.su.sa),
-      remote_addr.len,
-    },
-    &ep,
+    .local =
+      {
+        .addr = const_cast<sockaddr *>(&ep.addr.su.sa),
+        .addrlen = ep.addr.len,
+      },
+    .remote =
+      {
+        .addr = const_cast<sockaddr *>(&remote_addr.su.sa),
+        .addrlen = remote_addr.len,
+      },
+    .user_data = &ep,
   };
   auto rv =
     ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, client_chosen_version_,
@@ -812,15 +799,17 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                       const ngtcp2_pkt_info *pi,
                       std::span<const uint8_t> data) {
   auto path = ngtcp2_path{
-    {
-      const_cast<sockaddr *>(&ep.addr.su.sa),
-      ep.addr.len,
-    },
-    {
-      const_cast<sockaddr *>(sa),
-      salen,
-    },
-    const_cast<Endpoint *>(&ep),
+    .local =
+      {
+        .addr = const_cast<sockaddr *>(&ep.addr.su.sa),
+        .addrlen = ep.addr.len,
+      },
+    .remote =
+      {
+        .addr = const_cast<sockaddr *>(sa),
+        .addrlen = salen,
+      },
+    .user_data = const_cast<Endpoint *>(&ep),
   };
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data.data(), data.size(),
                                      util::timestamp());
@@ -846,17 +835,19 @@ int Client::on_read(const Endpoint &ep) {
   size_t pktcnt = 0;
   ngtcp2_pkt_info pi;
 
-  iovec msg_iov;
-  msg_iov.iov_base = buf.data();
-  msg_iov.iov_len = buf.size();
-
-  msghdr msg{};
-  msg.msg_name = &su;
-  msg.msg_iov = &msg_iov;
-  msg.msg_iovlen = 1;
+  iovec msg_iov{
+    .iov_base = buf.data(),
+    .iov_len = buf.size(),
+  };
 
   uint8_t msg_ctrl[CMSG_SPACE(sizeof(int)) + CMSG_SPACE(sizeof(int))];
-  msg.msg_control = msg_ctrl;
+
+  msghdr msg{
+    .msg_name = &su,
+    .msg_iov = &msg_iov,
+    .msg_iovlen = 1,
+    .msg_control = msg_ctrl,
+  };
 
   for (;;) {
     msg.msg_namelen = sizeof(su);
@@ -1156,13 +1147,12 @@ void Client::update_timer() {
 namespace {
 int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
               int family) {
-  addrinfo hints{};
+  addrinfo hints{
+    .ai_flags = AI_PASSIVE,
+    .ai_family = family,
+    .ai_socktype = SOCK_DGRAM,
+  };
   addrinfo *res, *rp;
-
-  hints.ai_family = family;
-  hints.ai_socktype = SOCK_DGRAM;
-  hints.ai_flags = AI_PASSIVE;
-
   char *node;
   std::array<char, NI_MAXHOST> nodebuf;
 
@@ -1247,11 +1237,11 @@ int udp_sock(int family) {
 
 namespace {
 int create_sock(Address &remote_addr, const char *addr, const char *port) {
-  addrinfo hints{};
+  addrinfo hints{
+    .ai_family = AF_UNSPEC,
+    .ai_socktype = SOCK_DGRAM,
+  };
   addrinfo *res, *rp;
-
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_DGRAM;
 
   if (auto rv = getaddrinfo(addr, port, &hints, &res); rv != 0) {
     std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
@@ -1390,12 +1380,13 @@ int Client::change_local_addr() {
     ngtcp2_conn_set_path_user_data(conn_, &ep);
   } else {
     auto path = ngtcp2_path{
-      addr,
-      {
-        const_cast<sockaddr *>(&remote_addr_.su.sa),
-        remote_addr_.len,
-      },
-      &ep,
+      .local = addr,
+      .remote =
+        {
+          .addr = const_cast<sockaddr *>(&remote_addr_.su.sa),
+          .addrlen = remote_addr_.len,
+        },
+      .user_data = &ep,
     };
     if (auto rv = ngtcp2_conn_initiate_immediate_migration(conn_, &path,
                                                            util::timestamp());
@@ -1506,24 +1497,23 @@ Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
     return {{}, 0};
   }
 
-  iovec msg_iov;
-  msg_iov.iov_base = const_cast<uint8_t *>(data.data());
-  msg_iov.iov_len = data.size();
+  iovec msg_iov{
+    .iov_base = const_cast<uint8_t *>(data.data()),
+    .iov_len = data.size(),
+  };
 
-  msghdr msg{};
+  uint8_t msg_ctrl[CMSG_SPACE(sizeof(int)) + CMSG_SPACE(sizeof(uint16_t))]{};
+
+  msghdr msg{
 #ifdef HAVE_LINUX_RTNETLINK_H
-  msg.msg_name = const_cast<sockaddr *>(remote_addr.addr);
-  msg.msg_namelen = remote_addr.addrlen;
+    .msg_name = const_cast<sockaddr *>(remote_addr.addr),
+    .msg_namelen = remote_addr.addrlen,
 #endif // defined(HAVE_LINUX_RTNETLINK_H)
-  msg.msg_iov = &msg_iov;
-  msg.msg_iovlen = 1;
-
-  uint8_t msg_ctrl[CMSG_SPACE(sizeof(int)) + CMSG_SPACE(sizeof(uint16_t))];
-
-  memset(msg_ctrl, 0, sizeof(msg_ctrl));
-
-  msg.msg_control = msg_ctrl;
-  msg.msg_controllen = sizeof(msg_ctrl);
+    .msg_iov = &msg_iov,
+    .msg_iovlen = 1,
+    .msg_control = msg_ctrl,
+    .msg_controllen = sizeof(msg_ctrl),
+  };
 
   size_t controllen = 0;
 
@@ -1989,27 +1979,25 @@ void print_usage() {
 
 namespace {
 void config_set_default(Config &config) {
-  config = Config{};
-  config.tx_loss_prob = 0.;
-  config.rx_loss_prob = 0.;
-  config.fd = -1;
-  config.ciphers = util::crypto_default_ciphers();
-  config.groups = util::crypto_default_groups();
-  config.nstreams = 0;
-  config.data = nullptr;
-  config.datalen = 0;
-  config.version = NGTCP2_PROTO_VER_V1;
-  config.timeout = 30 * NGTCP2_SECONDS;
-  config.http_method = "GET"sv;
-  config.max_data = 24_m;
-  config.max_stream_data_bidi_local = 16_m;
-  config.max_stream_data_uni = 16_m;
-  config.max_streams_uni = 100;
-  config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
-  config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  config.handshake_timeout = UINT64_MAX;
-  config.ack_thresh = 2;
-  config.initial_pkt_num = UINT32_MAX;
+  config = Config{
+    .tx_loss_prob = 0.,
+    .rx_loss_prob = 0.,
+    .fd = -1,
+    .ciphers = util::crypto_default_ciphers(),
+    .groups = util::crypto_default_groups(),
+    .version = NGTCP2_PROTO_VER_V1,
+    .timeout = 30 * NGTCP2_SECONDS,
+    .http_method = "GET"sv,
+    .max_data = 24_m,
+    .max_stream_data_bidi_local = 16_m,
+    .max_stream_data_uni = 16_m,
+    .max_streams_uni = 100,
+    .cc_algo = NGTCP2_CC_ALGO_CUBIC,
+    .initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT,
+    .handshake_timeout = UINT64_MAX,
+    .ack_thresh = 2,
+    .initial_pkt_num = UINT32_MAX,
+  };
 }
 } // namespace
 
@@ -2303,7 +2291,7 @@ int main(int argc, char **argv) {
       {"wait-for-ticket", no_argument, &flag, 41},
       {"initial-pkt-num", required_argument, &flag, 42},
       {"pmtud-probes", required_argument, &flag, 43},
-      {nullptr, 0, nullptr, 0},
+      {},
     };
 
     auto optidx = 0;
