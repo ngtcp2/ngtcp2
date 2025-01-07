@@ -221,7 +221,7 @@ int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data, void *user_data) {
   }
 
   memset(data, 0, NGTCP2_PATH_CHALLENGE_DATALEN);
-  
+
   return 0;
 }
 } // namespace
