@@ -165,7 +165,7 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
 void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 
 /*
- * ngtcp2_acktr_get returns the pointer to pointer to the entry which
+ * ngtcp2_acktr_get returns the iterator to pointer to the entry which
  * has the largest packet number to be acked.  If there is no entry,
  * returned value satisfies ngtcp2_ksl_it_end(&it) != 0.
  */
