@@ -63,6 +63,8 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_pkt_encode_retire_connection_id_frame),
   munit_void_test(test_ngtcp2_pkt_encode_handshake_done_frame),
   munit_void_test(test_ngtcp2_pkt_encode_datagram_frame),
+  munit_void_test(test_ngtcp2_pkt_encode_ack_frequency_frame),
+  munit_void_test(test_ngtcp2_pkt_encode_immediate_ack_frame),
   munit_void_test(test_ngtcp2_pkt_adjust_pkt_num),
   munit_void_test(test_ngtcp2_pkt_validate_ack),
   munit_void_test(test_ngtcp2_pkt_write_stateless_reset),
@@ -1731,6 +1733,58 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
   assert_size(fr.datacnt, ==, nfr.datacnt);
   assert_null(nfr.data);
   ;
+}
+
+void test_ngtcp2_pkt_encode_ack_frequency_frame(void) {
+  uint8_t buf[256];
+  ngtcp2_ack_frequency fr, nfr;
+  ngtcp2_ssize rv;
+  size_t framelen;
+
+  fr.type = NGTCP2_FRAME_ACK_FREQUENCY;
+  fr.seq = 1000000009;
+  fr.ack_eliciting_thresh = 111;
+  fr.req_max_ack_delay = 1073741823 * NGTCP2_MICROSECONDS;
+  fr.reordering_thresh = 999;
+
+  framelen = ngtcp2_put_uvarintlen(NGTCP2_FRAME_ACK_FREQUENCY) +
+             ngtcp2_put_uvarintlen(fr.seq) +
+             ngtcp2_put_uvarintlen(fr.ack_eliciting_thresh) +
+             ngtcp2_put_uvarintlen(fr.req_max_ack_delay / NGTCP2_MICROSECONDS) +
+             ngtcp2_put_uvarintlen(fr.reordering_thresh);
+
+  rv = ngtcp2_pkt_encode_ack_frequency_frame(buf, sizeof(buf), &fr);
+
+  assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
+
+  rv = ngtcp2_pkt_decode_ack_frequency_frame(
+    &nfr, NGTCP2_FRAME_ACK_FREQUENCY,
+    ngtcp2_put_uvarintlen(NGTCP2_FRAME_ACK_FREQUENCY), buf, framelen);
+
+  assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
+  assert_uint64(fr.type, ==, nfr.type);
+  assert_uint64(fr.seq, =, nfr.seq);
+  assert_uint64(fr.ack_eliciting_thresh, ==, nfr.ack_eliciting_thresh);
+  assert_uint64(fr.req_max_ack_delay, ==, nfr.req_max_ack_delay);
+  assert_uint64(fr.reordering_thresh, ==, nfr.reordering_thresh);
+}
+
+void test_ngtcp2_pkt_encode_immediate_ack_frame(void) {
+  uint8_t buf[3];
+  ngtcp2_immediate_ack fr, nfr;
+  ngtcp2_ssize rv;
+  size_t framelen = 1;
+
+  fr.type = NGTCP2_FRAME_IMMEDIATE_ACK;
+
+  rv = ngtcp2_pkt_encode_immediate_ack_frame(buf, sizeof(buf), &fr);
+
+  assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
+
+  rv = ngtcp2_pkt_decode_immediate_ack_frame(&nfr, buf, framelen);
+
+  assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
+  assert_uint64(fr.type, ==, nfr.type);
 }
 
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
