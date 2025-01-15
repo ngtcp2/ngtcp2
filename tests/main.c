@@ -54,34 +54,23 @@
 #include "ngtcp2_window_filter_test.h"
 #include "ngtcp2_settings_test.h"
 #include "ngtcp2_ppe_test.h"
+#include "ngtcp2_dcidtr_test.h"
 
 int main(int argc, char *argv[]) {
   const MunitSuite suites[] = {
-    pkt_suite,
-    range_suite,
-    rob_suite,
-    acktr_suite,
-    map_suite,
-    transport_params_suite,
-    rtb_suite,
-    idtr_suite,
-    conn_suite,
-    ringbuf_suite,
-    conv_suite,
-    ksl_suite,
-    gaptr_suite,
-    vec_suite,
-    strm_suite,
-    pv_suite,
-    pmtud_suite,
-    str_suite,
-    tstamp_suite,
-    cc_suite,
-    qlog_suite,
-    window_filter_suite,
-    settings_suite,
-    ppe_suite,
-    {0},
+    pkt_suite,      range_suite,
+    rob_suite,      acktr_suite,
+    map_suite,      transport_params_suite,
+    rtb_suite,      idtr_suite,
+    conn_suite,     ringbuf_suite,
+    conv_suite,     ksl_suite,
+    gaptr_suite,    vec_suite,
+    strm_suite,     pv_suite,
+    pmtud_suite,    str_suite,
+    tstamp_suite,   cc_suite,
+    qlog_suite,     window_filter_suite,
+    settings_suite, ppe_suite,
+    dcidtr_suite,   {0},
   };
   const MunitSuite suite = {
     .prefix = "",

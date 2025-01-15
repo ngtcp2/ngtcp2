@@ -74,7 +74,8 @@ OBJECTS = \
 	ngtcp2_objalloc.c \
 	ngtcp2_unreachable.c \
 	ngtcp2_transport_params.c \
-	ngtcp2_settings.c
+	ngtcp2_settings.c \
+	ngtcp2_dcidtr.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -119,6 +120,7 @@ HFILES = \
 	ngtcp2_unreachable.h \
 	ngtcp2_transport_params.h \
 	ngtcp2_settings.h \
+	ngtcp2_dcidtr.h \
 	ngtcp2_conn_stat.h \
 	ngtcp2_pktns_id.h \
 	ngtcp2_tstamp.h

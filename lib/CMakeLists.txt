@@ -67,6 +67,7 @@ set(ngtcp2_SOURCES
   ngtcp2_unreachable.c
   ngtcp2_transport_params.c
   ngtcp2_settings.c
+  ngtcp2_dcidtr.c
 )
 
 set(ngtcp2_INCLUDE_DIRS
