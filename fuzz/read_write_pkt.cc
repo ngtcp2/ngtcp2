@@ -547,9 +547,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     ngtcp2_pkt_info pi{};
 
-    auto spktlen = ngtcp2_conn_writev_stream(
-      conn, &ps.path, &pi, pkt.data(), pkt.size(), nullptr,
-      NGTCP2_WRITE_STREAM_FLAG_NONE, -1, nullptr, 0, ts);
+    auto flags = fuzzed_data_provider.ConsumeIntegral<uint32_t>();
+
+    auto stream_id = fuzzed_data_provider.ConsumeIntegral<int64_t>();
+
+    auto chunk_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
+    auto chunk = fuzzed_data_provider.ConsumeBytes<uint8_t>(chunk_len);
+
+    auto spktlen = ngtcp2_conn_write_stream(
+      conn, &ps.path, &pi, pkt.data(), pkt.size(), nullptr, flags, stream_id,
+      chunk.data(), chunk.size(), ts);
     if (spktlen < 0) {
       break;
     }
