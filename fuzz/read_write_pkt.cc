@@ -78,6 +78,23 @@ int recv_crypto_data(ngtcp2_conn *conn,
 } // namespace
 
 namespace {
+int handshake_completed(ngtcp2_conn *conn, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                             const uint32_t *sv, size_t nsv, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
 int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                  const ngtcp2_crypto_aead_ctx *aead_ctx,
                  const uint8_t *plaintext, size_t plaintextlen,
@@ -116,6 +133,54 @@ int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   memcpy(dest, NGTCP2_FAKE_HP_MASK, sizeof(NGTCP2_FAKE_HP_MASK) - 1);
 
   return 0;
+}
+} // namespace
+
+namespace {
+int recv_stream_data(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
+                     uint64_t offset, const uint8_t *data, size_t datalen,
+                     void *user_data, void *stream_user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int acked_stream_data_offset(ngtcp2_conn *conn, int64_t stream_id,
+                             uint64_t offset, uint64_t datalen, void *user_data,
+                             void *stream_user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int stream_open(ngtcp2_conn *conn, int64_t stream_id, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
+                 uint64_t app_error_code, void *user_data,
+                 void *stream_user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int recv_stateless_reset(ngtcp2_conn *conn,
+                         const ngtcp2_pkt_stateless_reset *sr,
+                         void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
 }
 } // namespace
 
@@ -172,6 +237,15 @@ int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
 } // namespace
 
 namespace {
+int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
+                         void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
 int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
                ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
                ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
@@ -202,6 +276,90 @@ int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
 } // namespace
 
 namespace {
+int path_validation(ngtcp2_conn *conn, uint32_t flags, const ngtcp2_path *path,
+                    const ngtcp2_path *old_path,
+                    ngtcp2_path_validation_result res, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int select_preferred_addr(ngtcp2_conn *conn, ngtcp2_path *dest,
+                          const ngtcp2_preferred_addr *paddr, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int stream_reset(ngtcp2_conn *conn, int64_t stream_id, uint64_t final_size,
+                 uint64_t app_error_code, void *user_data,
+                 void *stream_user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int extend_max_remote_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
+                                   void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int extend_max_remote_streams_uni(ngtcp2_conn *conn, uint64_t max_streams,
+                                  void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int extend_max_stream_data(ngtcp2_conn *conn, int64_t stream_id,
+                           uint64_t max_data, void *user_data,
+                           void *stream_user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int dcid_status(ngtcp2_conn *conn, ngtcp2_connection_id_status_type type,
+                uint64_t seq, const ngtcp2_cid *cid, const uint8_t *token,
+                void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int handshake_confirmed(ngtcp2_conn *conn, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int recv_new_token(ngtcp2_conn *conn, const uint8_t *token, size_t tokenlen,
+                   void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
 void delete_crypto_aead_ctx(ngtcp2_conn *conn, ngtcp2_crypto_aead_ctx *aead_ctx,
                             void *user_data) {}
 } // namespace
@@ -210,6 +368,31 @@ namespace {
 void delete_crypto_cipher_ctx(ngtcp2_conn *conn,
                               ngtcp2_crypto_cipher_ctx *cipher_ctx,
                               void *user_data) {}
+} // namespace
+
+namespace {
+int recv_datagram(ngtcp2_conn *conn, uint32_t flags, const uint8_t *data,
+                  size_t datalen, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int ack_datagram(ngtcp2_conn *conn, uint64_t dgram_id, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int lost_datagram(ngtcp2_conn *conn, uint64_t dgram_id, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
 } // namespace
 
 namespace {
@@ -223,6 +406,16 @@ int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data, void *user_data) {
   memset(data, 0, NGTCP2_PATH_CHALLENGE_DATALEN);
 
   return 0;
+}
+} // namespace
+
+namespace {
+int stream_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
+                        uint64_t app_error_code, void *user_data,
+                        void *stream_user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
 }
 } // namespace
 
@@ -243,6 +436,32 @@ int version_negotiation(ngtcp2_conn *conn, uint32_t version,
                                        sizeof(null_iv));
 
   return 0;
+}
+} // namespace
+
+namespace {
+int recv_rx_key(ngtcp2_conn *conn, ngtcp2_encryption_level level,
+                void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int recv_tx_key(ngtcp2_conn *conn, ngtcp2_encryption_level level,
+                void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int tls_early_data_rejected(ngtcp2_conn *conn, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
 }
 } // namespace
 
@@ -307,19 +526,43 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
     .client_initial = client_initial,
     .recv_client_initial = recv_client_initial,
     .recv_crypto_data = recv_crypto_data,
+    .handshake_completed = handshake_completed,
+    .recv_version_negotiation = recv_version_negotiation,
     .encrypt = null_encrypt,
     .decrypt = null_decrypt,
     .hp_mask = null_hp_mask,
+    .recv_stream_data = recv_stream_data,
+    .acked_stream_data_offset = acked_stream_data_offset,
+    .stream_open = stream_open,
+    .stream_close = stream_close,
+    .recv_stateless_reset = recv_stateless_reset,
     .recv_retry = recv_retry,
     .extend_max_local_streams_bidi = extend_max_local_streams_bidi,
     .extend_max_local_streams_uni = extend_max_local_streams_uni,
     .rand = genrand,
     .get_new_connection_id = get_new_connection_id,
+    .remove_connection_id = remove_connection_id,
     .update_key = update_key,
+    .path_validation = path_validation,
+    .select_preferred_addr = select_preferred_addr,
+    .stream_reset = stream_reset,
+    .extend_max_remote_streams_bidi = extend_max_remote_streams_bidi,
+    .extend_max_remote_streams_uni = extend_max_remote_streams_uni,
+    .extend_max_stream_data = extend_max_stream_data,
+    .dcid_status = dcid_status,
+    .handshake_confirmed = handshake_confirmed,
+    .recv_new_token = recv_new_token,
     .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
     .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
+    .recv_datagram = recv_datagram,
+    .ack_datagram = ack_datagram,
+    .lost_datagram = lost_datagram,
     .get_path_challenge_data = get_path_challenge_data,
+    .stream_stop_sending = stream_stop_sending,
     .version_negotiation = version_negotiation,
+    .recv_rx_key = recv_rx_key,
+    .recv_tx_key = recv_tx_key,
+    .tls_early_data_rejected = tls_early_data_rejected,
   };
   ngtcp2_cid dcid, scid, odcid;
 
