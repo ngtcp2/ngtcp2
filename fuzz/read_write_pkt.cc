@@ -506,6 +506,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   ngtcp2_tstamp ts{};
 
+  std::vector<std::vector<uint8_t>> chunks;
+
   while (fuzzed_data_provider.remaining_bytes() > 0) {
     auto recv_pkt_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
 
@@ -526,6 +528,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     ngtcp2_pkt_info pi{};
 
+    ngtcp2_ssize ndatalen;
+
     auto flags = fuzzed_data_provider.ConsumeIntegral<uint32_t>();
 
     auto stream_id = fuzzed_data_provider.ConsumeIntegral<int64_t>();
@@ -534,10 +538,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     auto chunk = fuzzed_data_provider.ConsumeBytes<uint8_t>(chunk_len);
 
     auto spktlen = ngtcp2_conn_write_stream(
-      conn, &ps.path, &pi, pkt.data(), pkt.size(), nullptr, flags, stream_id,
+      conn, &ps.path, &pi, pkt.data(), pkt.size(), &ndatalen, flags, stream_id,
       chunk.data(), chunk.size(), ts);
     if (spktlen < 0) {
       break;
+    }
+
+    if (ndatalen > 0) {
+      chunks.push_back(std::move(chunk));
     }
   }
 
