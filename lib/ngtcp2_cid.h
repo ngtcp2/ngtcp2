@@ -162,15 +162,16 @@ int ngtcp2_dcid_verify_uniqueness(const ngtcp2_dcid *dcid, uint64_t seq,
 
 /*
  * ngtcp2_dcid_verify_stateless_reset_token verifies stateless reset
- * token |token| against the one included in |dcid|.  Tokens are
- * compared in constant time.  This function returns 0 if the
- * verification succeeds, or one of the following negative error
- * codes:
+ * token |token| received on |path| against the one included in
+ * |dcid|.  Tokens are compared in constant time.  This function
+ * returns 0 if the verification succeeds, or one of the following
+ * negative error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     Tokens do not match; or |dcid| does not contain a token.
  */
 int ngtcp2_dcid_verify_stateless_reset_token(const ngtcp2_dcid *dcid,
+                                             const ngtcp2_path *path,
                                              const uint8_t *token);
 
 #endif /* !defined(NGTCP2_CID_H) */

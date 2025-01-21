@@ -55,6 +55,7 @@ set(main_SOURCES
   ngtcp2_window_filter_test.c
   ngtcp2_settings_test.c
   ngtcp2_ppe_test.c
+  ngtcp2_dcidtr_test.c
   ngtcp2_test_helper.c
   munit/munit.c
 )

@@ -51,6 +51,7 @@
 #include "ngtcp2_qlog.h"
 #include "ngtcp2_rst.h"
 #include "ngtcp2_conn_stat.h"
+#include "ngtcp2_dcidtr.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -78,18 +79,6 @@ typedef enum {
    accept. */
 #define NGTCP2_MAX_RETRIES 3
 
-/* NGTCP2_MAX_BOUND_DCID_POOL_SIZE is the maximum number of
-   destination connection ID which have been bound to a particular
-   path, but not yet used as primary path and path validation is not
-   performed from the local endpoint. */
-#define NGTCP2_MAX_BOUND_DCID_POOL_SIZE 4
-/* NGTCP2_MAX_DCID_POOL_SIZE is the maximum number of destination
-   connection ID the remote endpoint provides to store.  It must be
-   the power of 2. */
-#define NGTCP2_MAX_DCID_POOL_SIZE 8
-/* NGTCP2_MAX_DCID_RETIRED_SIZE is the maximum number of retired DCID
-   kept to catch in-flight packet on retired path. */
-#define NGTCP2_MAX_DCID_RETIRED_SIZE 2
 /* NGTCP2_MAX_SCID_POOL_SIZE is the maximum number of source
    connection ID the local endpoint provides to the remote endpoint.
    The chosen value was described in old draft.  Now a remote endpoint
@@ -336,12 +325,6 @@ typedef struct ngtcp2_early_transport_params {
   uint64_t max_datagram_frame_size;
 } ngtcp2_early_transport_params;
 
-ngtcp2_static_ringbuf_def(dcid_bound, NGTCP2_MAX_BOUND_DCID_POOL_SIZE,
-                          sizeof(ngtcp2_dcid))
-ngtcp2_static_ringbuf_def(dcid_unused, NGTCP2_MAX_DCID_POOL_SIZE,
-                          sizeof(ngtcp2_dcid))
-ngtcp2_static_ringbuf_def(dcid_retired, NGTCP2_MAX_DCID_RETIRED_SIZE,
-                          sizeof(ngtcp2_dcid))
 ngtcp2_static_ringbuf_def(path_challenge, 4,
                           sizeof(ngtcp2_path_challenge_entry))
 
@@ -373,31 +356,13 @@ struct ngtcp2_conn {
   struct {
     /* current is the current destination connection ID. */
     ngtcp2_dcid current;
-    /* bound is a set of destination connection IDs which are bound to
-       particular paths.  These paths are not validated yet. */
-    ngtcp2_static_ringbuf_dcid_bound bound;
-    /* unused is a set of unused CID received from peer. */
-    ngtcp2_static_ringbuf_dcid_unused unused;
-    /* retired is a set of CID retired by local endpoint.  Keep them
-       in 3*PTO to catch packets in flight along the old path. */
-    ngtcp2_static_ringbuf_dcid_retired retired;
+    ngtcp2_dcidtr dtr;
     /* seqgap tracks received sequence numbers in order to ignore
        retransmitted duplicated NEW_CONNECTION_ID frame. */
     ngtcp2_gaptr seqgap;
     /* retire_prior_to is the largest retire_prior_to received so
        far. */
     uint64_t retire_prior_to;
-    struct {
-      /* seqs contains sequence number of Connection ID whose
-         retirement is not acknowledged by the remote endpoint yet. */
-      uint64_t seqs[NGTCP2_MAX_DCID_POOL_SIZE * 2];
-      /* len is the number of sequence numbers that seq contains. */
-      size_t len;
-    } retire_unacked;
-    /* zerolen_seq is a pseudo sequence number of zero-length
-       Destination Connection ID in order to distinguish between
-       them. */
-    uint64_t zerolen_seq;
   } dcid;
 
   struct {

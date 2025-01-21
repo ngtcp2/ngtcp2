@@ -6525,10 +6525,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
-  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(1, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
 
-  dcid = ngtcp2_ringbuf_get(&conn->dcid.unused.rb, 0);
-
+  dcid = ngtcp2_ringbuf_get(&conn->dcid.dtr.unused.rb, 0);
   assert_true(ngtcp2_cid_eq(&fr.new_connection_id.cid, &dcid->cid));
   assert_true(dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT);
   assert_memory_equal(sizeof(fr.new_connection_id.stateless_reset_token),
@@ -6545,8 +6544,8 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_bound_len(&conn->dcid.dtr));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
   assert_uint64(2, ==, conn->dcid.current.seq);
   assert_not_null(conn->pktns.tx.frq);
   assert_uint64(2, ==, conn->dcid.retire_prior_to);
@@ -6588,7 +6587,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
   assert_uint64(2, ==, conn->dcid.current.seq);
   assert_uint64(2, ==, conn->dcid.retire_prior_to);
 
@@ -6613,7 +6612,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
   assert_uint64(2, ==, conn->dcid.current.seq);
   assert_uint64(2, ==, conn->dcid.retire_prior_to);
 
@@ -6628,7 +6627,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
   assert_uint64(2, ==, conn->dcid.current.seq);
   assert_uint64(2, ==, conn->dcid.retire_prior_to);
 
@@ -6679,7 +6678,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
   assert_uint64(1, ==, conn->pv->dcid.seq);
   assert_uint64(0, ==, conn->pv->fallback_dcid.seq);
-  assert_size(2, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(2, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 3;
@@ -6692,7 +6691,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
   assert_uint64(2, ==, conn->pv->dcid.seq);
   assert_uint64(3, ==, conn->pv->fallback_dcid.seq);
@@ -6738,7 +6737,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
   assert_uint64(1, ==, conn->pv->dcid.seq);
   assert_uint64(0, ==, conn->pv->fallback_dcid.seq);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 2;
@@ -6752,7 +6751,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   assert_int(0, ==, rv);
   assert_uint64(2, ==, conn->dcid.current.seq);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
   assert_null(conn->pv);
 
   frc = conn->pktns.tx.frq;
@@ -6797,7 +6796,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
   assert_uint64(1, ==, conn->pv->dcid.seq);
   assert_uint64(0, ==, conn->pv->fallback_dcid.seq);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
 
   /* Overwrite seq in pv->dcid so that pv->dcid cannot be renewed. */
   conn->pv->dcid.seq = 2;
@@ -6817,7 +6816,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   assert_int(0, ==, rv);
   assert_uint64(3, ==, conn->dcid.current.seq);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
   assert_null(conn->pv);
 
   frc = conn->pktns.tx.frq;
@@ -6902,7 +6901,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
   assert_uint64(2, ==, conn->dcid.current.seq);
   assert_not_null(conn->pv);
   assert_true(
@@ -6931,7 +6930,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
   assert_uint64(2, ==, conn->dcid.current.seq);
 
   ngtcp2_conn_del(conn);
@@ -7507,9 +7506,9 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   assert_ptrdiff(1200, <=, spktlen);
   assert_true(ngtcp2_path_eq(&new_path.path, &ps.path));
   assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
-  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
+  assert_size(1, ==, ngtcp2_dcidtr_bound_len(&conn->dcid.dtr));
 
-  dcid = ngtcp2_ringbuf_get(&conn->dcid.bound.rb, 0);
+  dcid = ngtcp2_ringbuf_get(&conn->dcid.dtr.bound.rb, 0);
 
   assert_uint64((uint64_t)spktlen, ==, dcid->bytes_sent);
 
@@ -7536,7 +7535,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   assert_ptrdiff(0, <, spktlen);
   assert_true(ngtcp2_path_eq(&new_path.path, &ps.path));
   assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
-  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
+  assert_size(1, ==, ngtcp2_dcidtr_bound_len(&conn->dcid.dtr));
 
   shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen, cid.datalen);
 
@@ -7580,7 +7579,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   assert_ptrdiff(1200, <=, spktlen);
   assert_true(ngtcp2_path_eq(&null_path.path, &ps.path));
   assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_bound_len(&conn->dcid.dtr));
   assert_uint64((uint64_t)spktlen, ==, conn->dcid.current.bytes_sent);
 
   ngtcp2_conn_del(conn);
@@ -10616,7 +10615,7 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
 
   assert_int(0, ==, rv);
   assert_size(0, <, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
-  assert_size(0, <, ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
+  assert_size(0, <, ngtcp2_dcidtr_bound_len(&conn->dcid.dtr));
 
   expiry = ngtcp2_conn_get_expiry(conn);
 
@@ -10627,7 +10626,7 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
   rv = ngtcp2_conn_handle_expiry(conn, t);
 
   assert_int(0, ==, rv);
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_bound_len(&conn->dcid.dtr));
 
   ngtcp2_conn_del(conn);
 }
