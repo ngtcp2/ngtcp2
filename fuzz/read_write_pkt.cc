@@ -752,12 +752,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   std::vector<std::vector<uint8_t>> chunks;
 
   while (fuzzed_data_provider.remaining_bytes() > 0) {
+    ts = fuzzed_data_provider.ConsumeIntegralInRange<ngtcp2_tstamp>(
+      ts, std::numeric_limits<ngtcp2_tstamp>::max() - 1);
+
+    if (fuzzed_data_provider.ConsumeBool()) {
+      auto rv = ngtcp2_conn_handle_expiry(conn, ts);
+      if (rv != 0) {
+        break;
+      }
+    }
+
     auto recv_pkt_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
 
     auto recv_pkt = fuzzed_data_provider.ConsumeBytes<uint8_t>(recv_pkt_len);
-
-    ts = fuzzed_data_provider.ConsumeIntegralInRange<ngtcp2_tstamp>(
-      ts, std::numeric_limits<ngtcp2_tstamp>::max() - 1);
 
     auto rv = ngtcp2_conn_read_pkt(conn, &ps.path, &pi, recv_pkt.data(),
                                    recv_pkt.size(), ts);
