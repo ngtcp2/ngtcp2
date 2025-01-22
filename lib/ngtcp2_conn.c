@@ -5319,8 +5319,15 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
  */
 static void assign_recved_ack_delay_unscaled(ngtcp2_ack *fr,
                                              uint64_t ack_delay_exponent) {
-  fr->ack_delay_unscaled =
-    fr->ack_delay * (1ULL << ack_delay_exponent) * NGTCP2_MICROSECONDS;
+  const ngtcp2_tstamp max_ack_delay = ((1 << 14) - 1) * NGTCP2_MILLISECONDS;
+  uint64_t exp = (1ULL << ack_delay_exponent) * NGTCP2_MICROSECONDS;
+
+  if (fr->ack_delay > max_ack_delay / exp) {
+    fr->ack_delay_unscaled = max_ack_delay;
+    return;
+  }
+
+  fr->ack_delay_unscaled = fr->ack_delay * exp;
 }
 
 /*
