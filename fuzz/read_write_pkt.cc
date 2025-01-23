@@ -779,6 +779,22 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       break;
     }
 
+    if (fuzzed_data_provider.ConsumeBool()) {
+      auto stream_id = fuzzed_data_provider.ConsumeIntegral<uint64_t>();
+      auto datalen = fuzzed_data_provider.ConsumeIntegral<uint64_t>();
+
+      rv = ngtcp2_conn_extend_max_stream_offset(conn, stream_id, datalen);
+      if (rv != 0) {
+        break;
+      }
+    }
+
+    if (fuzzed_data_provider.ConsumeBool()) {
+      auto datalen = fuzzed_data_provider.ConsumeIntegral<uint64_t>();
+
+      ngtcp2_conn_extend_max_offset(conn, datalen);
+    }
+
     ngtcp2_path_storage ps;
 
     ngtcp2_path_storage_zero(&ps);
