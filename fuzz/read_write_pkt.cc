@@ -762,6 +762,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       }
     }
 
+    if (!ngtcp2_conn_is_server(conn) && fuzzed_data_provider.ConsumeBool()) {
+      auto rv = ngtcp2_conn_initiate_migration(conn, &ps.path, ts);
+      if (rv != 0) {
+        break;
+      }
+    }
+
     auto recv_pkt_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
 
     auto recv_pkt = fuzzed_data_provider.ConsumeBytes<uint8_t>(recv_pkt_len);
