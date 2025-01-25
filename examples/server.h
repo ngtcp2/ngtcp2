@@ -47,6 +47,7 @@
 #include "tls_server_context.h"
 #include "network.h"
 #include "shared.h"
+#include "util.h"
 
 using namespace ngtcp2;
 
@@ -206,18 +207,6 @@ private:
   } tx_;
 };
 
-struct string_hash {
-  using is_transparent = void;
-
-  size_t operator()(const std::string_view &s) const {
-    return std::hash<std::string_view>{}(s);
-  }
-
-  size_t operator()(const std::string &s) const {
-    return std::hash<std::string>{}(s);
-  }
-};
-
 class Server {
 public:
   Server(struct ev_loop *loop, TLSServerContext &tls_ctx);
@@ -263,8 +252,7 @@ public:
   void on_stateless_reset_regen();
 
 private:
-  std::unordered_map<std::string, Handler *, string_hash, std::equal_to<>>
-    handlers_;
+  std::unordered_map<ngtcp2_cid, Handler *> handlers_;
   struct ev_loop *loop_;
   std::vector<Endpoint> endpoints_;
   TLSServerContext &tls_ctx_;

@@ -41,6 +41,7 @@ if(LIBEV_FOUND AND HAVE_OPENSSL AND LIBNGHTTP3_FOUND)
     util.cc
     http.cc
     shared.cc
+    siphash.cc
     tls_server_context_quictls.cc
     tls_server_session_quictls.cc
     tls_session_base_quictls.cc
@@ -113,6 +114,7 @@ if(LIBEV_FOUND AND HAVE_GNUTLS AND LIBNGHTTP3_FOUND)
     util.cc
     http.cc
     shared.cc
+    siphash.cc
     tls_server_context_gnutls.cc
     tls_server_session_gnutls.cc
     tls_session_base_gnutls.cc
@@ -186,6 +188,7 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     util.cc
     http.cc
     shared.cc
+    siphash.cc
     tls_server_context_boringssl.cc
     tls_server_session_boringssl.cc
     tls_session_base_quictls.cc
@@ -264,6 +267,7 @@ if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
     util.cc
     http.cc
     shared.cc
+    siphash.cc
     tls_server_context_picotls.cc
     tls_server_session_picotls.cc
     tls_session_base_picotls.cc
@@ -339,6 +343,7 @@ if(LIBEV_FOUND AND HAVE_WOLFSSL AND LIBNGHTTP3_FOUND)
     util.cc
     http.cc
     shared.cc
+    siphash.cc
     tls_server_context_wolfssl.cc
     tls_server_session_wolfssl.cc
     tls_session_base_wolfssl.cc
