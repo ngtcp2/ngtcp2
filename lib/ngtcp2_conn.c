@@ -12690,7 +12690,7 @@ static void conn_get_loss_time_and_pktns(ngtcp2_conn *conn,
 
 static ngtcp2_tstamp conn_get_earliest_pto_expiry(ngtcp2_conn *conn,
                                                   ngtcp2_tstamp ts) {
-  ngtcp2_pktns *ns[] = {conn->in_pktns, conn->hs_pktns, &conn->pktns};
+  ngtcp2_pktns *const ns[] = {conn->in_pktns, conn->hs_pktns, &conn->pktns};
   size_t i;
   ngtcp2_tstamp earliest_ts = UINT64_MAX, t;
   ngtcp2_conn_stat *cstat = &conn->cstat;
