@@ -6675,7 +6675,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   assert(NULL != conn->pv);
 
-  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
   assert_uint64(1, ==, conn->pv->dcid.seq);
   assert_uint64(0, ==, conn->pv->fallback_dcid.seq);
   assert_size(2, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
@@ -6692,7 +6692,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   assert_int(0, ==, rv);
   assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
-  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
   assert_uint64(2, ==, conn->pv->dcid.seq);
   assert_uint64(3, ==, conn->pv->fallback_dcid.seq);
 
@@ -6734,7 +6734,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   assert(NULL != conn->pv);
 
-  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
   assert_uint64(1, ==, conn->pv->dcid.seq);
   assert_uint64(0, ==, conn->pv->fallback_dcid.seq);
   assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
@@ -6793,7 +6793,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   assert(NULL != conn->pv);
 
-  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
   assert_uint64(1, ==, conn->pv->dcid.seq);
   assert_uint64(0, ==, conn->pv->fallback_dcid.seq);
   assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
@@ -6802,7 +6802,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   conn->pv->dcid.seq = 2;
   /* Internally we assume that if primary dcid and pv->dcid differ,
      then no fallback dcid is present. */
-  conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE;
+  conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_PRESENT;
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 3;
@@ -7328,7 +7328,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   /* Server starts path validation against old path. */
   assert_not_null(conn->pv);
-  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
   assert_not_null(conn->pmtud);
 
@@ -10160,7 +10160,7 @@ void test_ngtcp2_conn_path_validation(void) {
   ent = ngtcp2_ringbuf_get(&conn->pv->ents.rb, 0);
 
   assert_true(ent->flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED);
-  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
 
   frs[0].type = NGTCP2_FRAME_PATH_RESPONSE;
   memcpy(frs[0].path_response.data, ent->data, sizeof(ent->data));
@@ -10172,7 +10172,7 @@ void test_ngtcp2_conn_path_validation(void) {
 
   /* Start another path validation to probe least MTU */
   assert_not_null(conn->pv);
-  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
 
   ngtcp2_path_storage_zero(&wpath);
   spktlen =
@@ -10193,7 +10193,7 @@ void test_ngtcp2_conn_path_validation(void) {
 
   /* Now perform another validation to old path */
   assert_not_null(conn->pv);
-  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
 
   ngtcp2_path_storage_zero(&wpath);
