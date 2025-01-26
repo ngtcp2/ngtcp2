@@ -297,7 +297,7 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_pv *pv,
     flags |= NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR;
   }
 
-  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
+  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
     old_path = &pv->fallback_dcid.ps.path;
   }
 
@@ -4577,7 +4577,7 @@ static int conn_bind_dcid(ngtcp2_conn *conn, ngtcp2_dcid **pdcid,
                           const ngtcp2_path *path, ngtcp2_tstamp ts) {
   assert(!ngtcp2_path_eq(&conn->dcid.current.ps.path, path));
   assert(!conn->pv || !ngtcp2_path_eq(&conn->pv->dcid.ps.path, path));
-  assert(!conn->pv || !(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) ||
+  assert(!conn->pv || !(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) ||
          !ngtcp2_path_eq(&conn->pv->fallback_dcid.ps.path, path));
 
   *pdcid = ngtcp2_dcidtr_find_bound_dcid(&conn->dcid.dtr, path);
@@ -4712,7 +4712,7 @@ static int conn_stop_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     }
   }
 
-  if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+  if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
       pv->fallback_dcid.cid.datalen &&
       pv->fallback_dcid.seq != conn->dcid.current.seq &&
       pv->fallback_dcid.seq != pv->dcid.seq) {
@@ -4807,7 +4807,7 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
     }
   }
 
-  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
+  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
     ngtcp2_dcid_copy(&conn->dcid.current, &pv->fallback_dcid);
     conn_reset_congestion_state(conn, ts);
   }
@@ -4957,7 +4957,7 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
         dcid = &pv->dcid;
         break;
       }
-      if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+      if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
           ngtcp2_path_eq(&pv->fallback_dcid.ps.path, &pcent->ps.path)) {
         dcid = &pv->fallback_dcid;
         break;
@@ -5787,7 +5787,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
     }
   }
 
-  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
+  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
     if (ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED) {
       assert(conn->server);
 
@@ -5811,7 +5811,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
     /* Unset the flag bit so that conn_stop_pv does not retire
        DCID. */
-    pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE;
+    pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_PRESENT;
 
     rv = conn_stop_pv(conn, ts);
     if (rv != 0) {
@@ -7488,7 +7488,7 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   if (!check_stateless_reset(&conn->dcid.current, path, &sr) &&
       (!pv || (!check_stateless_reset(&pv->dcid, path, &sr) &&
-               (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) ||
+               (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) ||
                 !check_stateless_reset(&pv->fallback_dcid, path, &sr))))) {
     rv = ngtcp2_dcidtr_verify_stateless_reset(&conn->dcid.dtr, path,
                                               sr.stateless_reset_token);
@@ -7652,7 +7652,7 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
         pv->dcid.seq >= conn->dcid.retire_prior_to) {
       ++extra_dcid;
     }
-    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
         pv->fallback_dcid.seq != conn->dcid.current.seq &&
         pv->fallback_dcid.seq >= conn->dcid.retire_prior_to) {
       ++extra_dcid;
@@ -7709,7 +7709,7 @@ static int conn_post_process_recv_new_connection_id(ngtcp2_conn *conn,
       if (conn->dcid.current.seq == pv->dcid.seq) {
         ngtcp2_dcid_copy_cid_token(&pv->dcid, &dcid);
       }
-      if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+      if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
           conn->dcid.current.seq == pv->fallback_dcid.seq) {
         ngtcp2_dcid_copy_cid_token(&pv->fallback_dcid, &dcid);
       }
@@ -7740,7 +7740,7 @@ static int conn_post_process_recv_new_connection_id(ngtcp2_conn *conn,
 
       ngtcp2_dcidtr_pop_unused_cid_token(&conn->dcid.dtr, &dcid);
 
-      if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+      if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
           pv->dcid.seq == pv->fallback_dcid.seq) {
         ngtcp2_dcid_copy_cid_token(&pv->fallback_dcid, &dcid);
       }
@@ -7752,7 +7752,7 @@ static int conn_post_process_recv_new_connection_id(ngtcp2_conn *conn,
         return rv;
       }
     }
-    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
         pv->fallback_dcid.seq < conn->dcid.retire_prior_to) {
       if (ngtcp2_dcidtr_unused_empty(&conn->dcid.dtr)) {
         /* Now we have no fallback dcid. */
@@ -8312,7 +8312,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   assert(conn->server);
 
-  if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+  if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
       ngtcp2_path_eq(&conn->pv->fallback_dcid.ps.path, path)) {
     /* If new path equals fallback path, that means connection
        migrated back to the original path.  Fallback path is
@@ -8408,12 +8408,12 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     return rv;
   }
 
-  if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
+  if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT)) {
     ngtcp2_pv_set_fallback(pv, &conn->pv->fallback_dcid,
                            conn->pv->fallback_pto);
     /* Unset the flag bit so that conn_stop_pv does not retire
        DCID. */
-    conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE;
+    conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_PRESENT;
   } else {
     ngtcp2_pv_set_fallback(pv, &conn->dcid.current, pto);
   }
@@ -8472,7 +8472,7 @@ static int conn_recv_pkt_from_new_path(ngtcp2_conn *conn,
       return 0;
     }
 
-    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
         ngtcp2_path_eq(&pv->fallback_dcid.ps.path, path)) {
       pv->fallback_dcid.bytes_recv += dgramlen;
       return 0;
@@ -13017,7 +13017,7 @@ static size_t conn_get_num_active_dcid(ngtcp2_conn *conn) {
     if (pv->dcid.seq != conn->dcid.current.seq) {
       ++n;
     }
-    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
         pv->fallback_dcid.seq != conn->dcid.current.seq &&
         pv->fallback_dcid.seq != pv->dcid.seq) {
       ++n;
@@ -13066,7 +13066,7 @@ size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn, ngtcp2_cid_token *dest) {
       copy_dcid_to_cid_token(dest, &pv->dcid);
       ++dest;
     }
-    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
         pv->fallback_dcid.seq != conn->dcid.current.seq &&
         pv->fallback_dcid.seq != pv->dcid.seq) {
       copy_dcid_to_cid_token(dest, &pv->fallback_dcid);
