@@ -191,4 +191,10 @@ ngtcp2_tstamp ngtcp2_pv_next_expiry(ngtcp2_pv *pv);
  */
 void ngtcp2_pv_cancel_expired_timer(ngtcp2_pv *pv, ngtcp2_tstamp ts);
 
+/*
+ * ngtcp2_pv_set_fallback sets |dcid| and |pto| as fallback.
+ */
+void ngtcp2_pv_set_fallback(ngtcp2_pv *pv, const ngtcp2_dcid *dcid,
+                            ngtcp2_duration pto);
+
 #endif /* !defined(NGTCP2_PV_H) */

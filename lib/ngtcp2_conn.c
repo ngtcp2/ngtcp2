@@ -5793,15 +5793,13 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
       /* Validate path again */
       rv = ngtcp2_pv_new(&npv, &pv->dcid, conn_compute_pv_timeout(conn),
-                         NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE, &conn->log,
-                         conn->mem);
+                         NGTCP2_PV_FLAG_NONE, &conn->log, conn->mem);
       if (rv != 0) {
         return rv;
       }
 
       npv->dcid.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
-      ngtcp2_dcid_copy(&npv->fallback_dcid, &pv->fallback_dcid);
-      npv->fallback_pto = pv->fallback_pto;
+      ngtcp2_pv_set_fallback(npv, &pv->fallback_dcid, pv->fallback_pto);
     } else {
       rv = ngtcp2_pv_new(&npv, &pv->fallback_dcid,
                          conn_compute_pv_timeout_pto(conn, pv->fallback_pto),
@@ -8405,20 +8403,19 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   pto = conn_compute_pto(conn, &conn->pktns);
 
   rv = ngtcp2_pv_new(&pv, &dcid, conn_compute_pv_timeout_pto(conn, pto),
-                     NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE, &conn->log, conn->mem);
+                     NGTCP2_PV_FLAG_NONE, &conn->log, conn->mem);
   if (rv != 0) {
     return rv;
   }
 
   if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
-    ngtcp2_dcid_copy(&pv->fallback_dcid, &conn->pv->fallback_dcid);
-    pv->fallback_pto = conn->pv->fallback_pto;
+    ngtcp2_pv_set_fallback(pv, &conn->pv->fallback_dcid,
+                           conn->pv->fallback_pto);
     /* Unset the flag bit so that conn_stop_pv does not retire
        DCID. */
     conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE;
   } else {
-    ngtcp2_dcid_copy(&pv->fallback_dcid, &conn->dcid.current);
-    pv->fallback_pto = pto;
+    ngtcp2_pv_set_fallback(pv, &conn->dcid.current, pto);
   }
 
   ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
