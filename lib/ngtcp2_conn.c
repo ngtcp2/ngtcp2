@@ -13010,6 +13010,10 @@ static size_t conn_get_num_active_dcid(ngtcp2_conn *conn) {
   size_t n = 1; /* for conn->dcid.current */
   ngtcp2_pv *pv = conn->pv;
 
+  if (conn->dcid.current.cid.datalen == 0) {
+    return n;
+  }
+
   if (pv) {
     if (pv->dcid.seq != conn->dcid.current.seq) {
       ++n;
@@ -13053,6 +13057,10 @@ size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn, ngtcp2_cid_token *dest) {
 
   copy_dcid_to_cid_token(dest, &conn->dcid.current);
   ++dest;
+
+  if (conn->dcid.current.cid.datalen == 0) {
+    return 1;
+  }
 
   if (pv) {
     if (pv->dcid.seq != conn->dcid.current.seq) {

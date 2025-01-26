@@ -185,12 +185,12 @@ void test_ngtcp2_dcidtr_bind_zerolen_dcid(void) {
 
   dcid = ngtcp2_dcidtr_bind_zerolen_dcid(&dtr, &ps.path);
 
-  assert_uint64(1, ==, dcid->seq);
+  assert_uint64(0, ==, dcid->seq);
   assert_true(ngtcp2_path_eq(&ps.path, &dcid->ps.path));
 
   dcid = ngtcp2_dcidtr_bind_zerolen_dcid(&dtr, &ps.path);
 
-  assert_uint64(2, ==, dcid->seq);
+  assert_uint64(0, ==, dcid->seq);
   assert_true(ngtcp2_path_eq(&ps.path, &dcid->ps.path));
 }
 
