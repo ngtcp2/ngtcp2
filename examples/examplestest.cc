@@ -43,5 +43,5 @@ int main(int argc, char *argv[]) {
     .iterations = 1,
   };
 
-  return munit_suite_main(&suite, NULL, argc, argv);
+  return munit_suite_main(&suite, nullptr, argc, argv);
 }
