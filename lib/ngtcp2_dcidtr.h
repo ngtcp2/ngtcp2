@@ -71,10 +71,6 @@ typedef struct ngtcp2_dcidtr {
      endpoint.  Keep them in 3*PTO to catch packets in flight along
      the old path.  They are considered active. */
   ngtcp2_static_ringbuf_dcid_retired retired;
-  /* zerolen_seq is a pseudo sequence number of zero-length
-     Destination Connection ID in order to distinguish between
-     them. */
-  uint64_t zerolen_seq;
   struct {
     /* seqs contains sequence number of Destination Connection ID
        whose retirement is not acknowledged by the remote endpoint

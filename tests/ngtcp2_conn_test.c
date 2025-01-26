@@ -8706,9 +8706,16 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
 void test_ngtcp2_conn_get_active_dcid(void) {
   ngtcp2_conn *conn;
   ngtcp2_cid_token cid_token[2];
-  ngtcp2_cid dcid;
+  ngtcp2_cid dcid, scid;
   static uint8_t token[] = {0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1,
                             0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1};
+  ngtcp2_tpe tpe;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  uint8_t buf[1200];
+  int rv;
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
 
   dcid_init(&dcid);
   setup_default_client(&conn);
@@ -8721,6 +8728,40 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_true(cid_token[0].token_present);
   assert_memory_equal(NGTCP2_STATELESS_RESET_TOKENLEN, token,
                       cid_token[0].token);
+
+  ngtcp2_conn_del(conn);
+
+  /* zero-length Destination Connection ID */
+  server_default_settings(&settings);
+  server_default_transport_params(&params);
+  ngtcp2_cid_zero(&dcid);
+  scid_init(&scid);
+
+  setup_default_server_cid_settings(&conn, &dcid, &scid, &null_path.path,
+                                    &settings, &params, NULL);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid(conn, NULL));
+
+  fr.type = NGTCP2_FRAME_PATH_CHALLENGE;
+  memset(fr.path_challenge.data, 0, sizeof(fr.path_challenge.data));
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, 1);
+
+  assert_int(0, ==, rv);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, 1);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid(conn, cid_token));
+  assert_uint64(0, ==, cid_token[0].seq);
+  assert_true(ngtcp2_cid_eq(&dcid, &cid_token[0].cid));
 
   ngtcp2_conn_del(conn);
 }

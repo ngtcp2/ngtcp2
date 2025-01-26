@@ -34,7 +34,6 @@ void ngtcp2_dcidtr_init(ngtcp2_dcidtr *dtr) {
   ngtcp2_static_ringbuf_dcid_bound_init(&dtr->bound);
   ngtcp2_static_ringbuf_dcid_retired_init(&dtr->retired);
 
-  dtr->zerolen_seq = 0;
   dtr->retire_unacked.len = 0;
 }
 
@@ -123,7 +122,7 @@ ngtcp2_dcid *ngtcp2_dcidtr_bind_zerolen_dcid(ngtcp2_dcidtr *dtr,
   ngtcp2_cid cid;
 
   ngtcp2_cid_zero(&cid);
-  ngtcp2_dcid_init(dcid, ++dtr->zerolen_seq, &cid, NULL);
+  ngtcp2_dcid_init(dcid, 0, &cid, NULL);
   ngtcp2_dcid_set_path(dcid, path);
 
   return dcid;
