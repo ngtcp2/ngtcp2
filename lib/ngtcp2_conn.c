@@ -8488,7 +8488,6 @@ static int conn_recv_pkt_from_new_path(ngtcp2_conn *conn,
     return rv;
   }
 
-  ngtcp2_dcid_set_path(bound_dcid, path);
   bound_dcid->bytes_recv += dgramlen;
 
   return 0;
