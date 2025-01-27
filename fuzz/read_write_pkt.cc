@@ -708,7 +708,7 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
   }
 
   conn->negotiated_version = conn->client_chosen_version;
-  conn->pktns.rtb.persistent_congestion_start_ts = 0;
+  conn->handshake_confirmed_ts = 0;
 
   auto chunk_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
   auto chunk = fuzzed_data_provider.ConsumeBytes<uint8_t>(chunk_len);

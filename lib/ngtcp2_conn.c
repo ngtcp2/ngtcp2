@@ -1377,6 +1377,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
   (*pconn)->idle_ts = settings->initial_ts;
+  (*pconn)->handshake_confirmed_ts = UINT64_MAX;
   (*pconn)->crypto.key_update.confirmed_ts = UINT64_MAX;
   (*pconn)->tx.last_max_data_ts = UINT64_MAX;
   (*pconn)->tx.pacing.next_ts = UINT64_MAX;
@@ -8109,7 +8110,7 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED |
                  NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
 
-  conn->pktns.rtb.persistent_congestion_start_ts = ts;
+  conn->handshake_confirmed_ts = ts;
 
   ngtcp2_conn_discard_handshake_state(conn, ts);
 
@@ -9775,7 +9776,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
       }
     }
 
-    conn->pktns.rtb.persistent_congestion_start_ts = ts;
+    conn->handshake_confirmed_ts = ts;
 
     /* Re-arm loss detection timer here after handshake has been
        confirmed. */

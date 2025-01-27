@@ -101,7 +101,6 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_rst *rst, ngtcp2_cc *cc,
   rtb->probe_pkt_left = 0;
   rtb->cc_pkt_num = cc_pkt_num;
   rtb->cc_bytes_in_flight = 0;
-  rtb->persistent_congestion_start_ts = UINT64_MAX;
   rtb->num_lost_pkts = 0;
   rtb->num_lost_pmtud_pkts = 0;
 }
@@ -1052,7 +1051,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
          max_ack_delay) *
         NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
-      start_ts = ngtcp2_max_uint64(rtb->persistent_congestion_start_ts,
+      start_ts = ngtcp2_max_uint64(conn->handshake_confirmed_ts,
                                    cstat->first_rtt_sample_ts);
 
       for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
