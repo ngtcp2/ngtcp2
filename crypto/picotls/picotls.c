@@ -329,18 +329,21 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const uint8_t *nonce, size_t noncelen,
                           const uint8_t *aad, size_t aadlen) {
   ptls_aead_context_t *actx = aead_ctx->native_handle;
+  size_t nwrite;
 
   (void)aead;
 
   ptls_aead_xor_iv(actx, nonce, noncelen);
 
-  if (ptls_aead_decrypt(actx, dest, ciphertext, ciphertextlen, 0, aad,
-                        aadlen) == SIZE_MAX) {
-    return -1;
-  }
+  nwrite =
+    ptls_aead_decrypt(actx, dest, ciphertext, ciphertextlen, 0, aad, aadlen);
 
   /* zero-out static iv once again */
   ptls_aead_xor_iv(actx, nonce, noncelen);
+
+  if (nwrite == SIZE_MAX) {
+    return -1;
+  }
 
   return 0;
 }
