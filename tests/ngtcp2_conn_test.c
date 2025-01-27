@@ -905,7 +905,7 @@ static void setup_default_server_cid_settings(
   (*pconn)->local.uni.max_streams = remote_params.initial_max_streams_uni;
   (*pconn)->tx.max_offset = remote_params.initial_max_data;
   (*pconn)->negotiated_version = (*pconn)->client_chosen_version;
-  (*pconn)->pktns.rtb.persistent_congestion_start_ts = 0;
+  (*pconn)->handshake_confirmed_ts = 0;
 }
 
 static void
@@ -985,7 +985,7 @@ setup_default_client_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
 
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_TOKEN_PRESENT;
   memset((*pconn)->dcid.current.token, 0xf1, NGTCP2_STATELESS_RESET_TOKENLEN);
-  (*pconn)->pktns.rtb.persistent_congestion_start_ts = 0;
+  (*pconn)->handshake_confirmed_ts = 0;
 }
 
 static void setup_default_client(ngtcp2_conn **pconn) {

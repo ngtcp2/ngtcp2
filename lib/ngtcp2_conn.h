@@ -636,6 +636,9 @@ struct ngtcp2_conn {
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;
+  /* handshake_confirmed_ts is the time instant when handshake is
+     confirmed.  For server, it is confirmed when completed. */
+  ngtcp2_tstamp handshake_confirmed_ts;
   void *user_data;
   uint32_t client_chosen_version;
   uint32_t negotiated_version;
