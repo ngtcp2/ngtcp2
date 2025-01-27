@@ -1382,7 +1382,8 @@ typedef struct ngtcp2_version_info {
 } ngtcp2_version_info;
 
 #define NGTCP2_TRANSPORT_PARAMS_V1 1
-#define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_V1
+#define NGTCP2_TRANSPORT_PARAMS_V2 2
+#define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_V2
 
 /**
  * @struct
@@ -1550,6 +1551,18 @@ typedef struct ngtcp2_transport_params {
    * this field.
    */
   uint8_t version_info_present;
+  /* The following fields have been added since
+     NGTCP2_TRANSPORT_PARAMS_V2. */
+  /**
+   * :member:`min_ack_delay` is the minimum amount of time by which
+   * the local endpoint can delay sending acknowledgement.  This field
+   * must be less than or equal to :member:`max_ack_delay`.  If
+   * nonzero value is given, this value must be more than or equal to
+   * NGTCP2_MICROSECONDS.  Setting 0 makes local endpoint not
+   * advertise its support of ack frequency extension.  See
+   * https://datatracker.ietf.org/doc/html/draft-ietf-quic-ack-frequency-10
+   */
+  ngtcp2_duration min_ack_delay;
 } ngtcp2_transport_params;
 
 #define NGTCP2_CONN_INFO_V1 1
