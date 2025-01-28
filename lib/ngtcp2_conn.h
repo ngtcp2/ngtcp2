@@ -386,11 +386,6 @@ struct ngtcp2_conn {
   struct {
     /* strmq contains ngtcp2_strm which has frames to send. */
     ngtcp2_pq strmq;
-    /* ack is ACK frame.  The underlying buffer is reused. */
-    ngtcp2_frame *ack;
-    /* max_ack_ranges is the number of additional ngtcp2_ack_range
-       which ack can contain. */
-    size_t max_ack_ranges;
     /* offset is the offset the local endpoint has sent to the remote
        endpoint. */
     uint64_t offset;
@@ -1106,26 +1101,20 @@ int ngtcp2_conn_set_0rtt_remote_transport_params(
   ngtcp2_conn *conn, const ngtcp2_transport_params *params);
 
 /*
- * ngtcp2_conn_create_ack_frame creates ACK frame, and assigns its
- * pointer to |*pfr| if there are any received packets to acknowledge.
- * If there are no packets to acknowledge, this function returns 0,
- * and |*pfr| is untouched.  The caller is advised to set |*pfr| to
- * NULL before calling this function, and check it after this function
- * returns.
+ * ngtcp2_conn_create_ack_frame creates ACK frame in the object
+ * pointed by |fr|, and returns |fr| if there are any received packets
+ * to acknowledge.  If there are no packets to acknowledge, this
+ * function returns NULL.  fr->ack.ranges must be able to contain at
+ * least NGTCP2_MAX_ACK_RANGES elements.
  *
  * Call ngtcp2_acktr_commit_ack after a created ACK frame is
  * successfully serialized into a packet.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
  */
-int ngtcp2_conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
-                                 ngtcp2_pktns *pktns, uint8_t type,
-                                 ngtcp2_tstamp ts, ngtcp2_duration ack_delay,
-                                 uint64_t ack_delay_exponent);
+ngtcp2_frame *ngtcp2_conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame *fr,
+                                           ngtcp2_pktns *pktns, uint8_t type,
+                                           ngtcp2_tstamp ts,
+                                           ngtcp2_duration ack_delay,
+                                           uint64_t ack_delay_exponent);
 
 /*
  * ngtcp2_conn_discard_initial_state discards state for Initial packet
