@@ -733,11 +733,11 @@ static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 
   if ((ecn_acked && fr->type == NGTCP2_FRAME_ACK) ||
       (fr->type == NGTCP2_FRAME_ACK_ECN &&
-       (pktns->rx.ecn.ack.ect0 > fr->ecn.ect0 ||
-        pktns->rx.ecn.ack.ect1 > fr->ecn.ect1 ||
-        pktns->rx.ecn.ack.ce > fr->ecn.ce ||
-        (fr->ecn.ect0 - pktns->rx.ecn.ack.ect0) +
-            (fr->ecn.ce - pktns->rx.ecn.ack.ce) <
+       (pktns->acktr.ecn.ack.ect0 > fr->ecn.ect0 ||
+        pktns->acktr.ecn.ack.ect1 > fr->ecn.ect1 ||
+        pktns->acktr.ecn.ack.ce > fr->ecn.ce ||
+        (fr->ecn.ect0 - pktns->acktr.ecn.ack.ect0) +
+            (fr->ecn.ce - pktns->acktr.ecn.ack.ce) <
           ecn_acked ||
         fr->ecn.ect0 > pktns->tx.ecn.ect0 || fr->ecn.ect1))) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
@@ -754,13 +754,13 @@ static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 
   if (fr->type == NGTCP2_FRAME_ACK_ECN) {
     if (cc->congestion_event && largest_pkt_sent_ts != UINT64_MAX &&
-        fr->ecn.ce > pktns->rx.ecn.ack.ce) {
+        fr->ecn.ce > pktns->acktr.ecn.ack.ce) {
       cc->congestion_event(cc, cstat, largest_pkt_sent_ts, 0, ts);
     }
 
-    pktns->rx.ecn.ack.ect0 = fr->ecn.ect0;
-    pktns->rx.ecn.ack.ect1 = fr->ecn.ect1;
-    pktns->rx.ecn.ack.ce = fr->ecn.ce;
+    pktns->acktr.ecn.ack.ect0 = fr->ecn.ect0;
+    pktns->acktr.ecn.ack.ect1 = fr->ecn.ect1;
+    pktns->acktr.ecn.ack.ce = fr->ecn.ce;
   }
 }
 

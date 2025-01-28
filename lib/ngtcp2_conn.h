@@ -228,11 +228,6 @@ typedef struct ngtcp2_pktns {
     /* pngap tracks received packet number in order to suppress
        duplicated packet number. */
     ngtcp2_gaptr pngap;
-    /* max_pkt_num is the largest packet number received so far. */
-    int64_t max_pkt_num;
-    /* max_pkt_ts is the timestamp when max_pkt_num packet is
-       received. */
-    ngtcp2_tstamp max_pkt_ts;
     /* max_ack_eliciting_pkt_num is the largest ack-eliciting packet
        number received so far. */
     int64_t max_ack_eliciting_pkt_num;
@@ -257,21 +252,6 @@ typedef struct ngtcp2_pktns {
      *   ngtcp2_pktns.
      */
     ngtcp2_pkt_chain *buffed_pkts;
-
-    struct {
-      /* ect0, ect1, and ce are the number of QUIC packets received
-         with those markings. */
-      size_t ect0;
-      size_t ect1;
-      size_t ce;
-      struct {
-        /* ect0, ect1, ce are the ECN counts received in the latest
-           ACK frame. */
-        uint64_t ect0;
-        uint64_t ect1;
-        uint64_t ce;
-      } ack;
-    } ecn;
   } rx;
 
   struct {
@@ -688,21 +668,6 @@ typedef struct ngtcp2_vmsg {
 } ngtcp2_vmsg;
 
 /*
- * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its
- * reception timestamp |ts| in order to send its ACK.
- *
- * It returns 0 if it succeeds, or one of the following negative error
- * codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory
- * NGTCP2_ERR_PROTO
- *     Same packet number has already been added.
- */
-int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
-                          int64_t pkt_num, int active_ack, ngtcp2_tstamp ts);
-
-/*
  * ngtcp2_conn_find_stream returns a stream whose stream ID is
  * |stream_id|.  If no such stream is found, it returns NULL.
  */
@@ -1099,22 +1064,6 @@ int ngtcp2_conn_set_remote_transport_params(
  */
 int ngtcp2_conn_set_0rtt_remote_transport_params(
   ngtcp2_conn *conn, const ngtcp2_transport_params *params);
-
-/*
- * ngtcp2_conn_create_ack_frame creates ACK frame in the object
- * pointed by |fr|, and returns |fr| if there are any received packets
- * to acknowledge.  If there are no packets to acknowledge, this
- * function returns NULL.  fr->ack.ranges must be able to contain at
- * least NGTCP2_MAX_ACK_RANGES elements.
- *
- * Call ngtcp2_acktr_commit_ack after a created ACK frame is
- * successfully serialized into a packet.
- */
-ngtcp2_frame *ngtcp2_conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame *fr,
-                                           ngtcp2_pktns *pktns, uint8_t type,
-                                           ngtcp2_tstamp ts,
-                                           ngtcp2_duration ack_delay,
-                                           uint64_t ack_delay_exponent);
 
 /*
  * ngtcp2_conn_discard_initial_state discards state for Initial packet
