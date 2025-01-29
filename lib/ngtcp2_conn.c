@@ -5257,6 +5257,17 @@ static void conn_recv_max_data(ngtcp2_conn *conn, const ngtcp2_max_data *fr) {
 }
 
 /*
+ * should_buffer_1rtt_pkt returns nonzero if 1RTT packet |pkt| of
+ * length |pktlen| should be buffered.
+ */
+static int should_buffer_1rtt_pkt(const uint8_t *pkt, size_t pktlen) {
+  /* A packet starting with 21 bytes zeros are most likely padding
+     bytes. */
+  return pktlen >= NGTCP2_MIN_QUIC_PKTLEN &&
+         (pkt[0] != 0 || memcmp(pkt, pkt + 1, NGTCP2_MIN_QUIC_PKTLEN - 1) != 0);
+}
+
+/*
  * conn_buffer_pkt buffers |pkt| of length |pktlen|, chaining it from
  * |*ppc|.
  *
@@ -5883,14 +5894,11 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   int invalid_reserved_bits = 0;
   size_t num_ack_processed = 0;
 
-  if (pktlen == 0) {
-    return 0;
-  }
-
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
-    if (conn->state == NGTCP2_CS_SERVER_INITIAL) {
-      /* Ignore 1RTT packet unless server's first Handshake packet has
-         been transmitted. */
+    /* Ignore 1RTT packet unless server's first Handshake packet has
+       been transmitted. */
+    if (conn->state == NGTCP2_CS_SERVER_INITIAL ||
+        !should_buffer_1rtt_pkt(pkt, pktlen)) {
       return (ngtcp2_ssize)pktlen;
     }
 

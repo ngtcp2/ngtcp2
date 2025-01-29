@@ -57,6 +57,10 @@
 #define NGTCP2_STREAM_LEN_BIT 0x02
 #define NGTCP2_STREAM_OFF_BIT 0x04
 
+/* NGTCP2_MIN_QUIC_PKTLEN is the minimum length of a valid QUIC
+   packet. */
+#define NGTCP2_MIN_QUIC_PKTLEN 21
+
 /* NGTCP2_STREAM_OVERHEAD is the maximum number of bytes required
    other than payload for STREAM frame.  That is from type field to
    the beginning of the payload. */

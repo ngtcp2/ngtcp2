@@ -11038,6 +11038,32 @@ void test_ngtcp2_conn_buffer_pkt(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   assert_ptrdiff(0, <, spktlen);
+  assert_null(conn->pktns.rx.buffed_pkts);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, null_data,
+                            NGTCP2_MIN_QUIC_PKTLEN - 1, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pktns.rx.buffed_pkts);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, null_data,
+                            NGTCP2_MIN_QUIC_PKTLEN, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pktns.rx.buffed_pkts);
+
+  memset(buf, 1, NGTCP2_MIN_QUIC_PKTLEN);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf,
+                            NGTCP2_MIN_QUIC_PKTLEN, ++t);
+
+  assert_int(0, ==, rv);
+
+  pc = conn->pktns.rx.buffed_pkts;
+
+  assert_not_null(pc);
+  assert_size(NGTCP2_MIN_QUIC_PKTLEN, ==, pc->pktlen);
+  assert_size(NGTCP2_MIN_QUIC_PKTLEN, ==, pc->dgramlen);
 
   fr.type = NGTCP2_FRAME_PING;
 
@@ -11052,15 +11078,14 @@ void test_ngtcp2_conn_buffer_pkt(void) {
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf + in_pktlen, sizeof(buf) - in_pktlen,
                                  frs, 2);
 
-  assert_null(conn->pktns.rx.buffed_pkts);
-
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf,
                             in_pktlen + pktlen, ++t);
 
   assert_int(0, ==, rv);
 
-  pc = conn->pktns.rx.buffed_pkts;
+  pc = conn->pktns.rx.buffed_pkts->next;
 
+  assert_not_null(pc);
   assert_size(pktlen, ==, pc->pktlen);
   assert_size(in_pktlen + pktlen, ==, pc->dgramlen);
 
