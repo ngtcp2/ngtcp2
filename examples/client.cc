@@ -927,8 +927,8 @@ int Client::on_read(const Endpoint &ep) {
       break;
     }
 
-    // Packets less than 22 bytes never be a valid QUIC packet.
-    if (nread < 22) {
+    // Packets less than 21 bytes never be a valid QUIC packet.
+    if (nread < 21) {
       ++pktcnt;
 
       continue;
@@ -955,8 +955,8 @@ int Client::on_read(const Endpoint &ep) {
                   << std::dec << " " << datalen << " bytes" << std::endl;
       }
 
-      // Packets less than 22 bytes never be a valid QUIC packet.
-      if (datalen < 22) {
+      // Packets less than 21 bytes never be a valid QUIC packet.
+      if (datalen < 21) {
         break;
       }
 
