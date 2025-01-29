@@ -5894,6 +5894,15 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return (ngtcp2_ssize)pktlen;
     }
 
+    /* A packet less than 22 bytes never be a valid QUIC packet.  A
+       packet starting with 22 bytes zeros are most likely padding
+       bytes. */
+    if (pktlen < NGTCP2_MIN_PKT_EXPANDLEN ||
+        (pkt[0] == 0 &&
+         memcmp(pkt, pkt + 1, NGTCP2_MIN_PKT_EXPANDLEN - 1) == 0)) {
+      return (ngtcp2_ssize)pktlen;
+    }
+
     if (conn->pktns.crypto.rx.ckm) {
       return 0;
     }
