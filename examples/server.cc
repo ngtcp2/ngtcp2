@@ -2566,7 +2566,7 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
                   << std::endl;
       }
 
-      if (!(data[0] & 0x80)) {
+      if (!(data[0] & 0x80) && data.size() >= NGTCP2_SV_SCIDLEN + 21) {
         send_stateless_reset(data.size(), {vc.dcid, vc.dcidlen}, ep, local_addr,
                              sa, salen);
       }
@@ -2882,9 +2882,7 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
 int Server::send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
                                  Endpoint &ep, const Address &local_addr,
                                  const sockaddr *sa, socklen_t salen) {
-  if (stateless_reset_bucket_ == 0 ||
-      pktlen < NGTCP2_MIN_STATELESS_RESET_RANDLEN +
-                 NGTCP2_STATELESS_RESET_TOKENLEN + 1) {
+  if (stateless_reset_bucket_ == 0) {
     return 0;
   }
 
