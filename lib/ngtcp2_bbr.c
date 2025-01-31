@@ -130,6 +130,8 @@ static void bbr_start_round(ngtcp2_cc_bbr *bbr);
 
 static int bbr_is_in_probe_bw_state(ngtcp2_cc_bbr *bbr);
 
+static int bbr_is_probing_bw(ngtcp2_cc_bbr *bbr);
+
 static void bbr_update_ack_aggregation(ngtcp2_cc_bbr *bbr,
                                        ngtcp2_conn_stat *cstat,
                                        const ngtcp2_cc_ack *ack,
@@ -404,7 +406,7 @@ static void bbr_check_startup_high_loss(ngtcp2_cc_bbr *bbr) {
 }
 
 static void bbr_init_pacing_rate(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
-  cstat->pacing_interval = NGTCP2_MILLISECONDS * 100 /
+  cstat->pacing_interval = cstat->smoothed_rtt * 100 /
                            NGTCP2_BBR_STARTUP_PACING_GAIN_H / bbr->initial_cwnd;
 }
 
@@ -528,7 +530,7 @@ static void bbr_update_congestion_signals(ngtcp2_cc_bbr *bbr,
 
 static void bbr_adapt_lower_bounds_from_congestion(ngtcp2_cc_bbr *bbr,
                                                    ngtcp2_conn_stat *cstat) {
-  if (bbr_is_in_probe_bw_state(bbr)) {
+  if (bbr_is_probing_bw(bbr)) {
     return;
   }
 
@@ -599,6 +601,17 @@ static int bbr_is_in_probe_bw_state(ngtcp2_cc_bbr *bbr) {
   switch (bbr->state) {
   case NGTCP2_BBR_STATE_PROBE_BW_DOWN:
   case NGTCP2_BBR_STATE_PROBE_BW_CRUISE:
+  case NGTCP2_BBR_STATE_PROBE_BW_REFILL:
+  case NGTCP2_BBR_STATE_PROBE_BW_UP:
+    return 1;
+  default:
+    return 0;
+  }
+}
+
+static int bbr_is_probing_bw(ngtcp2_cc_bbr *bbr) {
+  switch (bbr->state) {
+  case NGTCP2_BBR_STATE_STARTUP:
   case NGTCP2_BBR_STATE_PROBE_BW_REFILL:
   case NGTCP2_BBR_STATE_PROBE_BW_UP:
     return 1;
@@ -1323,10 +1336,6 @@ static void bbr_handle_recovery(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 static void bbr_cc_on_pkt_lost(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
   ngtcp2_cc_bbr *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr, cc);
-
-  if (bbr->state == NGTCP2_BBR_STATE_STARTUP) {
-    return;
-  }
 
   bbr_update_on_loss(bbr, cstat, pkt, ts);
 }
