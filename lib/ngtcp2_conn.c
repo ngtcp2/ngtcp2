@@ -1072,6 +1072,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(settings->max_tx_udp_payload_size);
   assert(settings->max_tx_udp_payload_size <= NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE);
   assert(settings->initial_pkt_num <= INT32_MAX);
+  assert(settings->initial_rtt);
   assert(params->active_connection_id_limit >=
          NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT);
   assert(params->active_connection_id_limit <=
