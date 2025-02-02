@@ -1999,7 +1999,18 @@ static void conn_cancel_expired_pkt_tx_timer(ngtcp2_conn *conn,
 }
 
 static int conn_pacing_pkt_tx_allowed(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  return conn->tx.pacing.next_ts == UINT64_MAX || conn->tx.pacing.next_ts <= ts;
+  if (conn->tx.pacing.next_ts == UINT64_MAX) {
+    return 1;
+  }
+
+  if (conn->tx.pacing.next_ts > ts) {
+    return 0;
+  }
+
+  conn->tx.pacing.compensation += ts - conn->tx.pacing.next_ts;
+  conn->tx.pacing.next_ts = UINT64_MAX;
+
+  return 1;
 }
 
 static uint8_t conn_pkt_flags(ngtcp2_conn *conn) {
@@ -13218,11 +13229,9 @@ void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   wait = (ngtcp2_duration)(conn->tx.pacing.pktlen * pacing_interval);
 
   if (conn->tx.pacing.compensation >= NGTCP2_MILLISECONDS) {
-    d = ngtcp2_min_uint64(wait, conn->tx.pacing.compensation / 2);
-    if (d) {
-      wait -= d;
-      conn->tx.pacing.compensation -= d;
-    }
+    d = ngtcp2_min_uint64(wait, conn->tx.pacing.compensation) / 2;
+    wait -= d;
+    conn->tx.pacing.compensation -= d;
   }
 
   conn->tx.pacing.next_ts = ts + wait;
