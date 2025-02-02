@@ -398,6 +398,15 @@ struct ngtcp2_conn {
       /* next_ts is the time to send next packet.  It is UINT64_MAX if
          packet pacing is disabled or expired.*/
       ngtcp2_tstamp next_ts;
+      /* compensation is the amount of time that a local endpoint
+         waits too long for pacing.  This happens because there is an
+         overhead before start writing packets after pacing timer
+         expires.  If multiple QUIC connections are handled by a
+         single thread, which is typical use case for event loop based
+         servers, each processing of QUIC connection adds overhead,
+         for example, TLS handshake, and packet encryption/decryption,
+         etc. */
+      ngtcp2_duration compensation;
     } pacing;
   } tx;
 
