@@ -1981,33 +1981,25 @@ void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
   conn->keep_alive.timeout = timeout;
 }
 
-/*
- * NGTCP2_PKT_PACING_OVERHEAD defines overhead of userspace event
- * loop.  Packet pacing might require sub milliseconds packet spacing,
- * but userspace event loop might not offer such precision.
- * Typically, if delay is 0.5 microseconds, the actual delay after
- * which we can send packet is well over 1 millisecond when event loop
- * is involved (which includes other stuff, like reading packets etc
- * in a typical single threaded use case).
- */
-#define NGTCP2_PKT_PACING_OVERHEAD NGTCP2_MILLISECONDS
-
 static void conn_cancel_expired_pkt_tx_timer(ngtcp2_conn *conn,
                                              ngtcp2_tstamp ts) {
   if (conn->tx.pacing.next_ts == UINT64_MAX) {
     return;
   }
 
-  if (conn->tx.pacing.next_ts > ts + NGTCP2_PKT_PACING_OVERHEAD) {
+  if (conn->tx.pacing.next_ts > ts) {
     return;
+  }
+
+  if (ts > conn->tx.pacing.next_ts) {
+    conn->tx.pacing.compensation += ts - conn->tx.pacing.next_ts;
   }
 
   conn->tx.pacing.next_ts = UINT64_MAX;
 }
 
 static int conn_pacing_pkt_tx_allowed(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  return conn->tx.pacing.next_ts == UINT64_MAX ||
-         conn->tx.pacing.next_ts <= ts + NGTCP2_PKT_PACING_OVERHEAD;
+  return conn->tx.pacing.next_ts == UINT64_MAX || conn->tx.pacing.next_ts <= ts;
 }
 
 static uint8_t conn_pkt_flags(ngtcp2_conn *conn) {
@@ -5575,6 +5567,7 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_rst_init(&conn->rst);
 
   conn->tx.pacing.next_ts = UINT64_MAX;
+  conn->tx.pacing.compensation = 0;
 }
 
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
@@ -13203,7 +13196,7 @@ int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn, int64_t stream_id,
 
 void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_duration pacing_interval;
-  ngtcp2_duration wait;
+  ngtcp2_duration wait, d;
 
   conn_update_timestamp(conn, ts);
 
@@ -13223,6 +13216,14 @@ void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   }
 
   wait = (ngtcp2_duration)(conn->tx.pacing.pktlen * pacing_interval);
+
+  if (conn->tx.pacing.compensation >= NGTCP2_MILLISECONDS) {
+    d = ngtcp2_min_uint64(wait, conn->tx.pacing.compensation / 2);
+    if (d) {
+      wait -= d;
+      conn->tx.pacing.compensation -= d;
+    }
+  }
 
   conn->tx.pacing.next_ts = ts + wait;
   conn->tx.pacing.pktlen = 0;
