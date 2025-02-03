@@ -9,7 +9,7 @@
 # - CLIENT_PARAMS contains user-supplied command line parameters
 
 case $TESTCASE in
-    versionnegotiation|handshake|transfer|retry|resumption|http3|multiconnect|zerortt|chacha20|keyupdate|ecn|v2)
+    versionnegotiation|handshake|transfer|retry|resumption|http3|multiconnect|zerortt|chacha20|keyupdate|ecn|v2|connectionmigration)
         :
         ;;
     *)
@@ -86,6 +86,9 @@ elif [ "$ROLE" == "server" ]; then
             ;;
         "ecn")
             SERVER_ARGS="$SERVER_ARGS --no-pmtud"
+            ;;
+        "connectionmigration")
+            SERVER_ARGS="$SERVER_ARGS --preferred-ipv4-addr=server4:4433 --preferred-ipv6-addr=server6:4433"
             ;;
     esac
 
