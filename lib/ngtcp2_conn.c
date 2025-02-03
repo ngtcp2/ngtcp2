@@ -5575,7 +5575,7 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
                               conn->hs_pktns->tx.last_pkt_num + 1);
   }
   ngtcp2_rtb_reset_cc_state(&conn->pktns.rtb, conn->pktns.tx.last_pkt_num + 1);
-  ngtcp2_rst_init(&conn->rst);
+  ngtcp2_rst_reset(&conn->rst);
 
   conn->tx.pacing.next_ts = UINT64_MAX;
   conn->tx.pacing.compensation = 0;
