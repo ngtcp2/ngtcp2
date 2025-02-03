@@ -13229,7 +13229,7 @@ void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   wait = (ngtcp2_duration)(conn->tx.pacing.pktlen * pacing_interval);
 
   if (conn->tx.pacing.compensation >= NGTCP2_MILLISECONDS) {
-    d = ngtcp2_min_uint64(wait, conn->tx.pacing.compensation) / 2;
+    d = ngtcp2_min_uint64(wait, conn->tx.pacing.compensation);
     wait -= d;
     conn->tx.pacing.compensation -= d;
   }
