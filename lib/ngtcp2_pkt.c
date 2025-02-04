@@ -483,6 +483,8 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
 ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
                                      size_t payloadlen) {
   uint8_t type;
+  size_t typelen;
+  uint64_t ltype;
 
   if (payloadlen == 0) {
     return NGTCP2_ERR_FRAME_ENCODING;
@@ -552,17 +554,37 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
   case NGTCP2_FRAME_DATAGRAM_LEN:
     return ngtcp2_pkt_decode_datagram_frame(&dest->datagram, payload,
                                             payloadlen);
+  case NGTCP2_FRAME_IMMEDIATE_ACK:
+    return ngtcp2_pkt_decode_immediate_ack_frame(&dest->immediate_ack, payload,
+                                                 payloadlen);
   default:
     if ((type & ~(NGTCP2_FRAME_STREAM - 1)) == NGTCP2_FRAME_STREAM) {
       return ngtcp2_pkt_decode_stream_frame(&dest->stream, payload, payloadlen);
     }
 
-    /* For frame types > 0xff, use ngtcp2_get_uvarintlen and
+    if (type <= 0x3f) {
+      return NGTCP2_ERR_FRAME_ENCODING;
+    }
+
+    /* For frame types > 0x3f, use ngtcp2_get_uvarintlen and
        ngtcp2_get_uvarint to get a frame type, and then switch over
        it.  Verify that payloadlen >= ngtcp2_get_uvarintlen(payload)
        before calling ngtcp2_get_uvarint(payload). */
 
-    return NGTCP2_ERR_FRAME_ENCODING;
+    typelen = ngtcp2_get_uvarintlen(payload);
+    if (payloadlen < typelen) {
+      return NGTCP2_ERR_FRAME_ENCODING;
+    }
+
+    ngtcp2_get_uvarint(&ltype, payload);
+
+    switch (ltype) {
+    case NGTCP2_FRAME_ACK_FREQUENCY:
+      return ngtcp2_pkt_decode_ack_frequency_frame(
+        &dest->ack_frequency, ltype, typelen, payload, payloadlen);
+    default:
+      return NGTCP2_ERR_FRAME_ENCODING;
+    }
   }
 }
 
@@ -1498,6 +1520,81 @@ ngtcp2_ssize ngtcp2_pkt_decode_datagram_frame(ngtcp2_datagram *dest,
   return (ngtcp2_ssize)len;
 }
 
+ngtcp2_ssize ngtcp2_pkt_decode_ack_frequency_frame(ngtcp2_ack_frequency *dest,
+                                                   uint64_t type,
+                                                   size_t typelen,
+                                                   const uint8_t *payload,
+                                                   size_t payloadlen) {
+  size_t len = typelen + 1 + 1 + 1 + 1;
+  const uint8_t *p;
+  size_t n;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
+  p = payload + typelen;
+
+  n = ngtcp2_get_uvarintlen(p);
+  len += n - 1;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
+  p += n;
+
+  n = ngtcp2_get_uvarintlen(p);
+  len += n - 1;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
+  p += n;
+
+  n = ngtcp2_get_uvarintlen(p);
+  len += n - 1;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
+  p += n;
+
+  n = ngtcp2_get_uvarintlen(p);
+  len += n - 1;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
+  p = payload + typelen;
+
+  dest->type = type;
+  p = ngtcp2_get_uvarint(&dest->seq, p);
+  p = ngtcp2_get_uvarint(&dest->ack_eliciting_thresh, p);
+  p = ngtcp2_get_uvarint(&dest->req_max_ack_delay, p);
+  p = ngtcp2_get_uvarint(&dest->reordering_thresh, p);
+
+  dest->req_max_ack_delay *= NGTCP2_MICROSECONDS;
+
+  assert((size_t)(p - payload) == len);
+
+  return (ngtcp2_ssize)len;
+}
+
+ngtcp2_ssize ngtcp2_pkt_decode_immediate_ack_frame(ngtcp2_immediate_ack *dest,
+                                                   const uint8_t *payload,
+                                                   size_t payloadlen) {
+  (void)payload;
+  (void)payloadlen;
+
+  dest->type = NGTCP2_FRAME_IMMEDIATE_ACK;
+
+  return 1;
+}
+
 ngtcp2_ssize ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
                                      ngtcp2_frame *fr) {
   switch (fr->type) {
@@ -1557,6 +1654,12 @@ ngtcp2_ssize ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
   case NGTCP2_FRAME_DATAGRAM:
   case NGTCP2_FRAME_DATAGRAM_LEN:
     return ngtcp2_pkt_encode_datagram_frame(out, outlen, &fr->datagram);
+  case NGTCP2_FRAME_ACK_FREQUENCY:
+    return ngtcp2_pkt_encode_ack_frequency_frame(out, outlen,
+                                                 &fr->ack_frequency);
+  case NGTCP2_FRAME_IMMEDIATE_ACK:
+    return ngtcp2_pkt_encode_immediate_ack_frame(out, outlen,
+                                                 &fr->immediate_ack);
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -2088,6 +2191,48 @@ ngtcp2_ssize ngtcp2_pkt_encode_datagram_frame(uint8_t *out, size_t outlen,
   assert((size_t)(p - out) == len);
 
   return (ngtcp2_ssize)len;
+}
+
+ngtcp2_ssize
+ngtcp2_pkt_encode_ack_frequency_frame(uint8_t *out, size_t outlen,
+                                      const ngtcp2_ack_frequency *fr) {
+  size_t len =
+    ngtcp2_put_uvarintlen(NGTCP2_FRAME_ACK_FREQUENCY) +
+    ngtcp2_put_uvarintlen(fr->seq) +
+    ngtcp2_put_uvarintlen(fr->ack_eliciting_thresh) +
+    ngtcp2_put_uvarintlen(fr->req_max_ack_delay / NGTCP2_MICROSECONDS) +
+    ngtcp2_put_uvarintlen(fr->reordering_thresh);
+  uint8_t *p;
+
+  if (outlen < len) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = out;
+
+  p = ngtcp2_put_uvarint(p, NGTCP2_FRAME_ACK_FREQUENCY);
+  p = ngtcp2_put_uvarint(p, fr->seq);
+  p = ngtcp2_put_uvarint(p, fr->ack_eliciting_thresh);
+  p = ngtcp2_put_uvarint(p, fr->req_max_ack_delay / NGTCP2_MICROSECONDS);
+  p = ngtcp2_put_uvarint(p, fr->reordering_thresh);
+
+  assert((size_t)(p - out) == len);
+
+  return (ngtcp2_ssize)len;
+}
+
+ngtcp2_ssize
+ngtcp2_pkt_encode_immediate_ack_frame(uint8_t *out, size_t outlen,
+                                      const ngtcp2_immediate_ack *fr) {
+  (void)fr;
+
+  if (outlen < 1) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  *out = NGTCP2_FRAME_IMMEDIATE_ACK;
+
+  return 1;
 }
 
 ngtcp2_ssize ngtcp2_pkt_write_version_negotiation(

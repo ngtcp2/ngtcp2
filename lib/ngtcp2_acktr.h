@@ -148,6 +148,9 @@ typedef struct ngtcp2_acktr {
       uint64_t ce;
     } ack;
   } ecn;
+  /* largest_ack is the largest packet number acknowledged by the
+     local endpoint. */
+  int64_t largest_ack;
 } ngtcp2_acktr;
 
 /*

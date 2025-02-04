@@ -693,6 +693,14 @@ static int process_acked_pkt(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn,
       }
 
       break;
+    case NGTCP2_FRAME_ACK_FREQUENCY:
+      assert(conn->flags & NGTCP2_CONN_FLAG_ACK_FREQ_IN_FLIGHT);
+
+      conn->flags &= ~NGTCP2_CONN_FLAG_ACK_FREQ_IN_FLIGHT;
+      conn->ack_freq.remote.max_ack_delay =
+        frc->fr.ack_frequency.req_max_ack_delay;
+
+      break;
     }
   }
 
@@ -1013,16 +1021,12 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
   ngtcp2_duration loss_window, congestion_period;
   ngtcp2_cc *cc = rtb->cc;
   int rv;
-  uint64_t pkt_thres =
-    rtb->cc_bytes_in_flight / cstat->max_tx_udp_payload_size / 2;
+  uint64_t pkt_thres = ngtcp2_rtb_pkt_reordering_thresh(rtb, cstat);
   size_t ecn_pkt_lost = 0;
   ngtcp2_tstamp start_ts;
   ngtcp2_duration pto = ngtcp2_conn_compute_pto(conn, pktns);
   uint64_t bytes_lost = 0;
-  ngtcp2_duration max_ack_delay;
 
-  pkt_thres = ngtcp2_max_uint64(pkt_thres, NGTCP2_PKT_THRESHOLD);
-  pkt_thres = ngtcp2_min_uint64(pkt_thres, 256);
   cstat->loss_time[pktns->id] = UINT64_MAX;
   loss_delay = compute_pkt_loss_delay(cstat);
 
@@ -1041,14 +1045,11 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
       /* +1 to pick this packet for persistent congestion in the
          following loop. */
       last_lost_pkt_num = ent->hd.pkt_num + 1;
-      max_ack_delay = conn->remote.transport_params
-                        ? conn->remote.transport_params->max_ack_delay
-                        : 0;
 
       congestion_period =
         (cstat->smoothed_rtt +
          ngtcp2_max_uint64(4 * cstat->rttvar, NGTCP2_GRANULARITY) +
-         max_ack_delay) *
+         conn->ack_freq.remote.max_ack_delay) *
         NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
       start_ts = ngtcp2_max_uint64(conn->handshake_confirmed_ts,
@@ -1497,4 +1498,13 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   }
 
   return (ngtcp2_ssize)(atmost - num_pkts);
+}
+
+uint64_t ngtcp2_rtb_pkt_reordering_thresh(const ngtcp2_rtb *rtb,
+                                          const ngtcp2_conn_stat *cstat) {
+  return ngtcp2_min_uint64(
+    ngtcp2_max_uint64(rtb->cc_bytes_in_flight / cstat->max_tx_udp_payload_size /
+                        2,
+                      NGTCP2_PKT_THRESHOLD),
+    256);
 }

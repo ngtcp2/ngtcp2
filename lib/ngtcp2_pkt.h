@@ -170,6 +170,8 @@ typedef struct ngtcp2_pkt_retry {
 #define NGTCP2_FRAME_HANDSHAKE_DONE 0x1e
 #define NGTCP2_FRAME_DATAGRAM 0x30
 #define NGTCP2_FRAME_DATAGRAM_LEN 0x31
+#define NGTCP2_FRAME_ACK_FREQUENCY 0xaf
+#define NGTCP2_FRAME_IMMEDIATE_ACK 0x1f
 
 /* ngtcp2_stream represents STREAM and CRYPTO frames. */
 typedef struct ngtcp2_stream {
@@ -335,6 +337,18 @@ typedef struct ngtcp2_datagram {
   ngtcp2_vec rdata[1];
 } ngtcp2_datagram;
 
+typedef struct ngtcp2_ack_frequency {
+  uint64_t type;
+  uint64_t seq;
+  uint64_t ack_eliciting_thresh;
+  ngtcp2_duration req_max_ack_delay;
+  uint64_t reordering_thresh;
+} ngtcp2_ack_frequency;
+
+typedef struct ngtcp2_immediate_ack {
+  uint64_t type;
+} ngtcp2_immediate_ack;
+
 typedef union ngtcp2_frame {
   uint64_t type;
   ngtcp2_stream stream;
@@ -357,6 +371,8 @@ typedef union ngtcp2_frame {
   ngtcp2_retire_connection_id retire_connection_id;
   ngtcp2_handshake_done handshake_done;
   ngtcp2_datagram datagram;
+  ngtcp2_ack_frequency ack_frequency;
+  ngtcp2_immediate_ack immediate_ack;
   /* Extend ngtcp2_frame so that ngtcp2_stream has at least additional
      3 ngtcp2_vec, totaling 4 slots, which can store HEADERS header,
      HEADERS payload, DATA header, and DATA payload in the standard
@@ -827,6 +843,40 @@ ngtcp2_ssize ngtcp2_pkt_decode_datagram_frame(ngtcp2_datagram *dest,
                                               size_t payloadlen);
 
 /*
+ * ngtcp2_pkt_decode_ack_frequency_frame decodes ACK_FREQUENCY frame
+ * from |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  ACK_FREQUENCY frame must start at
+ * payload[0].  This function finishes when it decodes one
+ * ACK_FREQUENCY frame, and returns the exact number of bytes read to
+ * decode a frame if it succeeds, or one of the following negative
+ * error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Payload is too short to include ACK_FREQUENCY frame.
+ */
+ngtcp2_ssize ngtcp2_pkt_decode_ack_frequency_frame(ngtcp2_ack_frequency *dest,
+                                                   uint64_t type,
+                                                   size_t typelen,
+                                                   const uint8_t *payload,
+                                                   size_t payloadlen);
+
+/*
+ * ngtcp2_pkt_decode_immediate_ack_frame decodes IMMEDIATE_ACK frame
+ * from |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  IMMEDIATE_ACK frame must start at
+ * payload[0].  This function finishes when it decodes one
+ * IMMEDIATE_ACK frame, and returns the exact number of bytes read to
+ * decode a frame if it succeeds, or one of the following negative
+ * error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Payload is too short to include IMMEDIATE_ACK frame.
+ */
+ngtcp2_ssize ngtcp2_pkt_decode_immediate_ack_frame(ngtcp2_immediate_ack *dest,
+                                                   const uint8_t *payload,
+                                                   size_t payloadlen);
+
+/*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -1115,6 +1165,34 @@ ngtcp2_pkt_encode_handshake_done_frame(uint8_t *out, size_t outlen,
  */
 ngtcp2_ssize ngtcp2_pkt_encode_datagram_frame(uint8_t *out, size_t outlen,
                                               const ngtcp2_datagram *fr);
+
+/*
+ * ngtcp2_pkt_encode_ack_frequency_frame encodes ACK_FREQUENCY frame
+ * |fr| into the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ngtcp2_ssize
+ngtcp2_pkt_encode_ack_frequency_frame(uint8_t *out, size_t outlen,
+                                      const ngtcp2_ack_frequency *fr);
+
+/*
+ * ngtcp2_pkt_encode_immediate_ack_frame encodes IMMEDIATE_ACK frame
+ * |fr| into the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ngtcp2_ssize
+ngtcp2_pkt_encode_immediate_ack_frame(uint8_t *out, size_t outlen,
+                                      const ngtcp2_immediate_ack *fr);
 
 /*
  * ngtcp2_pkt_adjust_pkt_num finds the full 62 bits packet number for

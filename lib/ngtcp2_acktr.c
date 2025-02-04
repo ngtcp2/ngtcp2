@@ -74,6 +74,7 @@ void ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
   acktr->max_pkt_num = -1;
   acktr->max_pkt_ts = UINT64_MAX;
   memset(&acktr->ecn, 0, sizeof(acktr->ecn));
+  acktr->largest_ack = -1;
 }
 
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
@@ -221,6 +222,8 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
 
   ent->largest_ack = largest_ack;
   ent->pkt_num = pkt_num;
+
+  acktr->largest_ack = largest_ack;
 
   return ent;
 }
