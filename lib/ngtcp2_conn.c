@@ -5584,7 +5584,7 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
                                    ngtcp2_tstamp ts) {
   int rv;
-  ngtcp2_pv *pv = conn->pv, *npv;
+  ngtcp2_pv *pv = conn->pv, *npv = NULL;
   uint8_t ent_flags;
 
   if (!pv) {
@@ -5599,14 +5599,16 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
   }
 
   if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
-    if (pv->dcid.seq != conn->dcid.current.seq) {
-      assert(!conn->server);
-      assert(conn->dcid.current.cid.datalen);
-
-      rv = conn_retire_active_dcid(conn, &conn->dcid.current, ts);
-      if (rv != 0) {
-        return rv;
+    if (pv->dcid.seq != conn->dcid.current.seq ||
+        !ngtcp2_path_eq(&pv->dcid.ps.path, &conn->dcid.current.ps.path)) {
+      if (conn->dcid.current.cid.datalen &&
+          pv->dcid.seq != conn->dcid.current.seq) {
+        rv = conn_retire_active_dcid(conn, &conn->dcid.current, ts);
+        if (rv != 0) {
+          return rv;
+        }
       }
+
       ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
 
       conn_reset_congestion_state(conn, ts);
@@ -5637,44 +5639,45 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
     }
   }
 
-  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
-    if (ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED) {
-      assert(conn->server);
+  if (ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED) {
+    assert(conn->server);
 
-      /* Validate path again */
-      rv = ngtcp2_pv_new(&npv, &pv->dcid, conn_compute_pv_timeout(conn),
-                         NGTCP2_PV_FLAG_NONE, &conn->log, conn->mem);
-      if (rv != 0) {
-        return rv;
-      }
-
-      npv->dcid.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
-      ngtcp2_pv_set_fallback(npv, &pv->fallback_dcid, pv->fallback_pto);
-    } else {
-      rv = ngtcp2_pv_new(&npv, &pv->fallback_dcid,
-                         conn_compute_pv_timeout_pto(conn, pv->fallback_pto),
-                         NGTCP2_PV_FLAG_DONT_CARE, &conn->log, conn->mem);
-      if (rv != 0) {
-        return rv;
-      }
-    }
-
-    /* Unset the flag bit so that conn_stop_pv does not retire
-       DCID. */
-    pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_PRESENT;
-
-    rv = conn_stop_pv(conn, ts);
+    /* Validate path again */
+    rv = ngtcp2_pv_new(&npv, &pv->dcid, conn_compute_pv_timeout(conn),
+                       NGTCP2_PV_FLAG_NONE, &conn->log, conn->mem);
     if (rv != 0) {
-      ngtcp2_pv_del(npv);
       return rv;
     }
 
-    conn->pv = npv;
+    npv->dcid.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
 
-    return 0;
+    if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
+      ngtcp2_pv_set_fallback(npv, &pv->fallback_dcid, pv->fallback_pto);
+    }
+  } else if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
+    rv = ngtcp2_pv_new(&npv, &pv->fallback_dcid,
+                       conn_compute_pv_timeout_pto(conn, pv->fallback_pto),
+                       NGTCP2_PV_FLAG_DONT_CARE, &conn->log, conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
-  return conn_stop_pv(conn, ts);
+  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
+    /* Unset the flag bit so that conn_stop_pv does not retire
+       DCID. */
+    pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_PRESENT;
+  }
+
+  rv = conn_stop_pv(conn, ts);
+  if (rv != 0) {
+    ngtcp2_pv_del(npv);
+    return rv;
+  }
+
+  conn->pv = npv;
+
+  return 0;
 }
 
 /*
@@ -8125,6 +8128,47 @@ static int conn_path_validation_in_progress(ngtcp2_conn *conn,
 }
 
 /*
+ * conn_server_preferred_addr_migration returns nonzero if
+ * |local_addr| equals to one of the preferred addresses.
+ */
+static int conn_server_preferred_addr_migration(ngtcp2_conn *conn,
+                                                const ngtcp2_addr *local_addr) {
+  ngtcp2_addr addr;
+  const ngtcp2_preferred_addr *paddr;
+
+  assert(conn->server);
+
+  if (!conn->local.transport_params.preferred_addr_present) {
+    return 0;
+  }
+
+  paddr = &conn->local.transport_params.preferred_addr;
+
+  switch (local_addr->addr->sa_family) {
+  case NGTCP2_AF_INET:
+    if (!paddr->ipv4_present) {
+      return 0;
+    }
+
+    ngtcp2_addr_init(&addr, (const ngtcp2_sockaddr *)&paddr->ipv4,
+                     sizeof(paddr->ipv4));
+
+    return ngtcp2_addr_eq(&addr, local_addr);
+  case NGTCP2_AF_INET6:
+    if (!paddr->ipv6_present) {
+      return 0;
+    }
+
+    ngtcp2_addr_init(&addr, (const ngtcp2_sockaddr *)&paddr->ipv6,
+                     sizeof(paddr->ipv6));
+
+    return ngtcp2_addr_eq(&addr, local_addr);
+  }
+
+  return 0;
+}
+
+/*
  * conn_recv_non_probing_pkt_on_new_path is called when non-probing
  * packet is received via new path.  It starts path validation against
  * the new path.
@@ -8148,6 +8192,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_duration pto;
   int require_new_cid;
   int local_addr_eq;
+  int pref_addr_migration;
   uint32_t remote_addr_cmp;
 
   assert(conn->server);
@@ -8179,6 +8224,8 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     ngtcp2_addr_compare(&conn->dcid.current.ps.path.remote, &path->remote);
   local_addr_eq =
     ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local);
+  pref_addr_migration =
+    !local_addr_eq && conn_server_preferred_addr_migration(conn, &path->local);
 
   /*
    * When to change DCID?  RFC 9002 section 9.5 says:
@@ -8254,20 +8301,23 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     /* Unset the flag bit so that conn_stop_pv does not retire
        DCID. */
     conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_PRESENT;
-  } else {
+  } else if (!pref_addr_migration) {
     ngtcp2_pv_set_fallback(pv, &conn->dcid.current, pto);
   }
 
-  ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
+  if (!pref_addr_migration) {
+    ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
 
-  if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_COMPARE_FLAG_ADDR |
-                                            NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
-    conn_reset_congestion_state(conn, ts);
+    if (!local_addr_eq ||
+        (remote_addr_cmp &
+         (NGTCP2_ADDR_COMPARE_FLAG_ADDR | NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
+      conn_reset_congestion_state(conn, ts);
+    }
+
+    conn_reset_ecn_validation_state(conn);
+
+    ngtcp2_conn_stop_pmtud(conn);
   }
-
-  conn_reset_ecn_validation_state(conn);
-
-  ngtcp2_conn_stop_pmtud(conn);
 
   if (conn->pv) {
     ngtcp2_log_info(
@@ -8464,8 +8514,6 @@ static int
 conn_allow_path_change_under_disable_active_migration(ngtcp2_conn *conn,
                                                       const ngtcp2_path *path) {
   uint32_t remote_addr_cmp;
-  const ngtcp2_preferred_addr *paddr;
-  ngtcp2_addr addr;
 
   assert(conn->server);
   assert(conn->local.transport_params.disable_active_migration);
@@ -8482,32 +8530,7 @@ conn_allow_path_change_under_disable_active_migration(ngtcp2_conn *conn,
 
   /* If local address changes, it must be one of the preferred
      addresses. */
-
-  if (!conn->local.transport_params.preferred_addr_present) {
-    return 0;
-  }
-
-  paddr = &conn->local.transport_params.preferred_addr;
-
-  if (paddr->ipv4_present) {
-    ngtcp2_addr_init(&addr, (const ngtcp2_sockaddr *)&paddr->ipv4,
-                     sizeof(paddr->ipv4));
-
-    if (ngtcp2_addr_eq(&addr, &path->local)) {
-      return 1;
-    }
-  }
-
-  if (paddr->ipv6_present) {
-    ngtcp2_addr_init(&addr, (const ngtcp2_sockaddr *)&paddr->ipv6,
-                     sizeof(paddr->ipv6));
-
-    if (ngtcp2_addr_eq(&addr, &path->local)) {
-      return 1;
-    }
-  }
-
-  return 0;
+  return conn_server_preferred_addr_migration(conn, &path->local);
 }
 
 /*

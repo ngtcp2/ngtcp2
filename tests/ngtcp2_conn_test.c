@@ -7097,12 +7097,15 @@ void test_ngtcp2_conn_server_path_validation(void) {
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
   ngtcp2_cid cid, *new_cid, orig_dcid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
-  ngtcp2_path_storage new_path1, new_path2;
+  ngtcp2_path_storage new_path1, new_path2, new_path3;
   ngtcp2_ksl_it it;
   ngtcp2_tpe tpe;
+  ngtcp2_transport_params params;
+  ngtcp2_settings settings;
 
   path_init(&new_path1, 0, 0, 2, 0);
   path_init(&new_path2, 0, 0, 3, 0);
+  path_init(&new_path3, 1, 0, 0, 0);
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
@@ -7331,6 +7334,90 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
   assert_not_null(conn->pmtud);
+
+  ngtcp2_conn_del(conn);
+
+  /* Server changes its local address to the preferred address chosen
+     by client after successful path validation.  */
+  server_default_transport_params(&params);
+  params.preferred_addr_present = 1;
+  params.preferred_addr.cid = cid;
+  params.preferred_addr.ipv4_present = 1;
+
+  assert_size(sizeof(params.preferred_addr.ipv4), ==,
+              (size_t)new_path3.path.local.addrlen);
+
+  memcpy(&params.preferred_addr.ipv4, new_path3.path.local.addr,
+         sizeof(params.preferred_addr.ipv4));
+
+  server_default_settings(&settings);
+
+  setup_default_server_settings(&conn, &null_path.path, &settings, &params);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
+  fr.new_connection_id.cid = cid;
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  frs[0].type = NGTCP2_FRAME_PATH_CHALLENGE;
+  memset(frs[0].path_challenge.data, 0xfe, sizeof(frs[0].path_challenge.data));
+  frs[1].type = NGTCP2_FRAME_PADDING;
+  frs[1].padding.len = 1200;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path3.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path3.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  assert_true(ngtcp2_path_eq(&new_path3.path, &conn->pv->dcid.ps.path));
+  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memcpy(fr.path_response.data,
+         ((ngtcp2_pv_entry *)ngtcp2_ringbuf_get(&conn->pv->ents.rb, 0))->data,
+         sizeof(fr.path_response.data));
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path3.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&new_path3.path, &conn->dcid.current.ps.path));
+  assert_uint64(1, ==, conn->dcid.current.seq);
 
   ngtcp2_conn_del(conn);
 }
