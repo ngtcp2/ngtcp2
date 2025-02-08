@@ -329,6 +329,10 @@ struct ngtcp2_conn {
      records it in order to verify retry_source_connection_id
      transport parameter.  Server does not use this field. */
   ngtcp2_cid retry_scid;
+  /* hs_local_addr is a local address used during handshake. */
+  ngtcp2_sockaddr_union hs_local_addr;
+  /* hs_local_addrlen is the length of hs_local_addr. */
+  ngtcp2_socklen hs_local_addrlen;
   ngtcp2_pktns *in_pktns;
   ngtcp2_pktns *hs_pktns;
   ngtcp2_pktns pktns;
@@ -427,6 +431,12 @@ struct ngtcp2_conn {
     ngtcp2_static_ringbuf_path_challenge path_challenge;
     /* ccerr is the received connection close error. */
     ngtcp2_ccerr ccerr;
+
+    struct {
+      /* pkt_num is the lowest incoming packet number of the packet
+         that server verified preferred address usage of client. */
+      int64_t pkt_num;
+    } preferred_addr;
   } rx;
 
   struct {

@@ -51,8 +51,11 @@ void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const ngtcp2_sockaddr *addr,
   }
 }
 
-static int sockaddr_eq(const ngtcp2_sockaddr *a, const ngtcp2_sockaddr *b) {
-  assert(a->sa_family == b->sa_family);
+int ngtcp2_sockaddr_eq(const ngtcp2_sockaddr *a, ngtcp2_socklen alen,
+                       const ngtcp2_sockaddr *b, ngtcp2_socklen blen) {
+  if (alen != blen || a->sa_family != b->sa_family) {
+    return 0;
+  }
 
   switch (a->sa_family) {
   case NGTCP2_AF_INET: {
@@ -73,8 +76,7 @@ static int sockaddr_eq(const ngtcp2_sockaddr *a, const ngtcp2_sockaddr *b) {
 }
 
 int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b) {
-  return a->addr->sa_family == b->addr->sa_family &&
-         sockaddr_eq(a->addr, b->addr);
+  return ngtcp2_sockaddr_eq(a->addr, a->addrlen, b->addr, b->addrlen);
 }
 
 uint32_t ngtcp2_addr_compare(const ngtcp2_addr *aa, const ngtcp2_addr *bb) {
