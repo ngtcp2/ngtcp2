@@ -1215,6 +1215,12 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   ngtcp2_dcid_init(&(*pconn)->dcid.current, 0, dcid, NULL);
   ngtcp2_dcid_set_path(&(*pconn)->dcid.current, path);
 
+  assert((size_t)path->local.addrlen <= sizeof((*pconn)->hs_local_addr));
+
+  memcpy(&(*pconn)->hs_local_addr, path->local.addr,
+         (size_t)path->local.addrlen);
+  (*pconn)->hs_local_addrlen = path->local.addrlen;
+
   rv = ngtcp2_gaptr_push(&(*pconn)->dcid.seqgap, 0, 1);
   if (rv != 0) {
     goto fail_seqgap_push;
@@ -1382,6 +1388,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->tx.last_max_data_ts = UINT64_MAX;
   (*pconn)->tx.pacing.next_ts = UINT64_MAX;
   (*pconn)->tx.last_blocked_offset = UINT64_MAX;
+  (*pconn)->rx.preferred_addr.pkt_num = -1;
   (*pconn)->early.discard_started_ts = UINT64_MAX;
 
   conn_reset_ecn_validation_state(*pconn);
@@ -5581,8 +5588,46 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->tx.pacing.compensation = 0;
 }
 
-static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
-                                   ngtcp2_tstamp ts) {
+/*
+ * conn_server_preferred_addr_migration returns nonzero if
+ * |local_addr| equals to one of the preferred addresses.
+ */
+static int conn_server_preferred_addr_migration(const ngtcp2_conn *conn,
+                                                const ngtcp2_addr *local_addr) {
+  const ngtcp2_preferred_addr *paddr;
+
+  assert(conn->server);
+
+  if (!conn->local.transport_params.preferred_addr_present) {
+    return 0;
+  }
+
+  paddr = &conn->local.transport_params.preferred_addr;
+
+  switch (local_addr->addr->sa_family) {
+  case NGTCP2_AF_INET:
+    if (!paddr->ipv4_present) {
+      return 0;
+    }
+
+    return ngtcp2_sockaddr_eq((const ngtcp2_sockaddr *)&paddr->ipv4,
+                              sizeof(paddr->ipv4), local_addr->addr,
+                              local_addr->addrlen);
+  case NGTCP2_AF_INET6:
+    if (!paddr->ipv6_present) {
+      return 0;
+    }
+
+    return ngtcp2_sockaddr_eq((const ngtcp2_sockaddr *)&paddr->ipv6,
+                              sizeof(paddr->ipv6), local_addr->addr,
+                              local_addr->addrlen);
+  }
+
+  return 0;
+}
+
+static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                                   ngtcp2_path_response *fr, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_pv *pv = conn->pv, *npv = NULL;
   uint8_t ent_flags;
@@ -5613,6 +5658,12 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
       conn_reset_congestion_state(conn, ts);
       conn_reset_ecn_validation_state(conn);
+
+      if (conn->server && conn->rx.preferred_addr.pkt_num == -1 &&
+          conn_server_preferred_addr_migration(
+            conn, &conn->dcid.current.ps.path.local)) {
+        conn->rx.preferred_addr.pkt_num = hd->pkt_num;
+      }
     }
 
     assert(ngtcp2_path_eq(&pv->dcid.ps.path, &conn->dcid.current.ps.path));
@@ -8128,47 +8179,6 @@ static int conn_path_validation_in_progress(ngtcp2_conn *conn,
 }
 
 /*
- * conn_server_preferred_addr_migration returns nonzero if
- * |local_addr| equals to one of the preferred addresses.
- */
-static int conn_server_preferred_addr_migration(ngtcp2_conn *conn,
-                                                const ngtcp2_addr *local_addr) {
-  ngtcp2_addr addr;
-  const ngtcp2_preferred_addr *paddr;
-
-  assert(conn->server);
-
-  if (!conn->local.transport_params.preferred_addr_present) {
-    return 0;
-  }
-
-  paddr = &conn->local.transport_params.preferred_addr;
-
-  switch (local_addr->addr->sa_family) {
-  case NGTCP2_AF_INET:
-    if (!paddr->ipv4_present) {
-      return 0;
-    }
-
-    ngtcp2_addr_init(&addr, (const ngtcp2_sockaddr *)&paddr->ipv4,
-                     sizeof(paddr->ipv4));
-
-    return ngtcp2_addr_eq(&addr, local_addr);
-  case NGTCP2_AF_INET6:
-    if (!paddr->ipv6_present) {
-      return 0;
-    }
-
-    ngtcp2_addr_init(&addr, (const ngtcp2_sockaddr *)&paddr->ipv6,
-                     sizeof(paddr->ipv6));
-
-    return ngtcp2_addr_eq(&addr, local_addr);
-  }
-
-  return 0;
-}
-
-/*
  * conn_recv_non_probing_pkt_on_new_path is called when non-probing
  * packet is received via new path.  It starts path validation against
  * the new path.
@@ -8754,6 +8764,20 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
   if (hd.type == NGTCP2_PKT_1RTT) {
+    if (conn->server && conn->rx.preferred_addr.pkt_num != -1 &&
+        conn->rx.preferred_addr.pkt_num < hd.pkt_num &&
+        ngtcp2_sockaddr_eq((const ngtcp2_sockaddr *)&conn->hs_local_addr,
+                           conn->hs_local_addrlen, path->local.addr,
+                           path->local.addrlen)) {
+      ngtcp2_log_info(
+        &conn->log, NGTCP2_LOG_EVENT_PKT,
+        "pkt=%" PRId64
+        " is discarded because it was received on handshake local "
+        "address after preferred address migration",
+        hd.pkt_num);
+      return NGTCP2_ERR_DISCARD_PKT;
+    }
+
     key_phase_bit_changed = conn_key_phase_changed(conn, &hd);
   }
 
@@ -9044,7 +9068,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       path_challenge_recved = 1;
       break;
     case NGTCP2_FRAME_PATH_RESPONSE:
-      rv = conn_recv_path_response(conn, &fr->path_response, ts);
+      rv = conn_recv_path_response(conn, &hd, &fr->path_response, ts);
       if (rv != 0) {
         return rv;
       }

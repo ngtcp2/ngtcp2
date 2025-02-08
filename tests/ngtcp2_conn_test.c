@@ -7418,6 +7418,18 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_null(conn->pv);
   assert_true(ngtcp2_path_eq(&new_path3.path, &conn->dcid.current.ps.path));
   assert_uint64(1, ==, conn->dcid.current.seq);
+  assert_int64(tpe.app.last_pkt_num, ==, conn->pktns.acktr.max_pkt_num);
+  assert_int64(tpe.app.last_pkt_num, ==, conn->rx.preferred_addr.pkt_num);
+
+  /* A packet from old path is discarded. */
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_int64(tpe.app.last_pkt_num - 1, ==, conn->pktns.acktr.max_pkt_num);
 
   ngtcp2_conn_del(conn);
 }
