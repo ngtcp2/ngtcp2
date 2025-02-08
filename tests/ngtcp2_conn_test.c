@@ -848,22 +848,77 @@ static void conn_set_scid_used(ngtcp2_conn *conn) {
   assert(0 == rv);
 }
 
-static void setup_default_server_cid_settings(
-  ngtcp2_conn **pconn, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-  const ngtcp2_path *path, const ngtcp2_settings *settings,
-  const ngtcp2_transport_params *params, const ngtcp2_mem *mem) {
+typedef struct conn_options {
+  const ngtcp2_cid *dcid;
+  const ngtcp2_cid *scid;
+  const ngtcp2_path *path;
+  const ngtcp2_settings *settings;
+  const ngtcp2_transport_params *params;
+  const ngtcp2_callbacks *callbacks;
+  const ngtcp2_mem *mem;
+  uint32_t client_chosen_version;
+  void *user_data;
+} conn_options;
+
+static void conn_options_clear(conn_options *opts) {
+  memset(opts, 0, sizeof(*opts));
+}
+
+static void conn_server_new(ngtcp2_conn **pconn, conn_options opts) {
+  ngtcp2_cid dcid, scid;
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
   ngtcp2_callbacks cb;
+
+  if (!opts.dcid) {
+    dcid_init(&dcid);
+    opts.dcid = &dcid;
+  }
+
+  if (!opts.scid) {
+    scid_init(&scid);
+    opts.scid = &scid;
+  }
+
+  if (!opts.path) {
+    opts.path = &null_path.path;
+  }
+
+  if (!opts.settings) {
+    server_default_settings(&settings);
+    opts.settings = &settings;
+  }
+
+  if (!opts.params) {
+    server_default_transport_params(&params);
+    opts.params = &params;
+  }
+
+  if (!opts.callbacks) {
+    server_default_callbacks(&cb);
+    opts.callbacks = &cb;
+  }
+
+  if (!opts.client_chosen_version) {
+    opts.client_chosen_version = NGTCP2_PROTO_VER_V1;
+  }
+
+  ngtcp2_conn_server_new(pconn, opts.dcid, opts.scid, opts.path,
+                         opts.client_chosen_version, opts.callbacks,
+                         opts.settings, opts.params, opts.mem, opts.user_data);
+}
+
+static void setup_default_server_with_options(ngtcp2_conn **pconn,
+                                              conn_options opts) {
   ngtcp2_transport_params remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
 
+  conn_server_new(pconn, opts);
+
   init_crypto_ctx(&crypto_ctx);
 
-  server_default_callbacks(&cb);
-
-  ngtcp2_conn_server_new(pconn, dcid, scid, path, NGTCP2_PROTO_VER_V1, &cb,
-                         settings, params, mem, NULL);
   ngtcp2_conn_set_initial_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
                                   &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
@@ -906,49 +961,67 @@ static void setup_default_server_cid_settings(
   (*pconn)->handshake_confirmed_ts = 0;
 }
 
-static void
-setup_default_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
-                              const ngtcp2_settings *settings,
-                              const ngtcp2_transport_params *params) {
-  ngtcp2_cid dcid, scid;
-  dcid_init(&dcid);
-  scid_init(&scid);
+static void setup_default_server(ngtcp2_conn **pconn) {
+  conn_options opts = {0};
 
-  setup_default_server_cid_settings(pconn, &dcid, &scid, path, settings, params,
-                                    /* mem = */ NULL);
+  setup_default_server_with_options(pconn, opts);
 }
 
-static void setup_default_server(ngtcp2_conn **pconn) {
+static void conn_client_new(ngtcp2_conn **pconn, conn_options opts) {
+  ngtcp2_cid dcid, scid;
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
+  ngtcp2_callbacks cb;
 
-  server_default_settings(&settings);
-  server_default_transport_params(&params);
+  if (!opts.dcid) {
+    dcid_init(&dcid);
+    opts.dcid = &dcid;
+  }
 
-  setup_default_server_settings(pconn, &null_path.path, &settings, &params);
+  if (!opts.scid) {
+    scid_init(&scid);
+    opts.scid = &scid;
+  }
+
+  if (!opts.path) {
+    opts.path = &null_path.path;
+  }
+
+  if (!opts.settings) {
+    client_default_settings(&settings);
+    opts.settings = &settings;
+  }
+
+  if (!opts.params) {
+    client_default_transport_params(&params);
+    opts.params = &params;
+  }
+
+  if (!opts.callbacks) {
+    client_default_callbacks(&cb);
+    opts.callbacks = &cb;
+  }
+
+  if (!opts.client_chosen_version) {
+    opts.client_chosen_version = NGTCP2_PROTO_VER_V1;
+  }
+
+  ngtcp2_conn_client_new(pconn, opts.dcid, opts.scid, opts.path,
+                         opts.client_chosen_version, opts.callbacks,
+                         opts.settings, opts.params, opts.mem, opts.user_data);
 }
 
-static void
-setup_default_client_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
-                              const ngtcp2_settings *settings,
-                              const ngtcp2_transport_params *params) {
-  ngtcp2_callbacks cb;
-  ngtcp2_cid dcid, scid;
+static void setup_default_client_with_options(ngtcp2_conn **pconn,
+                                              conn_options opts) {
   ngtcp2_transport_params remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
 
-  dcid_init(&dcid);
-  scid_init(&scid);
+  conn_client_new(pconn, opts);
 
   init_crypto_ctx(&crypto_ctx);
 
-  client_default_callbacks(&cb);
-
-  ngtcp2_conn_client_new(pconn, &dcid, &scid, path, NGTCP2_PROTO_VER_V1, &cb,
-                         settings, params,
-                         /* mem = */ NULL, NULL);
   ngtcp2_conn_set_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
@@ -987,88 +1060,76 @@ setup_default_client_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
 }
 
 static void setup_default_client(ngtcp2_conn **pconn) {
-  ngtcp2_settings settings;
-  ngtcp2_transport_params params;
+  conn_options opts = {0};
 
-  client_default_settings(&settings);
-  client_default_transport_params(&params);
-
-  setup_default_client_settings(pconn, &null_path.path, &settings, &params);
+  setup_default_client_with_options(pconn, opts);
 }
 
-static void
-setup_handshake_server_settings(ngtcp2_conn **pconn, const ngtcp2_path *path,
-                                const ngtcp2_settings *settings,
-                                const ngtcp2_transport_params *params) {
-  ngtcp2_callbacks cb;
-  ngtcp2_cid dcid, scid;
-
-  dcid_init(&dcid);
-  scid_init(&scid);
-
-  server_default_callbacks(&cb);
-
-  ngtcp2_conn_server_new(pconn, &dcid, &scid, path, NGTCP2_PROTO_VER_V1, &cb,
-                         settings, params,
-                         /* mem = */ NULL, NULL);
-}
-
-static void setup_handshake_server(ngtcp2_conn **pconn) {
+static void setup_handshake_server_with_options(ngtcp2_conn **pconn,
+                                                conn_options opts) {
   ngtcp2_settings settings;
-  ngtcp2_transport_params params;
-  uint32_t preferred_versions[] = {
+  const uint32_t preferred_versions[] = {
     NGTCP2_PROTO_VER_V2,
     NGTCP2_PROTO_VER_V1,
   };
 
-  server_default_settings(&settings);
-  server_default_transport_params(&params);
+  if (!opts.settings) {
+    server_default_settings(&settings);
+    settings.preferred_versions = preferred_versions;
+    settings.preferred_versionslen = ngtcp2_arraylen(preferred_versions);
 
-  settings.preferred_versions = preferred_versions;
-  settings.preferred_versionslen = ngtcp2_arraylen(preferred_versions);
+    opts.settings = &settings;
+  }
 
-  setup_handshake_server_settings(pconn, &null_path.path, &settings, &params);
+  conn_server_new(pconn, opts);
 }
 
-static void setup_handshake_client_version(ngtcp2_conn **pconn,
-                                           uint32_t client_chosen_version) {
-  ngtcp2_callbacks cb;
+static void setup_handshake_server(ngtcp2_conn **pconn) {
+  conn_options opts = {0};
+
+  setup_handshake_server_with_options(pconn, opts);
+}
+
+static void setup_handshake_client_with_options(ngtcp2_conn **pconn,
+                                                conn_options opts) {
+  ngtcp2_cid rcid;
   ngtcp2_settings settings;
-  ngtcp2_transport_params params;
-  ngtcp2_cid rcid, scid;
   ngtcp2_crypto_aead retry_aead = {
     .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
   };
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
-  uint32_t preferred_versions[] = {
+  const uint32_t preferred_versions[] = {
     NGTCP2_PROTO_VER_V2,
     NGTCP2_PROTO_VER_V1,
   };
-  uint32_t available_versions[] = {
+  const uint32_t available_versions[] = {
     NGTCP2_PROTO_VER_V1,
     NGTCP2_PROTO_VER_V2,
   };
 
-  rcid_init(&rcid);
-  scid_init(&scid);
+  if (!opts.dcid) {
+    rcid_init(&rcid);
+    opts.dcid = &rcid;
+  }
+
+  if (!opts.settings) {
+    client_default_settings(&settings);
+
+    settings.preferred_versions = preferred_versions;
+    settings.preferred_versionslen = ngtcp2_arraylen(preferred_versions);
+
+    settings.available_versions = available_versions;
+    settings.available_versionslen = ngtcp2_arraylen(available_versions);
+
+    opts.settings = &settings;
+  }
+
+  conn_client_new(pconn, opts);
 
   init_initial_crypto_ctx(&crypto_ctx);
 
-  client_default_callbacks(&cb);
-  client_default_settings(&settings);
-  client_default_transport_params(&params);
-
-  settings.preferred_versions = preferred_versions;
-  settings.preferred_versionslen = ngtcp2_arraylen(preferred_versions);
-
-  settings.available_versions = available_versions;
-  settings.available_versionslen = ngtcp2_arraylen(available_versions);
-
-  ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path.path,
-                         client_chosen_version, &cb, &settings, &params,
-                         /* mem = */ NULL, NULL);
   ngtcp2_conn_set_initial_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
                                   &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
@@ -1076,48 +1137,52 @@ static void setup_handshake_client_version(ngtcp2_conn **pconn,
 }
 
 static void setup_handshake_client(ngtcp2_conn **pconn) {
-  setup_handshake_client_version(pconn, NGTCP2_PROTO_VER_V1);
+  conn_options opts = {0};
+
+  setup_handshake_client_with_options(pconn, opts);
+}
+
+static void setup_early_server_with_options(ngtcp2_conn **pconn,
+                                            conn_options opts) {
+  ngtcp2_callbacks cb;
+
+  if (!opts.callbacks) {
+    server_early_callbacks(&cb);
+    opts.callbacks = &cb;
+  }
+
+  conn_server_new(pconn, opts);
 }
 
 static void setup_early_server(ngtcp2_conn **pconn) {
-  ngtcp2_callbacks cb;
-  ngtcp2_settings settings;
-  ngtcp2_transport_params params;
-  ngtcp2_cid dcid, scid;
+  conn_options opts = {0};
 
-  dcid_init(&dcid);
-  scid_init(&scid);
-
-  server_early_callbacks(&cb);
-  server_default_settings(&settings);
-  server_default_transport_params(&params);
-
-  ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
-                         /* mem = */ NULL, NULL);
+  setup_early_server_with_options(pconn, opts);
 }
 
-static void setup_early_client_scid(ngtcp2_conn **pconn,
-                                    const ngtcp2_cid *scid) {
-  ngtcp2_callbacks cb;
-  ngtcp2_settings settings;
-  ngtcp2_transport_params params = {0};
+static void setup_early_client_with_options(ngtcp2_conn **pconn,
+                                            conn_options opts) {
   ngtcp2_cid rcid;
+  ngtcp2_callbacks cb;
+  ngtcp2_transport_params params = {0};
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
 
-  rcid_init(&rcid);
+  if (!opts.dcid) {
+    rcid_init(&rcid);
+    opts.dcid = &rcid;
+  }
+
+  if (!opts.callbacks) {
+    client_early_callbacks(&cb);
+    opts.callbacks = &cb;
+  }
+
+  conn_client_new(pconn, opts);
 
   init_initial_crypto_ctx(&crypto_ctx);
 
-  client_early_callbacks(&cb);
-  client_default_settings(&settings);
-  client_default_transport_params(&params);
-
-  ngtcp2_conn_client_new(pconn, &rcid, scid, &null_path.path,
-                         NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
-                         /* mem = */ NULL, NULL);
   ngtcp2_conn_set_initial_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
                                   &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
@@ -1134,11 +1199,9 @@ static void setup_early_client_scid(ngtcp2_conn **pconn,
 }
 
 static void setup_early_client(ngtcp2_conn **pconn) {
-  ngtcp2_cid scid;
+  conn_options opts = {0};
 
-  scid_init(&scid);
-
-  setup_early_client_scid(pconn, &scid);
+  setup_early_client_with_options(pconn, opts);
 }
 
 void test_ngtcp2_conn_stream_open_close(void) {
@@ -2727,9 +2790,9 @@ void test_ngtcp2_conn_recv_stream_data_blocked(void) {
   ngtcp2_strm *strm;
   ngtcp2_tstamp t = 0;
   int64_t stream_id;
-  ngtcp2_settings settings;
   ngtcp2_transport_params params;
   ngtcp2_tpe tpe;
+  conn_options opts;
 
   /* Receive STREAM_DATA_BLOCKED to locally initiated stream. */
   setup_default_client(&conn);
@@ -2825,10 +2888,13 @@ void test_ngtcp2_conn_recv_stream_data_blocked(void) {
 
   /* Receive STREAM_DATA_BLOCKED which violates connection data
      limit. */
-  client_default_settings(&settings);
   client_default_transport_params(&params);
   params.initial_max_stream_data_bidi_local = 256 * 1024;
-  setup_default_client_settings(&conn, &null_path.path, &settings, &params);
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
@@ -7098,7 +7164,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   ngtcp2_ksl_it it;
   ngtcp2_tpe tpe;
   ngtcp2_transport_params params;
-  ngtcp2_settings settings;
+  conn_options opts;
 
   path_init(&new_path1, 0, 0, 2, 0);
   path_init(&new_path2, 0, 0, 3, 0);
@@ -7347,9 +7413,10 @@ void test_ngtcp2_conn_server_path_validation(void) {
   memcpy(&params.preferred_addr.ipv4, new_path3.path.local.addr,
          sizeof(params.preferred_addr.ipv4));
 
-  server_default_settings(&settings);
+  conn_options_clear(&opts);
+  opts.params = &params;
 
-  setup_default_server_settings(&conn, &null_path.path, &settings, &params);
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   /* This will send NEW_CONNECTION_ID frames */
@@ -7562,9 +7629,9 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   ngtcp2_ssize shdlen;
   ngtcp2_pkt_hd hd;
   ngtcp2_dcid *dcid;
-  ngtcp2_settings settings;
   ngtcp2_transport_params params;
   ngtcp2_tpe tpe;
+  conn_options opts;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
@@ -7760,9 +7827,10 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   memcpy(&params.preferred_addr.ipv4, new_path.path.local.addr,
          sizeof(params.preferred_addr.ipv4));
 
-  server_default_settings(&settings);
+  conn_options_clear(&opts);
+  opts.params = &params;
 
-  setup_default_server_settings(&conn, &null_path.path, &settings, &params);
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
@@ -8800,7 +8868,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
 void test_ngtcp2_conn_get_active_dcid(void) {
   ngtcp2_conn *conn;
   ngtcp2_cid_token cid_token[2];
-  ngtcp2_cid dcid, scid;
+  ngtcp2_cid dcid;
   static uint8_t token[] = {0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1,
                             0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1};
   ngtcp2_tpe tpe;
@@ -8808,8 +8876,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   size_t pktlen;
   uint8_t buf[1200];
   int rv;
-  ngtcp2_settings settings;
-  ngtcp2_transport_params params;
+  conn_options opts;
 
   dcid_init(&dcid);
   setup_default_client(&conn);
@@ -8826,13 +8893,12 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   ngtcp2_conn_del(conn);
 
   /* zero-length Destination Connection ID */
-  server_default_settings(&settings);
-  server_default_transport_params(&params);
   ngtcp2_cid_zero(&dcid);
-  scid_init(&scid);
 
-  setup_default_server_cid_settings(&conn, &dcid, &scid, &null_path.path,
-                                    &settings, &params, NULL);
+  conn_options_clear(&opts);
+  opts.dcid = &dcid;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   assert_size(1, ==, ngtcp2_conn_get_active_dcid(conn, NULL));
@@ -9003,6 +9069,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   int rv;
   ngtcp2_cid dcid;
   uint8_t available_versions[2 * sizeof(uint32_t)];
+  conn_options opts;
 
   dcid_init(&dcid);
 
@@ -9147,7 +9214,10 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   ngtcp2_conn_del(conn);
 
   /* client: No version_information after Version Negotiation */
-  setup_handshake_client_version(&conn, NGTCP2_PROTO_VER_V2);
+  conn_options_clear(&opts);
+  opts.client_chosen_version = NGTCP2_PROTO_VER_V2;
+
+  setup_handshake_client_with_options(&conn, opts);
 
   conn->local.settings.original_version = NGTCP2_PROTO_VER_V1;
   conn->negotiated_version = conn->client_chosen_version;
@@ -10527,6 +10597,7 @@ void test_ngtcp2_conn_keep_alive(void) {
   ngtcp2_cid scid;
   ngtcp2_tstamp last_ts;
   ngtcp2_tpe tpe;
+  conn_options opts;
 
   setup_default_client(&conn);
 
@@ -10561,7 +10632,10 @@ void test_ngtcp2_conn_keep_alive(void) {
   /* Keep alive PING is not sent during handshake */
   ngtcp2_cid_zero(&scid);
 
-  setup_early_client_scid(&conn, &scid);
+  conn_options_clear(&opts);
+  opts.scid = &scid;
+
+  setup_early_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   ngtcp2_conn_set_keep_alive_timeout(conn, 10 * NGTCP2_MILLISECONDS);
@@ -11631,6 +11705,7 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
   int rv;
+  conn_options opts;
 
   /* client side */
   setup_default_client(&conn);
@@ -11693,10 +11768,13 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   ngtcp2_conn_del(conn);
 
   /* server side */
-  server_default_settings(&settings);
   server_default_transport_params(&params);
   params.disable_active_migration = 1;
-  setup_default_server_settings(&conn, &null_path.path, &settings, &params);
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
 
   slen = ngtcp2_conn_encode_0rtt_transport_params(conn, buf, sizeof(buf));
 
@@ -12109,6 +12187,7 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   ngtcp2_transport_params params;
   ngtcp2_cid rcid;
   ngtcp2_tpe tpe;
+  conn_options opts;
 
   rcid_init(&rcid);
 
@@ -12130,10 +12209,13 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
 
   /* Client enables grease_quic_bit, and receives a 1-RTT packet that
      has fixed bit not set. */
-  client_default_settings(&settings);
   client_default_transport_params(&params);
   params.grease_quic_bit = 1;
-  setup_default_client_settings(&conn, &null_path.path, &settings, &params);
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.flags = NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
 
@@ -12165,10 +12247,13 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
 
   /* Server enables grease_quic_bit, and receives a 1-RTT packet that
      has fixed bit not set. */
-  server_default_settings(&settings);
   server_default_transport_params(&params);
   params.grease_quic_bit = 1;
-  setup_default_server_settings(&conn, &null_path.path, &settings, &params);
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.flags = NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
 
@@ -12184,10 +12269,13 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
 
   /* Server enables grease_quic_bit, and receives an Initial packet
      that has no token. */
-  server_default_settings(&settings);
   server_default_transport_params(&params);
   params.grease_quic_bit = 1;
-  setup_handshake_server_settings(&conn, &null_path.path, &settings, &params);
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.flags = NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
@@ -12214,7 +12302,12 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   settings.token_type = NGTCP2_TOKEN_TYPE_NEW_TOKEN;
   server_default_transport_params(&params);
   params.grease_quic_bit = 1;
-  setup_handshake_server_settings(&conn, &null_path.path, &settings, &params);
+
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+  opts.params = &params;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.flags = NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
@@ -12242,8 +12335,11 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   settings.token = null_data;
   settings.tokenlen = 117;
   settings.token_type = NGTCP2_TOKEN_TYPE_NEW_TOKEN;
-  server_default_transport_params(&params);
-  setup_handshake_server_settings(&conn, &null_path.path, &settings, &params);
+
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.flags = NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
@@ -12273,7 +12369,12 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   settings.token_type = NGTCP2_TOKEN_TYPE_RETRY;
   server_default_transport_params(&params);
   params.grease_quic_bit = 1;
-  setup_handshake_server_settings(&conn, &null_path.path, &settings, &params);
+
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+  opts.params = &params;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.flags = NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
@@ -12942,8 +13043,6 @@ void test_ngtcp2_conn_persistent_congestion(void) {
 }
 
 void test_ngtcp2_conn_ack_padding(void) {
-  ngtcp2_settings settings;
-  ngtcp2_transport_params params;
   ngtcp2_conn *conn;
   uint8_t buf[1200];
   ngtcp2_ssize spktlen;
@@ -12952,18 +13051,17 @@ void test_ngtcp2_conn_ack_padding(void) {
   ngtcp2_tpe tpe;
   size_t pktlen;
   int rv;
-  ngtcp2_cid dcid, scid;
+  ngtcp2_cid dcid;
+  conn_options opts;
 
   dcid.datalen = 0;
-  scid_init(&scid);
 
-  server_default_settings(&settings);
-  server_default_transport_params(&params);
+  conn_options_clear(&opts);
+  opts.dcid = &dcid;
 
   /* ACK only packet which is padded to make packet at minimum size is
      not counted toward CWND. */
-  setup_default_server_cid_settings(&conn, &dcid, &scid, &null_path.path,
-                                    &settings, &params, /* mem = */ NULL);
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   spktlen =
@@ -13052,7 +13150,6 @@ void test_ngtcp2_conn_ack_padding(void) {
 
 void test_ngtcp2_conn_super_small_rtt(void) {
   ngtcp2_settings settings;
-  ngtcp2_transport_params params;
   ngtcp2_conn *conn;
   uint8_t buf[1200];
   ngtcp2_ssize spktlen;
@@ -13063,12 +13160,15 @@ void test_ngtcp2_conn_super_small_rtt(void) {
   ngtcp2_tstamp t = 0;
   ngtcp2_frame fr;
   size_t pktlen;
+  conn_options opts;
 
   client_default_settings(&settings);
   settings.initial_rtt = NGTCP2_NANOSECONDS;
-  client_default_transport_params(&params);
 
-  setup_default_client_settings(&conn, &null_path.path, &settings, &params);
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_default_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   spktlen =
@@ -13303,11 +13403,8 @@ void test_ngtcp2_conn_new_failmalloc(void) {
 
 static size_t server_perform_post_handshake(size_t nmalloc_fail_start) {
   ngtcp2_conn *conn;
-  ngtcp2_settings settings;
-  ngtcp2_transport_params params;
   failmalloc mc;
   ngtcp2_mem mem;
-  ngtcp2_cid dcid, scid;
   int rv;
   uint8_t buf[1200];
   ngtcp2_tstamp t = 0;
@@ -13315,21 +13412,17 @@ static size_t server_perform_post_handshake(size_t nmalloc_fail_start) {
   size_t pktlen;
   ngtcp2_tpe tpe;
   ngtcp2_ssize spktlen;
+  conn_options opts;
 
   setup_failmalloc_mem(&mem, &mc);
-
-  dcid_init(&dcid);
-  scid_init(&scid);
-
-  server_default_settings(&settings);
-  server_default_transport_params(&params);
 
   mc.nmalloc = 0;
   mc.fail_start = SIZE_MAX;
 
-  setup_default_server_cid_settings(&conn, &dcid, &scid, &null_path.path,
-                                    &settings, &params, &mem);
+  conn_options_clear(&opts);
+  opts.mem = &mem;
 
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   mc.nmalloc = 0;
