@@ -1510,6 +1510,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   params.stateless_reset_token_present = 1;
   params.active_connection_id_limit = 7;
   params.grease_quic_bit = 1;
+  params.min_ack_delay = config.min_ack_delay;
 
   if (ocid) {
     params.original_dcid = *ocid;
@@ -3509,6 +3510,10 @@ Options:
   --pmtud-probes=<SIZE>[[,<SIZE>]...]
               Specify UDP datagram payload sizes  to probe in Path MTU
               Discovery.  <SIZE> must be strictly larger than 1200.
+  --min-ack-delay=<DURATION>
+              Set the  minimum ack delay.  Setting  this value nonzero
+              advertises  the  support   of  ack-frequency  extension.
+              <DURATION> must be less than or equal to 25ms.
   -h, --help  Display this help and exit.
 
 ---
@@ -3578,6 +3583,7 @@ int main(int argc, char **argv) {
       {"ack-thresh", required_argument, &flag, 30},
       {"initial-pkt-num", required_argument, &flag, 31},
       {"pmtud-probes", required_argument, &flag, 32},
+      {"min-ack-delay", required_argument, &flag, 33},
       {},
     };
 
@@ -3928,6 +3934,20 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      case 33:
+        // --min-ack-delay
+        if (auto t = util::parse_duration(optarg); !t) {
+          std::cerr << "min-ack-delay: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (*t > NGTCP2_DEFAULT_MAX_ACK_DELAY) {
+          std::cerr << "min-ack-delay: must not exceed "
+                    << util::format_duration(NGTCP2_DEFAULT_MAX_ACK_DELAY)
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.min_ack_delay = *t;
+        }
+        break;
       }
       break;
     default:

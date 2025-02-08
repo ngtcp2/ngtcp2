@@ -55,6 +55,9 @@
    incoming QUIC packet to process.  ACK frames that exceed this limit
    are not processed. */
 #define NGTCP2_MAX_ACK_PER_PKT 1
+/* NGTCP2_MAX_ACK_DELAY_RTT_FRAC is the fraction of RTT when computing
+   max_ack_delay from RTT. */
+#define NGTCP2_MAX_ACK_DELAY_RTT_FRAC 8
 
 ngtcp2_objalloc_def(strm, ngtcp2_strm, oplent)
 
@@ -849,9 +852,8 @@ static ngtcp2_duration conn_compute_initial_pto(ngtcp2_conn *conn,
   ngtcp2_duration initial_rtt = conn->local.settings.initial_rtt;
   ngtcp2_duration max_ack_delay;
 
-  if (pktns->id == NGTCP2_PKTNS_ID_APPLICATION &&
-      conn->remote.transport_params) {
-    max_ack_delay = conn->remote.transport_params->max_ack_delay;
+  if (pktns->id == NGTCP2_PKTNS_ID_APPLICATION) {
+    max_ack_delay = conn->ack_freq.remote.max_ack_delay;
   } else {
     max_ack_delay = 0;
   }
@@ -866,9 +868,8 @@ static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn,
   ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_duration max_ack_delay;
 
-  if (pktns->id == NGTCP2_PKTNS_ID_APPLICATION &&
-      conn->remote.transport_params) {
-    max_ack_delay = conn->remote.transport_params->max_ack_delay;
+  if (pktns->id == NGTCP2_PKTNS_ID_APPLICATION) {
+    max_ack_delay = conn->ack_freq.remote.max_ack_delay;
   } else {
     max_ack_delay = 0;
   }
@@ -1030,6 +1031,8 @@ conn_set_local_transport_params(ngtcp2_conn *conn,
   p->version_info.available_versions = conn->vneg.available_versions;
   p->version_info.available_versionslen = conn->vneg.available_versionslen;
   p->version_info_present = 1;
+
+  conn->ack_freq.local.max_ack_delay = params->max_ack_delay;
 }
 
 static size_t buflen_align(size_t buflen) {
@@ -1089,6 +1092,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(server || !params->retry_scid_present);
   assert(params->max_idle_timeout != UINT64_MAX);
   assert(params->max_ack_delay < (1 << 14) * NGTCP2_MILLISECONDS);
+  assert(params->min_ack_delay == 0 ||
+         params->min_ack_delay >= NGTCP2_MICROSECONDS);
+  assert(params->min_ack_delay <= params->max_ack_delay);
   assert(server || callbacks->client_initial);
   assert(!server || callbacks->recv_client_initial);
   assert(callbacks->recv_crypto_data);
@@ -1363,6 +1369,13 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                                   &client_chosen_version, 1);
   }
 
+  (*pconn)->ack_freq.tx.last_ts = UINT64_MAX;
+  (*pconn)->ack_freq.tx.last_seq = -1;
+  (*pconn)->ack_freq.rx.last_seq = -1;
+  (*pconn)->ack_freq.rx.reordering_thresh = 1;
+  (*pconn)->ack_freq.rx.last_immediate_ack_ts = UINT64_MAX;
+  (*pconn)->ack_freq.local.ack_thresh = settings->ack_thresh;
+
   (*pconn)->local.settings.available_versions = NULL;
   (*pconn)->local.settings.available_versionslen = 0;
 
@@ -1634,9 +1647,14 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
  * ACK.
  */
 static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
+  if (conn->ack_freq.rx.last_seq != -1) {
+    return conn->ack_freq.local.max_ack_delay;
+  }
+
   return ngtcp2_min_uint64(
-    conn->local.transport_params.max_ack_delay,
-    ngtcp2_max_uint64(conn->cstat.smoothed_rtt / 8, NGTCP2_NANOSECONDS));
+    conn->ack_freq.local.max_ack_delay,
+    ngtcp2_max_uint64(conn->cstat.smoothed_rtt / NGTCP2_MAX_ACK_DELAY_RTT_FRAC,
+                      NGTCP2_NANOSECONDS));
 }
 
 /*
@@ -2991,6 +3009,53 @@ static void conn_reset_ppe_pending(ngtcp2_conn *conn) {
 }
 
 /*
+ * conn_update_and_should_send_ack_frequency updates ack frequency
+ * parameters and returns nonzero if ACK_FREQUENCY frame should be
+ * sent.
+ */
+static int conn_update_and_should_send_ack_frequency(ngtcp2_conn *conn,
+                                                     ngtcp2_tstamp ts) {
+  ngtcp2_duration req_max_ack_delay;
+  uint64_t ack_eliciting_thresh;
+  uint64_t reordering_thresh;
+  uint64_t ack_delay_delta;
+
+  if (conn->remote.transport_params->min_ack_delay == 0 ||
+      conn->cstat.first_rtt_sample_ts == UINT64_MAX ||
+      (conn->flags & NGTCP2_CONN_FLAG_ACK_FREQ_IN_FLIGHT) ||
+      ngtcp2_tstamp_not_elapsed(conn->ack_freq.tx.last_ts,
+                                conn_compute_pto(conn, &conn->pktns) * 3, ts)) {
+    return 0;
+  }
+
+  req_max_ack_delay =
+    ngtcp2_max_uint64(conn->remote.transport_params->min_ack_delay,
+                      conn->cstat.smoothed_rtt / NGTCP2_MAX_ACK_DELAY_RTT_FRAC);
+  ack_eliciting_thresh = ngtcp2_max_uint64(
+    conn->cstat.cwnd / conn->cstat.max_tx_udp_payload_size, 1);
+  ack_eliciting_thresh = ngtcp2_min_uint64(ack_eliciting_thresh, 10);
+  reordering_thresh =
+    ngtcp2_rtb_pkt_reordering_thresh(&conn->pktns.rtb, &conn->cstat) - 1;
+
+  ack_delay_delta =
+    req_max_ack_delay < conn->ack_freq.tx.req_max_ack_delay
+      ? (conn->ack_freq.tx.req_max_ack_delay - req_max_ack_delay)
+      : (req_max_ack_delay - conn->ack_freq.tx.req_max_ack_delay);
+
+  if (ack_delay_delta * 5 <= conn->ack_freq.tx.req_max_ack_delay &&
+      ack_eliciting_thresh == conn->ack_freq.tx.ack_eliciting_thresh &&
+      reordering_thresh == conn->ack_freq.tx.reordering_thresh) {
+    return 0;
+  }
+
+  conn->ack_freq.tx.req_max_ack_delay = req_max_ack_delay;
+  conn->ack_freq.tx.ack_eliciting_thresh = ack_eliciting_thresh;
+  conn->ack_freq.tx.reordering_thresh = reordering_thresh;
+
+  return 1;
+}
+
+/*
  * conn_write_pkt writes a protected packet in the buffer pointed by
  * |dest| whose length if |destlen|.  |dgram_offset| is the offset in
  * UDP datagram payload where this QUIC packet is positioned at.
@@ -3181,6 +3246,31 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         nfrc->fr.max_data.max_data;
     }
 
+    if (type == NGTCP2_PKT_1RTT &&
+        conn_update_and_should_send_ack_frequency(conn, ts)) {
+      rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
+      if (rv != 0) {
+        return rv;
+      }
+
+      conn->ack_freq.tx.last_ts = ts;
+      conn->ack_freq.remote.max_ack_delay =
+        ngtcp2_max_uint64(conn->ack_freq.remote.max_ack_delay,
+                          conn->ack_freq.tx.req_max_ack_delay);
+      conn->flags |= NGTCP2_CONN_FLAG_ACK_FREQ_IN_FLIGHT;
+
+      nfrc->fr.type = NGTCP2_FRAME_ACK_FREQUENCY;
+      nfrc->fr.ack_frequency.seq = (uint64_t)++conn->ack_freq.tx.last_seq;
+      nfrc->fr.ack_frequency.ack_eliciting_thresh =
+        conn->ack_freq.tx.ack_eliciting_thresh;
+      nfrc->fr.ack_frequency.req_max_ack_delay =
+        conn->ack_freq.tx.req_max_ack_delay;
+      nfrc->fr.ack_frequency.reordering_thresh =
+        conn->ack_freq.tx.reordering_thresh;
+      nfrc->next = pktns->tx.frq;
+      pktns->tx.frq = nfrc;
+    }
+
     if (stream_blocked && conn_should_send_max_data(conn)) {
       rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
       if (rv != 0) {
@@ -3356,6 +3446,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
           continue;
         }
+        break;
+      case NGTCP2_FRAME_ACK_FREQUENCY:
+        assert((int64_t)(*pfrc)->fr.ack_frequency.seq ==
+               conn->ack_freq.tx.last_seq);
         break;
       case NGTCP2_FRAME_CRYPTO:
         ngtcp2_unreachable();
@@ -3980,7 +4074,13 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     if (ngtcp2_tstamp_elapsed(pktns->tx.non_ack_pkt_start_ts,
                               cstat->smoothed_rtt, ts) ||
         keep_alive_expired || conn->pktns.rtb.probe_pkt_left) {
-      lfr.type = NGTCP2_FRAME_PING;
+      if (conn->pktns.rtb.probe_pkt_left &&
+          conn->remote.transport_params->min_ack_delay) {
+        assert(NGTCP2_PKT_1RTT);
+        lfr.type = NGTCP2_FRAME_IMMEDIATE_ACK;
+      } else {
+        lfr.type = NGTCP2_FRAME_PING;
+      }
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
       if (rv != 0) {
@@ -4511,7 +4611,11 @@ static ngtcp2_ssize conn_write_pmtud_probe(ngtcp2_conn *conn,
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "sending PMTUD probe packet len=%zu", probelen);
 
-  lfr.type = NGTCP2_FRAME_PING;
+  if (conn->remote.transport_params->min_ack_delay) {
+    lfr.type = NGTCP2_FRAME_IMMEDIATE_ACK;
+  } else {
+    lfr.type = NGTCP2_FRAME_PING;
+  }
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
     conn, pi, dest, probelen, NGTCP2_PKT_1RTT,
@@ -5739,10 +5843,66 @@ static int pktns_pkt_num_is_duplicate(ngtcp2_pktns *pktns, int64_t pkt_num) {
   return ngtcp2_gaptr_is_pushed(&pktns->rx.pngap, (uint64_t)pkt_num, 1);
 }
 
+static int conn_should_send_immediate_ack_on_reordering(ngtcp2_conn *conn,
+                                                        ngtcp2_pktns *pktns,
+                                                        int64_t pkt_num) {
+  int64_t largest_unacked;
+  int64_t largest_reported;
+  int64_t min_unreported_missing;
+  ngtcp2_range r;
+
+  if (pktns->rx.max_ack_eliciting_pkt_num == -1) {
+    return 0;
+  }
+
+  switch (conn->ack_freq.rx.reordering_thresh) {
+  case 0:
+    return 0;
+  case 1:
+    if (pkt_num < pktns->rx.max_ack_eliciting_pkt_num) {
+      return 1;
+    }
+
+    if (pkt_num != pktns->rx.max_ack_eliciting_pkt_num + 1) {
+      r = ngtcp2_gaptr_get_first_gap_after(
+        &pktns->rx.pngap, (uint64_t)pktns->rx.max_ack_eliciting_pkt_num);
+
+      return r.begin < (uint64_t)pkt_num;
+    }
+
+    return 0;
+  }
+
+  /* Now entering ack frequency extension */
+  if (pktns->acktr.largest_ack == -1) {
+    largest_reported = 0;
+  } else {
+    largest_reported = pktns->acktr.largest_ack -
+                       (int64_t)conn->ack_freq.rx.reordering_thresh + 1;
+    if (largest_reported < 0) {
+      largest_reported = 0;
+    }
+  }
+
+  largest_unacked =
+    ngtcp2_max_int64(pktns->rx.max_ack_eliciting_pkt_num, pkt_num);
+
+  r = ngtcp2_gaptr_get_first_gap_after(&pktns->rx.pngap,
+                                       (uint64_t)largest_reported);
+  if ((int64_t)r.begin > largest_unacked) {
+    return 0;
+  }
+
+  min_unreported_missing = ngtcp2_max_int64(largest_reported, (int64_t)r.begin);
+
+  return largest_unacked - min_unreported_missing >=
+         (int64_t)conn->ack_freq.rx.reordering_thresh;
+}
+
 /*
- * pktns_commit_recv_pkt_num marks packet number |pkt_num| as
- * received.  It stores |pkt_num| and its reception timestamp |ts| in
- * order to send its ACK.  It also increase ECN counts from |pi|.
+ * conn_commit_recv_pkt_num marks packet number |pkt_num| as received.
+ * It stores |pkt_num| and its reception timestamp |ts| in order to
+ * send its ACK.  It also increase ECN counts from |pi|.
  * |require_ack| is nonzero if the received packet is ack-eliciting.
  *
  * It returns 0 if it succeeds, or one of the following negative error
@@ -5753,11 +5913,10 @@ static int pktns_pkt_num_is_duplicate(ngtcp2_pktns *pktns, int64_t pkt_num) {
  * NGTCP2_ERR_PROTO
  *     Same packet number has already been added.
  */
-static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num,
-                                     const ngtcp2_pkt_info *pi, int require_ack,
-                                     ngtcp2_tstamp ts) {
+static int conn_commit_recv_pkt_num(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                                    int64_t pkt_num, const ngtcp2_pkt_info *pi,
+                                    int require_ack, ngtcp2_tstamp ts) {
   ngtcp2_acktr *acktr = &pktns->acktr;
-  ngtcp2_range r;
   int rv;
 
   rv = ngtcp2_gaptr_push(&pktns->rx.pngap, (uint64_t)pkt_num, 1);
@@ -5770,17 +5929,8 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num,
   }
 
   if (require_ack) {
-    if (pktns->rx.max_ack_eliciting_pkt_num != -1) {
-      if (pkt_num < pktns->rx.max_ack_eliciting_pkt_num) {
-        ngtcp2_acktr_immediate_ack(&pktns->acktr);
-      } else if (pkt_num != pktns->rx.max_ack_eliciting_pkt_num + 1) {
-        r = ngtcp2_gaptr_get_first_gap_after(
-          &pktns->rx.pngap, (uint64_t)pktns->rx.max_ack_eliciting_pkt_num);
-
-        if (r.begin < (uint64_t)pkt_num) {
-          ngtcp2_acktr_immediate_ack(&pktns->acktr);
-        }
-      }
+    if (conn_should_send_immediate_ack_on_reordering(conn, pktns, pkt_num)) {
+      ngtcp2_acktr_immediate_ack(&pktns->acktr);
     }
 
     if (pktns->rx.max_ack_eliciting_pkt_num < pkt_num) {
@@ -6447,6 +6597,11 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     case NGTCP2_FRAME_PING:
       require_ack = 1;
       break;
+    case NGTCP2_FRAME_ACK_FREQUENCY:
+    case NGTCP2_FRAME_IMMEDIATE_ACK:
+      /* TODO Ignore these frames for now */
+      require_ack = 1;
+      break;
     default:
       return NGTCP2_ERR_PROTO;
     }
@@ -6462,7 +6617,8 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_qlog_pkt_received_end(&conn->qlog, &hd, pktlen);
 
-  rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num, pi, require_ack, pkt_ts);
+  rv =
+    conn_commit_recv_pkt_num(conn, pktns, hd.pkt_num, pi, require_ack, pkt_ts);
   if (rv != 0) {
     return rv;
   }
@@ -8044,6 +8200,52 @@ static int conn_recv_datagram(ngtcp2_conn *conn, ngtcp2_datagram *fr) {
 }
 
 /*
+ * conn_recv_ack_frequency processes the incoming ACK_FREQUENCY frame
+ * |fr|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_TRANSPORT_PARAM
+ *     req_max_ack_delay in a frame is less than min_ack_delay.
+ */
+static int conn_recv_ack_frequency(ngtcp2_conn *conn,
+                                   ngtcp2_ack_frequency *fr) {
+  assert(conn->local.transport_params.min_ack_delay);
+
+  if ((int64_t)fr->seq <= conn->ack_freq.rx.last_seq) {
+    return 0;
+  }
+
+  if (fr->req_max_ack_delay < conn->local.transport_params.min_ack_delay) {
+    return NGTCP2_ERR_TRANSPORT_PARAM;
+  }
+
+  conn->ack_freq.rx.last_seq = (int64_t)fr->seq;
+  conn->ack_freq.local.ack_thresh = fr->ack_eliciting_thresh + 1;
+  conn->ack_freq.local.max_ack_delay =
+    ngtcp2_min_uint64(fr->req_max_ack_delay, conn->cstat.smoothed_rtt);
+  conn->ack_freq.rx.reordering_thresh = fr->reordering_thresh;
+
+  return 0;
+}
+
+static void conn_recv_immediate_ack(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  if (ngtcp2_tstamp_not_elapsed(
+        conn->ack_freq.rx.last_immediate_ack_ts,
+        ngtcp2_min_uint64(conn->cstat.smoothed_rtt /
+                            NGTCP2_MAX_ACK_DELAY_RTT_FRAC,
+                          conn->ack_freq.local.max_ack_delay),
+        ts)) {
+    return;
+  }
+
+  conn->ack_freq.rx.last_immediate_ack_ts = ts;
+
+  ngtcp2_acktr_immediate_ack(&conn->pktns.acktr);
+}
+
+/*
  * conn_key_phase_changed returns nonzero if |hd| indicates that the
  * key phase has unexpected value.
  */
@@ -8489,6 +8691,9 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
       break;
     case NGTCP2_FRAME_CRYPTO:
     case NGTCP2_FRAME_PING:
+      /* TODO Ignore the following 2 frames for now */
+    case NGTCP2_FRAME_ACK_FREQUENCY:
+    case NGTCP2_FRAME_IMMEDIATE_ACK:
       require_ack = 1;
       break;
     default:
@@ -8500,7 +8705,8 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
 
   ngtcp2_qlog_pkt_received_end(&conn->qlog, hd, pktlen);
 
-  rv = pktns_commit_recv_pkt_num(pktns, hd->pkt_num, pi, require_ack, pkt_ts);
+  rv =
+    conn_commit_recv_pkt_num(conn, pktns, hd->pkt_num, pi, require_ack, pkt_ts);
   if (rv != 0) {
     return rv;
   }
@@ -9142,6 +9348,29 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       non_probing_pkt = 1;
       break;
+    case NGTCP2_FRAME_ACK_FREQUENCY:
+      if (conn->local.transport_params.min_ack_delay == 0) {
+        return NGTCP2_ERR_PROTO;
+      }
+
+      rv = conn_recv_ack_frequency(conn, &fr->ack_frequency);
+      if (rv != 0) {
+        return rv;
+      }
+
+      non_probing_pkt = 1;
+
+      break;
+    case NGTCP2_FRAME_IMMEDIATE_ACK:
+      if (conn->local.transport_params.min_ack_delay == 0) {
+        return NGTCP2_ERR_PROTO;
+      }
+
+      conn_recv_immediate_ack(conn, ts);
+
+      non_probing_pkt = 1;
+
+      break;
     }
 
     ngtcp2_qlog_write_frame(&conn->qlog, fr);
@@ -9202,15 +9431,27 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
   }
 
-  rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num, pi, require_ack, pkt_ts);
+  rv =
+    conn_commit_recv_pkt_num(conn, pktns, hd.pkt_num, pi, require_ack, pkt_ts);
   if (rv != 0) {
     return rv;
   }
 
-  if (require_ack &&
-      (++pktns->acktr.rx_npkt >= conn->local.settings.ack_thresh ||
-       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
+  if (require_ack) {
+    if (++pktns->acktr.rx_npkt >= conn->ack_freq.local.ack_thresh ||
+        (conn->ack_freq.local.ack_thresh <= 2 &&
+         (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE) ||
+        (conn->ack_freq.local.ack_thresh > 2 &&
+         !(conn->flags & NGTCP2_CONN_FLAG_ECN_CE_MARKED) &&
+         (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
+      ngtcp2_acktr_immediate_ack(&pktns->acktr);
+    }
+
+    if ((pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE) {
+      conn->flags |= NGTCP2_CONN_FLAG_ECN_CE_MARKED;
+    } else {
+      conn->flags &= ~NGTCP2_CONN_FLAG_ECN_CE_MARKED;
+    }
   }
 
   conn_restart_timer_on_read(conn, ts);
@@ -10504,6 +10745,8 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
       conn->remote.pending_transport_params = NULL;
       conn_sync_stream_id_limit(conn);
       conn->tx.max_offset = conn->remote.transport_params->initial_max_data;
+      conn->ack_freq.remote.max_ack_delay =
+        conn->remote.transport_params->max_ack_delay;
     }
 
     if (conn->early.ckm) {
@@ -10552,6 +10795,8 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
       conn->remote.pending_transport_params = NULL;
       conn_sync_stream_id_limit(conn);
       conn->tx.max_offset = conn->remote.transport_params->initial_max_data;
+      conn->ack_freq.remote.max_ack_delay =
+        conn->remote.transport_params->max_ack_delay;
     }
   } else if (conn->early.ckm) {
     conn_discard_early_key(conn);
@@ -10985,6 +11230,10 @@ int ngtcp2_conn_set_remote_transport_params(
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
+  if (params->max_ack_delay < params->min_ack_delay) {
+    return NGTCP2_ERR_TRANSPORT_PARAM;
+  }
+
   if (conn->server) {
     if (params->original_dcid_present ||
         params->stateless_reset_token_present ||
@@ -11047,6 +11296,8 @@ int ngtcp2_conn_set_remote_transport_params(
     }
     conn_sync_stream_id_limit(conn);
     conn->tx.max_offset = conn->remote.transport_params->initial_max_data;
+    conn->ack_freq.remote.max_ack_delay =
+      conn->remote.transport_params->max_ack_delay;
   } else {
     assert(!conn->remote.pending_transport_params);
 
@@ -12476,10 +12727,8 @@ int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
     cstat->first_rtt_sample_ts = ts;
   } else {
     if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) {
-      assert(conn->remote.transport_params);
-
-      ack_delay = ngtcp2_min_uint64(
-        ack_delay, conn->remote.transport_params->max_ack_delay);
+      ack_delay =
+        ngtcp2_min_uint64(ack_delay, conn->ack_freq.remote.max_ack_delay);
     } else if (ack_delay > 0 && rtt >= cstat->min_rtt &&
                rtt < cstat->min_rtt + ack_delay) {
       /* Ignore RTT sample if adjusting ack_delay causes the sample
@@ -12583,9 +12832,7 @@ static ngtcp2_tstamp conn_get_earliest_pto_expiry(ngtcp2_conn *conn,
     t = times[i] + duration;
 
     if (i == NGTCP2_PKTNS_ID_APPLICATION) {
-      assert(conn->remote.transport_params);
-      t += conn->remote.transport_params->max_ack_delay *
-           (1ULL << cstat->pto_count);
+      t += conn->ack_freq.remote.max_ack_delay * (1ULL << cstat->pto_count);
     }
 
     if (t < earliest_ts) {

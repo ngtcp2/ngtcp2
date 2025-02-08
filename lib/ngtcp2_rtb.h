@@ -313,4 +313,11 @@ void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n);
 ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                                        ngtcp2_pktns *pktns, size_t num_pkts);
 
+/*
+ * ngtcp2_rtb_pkt_reordering_thresh returns the packet reordering
+ * threshold.
+ */
+uint64_t ngtcp2_rtb_pkt_reordering_thresh(const ngtcp2_rtb *rtb,
+                                          const ngtcp2_conn_stat *cstat);
+
 #endif /* !defined(NGTCP2_RTB_H) */
