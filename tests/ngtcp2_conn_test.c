@@ -9015,40 +9015,21 @@ void test_ngtcp2_conn_recv_version_negotiation(void) {
 void test_ngtcp2_conn_send_initial_token(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
-  ngtcp2_callbacks cb;
   ngtcp2_settings settings;
-  ngtcp2_transport_params params;
-  ngtcp2_cid rcid, scid;
-  ngtcp2_crypto_aead retry_aead = {
-    .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
-  };
   uint8_t token[] = "this is token";
   ngtcp2_ssize spktlen, shdlen;
   ngtcp2_tstamp t = 0;
   ngtcp2_pkt_hd hd;
-  ngtcp2_crypto_aead_ctx aead_ctx = {0};
-  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
-  ngtcp2_crypto_ctx crypto_ctx;
+  conn_options opts = {
+    .settings = &settings,
+  };
 
-  rcid_init(&rcid);
-  scid_init(&scid);
-
-  init_initial_crypto_ctx(&crypto_ctx);
-
-  client_default_callbacks(&cb);
   client_default_settings(&settings);
-  client_default_transport_params(&params);
 
   settings.token = token;
   settings.tokenlen = sizeof(token);
 
-  ngtcp2_conn_client_new(&conn, &rcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
-                         /* mem = */ NULL, NULL);
-  ngtcp2_conn_set_initial_crypto_ctx(conn, &crypto_ctx);
-  ngtcp2_conn_install_initial_key(conn, &aead_ctx, null_iv, &hp_ctx, &aead_ctx,
-                                  null_iv, &hp_ctx, sizeof(null_iv));
-  ngtcp2_conn_set_retry_aead(conn, &retry_aead, &aead_ctx);
+  setup_handshake_client_with_options(&conn, opts);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
