@@ -39,5 +39,7 @@ munit_void_test_decl(test_ngtcp2_acktr_add)
 munit_void_test_decl(test_ngtcp2_acktr_eviction)
 munit_void_test_decl(test_ngtcp2_acktr_forget)
 munit_void_test_decl(test_ngtcp2_acktr_recv_ack)
+munit_void_test_decl(test_ngtcp2_acktr_create_ack_frame)
+munit_void_test_decl(test_ngtcp2_acktr_free)
 
 #endif /* !defined(NGTCP2_ACKTR_TEST_H) */
