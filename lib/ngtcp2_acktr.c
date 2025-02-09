@@ -344,6 +344,7 @@ ngtcp2_frame *ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr,
   ngtcp2_acktr_entry *rpkt;
   ngtcp2_ack *ack = &fr->ack;
   ngtcp2_tstamp largest_ack_ts;
+  size_t num_acks;
 
   if (acktr->flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK) {
     ack_delay = 0;
@@ -358,6 +359,8 @@ ngtcp2_frame *ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr,
     ngtcp2_acktr_commit_ack(acktr);
     return NULL;
   }
+
+  num_acks = ngtcp2_ksl_len(&acktr->ents);
 
   if (acktr->ecn.ect0 || acktr->ecn.ect1 || acktr->ecn.ce) {
     ack->type = NGTCP2_FRAME_ACK_ECN;
@@ -378,6 +381,7 @@ ngtcp2_frame *ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr,
     ack->first_ack_range = rpkt->len - 1;
 
     ngtcp2_ksl_it_next(&it);
+    --num_acks;
   } else if (rpkt->pkt_num + 1 == acktr->max_pkt_num) {
     last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
     largest_ack_ts = acktr->max_pkt_ts;
@@ -385,6 +389,7 @@ ngtcp2_frame *ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr,
     ack->first_ack_range = rpkt->len;
 
     ngtcp2_ksl_it_next(&it);
+    --num_acks;
   } else {
     assert(rpkt->pkt_num < acktr->max_pkt_num);
 
@@ -403,8 +408,9 @@ ngtcp2_frame *ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr,
     ack->ack_delay = 0;
   }
 
-  for (; !ngtcp2_ksl_it_end(&it) && ack->rangecnt < NGTCP2_MAX_ACK_RANGES;
-       ngtcp2_ksl_it_next(&it)) {
+  num_acks = ngtcp2_min_size(num_acks, NGTCP2_MAX_ACK_RANGES);
+
+  for (; ack->rangecnt < num_acks; ngtcp2_ksl_it_next(&it)) {
     rpkt = ngtcp2_ksl_it_get(&it);
 
     range = &ack->ranges[ack->rangecnt++];
@@ -412,12 +418,6 @@ ngtcp2_frame *ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr,
     range->len = rpkt->len - 1;
 
     last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
-  }
-
-  /* TODO Just remove entries which cannot fit into a single ACK frame
-     for now. */
-  if (!ngtcp2_ksl_it_end(&it)) {
-    ngtcp2_acktr_forget(acktr, ngtcp2_ksl_it_get(&it));
   }
 
   return fr;
