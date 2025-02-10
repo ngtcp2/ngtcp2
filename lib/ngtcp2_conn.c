@@ -3181,32 +3181,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         nfrc->fr.max_data.max_data;
     }
 
-    if (stream_blocked && conn_should_send_data_blocked(conn)) {
-      rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
-      if (rv != 0) {
-        return rv;
-      }
-
-      nfrc->fr.type = NGTCP2_FRAME_DATA_BLOCKED;
-      nfrc->fr.data_blocked.offset = conn->tx.max_offset;
-      nfrc->next = pktns->tx.frq;
-      pktns->tx.frq = nfrc;
-
-      conn->tx.last_blocked_offset = conn->tx.max_offset;
-    }
-
-    if (stream_blocked && !ngtcp2_strm_is_tx_queued(vmsg->stream.strm) &&
-        strm_should_send_stream_data_blocked(vmsg->stream.strm)) {
-      assert(vmsg);
-      assert(vmsg->type == NGTCP2_VMSG_TYPE_STREAM);
-
-      vmsg->stream.strm->cycle = conn_tx_strmq_first_cycle(conn);
-      rv = ngtcp2_conn_tx_strmq_push(conn, vmsg->stream.strm);
-      if (rv != 0) {
-        return rv;
-      }
-    }
-
     ngtcp2_pkt_hd_init(hd, hd_flags, type, &conn->dcid.current.cid, scid,
                        pktns->tx.last_pkt_num + 1,
                        pktns_select_pkt_numlen(pktns), version);
