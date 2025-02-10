@@ -116,6 +116,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_send_stream_data_blocked),
   munit_void_test(test_ngtcp2_conn_send_data_blocked),
   munit_void_test(test_ngtcp2_conn_send_new_connection_id),
+  munit_void_test(test_ngtcp2_conn_submit_crypto_data),
   munit_void_test(test_ngtcp2_conn_persistent_congestion),
   munit_void_test(test_ngtcp2_conn_ack_padding),
   munit_void_test(test_ngtcp2_conn_super_small_rtt),
@@ -12970,6 +12971,46 @@ void test_ngtcp2_conn_send_new_connection_id(void) {
   assert_ptrdiff(0, <, spktlen);
   assert_size(2, ==, conn->scid.num_in_flight);
   assert_uint64(seq + 1, ==, conn->scid.last_seq);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_submit_crypto_data(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[1200];
+  ngtcp2_ssize spktlen;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_frame_chain *frc;
+  int rv;
+
+  /* Send CRYPTO in 1RTT packet */
+  setup_default_server(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 0);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT,
+                                      null_data, 999);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 0);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  assert_false(ngtcp2_ksl_it_end(&it));
+
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.type);
+  assert_uint64(0, ==, frc->fr.stream.offset);
+  assert_uint64(999, ==,
+                ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
 
   ngtcp2_conn_del(conn);
 }
