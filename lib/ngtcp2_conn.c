@@ -3181,7 +3181,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         nfrc->fr.max_data.max_data;
     }
 
-    if (stream_blocked && conn_should_send_max_data(conn)) {
+    if (stream_blocked && conn_should_send_data_blocked(conn)) {
       rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
       if (rv != 0) {
         return rv;
