@@ -116,6 +116,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_send_stream_data_blocked),
   munit_void_test(test_ngtcp2_conn_send_data_blocked),
   munit_void_test(test_ngtcp2_conn_send_new_connection_id),
+  munit_void_test(test_ngtcp2_conn_submit_crypto_data),
   munit_void_test(test_ngtcp2_conn_persistent_congestion),
   munit_void_test(test_ngtcp2_conn_ack_padding),
   munit_void_test(test_ngtcp2_conn_super_small_rtt),
@@ -4663,6 +4664,51 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   strm = ngtcp2_conn_find_stream(conn, stream_id_a);
 
   assert_true(!ngtcp2_strm_streamfrq_empty(strm));
+
+  ngtcp2_conn_del(conn);
+
+  /* Stop retransmission because of spurious packet loss */
+  setup_default_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 126, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  /* Kick delayed ACK timer */
+  t += NGTCP2_SECONDS;
+
+  conn->pktns.tx.last_pkt_num = 1000000009;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_size(1, ==, strm->tx.loss_count);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
+  assert_null(conn->pktns.tx.frq);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  assert_true(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_conn_del(conn);
 }
@@ -12925,6 +12971,46 @@ void test_ngtcp2_conn_send_new_connection_id(void) {
   assert_ptrdiff(0, <, spktlen);
   assert_size(2, ==, conn->scid.num_in_flight);
   assert_uint64(seq + 1, ==, conn->scid.last_seq);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_submit_crypto_data(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[1200];
+  ngtcp2_ssize spktlen;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_frame_chain *frc;
+  int rv;
+
+  /* Send CRYPTO in 1RTT packet */
+  setup_default_server(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 0);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT,
+                                      null_data, 999);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 0);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  assert_false(ngtcp2_ksl_it_end(&it));
+
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.type);
+  assert_uint64(0, ==, frc->fr.stream.offset);
+  assert_uint64(999, ==,
+                ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
 
   ngtcp2_conn_del(conn);
 }
