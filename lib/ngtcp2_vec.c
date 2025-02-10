@@ -198,13 +198,14 @@ size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t dstcnt,
       continue;
     }
 
-    dst[j] = src[i];
-
-    if (dst[j].len > left) {
+    if (src[i].len > left) {
+      dst[j].base = src[i].base;
       dst[j].len = left;
+
       return j + 1;
     }
 
+    dst[j] = src[i];
     left -= dst[j].len;
     ++i;
     ++j;
