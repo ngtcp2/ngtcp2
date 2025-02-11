@@ -354,11 +354,10 @@ int ngtcp2_ksl_insert(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
 
       if (ksl->compar((ngtcp2_ksl_key *)node->key, key)) {
         node = ngtcp2_ksl_nth_node(ksl, blk, i + 1);
-        /* The largest key is not updated in this case.  Because we do
-           not decrease key if the largest key is deleted from blk,
-           key insertion may hit here with i < blk->n.  The key of the
-           node is still larger than or equal to key, therefore no
-           need to update node key. */
+
+        if (ksl->compar((ngtcp2_ksl_key *)node->key, key)) {
+          ksl_node_set_key(ksl, node, key);
+        }
       }
     }
 
