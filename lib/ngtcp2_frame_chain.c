@@ -29,17 +29,6 @@
 
 ngtcp2_objalloc_def(frame_chain, ngtcp2_frame_chain, oplent)
 
-int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem) {
-  *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
-  if (*pfrc == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
-  ngtcp2_frame_chain_init(*pfrc);
-
-  return 0;
-}
-
 int ngtcp2_frame_chain_objalloc_new(ngtcp2_frame_chain **pfrc,
                                     ngtcp2_objalloc *objalloc) {
   *pfrc = ngtcp2_objalloc_frame_chain_get(objalloc);
