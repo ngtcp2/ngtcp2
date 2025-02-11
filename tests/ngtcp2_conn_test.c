@@ -118,6 +118,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_send_data_blocked),
   munit_void_test(test_ngtcp2_conn_send_new_connection_id),
   munit_void_test(test_ngtcp2_conn_submit_crypto_data),
+  munit_void_test(test_ngtcp2_conn_submit_new_token),
   munit_void_test(test_ngtcp2_conn_persistent_congestion),
   munit_void_test(test_ngtcp2_conn_ack_padding),
   munit_void_test(test_ngtcp2_conn_super_small_rtt),
@@ -13409,6 +13410,74 @@ void test_ngtcp2_conn_submit_crypto_data(void) {
   assert_uint64(0, ==, frc->fr.stream.offset);
   assert_uint64(999, ==,
                 ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_submit_new_token(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_ksl_it it;
+  ngtcp2_frame_chain *frc;
+  ngtcp2_ssize spktlen;
+  ngtcp2_frame fr;
+  ngtcp2_tpe tpe;
+  const uint8_t large_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES + 1] = {0xef};
+  const uint8_t small_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES] = {0xfe};
+  uint8_t buf[1200];
+  size_t pktlen;
+  int rv;
+
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 0);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_submit_new_token(conn, large_token, sizeof(large_token));
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_submit_new_token(conn, small_token, sizeof(small_token));
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 0);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  assert_uint64(NGTCP2_FRAME_NEW_TOKEN, ==, frc->fr.type);
+  assert_memn_equal(small_token, sizeof(small_token), frc->fr.new_token.token,
+                    frc->fr.new_token.tokenlen);
+
+  frc = frc->next;
+
+  assert_uint64(NGTCP2_FRAME_NEW_TOKEN, ==, frc->fr.type);
+  assert_memn_equal(large_token, sizeof(large_token), frc->fr.new_token.token,
+                    frc->fr.new_token.tokenlen);
+  assert_null(frc->next);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.ack_delay = 0;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.first_ack_range = 1;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen,
+                            30 * NGTCP2_MILLISECONDS);
+
+  assert_int(0, ==, rv);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  assert_true(ngtcp2_ksl_it_end(&it));
+  assert_null(conn->pktns.tx.frq);
 
   ngtcp2_conn_del(conn);
 }
