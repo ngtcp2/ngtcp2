@@ -7928,7 +7928,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
     return rv;
   }
 
-  if (ps.path.remote.addrlen == 0 ||
+  if (ngtcp2_addr_empty(&ps.path.remote) ||
       ngtcp2_addr_eq(&conn->dcid.current.ps.path.remote, &ps.path.remote)) {
     return 0;
   }
