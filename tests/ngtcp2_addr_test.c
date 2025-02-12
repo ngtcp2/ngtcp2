@@ -31,7 +31,7 @@
 
 static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_addr_eq),
-  munit_void_test(test_ngtcp2_addr_compare),
+  munit_void_test(test_ngtcp2_addr_cmp),
   munit_void_test(test_ngtcp2_addr_empty),
   munit_test_end(),
 };
@@ -108,7 +108,7 @@ void test_ngtcp2_addr_eq(void) {
   }
 }
 
-void test_ngtcp2_addr_compare(void) {
+void test_ngtcp2_addr_cmp(void) {
   ngtcp2_addr a, b;
 
   {
@@ -124,23 +124,20 @@ void test_ngtcp2_addr_compare(void) {
     ngtcp2_addr_init(&a, (const ngtcp2_sockaddr *)&saa, sizeof(saa));
     ngtcp2_addr_init(&b, (const ngtcp2_sockaddr *)&sab, sizeof(sab));
 
-    assert_uint32(NGTCP2_ADDR_COMPARE_FLAG_NONE, ==,
-                  ngtcp2_addr_compare(&a, &b));
+    assert_uint32(NGTCP2_ADDR_CMP_FLAG_NONE, ==, ngtcp2_addr_cmp(&a, &b));
 
     saa.sin_port = 99;
 
-    assert_uint32(NGTCP2_ADDR_COMPARE_FLAG_PORT, ==,
-                  ngtcp2_addr_compare(&a, &b));
+    assert_uint32(NGTCP2_ADDR_CMP_FLAG_PORT, ==, ngtcp2_addr_cmp(&a, &b));
 
     memcpy(&saa.sin_addr, "1235", sizeof(saa.sin_addr));
 
-    assert_uint32(NGTCP2_ADDR_COMPARE_FLAG_ADDR | NGTCP2_ADDR_COMPARE_FLAG_PORT,
-                  ==, ngtcp2_addr_compare(&a, &b));
+    assert_uint32(NGTCP2_ADDR_CMP_FLAG_ADDR | NGTCP2_ADDR_CMP_FLAG_PORT, ==,
+                  ngtcp2_addr_cmp(&a, &b));
 
     saa.sin_port = 100;
 
-    assert_uint32(NGTCP2_ADDR_COMPARE_FLAG_ADDR, ==,
-                  ngtcp2_addr_compare(&a, &b));
+    assert_uint32(NGTCP2_ADDR_CMP_FLAG_ADDR, ==, ngtcp2_addr_cmp(&a, &b));
   }
 
   {
@@ -156,23 +153,20 @@ void test_ngtcp2_addr_compare(void) {
     ngtcp2_addr_init(&a, (const ngtcp2_sockaddr *)&saa, sizeof(saa));
     ngtcp2_addr_init(&b, (const ngtcp2_sockaddr *)&sab, sizeof(sab));
 
-    assert_uint32(NGTCP2_ADDR_COMPARE_FLAG_NONE, ==,
-                  ngtcp2_addr_compare(&a, &b));
+    assert_uint32(NGTCP2_ADDR_CMP_FLAG_NONE, ==, ngtcp2_addr_cmp(&a, &b));
 
     saa.sin6_port = 99;
 
-    assert_uint32(NGTCP2_ADDR_COMPARE_FLAG_PORT, ==,
-                  ngtcp2_addr_compare(&a, &b));
+    assert_uint32(NGTCP2_ADDR_CMP_FLAG_PORT, ==, ngtcp2_addr_cmp(&a, &b));
 
     memcpy(&saa.sin6_addr, "1235123412351234", sizeof(saa.sin6_addr));
 
-    assert_uint32(NGTCP2_ADDR_COMPARE_FLAG_ADDR | NGTCP2_ADDR_COMPARE_FLAG_PORT,
-                  ==, ngtcp2_addr_compare(&a, &b));
+    assert_uint32(NGTCP2_ADDR_CMP_FLAG_ADDR | NGTCP2_ADDR_CMP_FLAG_PORT, ==,
+                  ngtcp2_addr_cmp(&a, &b));
 
     saa.sin6_port = 100;
 
-    assert_uint32(NGTCP2_ADDR_COMPARE_FLAG_ADDR, ==,
-                  ngtcp2_addr_compare(&a, &b));
+    assert_uint32(NGTCP2_ADDR_CMP_FLAG_ADDR, ==, ngtcp2_addr_cmp(&a, &b));
   }
 
   {
@@ -185,8 +179,7 @@ void test_ngtcp2_addr_compare(void) {
     ngtcp2_addr_init(&a, (const ngtcp2_sockaddr *)&saa, sizeof(saa));
     ngtcp2_addr_init(&b, (const ngtcp2_sockaddr *)&sab, sizeof(sab));
 
-    assert_uint32(NGTCP2_ADDR_COMPARE_FLAG_FAMILY, ==,
-                  ngtcp2_addr_compare(&a, &b));
+    assert_uint32(NGTCP2_ADDR_CMP_FLAG_FAMILY, ==, ngtcp2_addr_cmp(&a, &b));
   }
 }
 

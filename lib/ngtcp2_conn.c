@@ -302,8 +302,8 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_pv *pv,
   }
 
   if (conn->server && old_path &&
-      (ngtcp2_addr_compare(&pv->dcid.ps.path.remote, &old_path->remote) &
-       (NGTCP2_ADDR_COMPARE_FLAG_ADDR | NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
+      (ngtcp2_addr_cmp(&pv->dcid.ps.path.remote, &old_path->remote) &
+       (NGTCP2_ADDR_CMP_FLAG_ADDR | NGTCP2_ADDR_CMP_FLAG_FAMILY))) {
     flags |= NGTCP2_PATH_VALIDATION_FLAG_NEW_TOKEN;
   }
 
@@ -8202,7 +8202,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   }
 
   remote_addr_cmp =
-    ngtcp2_addr_compare(&conn->dcid.current.ps.path.remote, &path->remote);
+    ngtcp2_addr_cmp(&conn->dcid.current.ps.path.remote, &path->remote);
   local_addr_eq =
     ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local);
   pref_addr_migration =
@@ -8289,9 +8289,8 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   if (!pref_addr_migration) {
     ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
 
-    if (!local_addr_eq ||
-        (remote_addr_cmp &
-         (NGTCP2_ADDR_COMPARE_FLAG_ADDR | NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
+    if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_CMP_FLAG_ADDR |
+                                              NGTCP2_ADDR_CMP_FLAG_FAMILY))) {
       conn_reset_congestion_state(conn, ts);
     }
 
@@ -8503,10 +8502,10 @@ conn_allow_path_change_under_disable_active_migration(ngtcp2_conn *conn,
      (NAT rebinding). */
   if (ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local)) {
     remote_addr_cmp =
-      ngtcp2_addr_compare(&conn->dcid.current.ps.path.remote, &path->remote);
+      ngtcp2_addr_cmp(&conn->dcid.current.ps.path.remote, &path->remote);
 
-    return (remote_addr_cmp | NGTCP2_ADDR_COMPARE_FLAG_PORT) ==
-           NGTCP2_ADDR_COMPARE_FLAG_PORT;
+    return (remote_addr_cmp | NGTCP2_ADDR_CMP_FLAG_PORT) ==
+           NGTCP2_ADDR_CMP_FLAG_PORT;
   }
 
   /* If local address changes, it must be one of the preferred

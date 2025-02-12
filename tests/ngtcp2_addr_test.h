@@ -36,7 +36,7 @@
 extern const MunitSuite addr_suite;
 
 munit_void_test_decl(test_ngtcp2_addr_eq)
-munit_void_test_decl(test_ngtcp2_addr_compare)
+munit_void_test_decl(test_ngtcp2_addr_cmp)
 munit_void_test_decl(test_ngtcp2_addr_empty)
 
 #endif /* !defined(NGTCP2_ADDR_TEST_H) */
