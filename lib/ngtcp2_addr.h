@@ -73,7 +73,6 @@ int ngtcp2_addr_empty(const ngtcp2_addr *addr);
  *
  * `ngtcp2_sockaddr_eq` returns nonzero if |a| equals |b|.
  */
-int ngtcp2_sockaddr_eq(const ngtcp2_sockaddr *a, ngtcp2_socklen alen,
-                       const ngtcp2_sockaddr *b, ngtcp2_socklen blen);
+int ngtcp2_sockaddr_eq(const ngtcp2_sockaddr *a, const ngtcp2_sockaddr *b);
 
 #endif /* !defined(NGTCP2_ADDR_H) */

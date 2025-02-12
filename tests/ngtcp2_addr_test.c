@@ -95,22 +95,6 @@ void test_ngtcp2_addr_eq(void) {
   }
 
   {
-    ngtcp2_sockaddr_in saa, sab;
-
-    saa.sin_family = NGTCP2_AF_INET;
-    sab.sin_family = NGTCP2_AF_INET;
-    memcpy(&saa.sin_addr, "1234", sizeof(saa.sin_addr));
-    memcpy(&sab.sin_addr, "1234", sizeof(sab.sin_addr));
-    saa.sin_port = 100;
-    sab.sin_port = 100;
-
-    ngtcp2_addr_init(&a, (const ngtcp2_sockaddr *)&saa, sizeof(saa) - 1);
-    ngtcp2_addr_init(&b, (const ngtcp2_sockaddr *)&sab, sizeof(sab));
-
-    assert_false(ngtcp2_addr_eq(&a, &b));
-  }
-
-  {
     ngtcp2_sockaddr_in saa = {0};
     ngtcp2_sockaddr_in6 sab = {0};
 

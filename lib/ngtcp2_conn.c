@@ -1219,7 +1219,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   memcpy(&(*pconn)->hs_local_addr, path->local.addr,
          (size_t)path->local.addrlen);
-  (*pconn)->hs_local_addrlen = path->local.addrlen;
 
   rv = ngtcp2_gaptr_push(&(*pconn)->dcid.seqgap, 0, 1);
   if (rv != 0) {
@@ -5585,16 +5584,14 @@ static int conn_server_preferred_addr_migration(const ngtcp2_conn *conn,
     }
 
     return ngtcp2_sockaddr_eq((const ngtcp2_sockaddr *)&paddr->ipv4,
-                              sizeof(paddr->ipv4), local_addr->addr,
-                              local_addr->addrlen);
+                              local_addr->addr);
   case NGTCP2_AF_INET6:
     if (!paddr->ipv6_present) {
       return 0;
     }
 
     return ngtcp2_sockaddr_eq((const ngtcp2_sockaddr *)&paddr->ipv6,
-                              sizeof(paddr->ipv6), local_addr->addr,
-                              local_addr->addrlen);
+                              local_addr->addr);
   }
 
   return 0;
@@ -8741,8 +8738,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     if (conn->server && conn->rx.preferred_addr.pkt_num != -1 &&
         conn->rx.preferred_addr.pkt_num < hd.pkt_num &&
         ngtcp2_sockaddr_eq((const ngtcp2_sockaddr *)&conn->hs_local_addr,
-                           conn->hs_local_addrlen, path->local.addr,
-                           path->local.addrlen)) {
+                           path->local.addr)) {
       ngtcp2_log_info(
         &conn->log, NGTCP2_LOG_EVENT_PKT,
         "pkt=%" PRId64
