@@ -34,6 +34,7 @@
 
 static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_transport_params_encode),
+  munit_void_test(test_ngtcp2_transport_params_decode),
   munit_void_test(test_ngtcp2_transport_params_decode_new),
   munit_void_test(test_ngtcp2_transport_params_convert_to_latest),
   munit_void_test(test_ngtcp2_transport_params_convert_to_old),
@@ -234,6 +235,39 @@ void test_ngtcp2_transport_params_encode(void) {
                       nparams.version_info.available_versions);
 }
 
+void test_ngtcp2_transport_params_decode(void) {
+  ngtcp2_transport_params params;
+  int rv;
+
+  /* Decode from 0 length data */
+  rv = ngtcp2_transport_params_decode(&params, NULL, 0);
+
+  assert_int(0, ==, rv);
+  assert_uint64(0, ==, params.initial_max_stream_data_bidi_local);
+  assert_uint64(0, ==, params.initial_max_stream_data_bidi_remote);
+  assert_uint64(0, ==, params.initial_max_stream_data_uni);
+  assert_uint64(0, ==, params.initial_max_data);
+  assert_uint64(0, ==, params.initial_max_streams_bidi);
+  assert_uint64(0, ==, params.initial_max_streams_uni);
+  assert_uint64(0, ==, params.max_idle_timeout);
+  assert_uint64(NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE, ==,
+                params.max_udp_payload_size);
+  assert_false(params.stateless_reset_token_present);
+  assert_uint64(NGTCP2_DEFAULT_ACK_DELAY_EXPONENT, ==,
+                params.ack_delay_exponent);
+  assert_false(params.preferred_addr_present);
+  assert_false(params.disable_active_migration);
+  assert_uint64(NGTCP2_DEFAULT_MAX_ACK_DELAY, ==, params.max_ack_delay);
+  assert_false(params.retry_scid_present);
+  assert_false(params.initial_scid_present);
+  assert_false(params.original_dcid_present);
+  assert_uint64(NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT, ==,
+                params.active_connection_id_limit);
+  assert_uint64(0, ==, params.max_datagram_frame_size);
+  assert_false(params.grease_quic_bit);
+  assert_false(params.version_info_present);
+}
+
 void test_ngtcp2_transport_params_decode_new(void) {
   ngtcp2_transport_params params = {0}, *nparams;
   uint8_t buf[512];
@@ -366,6 +400,7 @@ void test_ngtcp2_transport_params_decode_new(void) {
                 nparams->initial_max_streams_uni);
   assert_uint64(params.max_idle_timeout, ==, nparams->max_idle_timeout);
   assert_uint64(params.max_udp_payload_size, ==, nparams->max_udp_payload_size);
+  assert_true(nparams->stateless_reset_token_present);
   assert_memory_equal(sizeof(params.stateless_reset_token),
                       params.stateless_reset_token,
                       nparams->stateless_reset_token);
