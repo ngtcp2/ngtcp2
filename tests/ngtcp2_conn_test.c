@@ -792,6 +792,17 @@ static void server_default_callbacks(ngtcp2_callbacks *cb) {
   cb->version_negotiation = version_negotiation;
 }
 
+static void server_handshake_settings(ngtcp2_settings *settings) {
+  static const uint32_t preferred_versions[] = {
+    NGTCP2_PROTO_VER_V2,
+    NGTCP2_PROTO_VER_V1,
+  };
+
+  server_default_settings(settings);
+  settings->preferred_versions = preferred_versions;
+  settings->preferred_versionslen = ngtcp2_arraylen(preferred_versions);
+}
+
 static void server_early_callbacks(ngtcp2_callbacks *cb) {
   server_default_callbacks(cb);
 
@@ -849,6 +860,26 @@ static void client_default_callbacks(ngtcp2_callbacks *cb) {
   cb->delete_crypto_cipher_ctx = delete_crypto_cipher_ctx;
   cb->get_path_challenge_data = get_path_challenge_data;
   cb->version_negotiation = version_negotiation;
+}
+
+static void client_handshake_settings(ngtcp2_settings *settings) {
+  static const uint32_t preferred_versions[] = {
+    NGTCP2_PROTO_VER_V2,
+    NGTCP2_PROTO_VER_V1,
+  };
+
+  static const uint32_t available_versions[] = {
+    NGTCP2_PROTO_VER_V1,
+    NGTCP2_PROTO_VER_V2,
+  };
+
+  client_default_settings(settings);
+
+  settings->preferred_versions = preferred_versions;
+  settings->preferred_versionslen = ngtcp2_arraylen(preferred_versions);
+
+  settings->available_versions = available_versions;
+  settings->available_versionslen = ngtcp2_arraylen(available_versions);
 }
 
 static void
@@ -1106,15 +1137,9 @@ static void setup_default_client(ngtcp2_conn **pconn) {
 static void setup_handshake_server_with_options(ngtcp2_conn **pconn,
                                                 conn_options opts) {
   ngtcp2_settings settings;
-  const uint32_t preferred_versions[] = {
-    NGTCP2_PROTO_VER_V2,
-    NGTCP2_PROTO_VER_V1,
-  };
 
   if (!opts.settings) {
-    server_default_settings(&settings);
-    settings.preferred_versions = preferred_versions;
-    settings.preferred_versionslen = ngtcp2_arraylen(preferred_versions);
+    server_handshake_settings(&settings);
 
     opts.settings = &settings;
   }
@@ -1343,11 +1368,17 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
   size_t i;
   int64_t stream_id;
   ngtcp2_tpe tpe;
+  ngtcp2_transport_params params;
+  conn_options opts;
 
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.initial_max_stream_data_bidi_remote = 2047;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-
-  conn->local.transport_params.initial_max_stream_data_bidi_remote = 2047;
 
   for (i = 0; i < 3; ++i) {
     stream_id = (int64_t)(i * 4);
@@ -1411,11 +1442,17 @@ void test_ngtcp2_conn_stream_rx_flow_control_error(void) {
   int rv;
   ngtcp2_frame fr;
   ngtcp2_tpe tpe;
+  ngtcp2_transport_params params;
+  conn_options opts;
 
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.initial_max_stream_data_bidi_remote = 1023;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-
-  conn->local.transport_params.initial_max_stream_data_bidi_remote = 1023;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -1542,14 +1579,17 @@ void test_ngtcp2_conn_rx_flow_control(void) {
   int rv;
   ngtcp2_frame fr;
   ngtcp2_tpe tpe;
+  ngtcp2_transport_params params;
+  conn_options opts;
 
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.initial_max_data = 1024;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-
-  conn->local.transport_params.initial_max_data = 1024;
-  conn->rx.window = 1024;
-  conn->rx.max_offset = 1024;
-  conn->rx.unsent_max_offset = 1024;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -1604,14 +1644,17 @@ void test_ngtcp2_conn_rx_flow_control_error(void) {
   int rv;
   ngtcp2_frame fr;
   ngtcp2_tpe tpe;
+  ngtcp2_transport_params params;
+  conn_options opts;
 
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.initial_max_data = 1024;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-
-  conn->local.transport_params.initial_max_data = 1024;
-  conn->rx.window = 1024;
-  conn->rx.max_offset = 1024;
-  conn->rx.unsent_max_offset = 1024;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -2057,7 +2100,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   ngtcp2_strm *strm;
   int64_t stream_id;
   ngtcp2_tpe tpe;
-  ngtcp2_transport_params remote_params;
+  ngtcp2_transport_params params, remote_params;
   conn_options opts;
 
   /* Receive RESET_STREAM */
@@ -2404,10 +2447,14 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   /* RESET_STREAM against remote stream which is allowed, and no
       ngtcp2_strm object has been created, and final_size violates
       stream-level flow control. */
-  setup_default_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  server_default_transport_params(&params);
+  params.initial_max_data = 1 << 21;
 
-  conn->rx.max_offset = 1 << 21;
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   fr.type = NGTCP2_FRAME_RESET_STREAM;
   fr.reset_stream.stream_id = 4;
@@ -2459,10 +2506,14 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   ngtcp2_conn_del(conn);
 
   /* final_size in RESET_STREAM violates stream-level flow control */
-  setup_default_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  server_default_transport_params(&params);
+  params.initial_max_data = 1 << 21;
 
-  conn->rx.max_offset = 1 << 21;
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -3186,9 +3237,9 @@ void test_ngtcp2_conn_recv_conn_id_omitted(void) {
   uint8_t buf[2048];
   ngtcp2_frame fr;
   size_t pktlen;
-  ngtcp2_ksl_it it;
-  ngtcp2_scid *scid;
   ngtcp2_tpe tpe;
+  ngtcp2_cid scid;
+  conn_options opts;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -3215,14 +3266,13 @@ void test_ngtcp2_conn_recv_conn_id_omitted(void) {
   ngtcp2_conn_del(conn);
 
   /* Allow omission of connection ID */
-  setup_default_server(&conn);
-  ngtcp2_cid_zero(&conn->oscid);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  ngtcp2_cid_zero(&tpe.dcid);
+  ngtcp2_cid_zero(&scid);
 
-  it = ngtcp2_ksl_begin(&conn->scid.set);
-  scid = ngtcp2_ksl_it_get(&it);
-  ngtcp2_cid_zero(&scid->cid);
+  conn_options_clear(&opts);
+  opts.scid = &scid;
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 1);
@@ -3458,14 +3508,21 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   int rv;
   size_t i;
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
     token[i] = (uint8_t)~i;
   }
 
   /* server */
-  setup_default_server(&conn);
-  conn->callbacks.decrypt = fail_decrypt;
+  server_default_callbacks(&callbacks);
+  callbacks.decrypt = fail_decrypt;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_default_server_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 24324325;
 
   ngtcp2_dcid_set_token(&conn->dcid.current, token);
@@ -3484,8 +3541,13 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   ngtcp2_conn_del(conn);
 
   /* client */
-  setup_default_client(&conn);
-  conn->callbacks.decrypt = fail_decrypt;
+  client_default_callbacks(&callbacks);
+  callbacks.decrypt = fail_decrypt;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_default_client_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 3255454;
 
   ngtcp2_dcid_set_token(&conn->dcid.current, token);
@@ -3504,8 +3566,13 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   ngtcp2_conn_del(conn);
 
   /* stateless reset in long packet */
-  setup_default_server(&conn);
-  conn->callbacks.decrypt = fail_decrypt;
+  server_default_callbacks(&callbacks);
+  callbacks.decrypt = fail_decrypt;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_default_server_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 754233;
 
   ngtcp2_dcid_set_token(&conn->dcid.current, token);
@@ -3527,8 +3594,13 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   ngtcp2_conn_del(conn);
 
   /* stateless reset in long packet; parsing long header fails */
-  setup_default_server(&conn);
-  conn->callbacks.decrypt = fail_decrypt;
+  server_default_callbacks(&callbacks);
+  callbacks.decrypt = fail_decrypt;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_default_server_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 754233;
 
   ngtcp2_dcid_set_token(&conn->dcid.current, token);
@@ -3556,8 +3628,13 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   ngtcp2_conn_del(conn);
 
   /* token does not match */
-  setup_default_client(&conn);
-  conn->callbacks.decrypt = fail_decrypt;
+  client_default_callbacks(&callbacks);
+  callbacks.decrypt = fail_decrypt;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_default_client_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 24324325;
 
   spktlen =
@@ -3591,10 +3668,18 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   dcid_init(&dcid);
-  setup_handshake_client(&conn);
-  conn->callbacks.recv_retry = recv_retry;
+
+  client_default_callbacks(&callbacks);
+  callbacks.recv_retry = recv_retry;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_client_with_options(&conn, opts);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -3629,8 +3714,13 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_conn_del(conn);
 
   /* Retry packet with non-matching tag is rejected */
-  setup_handshake_client(&conn);
-  conn->callbacks.recv_retry = recv_retry;
+  client_default_callbacks(&callbacks);
+  callbacks.recv_retry = recv_retry;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_client_with_options(&conn, opts);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -3658,8 +3748,13 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_conn_del(conn);
 
   /* Make sure that 0RTT packets are retransmitted and padded */
-  setup_early_client(&conn);
-  conn->callbacks.recv_retry = recv_retry;
+  client_early_callbacks(&callbacks);
+  callbacks.recv_retry = recv_retry;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_early_client_with_options(&conn, opts);
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -3715,8 +3810,13 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_conn_del(conn);
 
   /* Make sure that multiple 0RTT packets are retransmitted */
-  setup_early_client(&conn);
-  conn->callbacks.recv_retry = recv_retry;
+  client_early_callbacks(&callbacks);
+  callbacks.recv_retry = recv_retry;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_early_client_with_options(&conn, opts);
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -3774,8 +3874,13 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   /* Make sure that empty stream data in 0RTT packets is
      retransmitted */
-  setup_early_client(&conn);
-  conn->callbacks.recv_retry = recv_retry;
+  client_early_callbacks(&callbacks);
+  callbacks.recv_retry = recv_retry;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_early_client_with_options(&conn, opts);
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -3906,6 +4011,8 @@ void test_ngtcp2_conn_handshake(void) {
   ngtcp2_crypto_ctx crypto_ctx;
   ngtcp2_strm *strm;
   ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   rcid_init(&rcid);
 
@@ -3966,9 +4073,13 @@ void test_ngtcp2_conn_handshake(void) {
 
   /* Make sure that client packet is padded if it includes Initial and
      0RTT packets */
-  setup_early_client(&conn);
+  client_early_callbacks(&callbacks);
+  callbacks.client_initial = client_initial_large_crypto_early_data;
 
-  conn->callbacks.client_initial = client_initial_large_crypto_early_data;
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_early_client_with_options(&conn, opts);
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -4179,14 +4290,21 @@ void test_ngtcp2_conn_handshake_error(void) {
   ngtcp2_cid rcid;
   int rv;
   ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   rcid_init(&rcid);
 
   /* client side */
-  setup_handshake_client(&conn);
+  client_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_handshake_error;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.initial.last_pkt_num = pkt_num;
-  conn->callbacks.recv_crypto_data = recv_crypto_handshake_error;
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   assert_ptrdiff(0, <, spktlen);
@@ -4206,12 +4324,17 @@ void test_ngtcp2_conn_handshake_error(void) {
   ngtcp2_conn_del(conn);
 
   /* server side */
-  setup_handshake_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_handshake_error;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.initial.last_pkt_num = pkt_num;
   tpe.initial.ckm = &null_ckm;
-  conn->callbacks.recv_crypto_data = recv_crypto_handshake_error;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -4228,13 +4351,18 @@ void test_ngtcp2_conn_handshake_error(void) {
   ngtcp2_conn_del(conn);
 
   /* server side; wrong version */
-  setup_handshake_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_handshake_error;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.version = 0xffff;
   tpe.initial.last_pkt_num = pkt_num;
   tpe.initial.ckm = &null_ckm;
-  conn->callbacks.recv_crypto_data = recv_crypto_handshake_error;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -4269,6 +4397,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_frame_chain *frc;
   ngtcp2_tpe tpe;
   ngtcp2_transport_params remote_params;
+  ngtcp2_callbacks callbacks;
   conn_options opts;
 
   /* Retransmit a packet completely */
@@ -4305,8 +4434,13 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_conn_del(conn);
 
   /* Retransmission takes place per frame basis. */
-  setup_default_client(&conn);
-  conn->local.bidi.max_streams = 3;
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_streams_bidi = 3;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id_a, NULL);
   ngtcp2_conn_open_bidi_stream(conn, &stream_id_b, NULL);
@@ -4341,13 +4475,14 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   client_default_remote_transport_params(&remote_params);
   remote_params.max_datagram_frame_size = 65535;
 
+  client_default_callbacks(&callbacks);
+  callbacks.ack_datagram = ack_datagram;
+
   conn_options_clear(&opts);
   opts.remote_params = &remote_params;
 
   setup_default_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-
-  conn->callbacks.ack_datagram = ack_datagram;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -4664,10 +4799,14 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   /* Retransmit 0 length STREAM frames; one without fin and one with
      it */
-  setup_default_client(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_streams_bidi = 2;
 
-  conn->local.bidi.max_streams = 2;
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id_a, NULL);
 
@@ -4818,11 +4957,14 @@ void test_ngtcp2_conn_cancel_retransmission(void) {
   params.initial_max_stream_data_bidi_local = 100;
   params.initial_max_data = 100;
 
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_streams_bidi = 2;
+
   conn_options_clear(&opts);
   opts.params = &params;
+  opts.remote_params = &remote_params;
 
   setup_default_client_with_options(&conn, opts);
-  conn->local.bidi.max_streams = 2;
   ngtcp2_tpe_init_conn(&tpe, conn);
   t = 0;
 
@@ -5191,12 +5333,19 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   uint64_t max_stream_data;
   ngtcp2_ssize spktlen;
   ngtcp2_tpe tpe;
+  ngtcp2_transport_params params;
+  conn_options opts;
 
   /* MAX_STREAM_DATA should be sent */
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.initial_max_stream_data_bidi_remote = datalen;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->local.transport_params.initial_max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5223,10 +5372,15 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   ngtcp2_conn_del(conn);
 
   /* MAX_STREAM_DATA should not be sent on incoming fin */
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.initial_max_stream_data_bidi_remote = datalen;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->local.transport_params.initial_max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5254,10 +5408,15 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   /* MAX_STREAM_DATA should not be sent if STOP_SENDING frame is being
      sent by local endpoint */
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.initial_max_stream_data_bidi_remote = datalen;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->local.transport_params.initial_max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5293,10 +5452,15 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   /* MAX_STREAM_DATA should not be sent if stream is being reset by
      remote endpoint */
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.initial_max_stream_data_bidi_remote = datalen;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->local.transport_params.initial_max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5343,13 +5507,21 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   int64_t stream_id;
   size_t i;
   ngtcp2_tpe tpe;
+  ngtcp2_transport_params params;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   /* 2 STREAM frames are received in the correct order. */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5392,11 +5564,16 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   /* 2 STREAM frames are received in the correct order, and 2nd STREAM
      frame has 0 length, and FIN bit set. */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5437,11 +5614,16 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   /* 2 identical STREAM frames with FIN bit set are received.  The
      recv_stream_data callback should not be called for second STREAM
      frame. */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5475,11 +5657,16 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   /* Re-ordered STREAM frame; we first gets 0 length STREAM frame with
      FIN bit set. Then the remaining STREAM frame is received. */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5518,11 +5705,16 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   /* Simulate the case where packet is lost.  We first gets 0 length
      STREAM frame with FIN bit set.  Then the lost STREAM frame is
      retransmitted with FIN bit set is received. */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5559,11 +5751,16 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   ngtcp2_conn_del(conn);
 
   /* Receive an unidirectional stream data */
-  setup_default_client(&conn);
+  client_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 3;
@@ -5586,12 +5783,20 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   ngtcp2_conn_del(conn);
 
   /* Receive an unidirectional stream which is beyond the limit. */
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.initial_max_streams_uni = 0;
+
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->remote.uni.max_streams = 0;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 2;
@@ -5637,10 +5842,15 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   ngtcp2_conn_del(conn);
 
   /* DATA on crypto stream, and TLS alert is generated. */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_fatal_alert_generated;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_crypto_data = recv_crypto_fatal_alert_generated;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -5678,11 +5888,16 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   /* After sending STOP_SENDING, receiving 2 STREAM frames with fin
      bit set must not invoke recv_stream_data callback. */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5729,11 +5944,16 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   /* After receiving RESET_STREAM, recv_stream_data callback must not
      be invoked */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 0;
@@ -5802,11 +6022,16 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   /* ngtcp2_conn_shutdown_stream_read is called in recv_stream_data
      callback.  Further recv_stream_data callback must not be
      called. */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data_shutdown_stream_read;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data = recv_stream_data_shutdown_stream_read;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -5846,12 +6071,16 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   /* ngtcp2_conn_shutdown_stream_read is called in 2nd
      recv_stream_data callback. */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data_deferred_shutdown_stream_read;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.app.last_pkt_num = pkt_num;
-  conn->callbacks.recv_stream_data =
-    recv_stream_data_deferred_shutdown_stream_read;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -6172,16 +6401,23 @@ void test_ngtcp2_conn_recv_early_data(void) {
   int rv;
   my_user_data ud;
   ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   rcid_init(&rcid);
 
-  setup_early_server(&conn);
+  server_early_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_early_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.initial.last_pkt_num = pkt_num;
   tpe.initial.ckm = &null_ckm;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -6467,6 +6703,8 @@ void test_ngtcp2_conn_writev_stream(void) {
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_tpe tpe;
+  ngtcp2_transport_params remote_params;
+  conn_options opts;
 
   /* 0 length STREAM should not be written if we supply nonzero length
      data. */
@@ -6517,8 +6755,13 @@ void test_ngtcp2_conn_writev_stream(void) {
   ngtcp2_conn_del(conn);
 
   /* Coalesces multiple STREAM frames */
-  setup_default_client(&conn);
-  conn->local.bidi.max_streams = 100;
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_streams_bidi = 100;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -6552,8 +6795,13 @@ void test_ngtcp2_conn_writev_stream(void) {
   ngtcp2_conn_del(conn);
 
   /* 0RTT: Coalesces multiple STREAM frames */
-  setup_early_client(&conn);
-  conn->local.bidi.max_streams = 100;
+  client_early_remote_transport_params(&remote_params);
+  remote_params.initial_max_streams_bidi = 100;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_early_client_with_options(&conn, opts);
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -6842,18 +7090,22 @@ void test_ngtcp2_conn_writev_datagram(void) {
   int rv;
   ngtcp2_tpe tpe;
   ngtcp2_transport_params remote_params;
+  ngtcp2_callbacks callbacks;
   conn_options opts;
 
   client_default_remote_transport_params(&remote_params);
   remote_params.max_datagram_frame_size = 1 + 1 + 10;
 
+  client_default_callbacks(&callbacks);
+  callbacks.ack_datagram = ack_datagram;
+
   conn_options_clear(&opts);
   opts.remote_params = &remote_params;
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
 
   setup_default_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-  conn->callbacks.ack_datagram = ack_datagram;
-  conn->user_data = &ud;
 
   spktlen = ngtcp2_conn_writev_datagram(
     conn, NULL, NULL, buf, sizeof(buf), &accepted,
@@ -6999,14 +7251,25 @@ void test_ngtcp2_conn_recv_datagram(void) {
   int rv;
   ngtcp2_cid rcid;
   ngtcp2_tpe tpe;
+  ngtcp2_transport_params params;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   rcid_init(&rcid);
 
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.max_datagram_frame_size = 1 + 1111;
+
+  server_default_callbacks(&callbacks);
+  callbacks.recv_datagram = recv_datagram;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-  conn->user_data = &ud;
-  conn->callbacks.recv_datagram = recv_datagram;
-  conn->local.transport_params.max_datagram_frame_size = 1 + 1111;
 
   fr.type = NGTCP2_FRAME_DATAGRAM;
   fr.datagram.data = fr.datagram.rdata;
@@ -7027,9 +7290,14 @@ void test_ngtcp2_conn_recv_datagram(void) {
 
   /* Receiving DATAGRAM frame which is strictly larger than the
      declared limit is an error */
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.max_datagram_frame_size = 1 + 1111 - 1;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-  conn->local.transport_params.max_datagram_frame_size = 1 + 1111 - 1;
 
   fr.type = NGTCP2_FRAME_DATAGRAM;
   fr.datagram.data = fr.datagram.rdata;
@@ -7046,13 +7314,21 @@ void test_ngtcp2_conn_recv_datagram(void) {
   ngtcp2_conn_del(conn);
 
   /* Receiving DATAGRAM frame in a 0RTT packet */
-  setup_early_server(&conn);
+  server_default_transport_params(&params);
+  params.max_datagram_frame_size = 1 + 1111;
+
+  server_early_callbacks(&callbacks);
+  callbacks.recv_datagram = recv_datagram;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_early_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.initial.ckm = &null_ckm;
-  conn->user_data = &ud;
-  conn->callbacks.recv_datagram = recv_datagram;
-  conn->local.transport_params.max_datagram_frame_size = 1 + 1111;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -7105,6 +7381,8 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   ngtcp2_frame_chain *frc;
   size_t i;
   ngtcp2_tpe tpe;
+  ngtcp2_transport_params params;
+  conn_options opts;
 
   setup_default_client(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
@@ -7433,9 +7711,14 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   ngtcp2_conn_del(conn);
 
   /* Receiving more than advertised CID is treated as error */
-  setup_default_server(&conn);
+  server_default_transport_params(&params);
+  params.active_connection_id_limit = 2;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-  conn->local.transport_params.active_connection_id_limit = 2;
 
   /* This will send NEW_CONNECTION_ID frames */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -8293,10 +8576,14 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   /* PATH_CHALLENGE should be ignored with server
      disable_active_migration */
-  setup_default_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  server_default_transport_params(&params);
+  params.disable_active_migration = 1;
 
-  conn->local.transport_params.disable_active_migration = 1;
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 1;
@@ -8326,10 +8613,14 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   /* PATH_CHALLENGE on NAT rebinding (passive migration) should be
      accepted with server disable_active_migration */
-  setup_default_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  server_default_transport_params(&params);
+  params.disable_active_migration = 1;
 
-  conn->local.transport_params.disable_active_migration = 1;
+  conn_options_clear(&opts);
+  opts.params = &params;
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 1;
@@ -8642,13 +8933,21 @@ void test_ngtcp2_conn_handshake_loss(void) {
   ngtcp2_ssize nwrite;
   ngtcp2_ssize datalen;
   ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   rcid_init(&rcid);
-  setup_handshake_server(&conn);
+
+  server_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.initial.ckm = &null_ckm;
-  conn->callbacks.recv_crypto_data = recv_crypto_data;
 
   frs[0].type = NGTCP2_FRAME_CRYPTO;
   frs[0].stream.offset = 0;
@@ -8801,11 +9100,16 @@ void test_ngtcp2_conn_handshake_loss(void) {
   ngtcp2_conn_del(conn);
 
   /* Retransmission splits CRYPTO frame */
-  setup_handshake_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.initial.ckm = &null_ckm;
-  conn->callbacks.recv_crypto_data = recv_crypto_data;
 
   frs[0].type = NGTCP2_FRAME_CRYPTO;
   frs[0].stream.offset = 0;
@@ -8973,10 +9277,14 @@ void test_ngtcp2_conn_handshake_loss(void) {
   ngtcp2_conn_del(conn);
 
   /* Allow resending Handshake CRYPTO even if it exceeds CWND */
-  setup_handshake_client(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  client_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
 
-  conn->callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   t = 0;
 
@@ -9095,10 +9403,14 @@ void test_ngtcp2_conn_handshake_loss(void) {
   /* Client can send PTO Initial packet even if reduced CWND is less
      than in-flight bytes which are mostly occupied by 0-RTT
      packets. */
-  setup_early_client(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  client_early_callbacks(&callbacks);
+  callbacks.client_initial = client_initial_large_crypto_early_data;
 
-  conn->callbacks.client_initial = client_initial_large_crypto_early_data;
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_early_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -9347,23 +9659,23 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   ngtcp2_cid rcid;
   int rv;
   const uint8_t raw_token[] = {0xff, 0x12, 0x31, 0x04, 0xab};
-  uint8_t *token;
-  const ngtcp2_mem *mem;
   ngtcp2_tpe tpe;
+  ngtcp2_settings settings;
+  conn_options opts;
 
   rcid_init(&rcid);
 
-  setup_handshake_server(&conn);
+  server_handshake_settings(&settings);
+  settings.token = raw_token;
+  settings.tokenlen = sizeof(raw_token);
+
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.initial.ckm = &null_ckm;
-  mem = conn->mem;
-
-  token = ngtcp2_mem_malloc(mem, sizeof(raw_token));
-  memcpy(token, raw_token, sizeof(raw_token));
-
-  conn->local.settings.token = token;
-  conn->local.settings.tokenlen = sizeof(raw_token);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -9384,17 +9696,17 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   ngtcp2_conn_del(conn);
 
   /* Specifying invalid token lets server drop the packet */
-  setup_handshake_server(&conn);
+  server_handshake_settings(&settings);
+  settings.token = raw_token;
+  settings.tokenlen = sizeof(raw_token) - 1;
+
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.dcid = rcid;
   tpe.initial.ckm = &null_ckm;
-  mem = conn->mem;
-
-  token = ngtcp2_mem_malloc(mem, sizeof(raw_token));
-  memcpy(token, raw_token, sizeof(raw_token));
-
-  conn->local.settings.token = token;
-  conn->local.settings.tokenlen = sizeof(raw_token) - 1;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -9484,6 +9796,8 @@ void test_ngtcp2_conn_recv_version_negotiation(void) {
   uint32_t nsv[3];
   int rv;
   ngtcp2_tstamp t = 0;
+  ngtcp2_settings settings;
+  conn_options opts;
 
   setup_handshake_client(&conn);
 
@@ -9536,9 +9850,13 @@ void test_ngtcp2_conn_recv_version_negotiation(void) {
 
   /* Ignore Version Negotiation if client reacted upon Version
      Negotiation */
-  setup_handshake_client(&conn);
+  client_handshake_settings(&settings);
+  settings.original_version = NGTCP2_PROTO_VER_V2;
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_handshake_client_with_options(&conn, opts);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -9600,6 +9918,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   int rv;
   ngtcp2_cid dcid;
   uint8_t available_versions[2 * sizeof(uint32_t)];
+  ngtcp2_settings settings;
   conn_options opts;
 
   dcid_init(&dcid);
@@ -9725,9 +10044,14 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   /* client: Special handling for QUIC v1 regarding Version
      Negotiation */
-  setup_handshake_client(&conn);
+  client_handshake_settings(&settings);
+  settings.original_version = NGTCP2_PROTO_VER_V2;
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_handshake_client_with_options(&conn, opts);
+
   conn->negotiated_version = conn->client_chosen_version;
 
   memset(&params, 0, sizeof(params));
@@ -9745,12 +10069,15 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   ngtcp2_conn_del(conn);
 
   /* client: No version_information after Version Negotiation */
+  client_handshake_settings(&settings);
+  settings.original_version = NGTCP2_PROTO_VER_V1;
+
   conn_options_clear(&opts);
+  opts.settings = &settings;
   opts.client_chosen_version = NGTCP2_PROTO_VER_V2;
 
   setup_handshake_client_with_options(&conn, opts);
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V1;
   conn->negotiated_version = conn->client_chosen_version;
 
   memset(&params, 0, sizeof(params));
@@ -9769,9 +10096,14 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   /* client: available_versions includes the version that the client
      initially attempted. */
-  setup_handshake_client(&conn);
+  client_handshake_settings(&settings);
+  settings.original_version = NGTCP2_PROTO_VER_V2;
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_handshake_client_with_options(&conn, opts);
+
   conn->negotiated_version = conn->client_chosen_version;
 
   ngtcp2_put_uint32be(available_versions, NGTCP2_PROTO_VER_V1);
@@ -9798,9 +10130,14 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   /* client: client is unable to choose client chosen version from
      server's available_versions and chosen version. */
-  setup_handshake_client(&conn);
+  client_handshake_settings(&settings);
+  settings.original_version = NGTCP2_PROTO_VER_V2;
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_handshake_client_with_options(&conn, opts);
+
   conn->negotiated_version = 0xff000000u;
 
   ngtcp2_put_uint32be(conn->vneg.available_versions, NGTCP2_PROTO_VER_V1);
@@ -9829,9 +10166,14 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   /* client: client chooses version which differs from client chosen
      version from server's available_versions and chosen version. */
-  setup_handshake_client(&conn);
+  client_handshake_settings(&settings);
+  settings.original_version = NGTCP2_PROTO_VER_V2;
 
-  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2;
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_handshake_client_with_options(&conn, opts);
+
   conn->negotiated_version = 0xff000000u;
 
   conn->vneg.preferred_versions[0] = 0xff000000u;
@@ -10451,17 +10793,20 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto_datagram(void) {
   ngtcp2_frame_chain *frc;
   conn_options opts;
   ngtcp2_transport_params remote_params;
+  ngtcp2_callbacks callbacks;
 
   /* DATAGRAM frame must not be reclaimed on PTO */
   client_default_remote_transport_params(&remote_params);
   remote_params.max_datagram_frame_size = 65535;
 
+  client_default_callbacks(&callbacks);
+  callbacks.ack_datagram = ack_datagram;
+
   conn_options_clear(&opts);
   opts.remote_params = &remote_params;
+  opts.callbacks = &callbacks;
 
   setup_default_client_with_options(&conn, opts);
-
-  conn->callbacks.ack_datagram = ack_datagram;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -10921,11 +11266,17 @@ void test_ngtcp2_conn_early_data_sync_stream_data_limit(void) {
   ngtcp2_strm *strm;
   ngtcp2_tstamp t = 0;
   ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
-  setup_early_client(&conn);
+  client_early_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_early_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-
-  conn->callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &bidi_stream_id, NULL);
 
@@ -11135,6 +11486,7 @@ void test_ngtcp2_conn_keep_alive(void) {
   ngtcp2_cid scid;
   ngtcp2_tstamp last_ts;
   ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
   conn_options opts;
 
   setup_default_client(&conn);
@@ -11170,15 +11522,17 @@ void test_ngtcp2_conn_keep_alive(void) {
   /* Keep alive PING is not sent during handshake */
   ngtcp2_cid_zero(&scid);
 
+  client_early_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+
   conn_options_clear(&opts);
   opts.scid = &scid;
+  opts.callbacks = &callbacks;
 
   setup_early_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   ngtcp2_conn_set_keep_alive_timeout(conn, 10 * NGTCP2_MILLISECONDS);
-
-  conn->callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -11439,12 +11793,19 @@ void test_ngtcp2_conn_stream_close(void) {
   ngtcp2_ssize spktlen;
   int64_t stream_id;
   ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   /* Receive RESET_STREAM and STOP_SENDING from client */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.stream_close = stream_close;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-  conn->callbacks.stream_close = stream_close;
-  conn->user_data = &ud;
 
   open_stream(conn, 0);
 
@@ -11496,11 +11857,16 @@ void test_ngtcp2_conn_stream_close(void) {
   ngtcp2_conn_del(conn);
 
   /* Client sends STOP_SENDING and then STREAM and fin */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.stream_close = stream_close;
+  callbacks.recv_stream_data = recv_stream_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-  conn->callbacks.stream_close = stream_close;
-  conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->user_data = &ud;
 
   frs[0].type = NGTCP2_FRAME_STOP_SENDING;
   frs[0].stop_sending.stream_id = 0;
@@ -11553,10 +11919,15 @@ void test_ngtcp2_conn_stream_close(void) {
 
   /* Client calls ngtcp2_conn_shutdown_stream, and before sending
      STOP_SENDING, it receives STREAM with fin bit set. */
-  setup_default_client(&conn);
+  client_default_callbacks(&callbacks);
+  callbacks.stream_close = stream_close;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-  conn->callbacks.stream_close = stream_close;
-  conn->user_data = &ud;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -11612,10 +11983,15 @@ void test_ngtcp2_conn_stream_close(void) {
   /* Client sends STREAM fin and then RESET_STREAM.  It receives ACK
      for the STREAM frame, then response fin. No ACK for
      RESET_STREAM. */
-  setup_default_client(&conn);
+  client_default_callbacks(&callbacks);
+  callbacks.stream_close = stream_close;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_client_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
-  conn->callbacks.stream_close = stream_close;
-  conn->user_data = &ud;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -11668,11 +12044,15 @@ void test_ngtcp2_conn_stream_close(void) {
 
   /* Check that the closure of remote unidirectional invokes
      stream_close callback */
-  setup_default_client(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  client_default_callbacks(&callbacks);
+  callbacks.stream_close = stream_close;
 
-  conn->callbacks.stream_close = stream_close;
-  conn->user_data = &ud;
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   frs[0].type = NGTCP2_FRAME_STREAM;
   frs[0].stream.flags = 0;
@@ -11900,6 +12280,8 @@ void test_ngtcp2_conn_version_negotiation(void) {
   uint8_t available_versions[sizeof(uint32_t) * 2];
   uint32_t version;
   ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   ngtcp2_put_uint32be(&available_versions[0], NGTCP2_PROTO_VER_V1);
   ngtcp2_put_uint32be(&available_versions[4], NGTCP2_PROTO_VER_V2);
@@ -11968,12 +12350,16 @@ void test_ngtcp2_conn_version_negotiation(void) {
 
   /* Server sees client supports QUIC v2.  It chooses QUIC v2 as the
      negotiated version, and generates new Initial keys. */
-  setup_handshake_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_client_initial =
+    recv_client_initial_no_remote_transport_params;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.initial.ckm = &null_ckm;
-
-  conn->callbacks.recv_client_initial =
-    recv_client_initial_no_remote_transport_params;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -12016,12 +12402,16 @@ void test_ngtcp2_conn_version_negotiation(void) {
 
   /* Server receives Version Information transport parameter which
      does not include chosen_version in available_versions. */
-  setup_handshake_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_client_initial =
+    recv_client_initial_no_remote_transport_params;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
   tpe.initial.ckm = &null_ckm;
-
-  conn->callbacks.recv_client_initial =
-    recv_client_initial_no_remote_transport_params;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -12057,6 +12447,12 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
   ngtcp2_conn *conn;
   ngtcp2_version_info version_info = {0};
   uint8_t client_available_versions[sizeof(uint32_t) * 2];
+  const uint32_t v1_preferred_versions[] = {
+    NGTCP2_PROTO_VER_V1,
+    NGTCP2_PROTO_VER_V2,
+  };
+  ngtcp2_settings settings;
+  conn_options opts;
 
   setup_handshake_server(&conn);
 
@@ -12094,10 +12490,14 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
   ngtcp2_conn_del(conn);
 
   /* Without preferred_versions */
-  setup_handshake_server(&conn);
+  server_handshake_settings(&settings);
+  settings.preferred_versions = NULL;
+  settings.preferred_versionslen = 0;
 
-  conn->vneg.preferred_versions = NULL;
-  conn->vneg.preferred_versionslen = 0;
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_handshake_server_with_options(&conn, opts);
 
   ngtcp2_put_uint32be(&client_available_versions[0], 0xff000001);
   ngtcp2_put_uint32be(&client_available_versions[4], NGTCP2_PROTO_VER_V2);
@@ -12111,10 +12511,14 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
   ngtcp2_conn_del(conn);
 
   /* original version is the most preferred version */
-  setup_handshake_server(&conn);
+  server_handshake_settings(&settings);
+  settings.preferred_versions = v1_preferred_versions;
+  settings.preferred_versionslen = 2;
 
-  conn->vneg.preferred_versions[0] = NGTCP2_PROTO_VER_V1;
-  conn->vneg.preferred_versions[1] = NGTCP2_PROTO_VER_V2;
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_handshake_server_with_options(&conn, opts);
 
   ngtcp2_put_uint32be(&client_available_versions[0], NGTCP2_PROTO_VER_V2);
   ngtcp2_put_uint32be(&client_available_versions[4], NGTCP2_PROTO_VER_V1);
@@ -12355,6 +12759,8 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   size_t i;
   ngtcp2_ack_range ar;
   ngtcp2_tpe tpe;
+  ngtcp2_settings settings;
+  conn_options opts;
 
   /* Nothing to acknowledge */
   setup_default_server(&conn);
@@ -12639,10 +13045,14 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   ngtcp2_conn_del(conn);
 
   /* Immediate acknowledgement (reorder) */
-  setup_default_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  server_default_settings(&settings);
+  settings.ack_thresh = 10;
 
-  conn->local.settings.ack_thresh = 10;
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   fr.type = NGTCP2_FRAME_PING;
 
@@ -12675,10 +13085,14 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   ngtcp2_conn_del(conn);
 
   /* Immediate acknowledgement (gap) */
-  setup_default_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  server_default_settings(&settings);
+  settings.ack_thresh = 10;
 
-  conn->local.settings.ack_thresh = 10;
+  conn_options_clear(&opts);
+  opts.settings = &settings;
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   fr.type = NGTCP2_FRAME_PING;
 
@@ -12946,6 +13360,8 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
   ngtcp2_frame_chain *frc;
+  ngtcp2_transport_params remote_params;
+  conn_options opts;
 
   /* Stream is blocked before writing any data. */
   setup_default_client(&conn);
@@ -13096,9 +13512,13 @@ void test_ngtcp2_conn_send_stream_data_blocked(void) {
   ngtcp2_conn_del(conn);
 
   /* Stream is blocked after writing another stream data. */
-  setup_default_client(&conn);
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_streams_bidi = 2;
 
-  conn->local.bidi.max_streams = 2;
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
