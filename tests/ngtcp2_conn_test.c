@@ -81,6 +81,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_server_path_validation),
   munit_void_test(test_ngtcp2_conn_client_connection_migration),
   munit_void_test(test_ngtcp2_conn_recv_path_challenge),
+  munit_void_test(test_ngtcp2_conn_disable_active_migration),
   munit_void_test(test_ngtcp2_conn_key_update),
   munit_void_test(test_ngtcp2_conn_crypto_buffer_exceeded),
   munit_void_test(test_ngtcp2_conn_handshake_probe),
@@ -8893,6 +8894,80 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   assert_int(0, ==, rv);
   assert_size(0, <, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_disable_active_migration(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_transport_params params, remote_params;
+  conn_options opts;
+  ngtcp2_path_storage path1, path2;
+  ngtcp2_frame fr;
+  ngtcp2_tpe tpe;
+  uint8_t buf[1200];
+  size_t pktlen;
+  int rv;
+
+  path_init(&path1, 1, 0, 0, 0);
+  path_init(&path2, 2, 0, 0, 0);
+
+  /* If a remote endpoint disables active migration, and a packet is
+     received on local address which neither the current path nor
+     preferred address, the packet is discarded. */
+  server_default_transport_params(&params);
+  params.preferred_addr_present = 1;
+  params.preferred_addr.ipv4_present = 1;
+  memcpy(&params.preferred_addr.ipv4, path1.path.local.addr,
+         sizeof(params.preferred_addr.ipv4));
+
+  server_default_remote_transport_params(&remote_params);
+  remote_params.disable_active_migration = 1;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+  opts.remote_params = &remote_params;
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &path2.path, NULL, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+  assert_int64(-1, ==, conn->pktns.acktr.max_pkt_num);
+
+  ngtcp2_conn_del(conn);
+
+  /* If a remote endpoint disables active migration, and a packet is
+     received on preferred address, the packet is accepted. */
+  server_default_transport_params(&params);
+  params.preferred_addr_present = 1;
+  params.preferred_addr.ipv4_present = 1;
+  memcpy(&params.preferred_addr.ipv4, path1.path.local.addr,
+         sizeof(params.preferred_addr.ipv4));
+
+  server_default_remote_transport_params(&remote_params);
+  remote_params.disable_active_migration = 1;
+
+  conn_options_clear(&opts);
+  opts.params = &params;
+  opts.remote_params = &remote_params;
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &path1.path, NULL, buf, pktlen, 0);
+
+  assert_int(0, ==, rv);
+  assert_int64(0, ==, conn->pktns.acktr.max_pkt_num);
 
   ngtcp2_conn_del(conn);
 }
