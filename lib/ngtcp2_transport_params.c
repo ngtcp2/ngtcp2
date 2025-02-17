@@ -410,7 +410,7 @@ static int decode_varint(uint64_t *pdest, const uint8_t **pp,
   }
 
   len = ngtcp2_get_uvarintlen(p);
-  if ((uint64_t)(end - p) < len) {
+  if ((size_t)(end - p) < len) {
     return -1;
   }
 
