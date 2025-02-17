@@ -12594,6 +12594,31 @@ void test_ngtcp2_conn_version_negotiation(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* Client observes that server chose reserved version. */
+  setup_handshake_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  tpe.version = NGTCP2_RESERVED_VERSION_MASK;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 133;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint32(0, ==, conn->negotiated_version);
+  assert_uint32(0, ==, conn->vneg.version);
+
+  ngtcp2_conn_del(conn);
+
   /* Client receives Initial packet which does not change version and
      does not contain CRYPTO frame.  It leaves negotiated version
      unchanged. */
