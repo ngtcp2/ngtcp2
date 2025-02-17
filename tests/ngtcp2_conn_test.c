@@ -5318,6 +5318,208 @@ void test_ngtcp2_conn_cancel_retransmission(void) {
   assert_null(frc->next);
 
   ngtcp2_conn_del(conn);
+
+  /* Retransmission of CRYPTO frame is cancelled because the original
+     packet is acknowledged. */
+  setup_default_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT,
+                                      null_data, 171);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.type);
+  assert_null(frc->next);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT,
+                                      null_data, 7);
+
+  assert_int(0, ==, rv);
+
+  t += 4 * NGTCP2_MILLISECONDS;
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_strm_streamfrq_empty(&conn->pktns.crypto.strm));
+
+  fr[0].type = NGTCP2_FRAME_ACK;
+  fr[0].ack.ack_delay = 0;
+  fr[0].ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr[0].ack.first_ack_range = 0;
+  fr[0].ack.rangecnt = 1;
+  fr[0].ack.ranges[0].gap = 0;
+  fr[0].ack.ranges[0].len = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_false(ngtcp2_strm_streamfrq_empty(&conn->pktns.crypto.strm));
+
+  /* Retransmit frames once */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_strm_streamfrq_empty(&conn->pktns.crypto.strm));
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT,
+                                      null_data, 9);
+
+  assert_int(0, ==, rv);
+
+  t += 4 * NGTCP2_MILLISECONDS;
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_strm_streamfrq_empty(&conn->pktns.crypto.strm));
+
+  fr[0].type = NGTCP2_FRAME_ACK;
+  fr[0].ack.ack_delay = 0;
+  fr[0].ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr[0].ack.first_ack_range = 0;
+  fr[0].ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_false(ngtcp2_strm_streamfrq_empty(&conn->pktns.crypto.strm));
+
+  fr[0].type = NGTCP2_FRAME_ACK;
+  fr[0].ack.ack_delay = 0;
+  fr[0].ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr[0].ack.first_ack_range = 0;
+  fr[0].ack.rangecnt = 1;
+  fr[0].ack.ranges[0].gap = 1;
+  fr[0].ack.ranges[0].len = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, ==, spktlen);
+  assert_true(ngtcp2_strm_streamfrq_empty(&conn->pktns.crypto.strm));
+
+  ngtcp2_conn_del(conn);
+
+  /* During handshake, retransmission of CRYPTO frame is cancelled
+     because the original packet is acknowledged. */
+  setup_handshake_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, 171);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.type);
+  assert_null(frc->next);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, 7);
+
+  assert_int(0, ==, rv);
+
+  t += 4 * NGTCP2_MILLISECONDS;
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_strm_streamfrq_empty(&conn->in_pktns->crypto.strm));
+
+  fr[0].type = NGTCP2_FRAME_ACK;
+  fr[0].ack.ack_delay = 0;
+  fr[0].ack.largest_ack = conn->in_pktns->tx.last_pkt_num;
+  fr[0].ack.first_ack_range = 0;
+  fr[0].ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), fr, 1);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_false(ngtcp2_strm_streamfrq_empty(&conn->in_pktns->crypto.strm));
+
+  /* Retransmit frames once */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_strm_streamfrq_empty(&conn->in_pktns->crypto.strm));
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, 9);
+
+  assert_int(0, ==, rv);
+
+  t += 4 * NGTCP2_MILLISECONDS;
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_strm_streamfrq_empty(&conn->in_pktns->crypto.strm));
+
+  fr[0].type = NGTCP2_FRAME_ACK;
+  fr[0].ack.ack_delay = 0;
+  fr[0].ack.largest_ack = conn->in_pktns->tx.last_pkt_num;
+  fr[0].ack.first_ack_range = 0;
+  fr[0].ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), fr, 1);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_false(ngtcp2_strm_streamfrq_empty(&conn->in_pktns->crypto.strm));
+
+  fr[0].type = NGTCP2_FRAME_ACK;
+  fr[0].ack.ack_delay = 0;
+  fr[0].ack.largest_ack = conn->in_pktns->tx.last_pkt_num;
+  fr[0].ack.first_ack_range = 0;
+  fr[0].ack.rangecnt = 1;
+  fr[0].ack.ranges[0].gap = 1;
+  fr[0].ack.ranges[0].len = 0;
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, ==, spktlen);
+  assert_true(ngtcp2_strm_streamfrq_empty(&conn->in_pktns->crypto.strm));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_send_max_stream_data(void) {
