@@ -176,7 +176,15 @@ void test_ngtcp2_transport_params_encode(void) {
 
   assert_ptrdiff((ngtcp2_ssize)i, ==, nwrite);
 
-  rv = ngtcp2_transport_params_decode(&nparams, buf, (size_t)nwrite);
+  for (i = 0; i < len; ++i) {
+    rv = ngtcp2_transport_params_decode(&nparams, buf, i);
+
+    assert(0 == rv || NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM == rv);
+  }
+
+  rv = ngtcp2_transport_params_decode(&nparams, buf, len);
+
+  assert_int(0, ==, rv);
 
   assert_int(0, ==, rv);
   assert_uint64(params.initial_max_stream_data_bidi_local, ==,
@@ -384,7 +392,18 @@ void test_ngtcp2_transport_params_decode_new(void) {
 
   assert_ptrdiff((ngtcp2_ssize)len, ==, nwrite);
 
-  rv = ngtcp2_transport_params_decode_new(&nparams, buf, (size_t)nwrite, NULL);
+  for (i = 0; i < len; ++i) {
+    rv = ngtcp2_transport_params_decode_new(&nparams, buf, i, NULL);
+
+    if (rv != 0) {
+      assert_int(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM, ==, rv);
+      continue;
+    }
+
+    ngtcp2_transport_params_del(nparams, NULL);
+  }
+
+  rv = ngtcp2_transport_params_decode_new(&nparams, buf, len, NULL);
 
   assert_int(0, ==, rv);
   assert_uint64(params.initial_max_stream_data_bidi_local, ==,
