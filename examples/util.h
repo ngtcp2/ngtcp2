@@ -32,6 +32,7 @@
 
 #include <sys/socket.h>
 
+#include <cassert>
 #include <optional>
 #include <string>
 #include <random>
@@ -43,6 +44,8 @@
 #include <nghttp3/nghttp3.h>
 
 #include "network.h"
+#include "siphash.h"
+#include "template.h"
 
 namespace ngtcp2 {
 
@@ -148,7 +151,7 @@ template <typename S, typename T> bool istarts_with(const S &a, const T &b) {
 
 // make_cid_key returns the key for |cid|.
 std::string_view make_cid_key(const ngtcp2_cid *cid);
-std::string_view make_cid_key(std::span<const uint8_t> cid);
+ngtcp2_cid make_cid_key(std::span<const uint8_t> cid);
 
 // straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
 std::string straddr(const sockaddr *sa, socklen_t salen);
@@ -359,5 +362,24 @@ std::optional<uint32_t> parse_version(const std::string_view &s);
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);
 
 } // namespace ngtcp2
+
+namespace std {
+template <> struct hash<ngtcp2_cid> {
+  hash() {
+    assert(0 == ngtcp2::util::generate_secure_random(
+                  as_writable_uint8_span(std::span{key})));
+  }
+
+  std::size_t operator()(const ngtcp2_cid &cid) const noexcept {
+    return static_cast<size_t>(siphash24(key, {cid.data, cid.datalen}));
+  }
+
+  std::array<uint64_t, 2> key;
+};
+} // namespace std
+
+inline bool operator==(const ngtcp2_cid &lhs, const ngtcp2_cid &rhs) {
+  return ngtcp2_cid_eq(&lhs, &rhs);
+}
 
 #endif // !defined(UTIL_H)

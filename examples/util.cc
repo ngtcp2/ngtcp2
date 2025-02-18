@@ -349,13 +349,15 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
   return 0;
 }
 
-std::string_view make_cid_key(const ngtcp2_cid *cid) {
-  return make_cid_key({cid->data, cid->datalen});
-}
+ngtcp2_cid make_cid_key(std::span<const uint8_t> cid) {
+  assert(cid.size() <= NGTCP2_MAX_CIDLEN);
 
-std::string_view make_cid_key(std::span<const uint8_t> cid) {
-  return std::string_view{reinterpret_cast<const char *>(cid.data()),
-                          cid.size()};
+  ngtcp2_cid res;
+
+  std::ranges::copy(cid, std::begin(res.data));
+  res.datalen = cid.size();
+
+  return res;
 }
 
 std::string straddr(const sockaddr *sa, socklen_t salen) {

@@ -1,8 +1,8 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2018 ngtcp2 contributors
- * Copyright (c) 2013 nghttp2 contributors
+ * Copyright (c) 2025 nghttp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -23,27 +23,24 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#ifndef SIPHASH_TEST_H
+#define SIPHASH_TEST_H
+
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // defined(HAVE_CONFIG_H)
+#endif // HAVE_CONFIG_H
+
+#define MUNIT_ENABLE_ASSERT_ALIASES
 
 #include "munit.h"
 
-// include test cases' include files here
-#include "util_test.h"
-#include "siphash_test.h"
+namespace ngtcp2 {
 
-int main(int argc, char *argv[]) {
-  const MunitSuite suites[] = {
-    ngtcp2::util_suite,
-    ngtcp2::siphash_suite,
-    {},
-  };
-  const MunitSuite suite = {
-    .prefix = "",
-    .suites = suites,
-    .iterations = 1,
-  };
+extern const MunitSuite siphash_suite;
 
-  return munit_suite_main(&suite, nullptr, argc, argv);
-}
+munit_void_test_decl(test_siphash)
+munit_void_test_decl(test_siphash_vector)
+
+} // namespace ngtcp2
+
+#endif // SIPHASH_TEST_H

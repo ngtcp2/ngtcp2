@@ -53,6 +53,7 @@ SERVER_SRCS = \
 	util.cc util.h \
 	shared.cc shared.h \
 	http.cc http.h \
+	siphash.cc siphash.h \
 	network.h
 
 CLIENT_SRCS = \
@@ -229,6 +230,8 @@ endif # ENABLE_EXAMPLE_WOLFSSL
 check_PROGRAMS = examplestest
 examplestest_SOURCES = examplestest.cc \
 	util_test.cc util_test.h util.cc util.h \
+	siphash_test.cc siphash_test.h siphash.cc siphash.h \
+	siphash_vector.h \
 	$(top_srcdir)/tests/munit/munit.c $(top_srcdir)/tests/munit/munit.h
 examplestest_CPPFLAGS = ${AM_CPPFLAGS} -I$(top_srcdir)/tests/munit \
 	@JEMALLOC_CFLAGS@

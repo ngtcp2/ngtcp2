@@ -2481,12 +2481,10 @@ Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
 }
 
 void Server::associate_cid(const ngtcp2_cid *cid, Handler *h) {
-  handlers_.emplace(util::make_cid_key(cid), h);
+  handlers_.emplace(*cid, h);
 }
 
-void Server::dissociate_cid(const ngtcp2_cid *cid) {
-  handlers_.erase(std::string{util::make_cid_key(cid)});
-}
+void Server::dissociate_cid(const ngtcp2_cid *cid) { handlers_.erase(*cid); }
 
 void Server::remove(const Handler *h) {
   auto conn = h->conn();
