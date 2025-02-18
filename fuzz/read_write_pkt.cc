@@ -810,15 +810,43 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     auto chunk_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
     auto chunk = fuzzed_data_provider.ConsumeBytes<uint8_t>(chunk_len);
 
-    auto spktlen = ngtcp2_conn_write_stream(
-      conn, &ps.path, &pi, pkt.data(), pkt.size(), &ndatalen, flags, stream_id,
-      chunk.data(), chunk.size(), ts);
-    if (spktlen < 0) {
-      break;
+    auto fatal = false;
+
+    for (;;) {
+      auto spktlen = ngtcp2_conn_write_stream(
+        conn, &ps.path, &pi, pkt.data(), pkt.size(), &ndatalen, flags,
+        stream_id, chunk.data(), chunk.size(), ts);
+      if (spktlen < 0) {
+        switch (spktlen) {
+        case NGTCP2_ERR_WRITE_MORE:
+          if (ndatalen > 0) {
+            chunks.push_back(std::move(chunk));
+          }
+
+          continue;
+        case NGTCP2_ERR_STREAM_DATA_BLOCKED:
+        case NGTCP2_ERR_STREAM_NOT_FOUND:
+        case NGTCP2_ERR_STREAM_SHUT_WR:
+          stream_id = -1;
+          continue;
+        }
+
+        fatal = true;
+
+        break;
+      }
+
+      if (ndatalen > 0) {
+        chunks.push_back(std::move(chunk));
+      }
+
+      if (spktlen >= 0) {
+        break;
+      }
     }
 
-    if (ndatalen > 0) {
-      chunks.push_back(std::move(chunk));
+    if (fatal) {
+      break;
     }
   }
 
