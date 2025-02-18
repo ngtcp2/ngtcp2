@@ -3708,7 +3708,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   left = ngtcp2_ppe_left(ppe);
 
-  if (*pfrc == NULL && send_stream &&
+  if (*pfrc == NULL && send_stream && ngtcp2_pq_empty(&conn->tx.strmq) &&
       (ndatalen = ngtcp2_pkt_stream_max_datalen(
          vmsg->stream.strm->stream_id, vmsg->stream.strm->tx.offset, ndatalen,
          left)) != (size_t)-1 &&

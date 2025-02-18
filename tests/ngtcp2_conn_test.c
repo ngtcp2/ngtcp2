@@ -4382,7 +4382,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
 void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_conn *conn;
-  uint8_t buf[2048];
+  uint8_t buf[1200];
   ngtcp2_ssize spktlen;
   ngtcp2_tstamp t = 0;
   int64_t stream_id, stream_id_a, stream_id_b;
@@ -4400,6 +4400,8 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_transport_params remote_params;
   ngtcp2_callbacks callbacks;
   conn_options opts;
+  size_t i;
+  ngtcp2_ssize datalen;
 
   /* Retransmit a packet completely */
   setup_default_client(&conn);
@@ -4866,6 +4868,94 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   strm = ngtcp2_conn_find_stream(conn, stream_id_a);
 
   assert_true(!ngtcp2_strm_streamfrq_empty(strm));
+
+  ngtcp2_conn_del(conn);
+
+  /* New STREAM frame cannot be sent if there are STREAM frames that
+     need retransmission to avoid overlapping 0 length frame edge
+     case. */
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_streams_bidi = 16384;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  for (i = 0; i < (1 << 14); ++i) {
+    rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+    assert_int(0, ==, rv);
+  }
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, 0,
+                                     null_data, 1157, t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 44, t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, 4, NULL, 0, t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT,
+                                      null_data, 9);
+
+  assert_int(0, ==, rv);
+
+  t += 4 * NGTCP2_MILLISECONDS;
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.ack_delay = 0;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 1;
+  fr.ack.ranges[0].gap = 2;
+  fr.ack.ranges[0].len = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_tx_strmq_top(conn);
+
+  assert_int64(0, ==, strm->stream_id);
+
+  strm = ngtcp2_conn_find_stream(conn, 4);
+
+  ngtcp2_pq_remove(&conn->tx.strmq, &strm->pe);
+  ++strm->cycle;
+  ngtcp2_conn_tx_strmq_push(conn, strm);
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), &datalen,
+                             NGTCP2_WRITE_STREAM_FLAG_FIN, 4, NULL, 0, t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+
+  strm = ngtcp2_conn_tx_strmq_top(conn);
+
+  assert_int64(stream_id, ==, strm->stream_id);
 
   ngtcp2_conn_del(conn);
 }
