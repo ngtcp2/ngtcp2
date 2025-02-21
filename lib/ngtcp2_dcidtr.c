@@ -432,6 +432,7 @@ void ngtcp2_dcidtr_pop_unused_cid_token(ngtcp2_dcidtr *dtr, ngtcp2_dcid *dest) {
 
   src = ngtcp2_ringbuf_get(rb, 0);
 
+  dest->flags = NGTCP2_DCID_FLAG_NONE;
   ngtcp2_dcid_copy_cid_token(dest, src);
 
   ngtcp2_ringbuf_pop_front(rb);

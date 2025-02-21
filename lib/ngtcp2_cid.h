@@ -149,7 +149,9 @@ void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
 
 /*
  * ngtcp2_dcid_copy_cid_token behaves like ngtcp2_dcid_copy, but it
- * only copies cid, seq, and token.
+ * only copies cid, seq, and token.  dest->flags should be initialized
+ * before this call because NGTCP2_DCID_FLAG_TOKEN_PRESENT is set or
+ * unset.
  */
 void ngtcp2_dcid_copy_cid_token(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
 
