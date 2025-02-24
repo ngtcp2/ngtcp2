@@ -2211,7 +2211,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
       if (num_reclaimed < 0) {
         ngtcp2_frame_chain_list_objalloc_del(frq, &conn->frc_objalloc,
                                              conn->mem);
-        return rv;
+        return num_reclaimed;
       }
       if (num_reclaimed) {
         goto build_pkt;
@@ -3681,7 +3681,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         pktns->rtb.num_retransmittable && pktns->rtb.probe_pkt_left) {
       num_reclaimed = ngtcp2_rtb_reclaim_on_pto(&pktns->rtb, conn, pktns, 1);
       if (num_reclaimed < 0) {
-        return rv;
+        return num_reclaimed;
       }
       if (num_reclaimed) {
         goto build_pkt;
