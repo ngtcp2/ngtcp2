@@ -8486,34 +8486,6 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
 }
 
 /*
- * conn_allow_path_change_under_disable_active_migration returns
- * nonzero if a packet from |path| is acceptable under
- * disable_active_migration is on.
- */
-static int
-conn_allow_path_change_under_disable_active_migration(ngtcp2_conn *conn,
-                                                      const ngtcp2_path *path) {
-  uint32_t remote_addr_cmp;
-
-  assert(conn->server);
-  assert(conn->local.transport_params.disable_active_migration);
-
-  /* If local address does not change, it must be passive migration
-     (NAT rebinding). */
-  if (ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local)) {
-    remote_addr_cmp =
-      ngtcp2_addr_cmp(&conn->dcid.current.ps.path.remote, &path->remote);
-
-    return (remote_addr_cmp | NGTCP2_ADDR_CMP_FLAG_PORT) ==
-           NGTCP2_ADDR_CMP_FLAG_PORT;
-  }
-
-  /* If local address changes, it must be one of the preferred
-     addresses. */
-  return conn_server_preferred_addr_migration(conn, &path->local);
-}
-
-/*
  * conn_recv_pkt processes a packet contained in the buffer pointed by
  * |pkt| of length |pktlen|.  |pkt| may contain multiple QUIC packets.
  * This function only processes the first packet.  |pkt_ts| is the
@@ -8576,30 +8548,6 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   int new_cid_used = 0;
   int path_challenge_recved = 0;
   size_t num_ack_processed = 0;
-
-  if (conn->server) {
-    if (conn->local.transport_params.disable_active_migration &&
-        !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
-        !conn_allow_path_change_under_disable_active_migration(conn, path)) {
-      ngtcp2_log_info(
-        &conn->log, NGTCP2_LOG_EVENT_PKT,
-        "packet is discarded because local active migration is disabled");
-
-      return NGTCP2_ERR_DISCARD_PKT;
-    }
-
-    assert(conn->remote.transport_params);
-
-    if (conn->remote.transport_params->disable_active_migration &&
-        !ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local) &&
-        !conn_server_preferred_addr_migration(conn, &path->local)) {
-      ngtcp2_log_info(
-        &conn->log, NGTCP2_LOG_EVENT_PKT,
-        "packet is discarded because remote active migration is disabled");
-
-      return NGTCP2_ERR_DISCARD_PKT;
-    }
-  }
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -9378,6 +9326,15 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   if (ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
     conn->dcid.current.bytes_recv += dgramlen;
+  }
+
+  if (conn->server && conn->local.transport_params.disable_active_migration &&
+      !ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local) &&
+      !conn_server_preferred_addr_migration(conn, &path->local)) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "packet is discarded because active migration is disabled");
+
+    return 0;
   }
 
   while (pktlen) {
