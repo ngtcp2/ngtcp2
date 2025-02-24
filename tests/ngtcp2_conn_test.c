@@ -8867,7 +8867,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* PATH_CHALLENGE should be ignored with server
+  /* PATH_CHALLENGE to new local address should be ignored with server
      disable_active_migration */
   server_default_transport_params(&params);
   params.disable_active_migration = 1;
@@ -8901,43 +8901,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   assert_int(0, ==, rv);
   assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
-
-  ngtcp2_conn_del(conn);
-
-  /* PATH_CHALLENGE on NAT rebinding (passive migration) should be
-     accepted with server disable_active_migration */
-  server_default_transport_params(&params);
-  params.disable_active_migration = 1;
-
-  conn_options_clear(&opts);
-  opts.params = &params;
-
-  setup_default_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-
-  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
-  fr.new_connection_id.seq = 1;
-  fr.new_connection_id.retire_prior_to = 0;
-  fr.new_connection_id.cid = cid;
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
-
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
-
-  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
-
-  assert_int(0, ==, rv);
-
-  frs[0].type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
-  frs[1].type = NGTCP2_FRAME_PADDING;
-  frs[1].padding.len = 1200;
-
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
-
-  rv = ngtcp2_conn_read_pkt(conn, &new_nat_path.path, NULL, buf, pktlen, ++t);
-
-  assert_int(0, ==, rv);
-  assert_size(0, <, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_int64(0, ==, conn->pktns.acktr.max_pkt_num);
 
   ngtcp2_conn_del(conn);
 
@@ -9001,36 +8965,6 @@ void test_ngtcp2_conn_disable_active_migration(void) {
 
   path_init(&path1, 1, 0, 0, 0);
   path_init(&path2, 2, 0, 0, 0);
-
-  /* If a remote endpoint disables active migration, and a packet is
-     received on local address which neither the current path nor
-     preferred address, the packet is discarded. */
-  server_default_transport_params(&params);
-  params.preferred_addr_present = 1;
-  params.preferred_addr.ipv4_present = 1;
-  memcpy(&params.preferred_addr.ipv4, path1.path.local.addr,
-         sizeof(params.preferred_addr.ipv4));
-
-  server_default_remote_transport_params(&remote_params);
-  remote_params.disable_active_migration = 1;
-
-  conn_options_clear(&opts);
-  opts.params = &params;
-  opts.remote_params = &remote_params;
-
-  setup_default_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-
-  fr.type = NGTCP2_FRAME_PING;
-
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
-
-  rv = ngtcp2_conn_read_pkt(conn, &path2.path, NULL, buf, pktlen, 0);
-
-  assert_int(0, ==, rv);
-  assert_int64(-1, ==, conn->pktns.acktr.max_pkt_num);
-
-  ngtcp2_conn_del(conn);
 
   /* If a remote endpoint disables active migration, and a packet is
      received on preferred address, the packet is accepted. */
