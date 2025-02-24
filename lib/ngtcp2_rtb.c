@@ -1207,13 +1207,13 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
   int rv;
   (void)rv;
 
-  if (ngtcp2_ksl_len(&rtb->ents) == 0) {
+  if (rtb->num_lost_pkts == 0) {
     return;
   }
 
   it = ngtcp2_ksl_end(&rtb->ents);
 
-  for (;;) {
+  for (; rtb->num_lost_pkts;) {
     assert(ngtcp2_ksl_it_end(&it));
 
     ngtcp2_ksl_it_prev(&it);
@@ -1237,10 +1237,6 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
     assert(0 == rv);
     ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
                                   rtb->frc_objalloc, rtb->mem);
-
-    if (ngtcp2_ksl_len(&rtb->ents) == 0) {
-      return;
-    }
   }
 }
 
