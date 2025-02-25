@@ -134,9 +134,11 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_objalloc_free(&frc_objalloc);
 }
 
-static void add_rtb_entry_range(ngtcp2_rtb *rtb, int64_t base_pkt_num,
-                                size_t len, ngtcp2_conn_stat *cstat,
-                                ngtcp2_objalloc *objalloc) {
+static void add_rtb_entry_range_with_flags(ngtcp2_rtb *rtb,
+                                           int64_t base_pkt_num, size_t len,
+                                           uint16_t flags,
+                                           ngtcp2_conn_stat *cstat,
+                                           ngtcp2_objalloc *objalloc) {
   ngtcp2_pkt_hd hd;
   ngtcp2_rtb_entry *ent;
   size_t i;
@@ -147,10 +149,16 @@ static void add_rtb_entry_range(ngtcp2_rtb *rtb, int64_t base_pkt_num,
   for (i = 0; i < len; ++i) {
     ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
                        base_pkt_num + (int64_t)i, 1, NGTCP2_PROTO_VER_V1);
-    ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, 0, 0,
-                                  NGTCP2_RTB_ENTRY_FLAG_NONE, objalloc);
+    ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, 0, 0, flags, objalloc);
     ngtcp2_rtb_add(rtb, ent, cstat);
   }
+}
+
+static void add_rtb_entry_range(ngtcp2_rtb *rtb, int64_t base_pkt_num,
+                                size_t len, ngtcp2_conn_stat *cstat,
+                                ngtcp2_objalloc *objalloc) {
+  add_rtb_entry_range_with_flags(rtb, base_pkt_num, len,
+                                 NGTCP2_RTB_ENTRY_FLAG_NONE, cstat, objalloc);
 }
 
 static void setup_rtb_fixture(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
@@ -380,7 +388,9 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
   ngtcp2_rtb_init(&rtb, &rst, &cc.cc, 0, &log, NULL, &rtb_entry_objalloc,
                   &frc_objalloc, mem);
 
-  add_rtb_entry_range(&rtb, 0, 7, &cstat, &rtb_entry_objalloc);
+  add_rtb_entry_range_with_flags(&rtb, 0, 1, NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE,
+                                 &cstat, &rtb_entry_objalloc);
+  add_rtb_entry_range(&rtb, 1, 6, &cstat, &rtb_entry_objalloc);
 
   it = ngtcp2_ksl_end(&rtb.ents);
 
@@ -389,15 +399,25 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
     ent = ngtcp2_ksl_it_get(&it);
     ent->flags |= NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED;
     ent->lost_ts = 16777217 + i;
+    ++rtb.num_lost_pkts;
   }
+
+  ++rtb.num_lost_pmtud_pkts;
+
+  assert_size(5, ==, rtb.num_lost_pkts);
+  assert_size(1, ==, rtb.num_lost_pmtud_pkts);
 
   ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777219);
 
   assert_size(5, ==, ngtcp2_ksl_len(&rtb.ents));
+  assert_size(3, ==, rtb.num_lost_pkts);
+  assert_size(0, ==, rtb.num_lost_pmtud_pkts);
 
-  ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777223);
+  ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777222);
 
   assert_size(2, ==, ngtcp2_ksl_len(&rtb.ents));
+  assert_size(0, ==, rtb.num_lost_pkts);
+  assert_size(0, ==, rtb.num_lost_pmtud_pkts);
 
   ngtcp2_rtb_free(&rtb);
 
@@ -429,7 +449,9 @@ void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
   ngtcp2_rtb_init(&rtb, &rst, &cc.cc, 0, &log, NULL, &rtb_entry_objalloc,
                   &frc_objalloc, mem);
 
-  add_rtb_entry_range(&rtb, 0, 7, &cstat, &rtb_entry_objalloc);
+  add_rtb_entry_range_with_flags(&rtb, 0, 1, NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE,
+                                 &cstat, &rtb_entry_objalloc);
+  add_rtb_entry_range(&rtb, 1, 6, &cstat, &rtb_entry_objalloc);
 
   it = ngtcp2_ksl_end(&rtb.ents);
 
@@ -441,9 +463,16 @@ void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
     ++rtb.num_lost_pkts;
   }
 
+  ++rtb.num_lost_pmtud_pkts;
+
+  assert_size(5, ==, rtb.num_lost_pkts);
+  assert_size(1, ==, rtb.num_lost_pmtud_pkts);
+
   ngtcp2_rtb_remove_excessive_lost_pkt(&rtb, 2);
 
   assert_size(4, ==, ngtcp2_ksl_len(&rtb.ents));
+  assert_size(2, ==, rtb.num_lost_pkts);
+  assert_size(0, ==, rtb.num_lost_pmtud_pkts);
 
   ngtcp2_rtb_free(&rtb);
 
