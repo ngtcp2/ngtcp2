@@ -5033,12 +5033,12 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
   /* Just freeing memory is dangerous because we might free twice. */
 
-  rv = ngtcp2_rtb_remove_all(rtb, conn, &conn->pktns, &conn->cstat);
+  rv = ngtcp2_rtb_reclaim_on_retry(rtb, conn, &conn->pktns, &conn->cstat);
   if (rv != 0) {
     return rv;
   }
 
-  rv = ngtcp2_rtb_remove_all(in_rtb, conn, in_pktns, &conn->cstat);
+  rv = ngtcp2_rtb_reclaim_on_retry(in_rtb, conn, in_pktns, &conn->cstat);
   if (rv != 0) {
     return rv;
   }

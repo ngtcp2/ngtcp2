@@ -269,12 +269,12 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
 ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(const ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_remove_all removes all packets from |rtb|, and prepends
- * all frames to |*pfrc|.  Even when this function fails, some frames
- * might be prepended to |*pfrc|, and the caller should handle them.
+ * ngtcp2_rtb_reclaim_on_retry is called when Retry packet is
+ * received.  It removes all packets from |rtb|, and retransmittable
+ * frames are reclaimed for retransmission.
  */
-int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
-                          ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat);
+int ngtcp2_rtb_reclaim_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                                ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_remove_early_data removes all entries for 0RTT packets.
