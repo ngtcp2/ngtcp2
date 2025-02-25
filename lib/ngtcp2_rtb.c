@@ -1259,59 +1259,13 @@ ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(const ngtcp2_rtb *rtb) {
   return ent->lost_ts;
 }
 
-static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
-                                        ngtcp2_pktns *pktns,
-                                        ngtcp2_rtb_entry *ent) {
-  ngtcp2_frame_chain **pfrc, *frc;
+static int rtb_reclaim_frame_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                                      ngtcp2_pktns *pktns,
+                                      ngtcp2_rtb_entry *ent) {
+  ngtcp2_frame_chain **pfrc = &ent->frc, *frc;
   ngtcp2_stream *sfr;
   ngtcp2_strm *strm;
   int rv;
-
-  ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
-                      ent->ts);
-
-  if (rtb->qlog) {
-    ngtcp2_qlog_pkt_lost(rtb->qlog, ent);
-  }
-
-  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE) {
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                    "pkn=%" PRId64
-                    " is a probe packet, no retransmission is necessary",
-                    ent->hd.pkt_num);
-    return 0;
-  }
-
-  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED) {
-    --rtb->num_lost_pkts;
-
-    if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE) {
-      --rtb->num_lost_pmtud_pkts;
-    }
-
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                    "pkn=%" PRId64
-                    " was declared lost and has already been retransmitted",
-                    ent->hd.pkt_num);
-    return 0;
-  }
-
-  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                    "pkn=%" PRId64 " has already been reclaimed on PTO",
-                    ent->hd.pkt_num);
-    return 0;
-  }
-
-  if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) &&
-      (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_DATAGRAM) ||
-       !conn->callbacks.lost_datagram)) {
-    /* PADDING only (or PADDING + ACK ) packets will have NULL
-       ent->frc. */
-    return 0;
-  }
-
-  pfrc = &ent->frc;
 
   for (; *pfrc;) {
     switch ((*pfrc)->fr.type) {
@@ -1386,13 +1340,11 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   return 0;
 }
 
-int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
-                          ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat) {
+int ngtcp2_rtb_reclaim_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                                ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat) {
   ngtcp2_rtb_entry *ent;
-  ngtcp2_ksl_it it;
+  ngtcp2_ksl_it it = ngtcp2_ksl_begin(&rtb->ents);
   int rv;
-
-  it = ngtcp2_ksl_begin(&rtb->ents);
 
   for (; !ngtcp2_ksl_it_end(&it);) {
     ent = ngtcp2_ksl_it_get(&it);
@@ -1401,7 +1353,40 @@ int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     rv = ngtcp2_ksl_remove_hint(&rtb->ents, &it, &it, &ent->hd.pkt_num);
     assert(0 == rv);
 
-    rv = rtb_on_pkt_lost_resched_move(rtb, conn, pktns, ent);
+    ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
+                        ent->ts);
+
+    if (rtb->qlog) {
+      ngtcp2_qlog_pkt_lost(rtb->qlog, ent);
+    }
+
+    /* We never send PING only probe packet because we should have
+       CRYPTO data or just nothing.  If we have nothing, then we do
+       not send probe packet. */
+    assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE));
+
+    /* We never get ACK before Retry packet. */
+    assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
+    assert(0 == rtb->num_lost_pkts);
+
+    /* PMTUD probe must not be sent before handshake completion. */
+    assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE));
+    assert(0 == rtb->num_lost_pmtud_pkts);
+
+    if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
+      ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_LDC,
+                      "pkn=%" PRId64 " has already been reclaimed on PTO",
+                      ent->hd.pkt_num);
+      continue;
+    }
+
+    if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) &&
+        (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_DATAGRAM) ||
+         !conn->callbacks.lost_datagram)) {
+      continue;
+    }
+
+    rv = rtb_reclaim_frame_on_retry(rtb, conn, pktns, ent);
 
     ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
                                   rtb->frc_objalloc, rtb->mem);

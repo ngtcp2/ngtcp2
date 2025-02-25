@@ -318,6 +318,13 @@ static int client_initial_early_data(ngtcp2_conn *conn, void *user_data) {
   return 0;
 }
 
+static int client_initial_null_early_data(ngtcp2_conn *conn, void *user_data) {
+  (void)conn;
+  (void)user_data;
+
+  return 0;
+}
+
 static int client_initial_large_crypto_early_data(ngtcp2_conn *conn,
                                                   void *user_data) {
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
@@ -711,6 +718,15 @@ static int version_negotiation(ngtcp2_conn *conn, uint32_t version,
   ngtcp2_conn_install_vneg_initial_key(conn, version, &aead_ctx, null_iv,
                                        &hp_ctx, &aead_ctx, null_iv, &hp_ctx,
                                        sizeof(null_iv));
+
+  return 0;
+}
+
+static int lost_datagram(ngtcp2_conn *conn, uint64_t dgram_id,
+                         void *user_data) {
+  (void)conn;
+  (void)dgram_id;
+  (void)user_data;
 
   return 0;
 }
@@ -3663,12 +3679,15 @@ void test_ngtcp2_conn_recv_retry(void) {
   int64_t stream_id;
   ngtcp2_ssize datalen;
   int rv;
+  int accepted;
   ngtcp2_vec datav;
   ngtcp2_strm *strm;
+  ngtcp2_frame_chain *frc;
   ngtcp2_crypto_aead aead = {0};
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
+  ngtcp2_transport_params remote_params;
   ngtcp2_callbacks callbacks;
   conn_options opts;
 
@@ -3933,6 +3952,111 @@ void test_ngtcp2_conn_recv_retry(void) {
     ngtcp2_vec_len(ent->frc->fr.stream.data, ent->frc->fr.stream.datacnt));
   assert_int64(stream_id, ==, ent->frc->fr.stream.stream_id);
   assert_false(ent->frc->fr.stream.fin);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive Retry packet after resending some packets */
+  client_early_remote_transport_params(&remote_params);
+  remote_params.max_datagram_frame_size = 65536;
+
+  client_early_callbacks(&callbacks);
+  callbacks.recv_retry = recv_retry;
+  callbacks.lost_datagram = lost_datagram;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+  opts.callbacks = &callbacks;
+
+  setup_early_client_with_options(&conn, opts);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 100, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(100, ==, datalen);
+
+  t = ngtcp2_conn_get_expiry(conn);
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  /* DATAGRAM frame never be retransmitted. */
+  spktlen = ngtcp2_conn_write_datagram(
+    conn, NULL, NULL, buf, sizeof(buf), &accepted,
+    NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 0, null_data, 56, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(accepted);
+
+  spktlen =
+    ngtcp2_pkt_write_retry(buf, sizeof(buf), NGTCP2_PROTO_VER_V1, &conn->oscid,
+                           &dcid, ngtcp2_conn_get_dcid(conn), token,
+                           strsize(token), null_encrypt, &aead, &aead_ctx);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, (size_t)spktlen,
+                            ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pktns.tx.frq);
+  assert_false(ngtcp2_pq_empty(&conn->tx.strmq));
+  assert_false(ngtcp2_strm_streamfrq_empty(&conn->in_pktns->crypto.strm));
+
+  strm = ngtcp2_conn_tx_strmq_top(conn);
+  frc = ngtcp2_strm_streamfrq_top(strm);
+
+  assert_uint64(NGTCP2_FRAME_STREAM, ==, frc->fr.type);
+  assert_uint64(0, ==, frc->fr.stream.offset);
+  assert_uint64(100, ==,
+                ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
+  assert_null(frc->next);
+
+  frc = ngtcp2_strm_streamfrq_top(&conn->in_pktns->crypto.strm);
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.type);
+  assert_uint64(217, ==,
+                ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
+  assert_null(frc->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* client_initial does not produce any CRYPTO data */
+  client_early_callbacks(&callbacks);
+  callbacks.recv_retry = recv_retry;
+  callbacks.client_initial = client_initial_null_early_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_early_client_with_options(&conn, opts);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
+
+  t = ngtcp2_conn_get_expiry(conn);
+
+  /* This is idle timeout */
+  assert_uint64(60 * NGTCP2_SECONDS, ==, t);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
 
   ngtcp2_conn_del(conn);
 }
