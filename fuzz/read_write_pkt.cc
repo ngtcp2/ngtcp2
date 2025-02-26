@@ -801,8 +801,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     ngtcp2_pkt_info pi{};
 
-    ngtcp2_ssize ndatalen;
-
     auto flags = fuzzed_data_provider.ConsumeIntegral<uint32_t>();
 
     int64_t stream_id;
@@ -822,36 +820,60 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     auto fatal = false;
 
     for (;;) {
-      auto spktlen = ngtcp2_conn_write_stream(
-        conn, &ps.path, &pi, pkt.data(), pkt.size(), &ndatalen, flags,
-        stream_id, chunk.data(), chunk.size(), ts);
-      if (spktlen < 0) {
-        switch (spktlen) {
-        case NGTCP2_ERR_WRITE_MORE:
-          if (ndatalen > 0) {
-            chunks.push_back(std::move(chunk));
+      if (fuzzed_data_provider.ConsumeBool()) {
+        ngtcp2_ssize ndatalen;
+
+        auto spktlen = ngtcp2_conn_write_stream(
+          conn, &ps.path, &pi, pkt.data(), pkt.size(), &ndatalen, flags,
+          stream_id, chunk.data(), chunk.size(), ts);
+        if (spktlen < 0) {
+          switch (spktlen) {
+          case NGTCP2_ERR_WRITE_MORE:
+            if (ndatalen > 0) {
+              chunks.push_back(std::move(chunk));
+            }
+
+            continue;
+          case NGTCP2_ERR_STREAM_DATA_BLOCKED:
+          case NGTCP2_ERR_STREAM_NOT_FOUND:
+          case NGTCP2_ERR_STREAM_SHUT_WR:
+            stream_id = -1;
+            continue;
           }
 
-          continue;
-        case NGTCP2_ERR_STREAM_DATA_BLOCKED:
-        case NGTCP2_ERR_STREAM_NOT_FOUND:
-        case NGTCP2_ERR_STREAM_SHUT_WR:
-          stream_id = -1;
-          continue;
+          fatal = true;
+
+          break;
         }
 
-        fatal = true;
+        if (ndatalen > 0) {
+          chunks.push_back(std::move(chunk));
+        }
+      } else {
+        int accepted;
 
-        break;
+        auto spktlen = ngtcp2_conn_write_datagram(
+          conn, &ps.path, &pi, pkt.data(), pkt.size(), &accepted, flags,
+          fuzzed_data_provider.ConsumeIntegral<uint64_t>(), chunk.data(),
+          chunk.size(), ts);
+
+        if (spktlen < 0) {
+          if (spktlen == NGTCP2_ERR_WRITE_MORE) {
+            if (accepted) {
+              chunk_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
+              chunk = fuzzed_data_provider.ConsumeBytes<uint8_t>(chunk_len);
+            }
+
+            continue;
+          }
+
+          fatal = true;
+
+          break;
+        }
       }
 
-      if (ndatalen > 0) {
-        chunks.push_back(std::move(chunk));
-      }
-
-      if (spktlen >= 0) {
-        break;
-      }
+      break;
     }
 
     if (fatal) {
