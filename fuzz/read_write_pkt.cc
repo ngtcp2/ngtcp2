@@ -801,26 +801,33 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     ngtcp2_pkt_info pi{};
 
-    auto flags = fuzzed_data_provider.ConsumeIntegral<uint32_t>();
-
-    int64_t stream_id;
-
-    if (ngtcp2_conn_is_server(conn)) {
-      stream_id = fuzzed_data_provider.ConsumeIntegral<int64_t>();
-    } else {
-      rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, nullptr);
-      if (rv != 0) {
-        break;
-      }
-    }
-
     auto chunk_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
     auto chunk = fuzzed_data_provider.ConsumeBytes<uint8_t>(chunk_len);
 
     auto fatal = false;
 
     for (;;) {
+      auto flags = fuzzed_data_provider.ConsumeIntegral<uint32_t>();
+
       if (fuzzed_data_provider.ConsumeBool()) {
+        int64_t stream_id;
+
+        if (ngtcp2_conn_is_server(conn)) {
+          stream_id = fuzzed_data_provider.ConsumeIntegral<int64_t>();
+        } else if (fuzzed_data_provider.ConsumeBool()) {
+          rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, nullptr);
+          if (rv != 0) {
+            fatal = true;
+            break;
+          }
+        } else {
+          rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, nullptr);
+          if (rv != 0) {
+            fatal = true;
+            break;
+          }
+        }
+
         ngtcp2_ssize ndatalen;
 
         auto spktlen = ngtcp2_conn_write_stream(
@@ -833,11 +840,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
               chunks.push_back(std::move(chunk));
             }
 
+            if (ndatalen >= 0) {
+              chunk_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
+              chunk = fuzzed_data_provider.ConsumeBytes<uint8_t>(chunk_len);
+            }
+
             continue;
           case NGTCP2_ERR_STREAM_DATA_BLOCKED:
           case NGTCP2_ERR_STREAM_NOT_FOUND:
           case NGTCP2_ERR_STREAM_SHUT_WR:
-            stream_id = -1;
             continue;
           }
 
@@ -856,7 +867,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
           conn, &ps.path, &pi, pkt.data(), pkt.size(), &accepted, flags,
           fuzzed_data_provider.ConsumeIntegral<uint64_t>(), chunk.data(),
           chunk.size(), ts);
-
         if (spktlen < 0) {
           if (spktlen == NGTCP2_ERR_WRITE_MORE) {
             if (accepted) {
