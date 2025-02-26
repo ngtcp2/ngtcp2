@@ -805,7 +805,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     auto flags = fuzzed_data_provider.ConsumeIntegral<uint32_t>();
 
-    auto stream_id = fuzzed_data_provider.ConsumeIntegral<int64_t>();
+    int64_t stream_id;
+
+    if (ngtcp2_conn_is_server(conn)) {
+      stream_id = fuzzed_data_provider.ConsumeIntegral<int64_t>();
+    } else {
+      rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, nullptr);
+      if (rv != 0) {
+        break;
+      }
+    }
 
     auto chunk_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
     auto chunk = fuzzed_data_provider.ConsumeBytes<uint8_t>(chunk_len);
