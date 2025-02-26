@@ -2080,8 +2080,10 @@ ngtcp2_ssize ngtcp2_pkt_encode_datagram_frame(uint8_t *out, size_t outlen,
   }
 
   for (i = 0; i < fr->datacnt; ++i) {
-    assert(fr->data[i].len);
-    assert(fr->data[i].base);
+    if (fr->data[i].len == 0) {
+      continue;
+    }
+
     p = ngtcp2_cpymem(p, fr->data[i].base, fr->data[i].len);
   }
 
