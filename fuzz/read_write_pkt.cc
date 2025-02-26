@@ -817,20 +817,30 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       if (fuzzed_data_provider.ConsumeBool()) {
         int64_t stream_id;
 
-        if (ngtcp2_conn_is_server(conn)) {
+        switch (fuzzed_data_provider.ConsumeIntegralInRange<int>(0, 2)) {
+        case 0:
           stream_id = fuzzed_data_provider.ConsumeIntegral<int64_t>();
-        } else if (fuzzed_data_provider.ConsumeBool()) {
+          break;
+        case 1:
           rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, nullptr);
           if (rv != 0) {
             fatal = true;
             break;
           }
-        } else {
+
+          break;
+        case 2:
           rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, nullptr);
           if (rv != 0) {
             fatal = true;
             break;
           }
+
+          break;
+        }
+
+        if (fatal) {
+          break;
         }
 
         ngtcp2_ssize ndatalen;
