@@ -807,6 +807,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     auto fatal = false;
 
     for (;;) {
+      if (fuzzed_data_provider.remaining_bytes() == 0) {
+        fatal = true;
+        break;
+      }
+
       auto flags = fuzzed_data_provider.ConsumeIntegral<uint32_t>();
 
       if (fuzzed_data_provider.ConsumeBool()) {
