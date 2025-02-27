@@ -724,31 +724,14 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
 }
 } // namespace
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  FuzzedDataProvider fuzzed_data_provider(data, size);
-  std::array<uint8_t, 1500> pkt;
-
-  ngtcp2_path_storage ps;
-
-  init_path(&ps);
-
+namespace {
+int read_write(ngtcp2_conn *conn, FuzzedDataProvider &fuzzed_data_provider,
+               const ngtcp2_path *path, ngtcp2_tstamp &ts) {
   auto pi = ngtcp2_pkt_info{
     .ecn = NGTCP2_ECN_ECT_1,
   };
 
-  ngtcp2_mem mem = *ngtcp2_mem_default();
-  mem.user_data = &fuzzed_data_provider;
-  mem.malloc = fuzzed_malloc;
-  mem.calloc = fuzzed_calloc;
-  mem.realloc = fuzzed_realloc;
-
-  auto conn = setup_conn(fuzzed_data_provider, mem);
-  if (conn == nullptr) {
-    return 0;
-  }
-
-  ngtcp2_tstamp ts{};
-
+  std::array<uint8_t, 1500> pkt;
   std::vector<std::vector<uint8_t>> chunks;
 
   while (fuzzed_data_provider.remaining_bytes() > 0) {
@@ -758,14 +741,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (fuzzed_data_provider.ConsumeBool()) {
       auto rv = ngtcp2_conn_handle_expiry(conn, ts);
       if (rv != 0) {
-        break;
+        return -1;
       }
     }
 
     if (!ngtcp2_conn_is_server(conn) && fuzzed_data_provider.ConsumeBool()) {
-      auto rv = ngtcp2_conn_initiate_migration(conn, &ps.path, ts);
+      auto rv = ngtcp2_conn_initiate_migration(conn, path, ts);
       if (rv != 0) {
-        break;
+        return -1;
       }
     }
 
@@ -773,10 +756,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     auto recv_pkt = fuzzed_data_provider.ConsumeBytes<uint8_t>(recv_pkt_len);
 
-    auto rv = ngtcp2_conn_read_pkt(conn, &ps.path, &pi, recv_pkt.data(),
+    auto rv = ngtcp2_conn_read_pkt(conn, path, &pi, recv_pkt.data(),
                                    recv_pkt.size(), ts);
     if (rv != 0) {
-      break;
+      return -1;
     }
 
     if (fuzzed_data_provider.ConsumeBool()) {
@@ -785,7 +768,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
       rv = ngtcp2_conn_extend_max_stream_offset(conn, stream_id, datalen);
       if (rv != 0) {
-        break;
+        return -1;
       }
     }
 
@@ -804,12 +787,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     auto chunk_len = fuzzed_data_provider.ConsumeIntegral<size_t>();
     auto chunk = fuzzed_data_provider.ConsumeBytes<uint8_t>(chunk_len);
 
-    auto fatal = false;
-
     for (;;) {
       if (fuzzed_data_provider.remaining_bytes() == 0) {
-        fatal = true;
-        break;
+        return 0;
       }
 
       auto flags = fuzzed_data_provider.ConsumeIntegral<uint32_t>();
@@ -824,22 +804,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         case 1:
           rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, nullptr);
           if (rv != 0) {
-            fatal = true;
-            break;
+            return -1;
           }
 
           break;
         case 2:
           rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, nullptr);
           if (rv != 0) {
-            fatal = true;
-            break;
+            return -1;
           }
 
-          break;
-        }
-
-        if (fatal) {
           break;
         }
 
@@ -867,9 +841,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             continue;
           }
 
-          fatal = true;
-
-          break;
+          return -1;
         }
 
         if (ndatalen > 0) {
@@ -892,21 +864,43 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             continue;
           }
 
-          fatal = true;
-
-          break;
+          return -1;
         }
       }
 
       break;
     }
-
-    if (fatal) {
-      break;
-    }
   }
 
+  return 0;
+}
+} // namespace
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+  FuzzedDataProvider fuzzed_data_provider(data, size);
+  ngtcp2_path_storage ps;
+  std::array<uint8_t, 1500> pkt;
+
+  init_path(&ps);
+
+  ngtcp2_mem mem = *ngtcp2_mem_default();
+  mem.user_data = &fuzzed_data_provider;
+  mem.malloc = fuzzed_malloc;
+  mem.calloc = fuzzed_calloc;
+  mem.realloc = fuzzed_realloc;
+
+  auto conn = setup_conn(fuzzed_data_provider, mem);
+  if (conn == nullptr) {
+    return 0;
+  }
+
+  ngtcp2_tstamp ts{};
+
+  read_write(conn, fuzzed_data_provider, &ps.path, ts);
+
   auto ccerr = ngtcp2_conn_get_ccerr(conn);
+
+  ngtcp2_pkt_info pi{};
 
   ngtcp2_conn_write_connection_close(conn, &ps.path, &pi, pkt.data(),
                                      pkt.size(), ccerr, ts);
