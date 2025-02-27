@@ -11272,14 +11272,22 @@ ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
   ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, ngtcp2_ssize *pdatalen,
   uint32_t flags, int64_t stream_id, const uint8_t *data, size_t datalen,
   ngtcp2_tstamp ts) {
-  ngtcp2_vec datav;
+  ngtcp2_vec datav, *v;
+  size_t datacnt;
 
-  datav.len = datalen;
-  datav.base = (uint8_t *)data;
+  if (datalen == 0) {
+    v = NULL;
+    datacnt = 0;
+  } else {
+    datav.len = datalen;
+    datav.base = (uint8_t *)data;
+    v = &datav;
+    datacnt = 1;
+  }
 
   return ngtcp2_conn_writev_stream_versioned(conn, path, pkt_info_version, pi,
                                              dest, destlen, pdatalen, flags,
-                                             stream_id, &datav, 1, ts);
+                                             stream_id, v, datacnt, ts);
 }
 
 static ngtcp2_ssize conn_write_vmsg_wrapper(ngtcp2_conn *conn,
@@ -11372,14 +11380,22 @@ ngtcp2_ssize ngtcp2_conn_write_datagram_versioned(
   ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, int *paccepted,
   uint32_t flags, uint64_t dgram_id, const uint8_t *data, size_t datalen,
   ngtcp2_tstamp ts) {
-  ngtcp2_vec datav;
+  ngtcp2_vec datav, *v;
+  size_t datacnt;
 
-  datav.len = datalen;
-  datav.base = (uint8_t *)data;
+  if (datalen == 0) {
+    v = NULL;
+    datacnt = 0;
+  } else {
+    datav.len = datalen;
+    datav.base = (uint8_t *)data;
+    v = &datav;
+    datacnt = 1;
+  }
 
   return ngtcp2_conn_writev_datagram_versioned(conn, path, pkt_info_version, pi,
                                                dest, destlen, paccepted, flags,
-                                               dgram_id, &datav, 1, ts);
+                                               dgram_id, v, datacnt, ts);
 }
 
 ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
