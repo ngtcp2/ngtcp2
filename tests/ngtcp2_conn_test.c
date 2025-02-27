@@ -7112,6 +7112,7 @@ void test_ngtcp2_conn_writev_stream(void) {
     .base = null_data,
     .len = 10,
   };
+  ngtcp2_vec vec;
   ngtcp2_ssize datalen;
   size_t left;
   ngtcp2_strm *strm;
@@ -7122,6 +7123,8 @@ void test_ngtcp2_conn_writev_stream(void) {
   ngtcp2_tpe tpe;
   ngtcp2_transport_params remote_params;
   conn_options opts;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
 
   /* 0 length STREAM should not be written if we supply nonzero length
      data. */
@@ -7488,6 +7491,87 @@ void test_ngtcp2_conn_writev_stream(void) {
   assert_ptrdiff(-1, ==, datalen);
 
   ngtcp2_conn_del(conn);
+
+  /* Writing 0 length data with 0 length vector */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1200, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      NULL, 0, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_uint64(NGTCP2_FRAME_STREAM, ==, ent->frc->fr.type);
+  assert_uint64(0, ==, ent->frc->fr.stream.offset);
+  assert_uint64(0, ==, ent->frc->fr.stream.datacnt);
+
+  ngtcp2_conn_del(conn);
+
+  /* Writing 0 length data with 1 length vector */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1200, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  vec.base = NULL;
+  vec.len = 0;
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &vec, 1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_uint64(NGTCP2_FRAME_STREAM, ==, ent->frc->fr.type);
+  assert_uint64(0, ==, ent->frc->fr.stream.offset);
+  assert_uint64(0, ==, ent->frc->fr.stream.datacnt);
+
+  ngtcp2_conn_del(conn);
+
+  /* Writing 0 length data with ngtcp2_conn_write_stream */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1200, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1200, NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     NULL, 0, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_uint64(NGTCP2_FRAME_STREAM, ==, ent->frc->fr.type);
+  assert_uint64(0, ==, ent->frc->fr.stream.offset);
+  assert_uint64(0, ==, ent->frc->fr.stream.datacnt);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_writev_datagram(void) {
@@ -7651,6 +7735,63 @@ void test_ngtcp2_conn_writev_datagram(void) {
   spktlen = ngtcp2_conn_writev_datagram(
     conn, NULL, NULL, buf, sizeof(buf), &accepted,
     NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 22360679, &datav, 1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(accepted);
+
+  ngtcp2_conn_del(conn);
+
+  /* Writing 0 length data with 0 length vector */
+  client_default_remote_transport_params(&remote_params);
+  remote_params.max_datagram_frame_size = 1200;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
+
+  spktlen = ngtcp2_conn_writev_datagram(
+    conn, NULL, NULL, buf, sizeof(buf), &accepted,
+    NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 1000000007, NULL, 0, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(accepted);
+
+  ngtcp2_conn_del(conn);
+
+  /* Writing 0 length data with 1 length vector */
+  client_default_remote_transport_params(&remote_params);
+  remote_params.max_datagram_frame_size = 1200;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
+
+  vec.base = NULL;
+  vec.len = 0;
+
+  spktlen = ngtcp2_conn_writev_datagram(
+    conn, NULL, NULL, buf, sizeof(buf), &accepted,
+    NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 1000000009, &vec, 1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(accepted);
+
+  ngtcp2_conn_del(conn);
+
+  /* Writing 0 length data with ngtcp2_conn_write_datagram */
+  client_default_remote_transport_params(&remote_params);
+  remote_params.max_datagram_frame_size = 1200;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
+
+  spktlen = ngtcp2_conn_write_datagram(
+    conn, NULL, NULL, buf, sizeof(buf), &accepted,
+    NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 1000000007, NULL, 0, ++t);
 
   assert_ptrdiff(0, <, spktlen);
   assert_true(accepted);
