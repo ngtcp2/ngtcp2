@@ -7572,6 +7572,28 @@ void test_ngtcp2_conn_writev_stream(void) {
   assert_uint64(0, ==, ent->frc->fr.stream.datacnt);
 
   ngtcp2_conn_del(conn);
+
+  /* Attempt to write stream after fin */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_FIN, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff((ptrdiff_t)ngtcp2_vec_len(&datav, 1), ==, datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_FIN, stream_id,
+                                      NULL, 0, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_STREAM_SHUT_WR, ==, spktlen);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_writev_datagram(void) {
@@ -11298,6 +11320,10 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
   size_t num_reclaim_pkt;
   ngtcp2_rtb_entry *ent;
   ngtcp2_ksl_it it;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_tpe tpe;
 
   setup_default_client(&conn);
 
@@ -11334,6 +11360,54 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
   }
 
   assert_size(1, ==, num_reclaim_pkt);
+
+  ngtcp2_conn_del(conn);
+
+  /* Skip frame which is acknowledged by late ACK */
+  setup_default_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  t = ngtcp2_conn_get_expiry(conn);
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_not_null(ent->frc->binder);
+  assert_uint64(NGTCP2_FRAME_NEW_CONNECTION_ID, ==, ent->frc->fr.type);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  t = ngtcp2_conn_get_expiry(conn);
+
+  assert_uint64(UINT64_MAX, !=, t);
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
 
   ngtcp2_conn_del(conn);
 }
@@ -13156,6 +13230,22 @@ void test_ngtcp2_conn_pmtud_loss(void) {
   assert_int(0, ==, rv);
   assert_size(1, ==, conn->pktns.rtb.num_lost_pkts);
   assert_size(1, ==, conn->pktns.rtb.num_lost_pmtud_pkts);
+  assert_uint64(0, ==, conn->pktns.rtb.cc_bytes_in_flight);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 1;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  /* Handle spuriously lost PMTUD packet */
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(0, ==, conn->pktns.rtb.num_lost_pkts);
+  assert_size(0, ==, conn->pktns.rtb.num_lost_pmtud_pkts);
   assert_uint64(0, ==, conn->pktns.rtb.cc_bytes_in_flight);
 
   ngtcp2_conn_del(conn);
