@@ -2423,9 +2423,7 @@ size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
   left -= n;
 
   if (left > 8 + 1073741823 && len > 1073741823) {
-#if SIZE_MAX > UINT32_MAX
     len = ngtcp2_min_uint64(len, 4611686018427387903lu);
-#endif /* SIZE_MAX > UINT32_MAX */
     return (size_t)ngtcp2_min_uint64(len, (uint64_t)(left - 8));
   }
 
