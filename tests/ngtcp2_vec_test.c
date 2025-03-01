@@ -505,7 +505,7 @@ void test_ngtcp2_vec_merge(void) {
 void test_ngtcp2_vec_len_varint(void) {
   assert_int64(0, ==, ngtcp2_vec_len_varint(NULL, 0));
 
-#if SIZE_MAX == UINT64_MAX
+#if UINT64_MAX == SIZE_MAX
   {
     ngtcp2_vec v[] = {
       {
@@ -532,7 +532,7 @@ void test_ngtcp2_vec_len_varint(void) {
     assert_int64(NGTCP2_MAX_VARINT, ==,
                  ngtcp2_vec_len_varint(v, ngtcp2_arraylen(v)));
   }
-#endif /* SIZE_MAX == UINT64_MAX */
+#endif /* UINT64_MAX == SIZE_MAX */
 }
 
 void test_ngtcp2_vec_copy_at_most(void) {
