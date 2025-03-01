@@ -94,6 +94,79 @@ if(LIBEV_FOUND AND HAVE_OPENSSL_FORK AND LIBNGHTTP3_FOUND)
   # TODO prevent client and example servers from being installed?
 endif()
 
+if(LIBEV_FOUND AND HAVE_OPENSSL AND NOT HAVE_OPENSSL_FORK AND LIBNGHTTP3_FOUND)
+  set(opensslclient_SOURCES
+    client.cc
+    client_base.cc
+    debug.cc
+    util.cc
+    shared.cc
+    tls_client_context_openssl.cc
+    tls_client_session_openssl.cc
+    tls_session_base_openssl.cc
+    util_openssl.cc
+  )
+
+  set(opensslserver_SOURCES
+    server.cc
+    server_base.cc
+    debug.cc
+    util.cc
+    http.cc
+    shared.cc
+    siphash.cc
+    tls_server_context_openssl.cc
+    tls_server_session_openssl.cc
+    tls_session_base_openssl.cc
+    util_openssl.cc
+  )
+
+  set(openssl_INCLUDE_DIRS
+    ${CMAKE_SOURCE_DIR}/lib/includes
+    ${CMAKE_BINARY_DIR}/lib/includes
+    ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/third-party/urlparse
+    ${CMAKE_SOURCE_DIR}/crypto/includes
+
+    ${JEMALLOC_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIRS}
+    ${LIBEV_INCLUDE_DIRS}
+    ${LIBNGHTTP3_INCLUDE_DIRS}
+  )
+
+  set(openssl_LIBS
+    ngtcp2_crypto_openssl
+    ngtcp2
+    ${JEMALLOC_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    ${LIBEV_LIBRARIES}
+    ${LIBNGHTTP3_LIBRARIES}
+  )
+
+  add_executable(opensslclient ${opensslclient_SOURCES}
+    $<TARGET_OBJECTS:urlparse>
+  )
+  add_executable(opensslserver ${opensslserver_SOURCES}
+    $<TARGET_OBJECTS:urlparse>
+  )
+  set_target_properties(opensslclient PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_OPENSSL -DWITH_EXAMPLE_OPENSSL"
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+  )
+  set_target_properties(opensslserver PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_OPENSSL -DWITH_EXAMPLE_OPENSSL"
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+  )
+  target_include_directories(opensslclient PUBLIC ${openssl_INCLUDE_DIRS})
+  target_include_directories(opensslserver PUBLIC ${openssl_INCLUDE_DIRS})
+  target_link_libraries(opensslclient ${openssl_LIBS})
+  target_link_libraries(opensslserver ${openssl_LIBS})
+
+  # TODO prevent client and example servers from being installed?
+endif()
+
 if(LIBEV_FOUND AND HAVE_GNUTLS AND LIBNGHTTP3_FOUND)
   set(gtlsclient_SOURCES
     client.cc

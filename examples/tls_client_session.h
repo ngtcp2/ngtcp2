@@ -29,6 +29,10 @@
 #  include <config.h>
 #endif // defined(HAVE_CONFIG_H)
 
+#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
+#  include "tls_client_session_openssl.h"
+#endif
+
 #if defined(ENABLE_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_QUICTLS)
 #  include "tls_client_session_quictls.h"
 #endif // defined(ENABLE_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_QUICTLS)

@@ -22,35 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_SESSION_H
-#define TLS_SERVER_SESSION_H
+#ifndef TLS_CLIENT_SESSION_OPENSSL_H
+#define TLS_CLIENT_SESSION_OPENSSL_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // defined(HAVE_CONFIG_H)
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_server_session_openssl.h"
-#endif // defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
+#include "tls_session_base_openssl.h"
+#include "shared.h"
 
-#if defined(ENABLE_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_QUICTLS)
-#  include "tls_server_session_quictls.h"
-#endif // defined(ENABLE_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_QUICTLS)
+using namespace ngtcp2;
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_server_session_gnutls.h"
-#endif // defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
+class TLSClientContext;
+class ClientBase;
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_server_session_boringssl.h"
-#endif // defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
+class TLSClientSession : public TLSSessionBase {
+public:
+  TLSClientSession();
+  ~TLSClientSession();
 
-#if defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
-#  include "tls_server_session_picotls.h"
-#endif // defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
+  int init(bool &early_data_enabled, const TLSClientContext &tls_ctx,
+           const char *remote_addr, ClientBase *client, uint32_t quic_version,
+           AppProtocol app_proto);
 
-#if defined(ENABLE_EXAMPLE_WOLFSSL) && defined(WITH_EXAMPLE_WOLFSSL)
-#  include "tls_server_session_wolfssl.h"
-#endif // defined(ENABLE_EXAMPLE_WOLFSSL) && defined(WITH_EXAMPLE_WOLFSSL)
+  bool get_early_data_accepted() const;
+};
 
-#endif // !defined(TLS_SERVER_SESSION_H)
+#endif // !defined(TLS_CLIENT_SESSION_OPENSSL_H)

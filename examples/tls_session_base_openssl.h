@@ -22,35 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_SESSION_H
-#define TLS_SERVER_SESSION_H
+#ifndef TLS_SESSION_BASE_OPENSSL_H
+#define TLS_SESSION_BASE_OPENSSL_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // defined(HAVE_CONFIG_H)
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_server_session_openssl.h"
-#endif // defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
+#include <string>
+#include <string_view>
 
-#if defined(ENABLE_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_QUICTLS)
-#  include "tls_server_session_quictls.h"
-#endif // defined(ENABLE_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_QUICTLS)
+#include <openssl/ssl.h>
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_server_session_gnutls.h"
-#endif // defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
+class TLSSessionBase {
+public:
+  TLSSessionBase();
+  ~TLSSessionBase();
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_server_session_boringssl.h"
-#endif // defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
+  SSL *get_native_handle() const;
 
-#if defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
-#  include "tls_server_session_picotls.h"
-#endif // defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
+  std::string get_cipher_name() const;
+  std::string_view get_negotiated_group() const;
+  std::string get_selected_alpn() const;
+  // Keylog is enabled per SSL_CTX.
+  void enable_keylog() {}
 
-#if defined(ENABLE_EXAMPLE_WOLFSSL) && defined(WITH_EXAMPLE_WOLFSSL)
-#  include "tls_server_session_wolfssl.h"
-#endif // defined(ENABLE_EXAMPLE_WOLFSSL) && defined(WITH_EXAMPLE_WOLFSSL)
+protected:
+  SSL *ssl_;
+};
 
-#endif // !defined(TLS_SERVER_SESSION_H)
+#endif // !defined(TLS_SESSION_BASE_OPENSSL_H)
