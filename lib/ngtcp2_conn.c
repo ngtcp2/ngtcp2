@@ -7053,9 +7053,9 @@ static void
 handle_max_remote_streams_extension(uint64_t *punsent_max_remote_streams,
                                     size_t n) {
   if (
-#if SIZE_MAX > UINT32_MAX
+#if SIZE_MAX == UINT64_MAX
     NGTCP2_MAX_STREAMS < n ||
-#endif /* SIZE_MAX > UINT32_MAX */
+#endif /* SIZE_MAX == UINT64_MAX */
     *punsent_max_remote_streams > (uint64_t)(NGTCP2_MAX_STREAMS - n)) {
     *punsent_max_remote_streams = NGTCP2_MAX_STREAMS;
   } else {
@@ -11417,9 +11417,9 @@ ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
 
   datalen = ngtcp2_vec_len_varint(datav, datavcnt);
   if (datalen == -1
-#if UINT64_MAX > SIZE_MAX
+#if SIZE_MAX < UINT64_MAX
       || (uint64_t)datalen > SIZE_MAX
-#endif /* UINT64_MAX > SIZE_MAX */
+#endif /* SIZE_MAX < UINT64_MAX */
   ) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
