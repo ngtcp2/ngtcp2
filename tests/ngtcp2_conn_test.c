@@ -791,6 +791,8 @@ server_default_remote_transport_params(ngtcp2_transport_params *params) {
   params->initial_max_data = 64 * 1024;
   params->active_connection_id_limit = 8;
   params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
+  params->initial_scid_present = 1;
+  dcid_init(&params->initial_scid);
 }
 
 static void server_default_callbacks(ngtcp2_callbacks *cb) {
@@ -860,6 +862,10 @@ client_default_remote_transport_params(ngtcp2_transport_params *params) {
   params->initial_max_data = 64 * 1024;
   params->active_connection_id_limit = 8;
   params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
+  params->initial_scid_present = 1;
+  dcid_init(&params->initial_scid);
+  params->original_dcid_present = 1;
+  dcid_init(&params->original_dcid);
 }
 
 static void client_default_callbacks(ngtcp2_callbacks *cb) {
@@ -1004,6 +1010,7 @@ static void setup_default_server_with_options(ngtcp2_conn **pconn,
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
+  int rv;
 
   conn_server_new(pconn, opts);
 
@@ -1039,13 +1046,10 @@ static void setup_default_server_with_options(ngtcp2_conn **pconn,
     opts.remote_params = &remote_params;
   }
 
-  ngtcp2_transport_params_copy_new(&(*pconn)->remote.transport_params,
-                                   opts.remote_params, (*pconn)->mem);
-  (*pconn)->local.bidi.max_streams =
-    opts.remote_params->initial_max_streams_bidi;
-  (*pconn)->local.uni.max_streams = opts.remote_params->initial_max_streams_uni;
-  (*pconn)->tx.max_offset = opts.remote_params->initial_max_data;
-  (*pconn)->negotiated_version = (*pconn)->client_chosen_version;
+  rv = ngtcp2_conn_set_remote_transport_params(*pconn, opts.remote_params);
+
+  assert_int(0, ==, rv);
+
   (*pconn)->handshake_confirmed_ts = 0;
 }
 
@@ -1105,6 +1109,7 @@ static void setup_default_client_with_options(ngtcp2_conn **pconn,
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
+  int rv;
 
   conn_client_new(pconn, opts);
 
@@ -1127,18 +1132,16 @@ static void setup_default_client_with_options(ngtcp2_conn **pconn,
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   conn_set_scid_used(*pconn);
 
+  (*pconn)->negotiated_version = (*pconn)->client_chosen_version;
+
   if (!opts.remote_params) {
     client_default_remote_transport_params(&remote_params);
     opts.remote_params = &remote_params;
   }
 
-  ngtcp2_transport_params_copy_new(&(*pconn)->remote.transport_params,
-                                   opts.remote_params, (*pconn)->mem);
-  (*pconn)->local.bidi.max_streams =
-    opts.remote_params->initial_max_streams_bidi;
-  (*pconn)->local.uni.max_streams = opts.remote_params->initial_max_streams_uni;
-  (*pconn)->tx.max_offset = opts.remote_params->initial_max_data;
-  (*pconn)->negotiated_version = (*pconn)->client_chosen_version;
+  rv = ngtcp2_conn_set_remote_transport_params(*pconn, opts.remote_params);
+
+  assert_int(0, ==, rv);
 
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_TOKEN_PRESENT;
   memset((*pconn)->dcid.current.token, 0xf1, NGTCP2_STATELESS_RESET_TOKENLEN);
@@ -2487,7 +2490,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
 
   /* final_size in RESET_STREAM violates connection-level flow
      control */
-  server_default_transport_params(&remote_params);
+  server_default_remote_transport_params(&remote_params);
   remote_params.initial_max_stream_data_bidi_remote = 1 << 21;
 
   conn_options_clear(&opts);
@@ -10326,6 +10329,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   size_t pktlen;
   uint8_t buf[1200];
   int rv;
+  ngtcp2_transport_params remote_params;
   conn_options opts;
 
   dcid_init(&dcid);
@@ -10345,8 +10349,12 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   /* zero-length Destination Connection ID */
   ngtcp2_cid_zero(&dcid);
 
+  server_default_remote_transport_params(&remote_params);
+  remote_params.initial_scid = dcid;
+
   conn_options_clear(&opts);
   opts.dcid = &dcid;
+  opts.remote_params = &remote_params;
 
   setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
@@ -14793,12 +14801,17 @@ void test_ngtcp2_conn_ack_padding(void) {
   size_t pktlen;
   int rv;
   ngtcp2_cid dcid;
+  ngtcp2_transport_params remote_params;
   conn_options opts;
 
   dcid.datalen = 0;
 
+  server_default_remote_transport_params(&remote_params);
+  remote_params.initial_scid = dcid;
+
   conn_options_clear(&opts);
   opts.dcid = &dcid;
+  opts.remote_params = &remote_params;
 
   /* ACK only packet which is padded to make packet at minimum size is
      not counted toward CWND. */
