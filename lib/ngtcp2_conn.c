@@ -2220,12 +2220,11 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
          those packets have been acknowledged (i.e., retransmission in
          another packet).  For server, in this case, we don't have to
          send any probe packet.  Client needs to send probe packets
-         until it knows that server has completed address validation or
-         handshake has been confirmed. */
+         until it knows that server has completed address
+         validation. */
       if (pktns->rtb.num_pto_eliciting == 0 &&
           (conn->server ||
-           (conn->flags & (NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED |
-                           NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
+           (conn->flags & NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED))) {
         pktns->rtb.probe_pkt_left = 0;
         ngtcp2_conn_set_loss_detection_timer(conn, ts);
         /* TODO If packet is empty, we should return now if cwnd is
