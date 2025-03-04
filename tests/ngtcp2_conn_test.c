@@ -11332,6 +11332,13 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
   ngtcp2_frame fr;
   size_t pktlen;
   ngtcp2_tpe tpe;
+  ngtcp2_cid rcid;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+
+  rcid_init(&rcid);
 
   setup_default_client(&conn);
 
@@ -11401,6 +11408,198 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
   fr.ack.rangecnt = 0;
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  t = ngtcp2_conn_get_expiry(conn);
+
+  assert_uint64(UINT64_MAX, !=, t);
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Handshaking server: skip frame which is acknowledged by late
+     ACK */
+  server_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+
+  setup_handshake_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  tpe.dcid = rcid;
+  tpe.initial.ckm = &null_ckm;
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 33;
+  fr.stream.data[0].base = null_data;
+
+  memset(buf, 0, NGTCP2_MAX_UDP_PAYLOAD_SIZE);
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf,
+                            NGTCP2_MAX_UDP_PAYLOAD_SIZE, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, 123);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  t = ngtcp2_conn_get_expiry(conn);
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, ent->frc->fr.type);
+
+  ngtcp2_ksl_it_next(&it);
+
+  assert_false(ngtcp2_ksl_it_end(&it));
+
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, ent->frc->fr.type);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  memset(buf, 0, NGTCP2_MAX_UDP_PAYLOAD_SIZE);
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf,
+                            NGTCP2_MAX_UDP_PAYLOAD_SIZE, ++t);
+
+  assert_int(0, ==, rv);
+
+  t = ngtcp2_conn_get_expiry(conn);
+
+  assert_uint64(UINT64_MAX, !=, t);
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Handshaking client: skip frame which is acknowledged by late
+     ACK, and server address verified client address */
+  setup_handshake_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  tpe.handshake.ckm = &null_ckm;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 33;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_install_rx_handshake_key(conn, &aead_ctx, null_iv,
+                                            sizeof(null_iv), &hp_ctx);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
+                                            sizeof(null_iv), &hp_ctx);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                      null_data, 10);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                      null_data, 117);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  t = ngtcp2_conn_get_expiry(conn);
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->hs_pktns->rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, ent->frc->fr.type);
+
+  ngtcp2_ksl_it_next(&it);
+
+  assert_false(ngtcp2_ksl_it_end(&it));
+
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, ent->frc->fr.type);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 1;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
