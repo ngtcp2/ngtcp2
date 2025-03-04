@@ -23,6 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "tls_server_session_openssl.h"
+#include <ngtcp2/ngtcp2_crypto_openssl.h>
 
 #include <iostream>
 
@@ -46,11 +47,11 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
     return -1;
   }
 
+  ngtcp2_crypto_openssl_configure_server_session(ssl_);
+
   SSL_set_app_data(ssl_, handler->conn_ref());
   SSL_set_accept_state(ssl_);
-#ifndef LIBRESSL_VERSION_NUMBER
-  SSL_set_quic_early_data_enabled(ssl_, 1);
-#endif // !defined(LIBRESSL_VERSION_NUMBER)
+  SSL_set_quic_tls_early_data_enabled(ssl_, 1);
 
   return 0;
 }

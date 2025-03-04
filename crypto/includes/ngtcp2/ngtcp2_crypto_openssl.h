@@ -133,6 +133,34 @@ ngtcp2_crypto_openssl_configure_client_context(SSL_CTX *ssl_ctx);
 /**
  * @function
  *
+ * `ngtcp2_crypto_openssl_configure_server_session` configures
+ * |ssl| for client side QUIC connection.  It performs the
+ * following modifications:
+ *
+ *  - Sets the quic method callbacks for the external ngtcp2 quic stack
+ *
+ * It returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_openssl_configure_server_session(SSL *ssl);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_openssl_configure_client_session` configures
+ * |ssl| for client side QUIC connection.  It performs the
+ * following modifications:
+ *
+ *  - Sets the quic method callbacks for the external ngtcp2 quic stack
+ *
+ * It returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_openssl_configure_client_session(SSL *ssl);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_openssl_init` initializes libngtcp2_crypto_openssl
  * library.  This initialization is optional.  For openssl >= 3.0, it
  * is highly recommended to call this function before any use of

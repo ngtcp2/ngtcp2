@@ -23,7 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "tls_client_session_openssl.h"
-
+#include <ngtcp2/ngtcp2_crypto_openssl.h>
 #include <cassert>
 #include <iostream>
 
@@ -54,6 +54,8 @@ int TLSClientSession::init(bool &early_data_enabled,
               << std::endl;
     return -1;
   }
+
+  ngtcp2_crypto_openssl_configure_client_session(ssl_);
 
   SSL_set_app_data(ssl_, client->conn_ref());
   SSL_set_connect_state(ssl_);
