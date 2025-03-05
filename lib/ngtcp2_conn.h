@@ -110,6 +110,9 @@ typedef enum {
    NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING, but it requests to add
    padding to the full UDP datagram payload size. */
 #define NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING_FULL 0x04u
+/* NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY adds padding to the QUIC
+   packet as much as possible if the packet is not empty. */
+#define NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY 0x08u
 
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
@@ -801,7 +804,8 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
 ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
                                     int pkt_info_version, ngtcp2_pkt_info *pi,
                                     uint8_t *dest, size_t destlen,
-                                    ngtcp2_vmsg *vmsg, ngtcp2_tstamp ts);
+                                    uint8_t wflags, ngtcp2_vmsg *vmsg,
+                                    ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_write_single_frame_pkt writes a packet which contains

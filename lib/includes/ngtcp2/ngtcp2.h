@@ -4399,6 +4399,17 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
 #define NGTCP2_WRITE_STREAM_FLAG_FIN 0x02u
 
 /**
+ * @macro
+ *
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_PADDING` indicates that a
+ * non-empty 0 RTT or 1 RTT packet is padded to the minimum length of
+ * a sending path MTU or a given packet buffer when finalizing it.
+ * ACK, PATH_CHALLENGE, PATH_RESPONSE, CONNECTION_CLOSE only packets
+ * and PMTUD packets are excluded.
+ */
+#define NGTCP2_WRITE_STREAM_FLAG_PADDING 0x04u
+
+/**
  * @function
  *
  * `ngtcp2_conn_write_stream` is just like
@@ -4522,6 +4533,11 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * include, call this function with |stream_id| as -1 to stop
  * coalescing and write a packet.
  *
+ * If :macro:`NGTCP2_WRITE_STREAM_FLAG_PADDING` is set in |flags| when
+ * finalizing a non-empty 0 RTT or 1 RTT packet, the packet is padded
+ * to the minimum length of a sending path MTU or a given packet
+ * buffer.
+ *
  * This function returns 0 if it cannot write any frame because buffer
  * is too small, or packet is congestion limited.  Application should
  * keep reading and wait for congestion window to grow.
@@ -4585,6 +4601,17 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * may come, and should be coalesced into the same packet if possible.
  */
 #define NGTCP2_WRITE_DATAGRAM_FLAG_MORE 0x01u
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_PADDING` indicates that a
+ * non-empty 0 RTT or 1 RTT packet is padded to the minimum length of
+ * a sending path MTU or a given packet buffer when finalizing it.
+ * ACK, PATH_CHALLENGE, PATH_RESPONSE, CONNECTION_CLOSE only packets
+ * and PMTUD packets are excluded.
+ */
+#define NGTCP2_WRITE_DATAGRAM_FLAG_PADDING 0x02u
 
 /**
  * @function
@@ -4666,6 +4693,11 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_datagram_versioned(
  * `ngtcp2_conn_shutdown_stream`).  Just keep calling this function
  * (or `ngtcp2_conn_writev_stream`) until it returns a positive number
  * (which indicates a complete packet is ready).
+ *
+ * If :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_PADDING` is set in |flags|
+ * when finalizing a non-empty 0 RTT or 1 RTT packet, the packet is
+ * padded to the minimum length of a sending path MTU or a given
+ * packet buffer.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
