@@ -9873,7 +9873,14 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       if (pending_early_datalen &&
           !(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
         nwrite = conn_retransmit_retry_early(
-          conn, pi, dest, destlen, (size_t)res, NGTCP2_WRITE_PKT_FLAG_NONE, ts);
+          conn, pi, dest, destlen, (size_t)res,
+          (nwrite && ngtcp2_pkt_get_type_long(
+                       conn->negotiated_version ? conn->negotiated_version
+                                                : conn->client_chosen_version,
+                       *(dest - nwrite)) == NGTCP2_PKT_INITIAL)
+            ? NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING
+            : NGTCP2_WRITE_PKT_FLAG_NONE,
+          ts);
         if (nwrite < 0) {
           return nwrite;
         }
