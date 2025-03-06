@@ -7187,6 +7187,11 @@ void test_ngtcp2_conn_writev_stream(void) {
   conn_options opts;
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
+  ngtcp2_cid dcid;
+  ngtcp2_crypto_aead aead = {0};
+  const uint8_t token[] = "token";
+
+  dcid_init(&dcid);
 
   /* 0 length STREAM should not be written if we supply nonzero length
      data. */
@@ -7656,6 +7661,179 @@ void test_ngtcp2_conn_writev_stream(void) {
   assert_ptrdiff(NGTCP2_ERR_STREAM_SHUT_WR, ==, spktlen);
 
   ngtcp2_conn_del(conn);
+
+  /* NGTCP2_WRITE_STREAM_FLAG_PADDING */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE |
+                                        NGTCP2_WRITE_STREAM_FLAG_PADDING,
+                                      stream_id, &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE |
+                                        NGTCP2_WRITE_STREAM_FLAG_PADDING,
+                                      -1, NULL, 0, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Do not specify NGTCP2_WRITE_STREAM_FLAG_PADDING in the final call
+     to ngtcp2_conn_writev_stream. */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE |
+                                        NGTCP2_WRITE_STREAM_FLAG_PADDING,
+                                      stream_id, &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+
+  spktlen =
+    ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                              NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, ++t);
+
+  assert_ptrdiff(1200, >, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Set NGTCP2_WRITE_STREAM_FLAG_PADDING only in the final call to
+     ngtcp2_conn_writev_stream. */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE |
+                                        NGTCP2_WRITE_STREAM_FLAG_PADDING,
+                                      -1, NULL, 0, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* 0 RTT packet is also padded with
+     NGTCP2_WRITE_STREAM_FLAG_PADDING. */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE |
+                                        NGTCP2_WRITE_STREAM_FLAG_PADDING,
+                                      -1, NULL, 0, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* 0 RTT packet after Retry is also padded with
+     NGTCP2_WRITE_STREAM_FLAG_PADDING. */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 1200, ++t);
+
+  spktlen =
+    ngtcp2_pkt_write_retry(buf, sizeof(buf), NGTCP2_PROTO_VER_V1, &conn->oscid,
+                           &dcid, ngtcp2_conn_get_dcid(conn), token,
+                           strsize(token), null_encrypt, &aead, &aead_ctx);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, (size_t)spktlen,
+                            ++t);
+
+  assert_int(0, ==, rv);
+
+  /* UDP datagram containing Initial packet is always padded. */
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                     NGTCP2_WRITE_STREAM_FLAG_PADDING, -1, NULL,
+                                     0, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+
+  spktlen =
+    ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                             NGTCP2_WRITE_STREAM_FLAG_NONE, -1, NULL, 0, ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Padding is subject to anti-amplification limit when server has
+     not validated the path. */
+  setup_default_server(&conn);
+
+  conn->dcid.current.flags &= (uint8_t)~NGTCP2_DCID_FLAG_PATH_VALIDATED;
+  conn->dcid.current.bytes_recv = 300;
+
+  open_stream(conn, 0);
+
+  spktlen =
+    ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                              NGTCP2_WRITE_STREAM_FLAG_MORE, 0, &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE |
+                                        NGTCP2_WRITE_STREAM_FLAG_PADDING,
+                                      -1, NULL, 0, ++t);
+
+  assert_ptrdiff(900, ==, spktlen);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_writev_datagram(void) {
@@ -7879,6 +8057,86 @@ void test_ngtcp2_conn_writev_datagram(void) {
 
   assert_ptrdiff(0, <, spktlen);
   assert_true(accepted);
+
+  ngtcp2_conn_del(conn);
+
+  /* NGTCP2_WRITE_DATAGRAM_FLAG_PADDING */
+  client_default_remote_transport_params(&remote_params);
+  remote_params.max_datagram_frame_size = 1500;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
+
+  spktlen = ngtcp2_conn_writev_datagram(conn, NULL, NULL, buf, 1200, &accepted,
+                                        NGTCP2_WRITE_DATAGRAM_FLAG_MORE, 999,
+                                        &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+  assert_true(accepted);
+
+  spktlen = ngtcp2_conn_write_datagram(conn, NULL, NULL, buf, 1200, &accepted,
+                                       NGTCP2_WRITE_DATAGRAM_FLAG_PADDING, 3,
+                                       null_data, 1200, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+  assert_false(accepted);
+
+  ngtcp2_conn_del(conn);
+
+  /* Add padding with NGTCP2_WRITE_STREAM_FLAG_PADDING to the final
+     call to ngtcp2_conn_writev_stream. */
+  client_default_remote_transport_params(&remote_params);
+  remote_params.max_datagram_frame_size = 1200;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
+
+  spktlen = ngtcp2_conn_writev_datagram(
+    conn, NULL, NULL, buf, sizeof(buf), &accepted,
+    NGTCP2_WRITE_DATAGRAM_FLAG_MORE, 999, &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+  assert_true(accepted);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                      NGTCP2_WRITE_STREAM_FLAG_PADDING, -1,
+                                      NULL, 0, ++t);
+
+  assert_ptrdiff(sizeof(buf), ==, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* 0 RTT packet is also padded with
+     NGTCP2_WRITE_STREAM_FLAG_PADDING. */
+  client_early_remote_transport_params(&remote_params);
+  remote_params.max_datagram_frame_size = 1500;
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_early_client_with_options(&conn, opts);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1200, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  spktlen = ngtcp2_conn_writev_datagram(conn, NULL, NULL, buf, 1200, &accepted,
+                                        NGTCP2_WRITE_DATAGRAM_FLAG_MORE, 999,
+                                        &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+  assert_true(accepted);
+
+  spktlen = ngtcp2_conn_write_datagram(conn, NULL, NULL, buf, 1200, &accepted,
+                                       NGTCP2_WRITE_DATAGRAM_FLAG_PADDING, 3,
+                                       null_data, 1200, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+  assert_false(accepted);
 
   ngtcp2_conn_del(conn);
 }
