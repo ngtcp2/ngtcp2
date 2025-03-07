@@ -252,7 +252,7 @@ void test_ngtcp2_dcidtr_verify_stateless_reset(void) {
 
   rv = ngtcp2_dcidtr_verify_stateless_reset(&dtr, &ps[2].path, token[2]);
 
-  assert_int(0, ==, rv);
+  assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
 }
 
 void test_ngtcp2_dcidtr_verify_token_uniqueness(void) {
