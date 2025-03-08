@@ -200,6 +200,12 @@ void ngtcp2_tpe_init(ngtcp2_tpe *tpe, const ngtcp2_cid *dcid,
 /* ngtcp2_tpe_init_conn initializes |tpe| using values from |conn|. */
 void ngtcp2_tpe_init_conn(ngtcp2_tpe *tpe, ngtcp2_conn *conn);
 
+/* ngtcp2_tpe_init_conn_handshake_server initializes |tpe| using
+   values from |conn|, and sets the required values to send Initial
+   packets to this server. */
+void ngtcp2_tpe_init_conn_handshake_server(ngtcp2_tpe *tpe, ngtcp2_conn *conn,
+                                           ngtcp2_crypto_km *ckm);
+
 /* ngtcp2_tpe_write_initial encodes Initial packet which contains
    |frlen| frames pointed by |fr| to the buffer pointed by |out| of
    length |outlen|.  It returns the number of bytes written. */

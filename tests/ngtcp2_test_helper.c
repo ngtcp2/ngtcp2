@@ -411,6 +411,14 @@ void ngtcp2_tpe_init_conn(ngtcp2_tpe *tpe, ngtcp2_conn *conn) {
   tpe->app.ckm = conn->pktns.crypto.rx.ckm;
 }
 
+void ngtcp2_tpe_init_conn_handshake_server(ngtcp2_tpe *tpe, ngtcp2_conn *conn,
+                                           ngtcp2_crypto_km *ckm) {
+  ngtcp2_tpe_init_conn(tpe, conn);
+
+  rcid_init(&tpe->dcid);
+  tpe->initial.ckm = ckm;
+}
+
 size_t ngtcp2_tpe_write_initial(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
                                 ngtcp2_frame *fr, size_t frlen) {
   return write_long_pkt(out, outlen, tpe->flags, NGTCP2_PKT_INITIAL, &tpe->dcid,

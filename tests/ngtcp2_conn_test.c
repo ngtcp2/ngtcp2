@@ -4189,7 +4189,6 @@ void test_ngtcp2_conn_handshake(void) {
   ngtcp2_frame fr;
   int64_t pkt_num = 12345689;
   ngtcp2_tstamp t = 0;
-  ngtcp2_cid rcid;
   int rv;
   int64_t stream_id;
   ngtcp2_ssize nwrite;
@@ -4201,14 +4200,10 @@ void test_ngtcp2_conn_handshake(void) {
   ngtcp2_callbacks callbacks;
   conn_options opts;
 
-  rcid_init(&rcid);
-
   /* Make sure server Initial is padded */
   setup_handshake_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.initial.last_pkt_num = pkt_num;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -4231,10 +4226,8 @@ void test_ngtcp2_conn_handshake(void) {
   /* Make sure server Handshake is padded when ack-eliciting Initial
      is coalesced. */
   setup_handshake_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.initial.last_pkt_num = pkt_num;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -4341,9 +4334,8 @@ void test_ngtcp2_conn_handshake(void) {
 
   /* Make sure padding is done in 1-RTT packet */
   setup_handshake_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.initial.last_pkt_num = pkt_num;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -4474,13 +4466,10 @@ void test_ngtcp2_conn_handshake_error(void) {
   ngtcp2_frame fr;
   int64_t pkt_num = 107;
   ngtcp2_tstamp t = 0;
-  ngtcp2_cid rcid;
   int rv;
   ngtcp2_tpe tpe;
   ngtcp2_callbacks callbacks;
   conn_options opts;
-
-  rcid_init(&rcid);
 
   /* client side */
   client_default_callbacks(&callbacks);
@@ -4518,10 +4507,8 @@ void test_ngtcp2_conn_handshake_error(void) {
   opts.callbacks = &callbacks;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.initial.last_pkt_num = pkt_num;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -4545,11 +4532,9 @@ void test_ngtcp2_conn_handshake_error(void) {
   opts.callbacks = &callbacks;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.version = 0xffff;
   tpe.initial.last_pkt_num = pkt_num;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -6876,14 +6861,11 @@ void test_ngtcp2_conn_recv_early_data(void) {
   int64_t pkt_num = 1;
   ngtcp2_tstamp t = 0;
   ngtcp2_strm *strm;
-  ngtcp2_cid rcid;
   int rv;
   my_user_data ud;
   ngtcp2_tpe tpe;
   ngtcp2_callbacks callbacks;
   conn_options opts;
-
-  rcid_init(&rcid);
 
   server_early_callbacks(&callbacks);
   callbacks.recv_stream_data = recv_stream_data;
@@ -6893,10 +6875,8 @@ void test_ngtcp2_conn_recv_early_data(void) {
   opts.user_data = &ud;
 
   setup_early_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.initial.last_pkt_num = pkt_num;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -6948,8 +6928,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   /* Re-ordered 0-RTT packet */
   setup_early_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -6972,10 +6951,8 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   /* Compound packet */
   setup_early_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.initial.last_pkt_num = pkt_num;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -7030,9 +7007,8 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
 
   /* 2 QUIC long packets in one UDP packet */
   setup_handshake_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.initial.last_pkt_num = pkt_num;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -7116,8 +7092,7 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
 
   /* Payload length is invalid */
   setup_handshake_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -7144,8 +7119,7 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   /* Client Initial packet included in UDP datagram smaller than 1200
      is discarded. */
   setup_handshake_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -7423,8 +7397,7 @@ void test_ngtcp2_conn_writev_stream(void) {
 
   /* 1RTT: Stream data blocked when attempting coalescing packet */
   setup_handshake_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -7489,8 +7462,7 @@ void test_ngtcp2_conn_writev_stream(void) {
   /* 1RTT: Stream data blocked when attempting coalescing packet with
      NGTCP2_WRITE_STREAM_FLAG_MORE */
   setup_handshake_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -8149,13 +8121,10 @@ void test_ngtcp2_conn_recv_datagram(void) {
   ngtcp2_tstamp t = 0;
   my_user_data ud;
   int rv;
-  ngtcp2_cid rcid;
   ngtcp2_tpe tpe;
   ngtcp2_transport_params params;
   ngtcp2_callbacks callbacks;
   conn_options opts;
-
-  rcid_init(&rcid);
 
   server_default_transport_params(&params);
   params.max_datagram_frame_size = 1 + 1111;
@@ -8226,9 +8195,7 @@ void test_ngtcp2_conn_recv_datagram(void) {
   opts.user_data = &ud;
 
   setup_early_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -9832,7 +9799,6 @@ void test_ngtcp2_conn_handshake_loss(void) {
   uint8_t buf[1252];
   ngtcp2_frame fr;
   ngtcp2_frame frs[2];
-  ngtcp2_cid rcid;
   int rv;
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
@@ -9844,8 +9810,6 @@ void test_ngtcp2_conn_handshake_loss(void) {
   ngtcp2_callbacks callbacks;
   conn_options opts;
 
-  rcid_init(&rcid);
-
   server_default_callbacks(&callbacks);
   callbacks.recv_crypto_data = recv_crypto_data;
 
@@ -9853,9 +9817,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
   opts.callbacks = &callbacks;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   frs[0].type = NGTCP2_FRAME_CRYPTO;
   frs[0].stream.offset = 0;
@@ -10015,9 +9977,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
   opts.callbacks = &callbacks;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   frs[0].type = NGTCP2_FRAME_CRYPTO;
   frs[0].stream.offset = 0;
@@ -10533,16 +10493,12 @@ void test_ngtcp2_conn_recv_client_initial_retry(void) {
   size_t pktlen;
   ngtcp2_frame fr;
   ngtcp2_tstamp t = 0;
-  ngtcp2_cid rcid;
   int rv;
   ngtcp2_tpe tpe;
 
-  rcid_init(&rcid);
-
   setup_handshake_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
+
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 1;
   fr.stream.datacnt = 1;
@@ -10564,14 +10520,11 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   size_t pktlen;
   ngtcp2_frame fr;
   ngtcp2_tstamp t = 0;
-  ngtcp2_cid rcid;
   int rv;
   const uint8_t raw_token[] = {0xff, 0x12, 0x31, 0x04, 0xab};
   ngtcp2_tpe tpe;
   ngtcp2_settings settings;
   conn_options opts;
-
-  rcid_init(&rcid);
 
   server_handshake_settings(&settings);
   settings.token = raw_token;
@@ -10581,9 +10534,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   opts.settings = &settings;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -10612,9 +10563,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   opts.settings = &settings;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -11649,13 +11598,10 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
   ngtcp2_frame fr;
   size_t pktlen;
   ngtcp2_tpe tpe;
-  ngtcp2_cid rcid;
   ngtcp2_callbacks callbacks;
   conn_options opts;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
-
-  rcid_init(&rcid);
 
   setup_default_client(&conn);
 
@@ -11752,9 +11698,7 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
   opts.callbacks = &callbacks;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -13255,8 +13199,7 @@ void test_ngtcp2_conn_buffer_pkt(void) {
   /* Server should buffer Short packet if it does not complete
      handshake even if it has application tx key. */
   setup_handshake_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -13541,8 +13484,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
   opts.callbacks = &callbacks;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -13593,8 +13535,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
   opts.callbacks = &callbacks;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -13780,19 +13721,14 @@ void test_ngtcp2_conn_amplification(void) {
   ngtcp2_frame fr;
   size_t pktlen;
   uint8_t buf[2048];
-  ngtcp2_cid rcid;
   ngtcp2_tstamp t = 0;
   ngtcp2_ssize spktlen;
   int rv;
   ngtcp2_tpe tpe;
 
-  rcid_init(&rcid);
-
   /* ACK only frame should not be sent due to amplification limit. */
   setup_early_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
-  tpe.initial.ckm = &null_ckm;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -14336,11 +14272,8 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   ngtcp2_tstamp t = 0;
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
-  ngtcp2_cid rcid;
   ngtcp2_tpe tpe;
   conn_options opts;
-
-  rcid_init(&rcid);
 
   /* Client disables grease_quic_bit, and receives a 1-RTT packet that
      has fixed bit not set. */
@@ -14427,10 +14360,8 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   opts.params = &params;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.flags = NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -14459,10 +14390,8 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   opts.params = &params;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.flags = NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -14491,10 +14420,8 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   opts.settings = &settings;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.flags = NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
@@ -14526,10 +14453,8 @@ void test_ngtcp2_conn_grease_quic_bit(void) {
   opts.params = &params;
 
   setup_handshake_server_with_options(&conn, opts);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-  tpe.dcid = rcid;
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
   tpe.flags = NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
-  tpe.initial.ckm = &null_ckm;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.stream.offset = 0;
