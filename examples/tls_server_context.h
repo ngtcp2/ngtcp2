@@ -49,4 +49,8 @@
 #  include "tls_server_context_wolfssl.h"
 #endif // defined(ENABLE_EXAMPLE_WOLFSSL) && defined(WITH_EXAMPLE_WOLFSSL)
 
+#if defined(ENABLE_EXAMPLE_OSSL) && defined(WITH_EXAMPLE_OSSL)
+#  include "tls_server_context_ossl.h"
+#endif // defined(ENABLE_EXAMPLE_OSSL) && defined(WITH_EXAMPLE_OSSL)
+
 #endif // !defined(TLS_SERVER_CONTEXT_H)

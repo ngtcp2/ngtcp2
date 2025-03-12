@@ -66,6 +66,7 @@ directory require at least one of the following TLS backends:
 - Picotls (commit bbcdbe6dc31ec5d4b72a7beece4daf58098bad42)
 - wolfSSL >= 5.5.0
 - LibreSSL >= v3.9.2
+- OpenSSL >= 3.5.0 (experimental, not fully functional)
 
 Before building from git
 ------------------------
@@ -276,6 +277,7 @@ available crypto helper libraries are:
 - libngtcp2_crypto_boringssl: Use BoringSSL and aws-lc as TLS backend
 - libngtcp2_crypto_picotls: Use Picotls as TLS backend
 - libngtcp2_crypto_wolfssl: Use wolfSSL as TLS backend
+- libngtcp2_crypto_ossl: Use OpenSSL as TLS backend
 
 Because BoringSSL and Picotls are an unversioned product, we only
 tested their particular revision.  See Requirements section above.
@@ -296,6 +298,8 @@ if their corresponding crypto helper library is built:
 - ptlsserver: Picotls server
 - wsslclient: wolfSSL client
 - wsslserver: wolfSSL server
+- osslclient: OpenSSL client
+- osslserver: OpenSSL server
 
 QUIC protocol extensions
 -------------------------

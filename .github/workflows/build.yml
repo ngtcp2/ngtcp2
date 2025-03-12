@@ -6,7 +6,7 @@ permissions: read-all
 
 env:
   OPENSSL1_VERSION: 1_1_1w+quic
-  OPENSSL3_VERSION: 3.1.7+quic
+  OPENSSL3_VERSION: 3.5.0-alpha1
   BORINGSSL_VERSION: 294ab9730c570213b496cfc2fc14b3c0bfcd4bcc
   AWSLC_VERSION: v1.46.1
   PICOTLS_VERSION: bbcdbe6dc31ec5d4b72a7beece4daf58098bad42
@@ -530,6 +530,8 @@ jobs:
         # gtlsserver and bsslclient that causes early data test
         # failure; see https://gitlab.com/gnutls/gnutls/-/issues/1403
         EXPR="not (gnutls-boringssl and earlydata)"
+        # osslserver is not functional on resumption and early data.
+        EXPR="$EXPR and not (ossl- and (resume or earlydata))"
 
         if [ "${{ matrix.tls }}" = "group-c" ]; then
           # libressl does not support resumption, earlydata,
@@ -547,8 +549,16 @@ jobs:
         [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
         "$NGTCP2_SOURCE_DIR"/ci/gen-certificate.sh
 
-        CLIENTS="qtlsclient gtlsclient bsslclient wsslclient ptlsclient"
-        SERVERS="qtlsserver gtlsserver bsslserver wsslserver ptlsserver"
+        if [ "${{ matrix.tls }}" = "group-a" ]; then
+          CLIENTS="osslclient"
+          SERVERS="osslserver"
+        else
+          CLIENTS="qtlsclient"
+          SERVERS="qtlsserver"
+        fi
+
+        CLIENTS="$CLIENTS gtlsclient bsslclient wsslclient ptlsclient"
+        SERVERS="$SERVERS gtlsserver bsslserver wsslserver ptlsserver"
 
         for client in $CLIENTS; do
           for server in $SERVERS; do
