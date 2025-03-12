@@ -25,6 +25,7 @@ for which we provide crypto helper libraries:
 * Picotls
 * wolfSSL
 * LibreSSL
+* OpenSSL (experimental)
 
 Creating ngtcp2_conn object
 ---------------------------

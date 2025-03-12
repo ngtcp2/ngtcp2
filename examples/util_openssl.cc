@@ -126,23 +126,23 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
 }
 
 const char *crypto_default_ciphers() {
-#ifdef WITH_EXAMPLE_QUICTLS
+#if defined(WITH_EXAMPLE_QUICTLS) || defined(WITH_EXAMPLE_OSSL)
   return "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_"
          "SHA256"
 #  ifndef LIBRESSL_VERSION_NUMBER
          ":TLS_AES_128_CCM_SHA256"
 #  endif // !defined(LIBRESSL_VERSION_NUMBER)
     ;
-#else  // !defined(WITH_EXAMPLE_QUICTLS)
+#else  // !(defined(WITH_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_OSSL))
   return "";
-#endif // !defined(WITH_EXAMPLE_QUICTLS)
+#endif // !(defined(WITH_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_OSSL))
 }
 
 const char *crypto_default_groups() {
   return "X25519:P-256:P-384:P-521"
-#ifdef WITH_EXAMPLE_BORINGSSL
+#if defined(WITH_EXAMPLE_BORINGSSL) || defined(WITH_EXAMPLE_OSSL)
          ":X25519MLKEM768"
-#endif // defined(WITH_EXAMPLE_BORINGSSL)
+#endif // defined(WITH_EXAMPLE_BORINGSSL) || defined(WITH_EXAMPLE_OSSL)
     ;
 }
 

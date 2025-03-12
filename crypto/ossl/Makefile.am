@@ -1,6 +1,6 @@
 # ngtcp2
 
-# Copyright (c) 2019 ngtcp2
+# Copyright (c) 2025 ngtcp2 contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -20,37 +20,24 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+EXTRA_DIST = CMakeLists.txt
 
-install(FILES
-    ngtcp2/ngtcp2_crypto.h
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
+AM_CFLAGS = $(WARNCFLAGS) $(DEBUGCFLAGS) $(EXTRACFLAG)
+AM_CPPFLAGS = -I$(top_srcdir)/lib/includes -I$(top_builddir)/lib/includes \
+	-I$(top_srcdir)/lib -DBUILDING_NGTCP2 \
+	-I$(top_srcdir)/crypto/includes -I$(top_builddir)/crypto/includes \
+	-I$(top_srcdir)/crypto -I$(top_builddir)/crypto \
+	@OPENSSL_CFLAGS@
+AM_LDFLAGS = ${LIBTOOL_LDFLAGS}
 
-if(HAVE_QUICTLS)
-  install(FILES
-      ngtcp2/ngtcp2_crypto_quictls.h
-      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libngtcp2_crypto_ossl.pc
+DISTCLEANFILES = $(pkgconfig_DATA)
 
-if(HAVE_GNUTLS)
-  install(FILES
-      ngtcp2/ngtcp2_crypto_gnutls.h
-      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
+lib_LTLIBRARIES = libngtcp2_crypto_ossl.la
 
-if(HAVE_BORINGSSL)
-  install(FILES
-      ngtcp2/ngtcp2_crypto_boringssl.h
-      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
-
-if(HAVE_PICOTLS)
-  install(FILES
-      ngtcp2/ngtcp2_crypto_picotls.h
-      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
-
-if(HAVE_WOLFSSL)
-  install(FILES
-      ngtcp2/ngtcp2_crypto_wolfssl.h
-      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
+libngtcp2_crypto_ossl_la_SOURCES = ossl.c ../shared.c ../shared.h
+libngtcp2_crypto_ossl_la_LDFLAGS = -no-undefined \
+	-version-info $(CRYPTO_OSSL_LT_CURRENT):$(CRYPTO_OSSL_LT_REVISION):$(CRYPTO_OSSL_LT_AGE)
+libngtcp2_crypto_ossl_la_LIBADD = $(top_builddir)/lib/libngtcp2.la \
+	@OPENSSL_LIBS@

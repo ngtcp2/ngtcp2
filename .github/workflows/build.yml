@@ -7,6 +7,7 @@ permissions: read-all
 env:
   OPENSSL1_VERSION: 1_1_1w+quic
   OPENSSL3_VERSION: 3.1.7+quic
+  OSSL_VERSION: 3.5.0
   BORINGSSL_VERSION: 294ab9730c570213b496cfc2fc14b3c0bfcd4bcc
   AWSLC_VERSION: v1.46.1
   PICOTLS_VERSION: bbcdbe6dc31ec5d4b72a7beece4daf58098bad42
@@ -64,6 +65,12 @@ jobs:
       with:
         path: openssl3/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL3_VERSION }}
+    - name: Restore OSSL cache
+      id: cache-ossl
+      uses: actions/cache@v4
+      with:
+        path: ossl/build
+        key: ${{ matrix.os }}-ossl-${{ env.OSSL_VERSION }}
     - name: Restore BoringSSL cache
       id: cache-boringssl
       uses: actions/cache@v4
@@ -100,6 +107,15 @@ jobs:
           picotls-openssl3/build/libpicotls-openssl.a
           picotls-openssl3/include
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
+    - name: Restore Picotls + OSSL cache
+      id: cache-picotls-ossl
+      uses: actions/cache@v4
+      with:
+        path: |
+          picotls-ossl/build/libpicotls-core.a
+          picotls-ossl/build/libpicotls-openssl.a
+          picotls-ossl/include
+        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-ossl-${{ env.OSSL_VERSION }}
     - name: Restore Picotls + LibreSSL cache
       id: cache-picotls-libressl
       uses: actions/cache@v4
@@ -132,10 +148,12 @@ jobs:
       if: |
         steps.cache-openssl1.outputs.cache-hit != 'true' ||
         steps.cache-openssl3.outputs.cache-hit != 'true' ||
+        steps.cache-ossl.outputs.cache-hit != 'true' ||
         steps.cache-boringssl.outputs.cache-hit != 'true' ||
         steps.cache-awslc.outputs.cache-hit != 'true' ||
         steps.cache-picotls-openssl1.outputs.cache-hit != 'true' ||
         steps.cache-picotls-openssl3.outputs.cache-hit != 'true' ||
+        steps.cache-picotls-ossl.outputs.cache-hit != 'true' ||
         steps.cache-picotls-libressl.outputs.cache-hit != 'true' ||
         steps.cache-wolfssl.outputs.cache-hit != 'true' ||
         steps.cache-libressl.outputs.cache-hit != 'true' ||
@@ -174,6 +192,12 @@ jobs:
         ./ci/build_openssl.sh
       env:
         OPENSSL: openssl3
+    - name: Build OSSL
+      if: steps.cache-ossl.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_openssl.sh
+      env:
+        OPENSSL: ossl
     - name: Build BoringSSL
       if: steps.cache-boringssl.outputs.cache-hit != 'true'
       run: |
@@ -194,6 +218,12 @@ jobs:
         ./ci/build_picotls.sh
       env:
         OPENSSL: openssl3
+    - name: Build Picotls + OSSL
+      if: steps.cache-picotls-ossl.outputs.cache-hit != 'true'
+      run: |
+        ./ci/build_picotls.sh
+      env:
+        OPENSSL: ossl
     - name: Build wolfSSL
       if: steps.cache-wolfssl.outputs.cache-hit != 'true'
       run: |
@@ -232,7 +262,8 @@ jobs:
         # group-a ... openssl3, pictols+openssl3, wolfssl, boringssl
         # group-b ... openssl1, picotls+openssl1, wolfssl, aws-lc
         # group-c ... libressl, picotls+libressl, wolfssl, boringssl
-        tls: [group-a, group-b, group-c]
+        # group-d ... ossl, picotls+ossl, wolfssl, aws-lc
+        tls: [group-a, group-b, group-c, group-d]
         sockaddr: [native-sockaddr, generic-sockaddr]
         exclude:
         - os: macos-13
@@ -251,6 +282,8 @@ jobs:
           sockaddr: generic-sockaddr
         - tls: group-a
           sockaddr: generic-sockaddr
+        - tls: group-d
+          sockaddr: generic-sockaddr
         - buildtool: distcheck
           sockaddr: generic-sockaddr
         - buildtool: cmake
@@ -267,6 +300,8 @@ jobs:
           tls: group-c
         - os: macos-14
           tls: group-a
+        - os: macos-13
+          tls: group-d
 
     runs-on: ${{ matrix.os }}
 
@@ -339,6 +374,13 @@ jobs:
         path: openssl3/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL3_VERSION }}
         fail-on-cache-miss: true
+    - name: Restore OSSL cache
+      uses: actions/cache/restore@v4
+      if: matrix.tls == 'group-d'
+      with:
+        path: ossl/build
+        key: ${{ matrix.os }}-ossl-${{ env.OSSL_VERSION }}
+        fail-on-cache-miss: true
     - name: Restore BoringSSL cache
       uses: actions/cache/restore@v4
       if: matrix.tls == 'group-a' || matrix.tls == 'group-c'
@@ -351,7 +393,7 @@ jobs:
         fail-on-cache-miss: true
     - name: Restore aws-lc cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-b'
+      if: matrix.tls == 'group-b' || matrix.tls == 'group-d'
       with:
         path: |
           aws-lc/build/crypto/libcrypto.a
@@ -378,6 +420,16 @@ jobs:
           picotls-openssl3/build/libpicotls-openssl.a
           picotls-openssl3/include
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
+        fail-on-cache-miss: true
+    - name: Restore Picotls + OSSL cache
+      uses: actions/cache/restore@v4
+      if: matrix.tls == 'group-d'
+      with:
+        path: |
+          picotls-ossl/build/libpicotls-core.a
+          picotls-ossl/build/libpicotls-openssl.a
+          picotls-ossl/include
+        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-ossl-${{ env.OSSL_VERSION }}
         fail-on-cache-miss: true
     - name: Restore wolfSSL cache
       uses: actions/cache/restore@v4
@@ -411,16 +463,27 @@ jobs:
         fail-on-cache-miss: true
     - name: Setup environment variables
       run: |
-        PKG_CONFIG_PATH="$PWD/openssl1/build/lib/pkgconfig:$PWD/openssl3/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig:$PWD/libressl/build/lib/pkgconfig"
-        LDFLAGS="-Wl,-rpath,$PWD/openssl1/build/lib -Wl,-rpath,$PWD/openssl3/build/lib64 -Wl,-rpath,$PWD/libressl/build/lib"
+        PKG_CONFIG_PATH="$PWD/openssl1/build/lib/pkgconfig:$PWD/openssl3/build/lib64/pkgconfig:$PWD/ossl/build/lib/pkgconfig:$PWD/ossl/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig:$PWD/libressl/build/lib/pkgconfig"
+        LDFLAGS="-Wl,-rpath,$PWD/openssl1/build/lib -Wl,-rpath,$PWD/openssl3/build/lib64 -Wl,-rpath,$PWD/ossl/build/lib -Wl,-rpath,$PWD/ossl/build/lib64 -Wl,-rpath,$PWD/libressl/build/lib"
 
-        if [ "${{ matrix.tls }}" = "group-b" ]; then
-          PICOTLS_PREFIX="$PWD/picotls-openssl1"
-        elif [ "${{ matrix.tls }}" = "group-a" ]; then
-          PICOTLS_PREFIX="$PWD/picotls-openssl3"
-        else
-          PICOTLS_PREFIX="$PWD/picotls-libressl"
-        fi
+        case "${{ matrix.tls }}" in
+          "group-a")
+            PICOTLS_PREFIX="$PWD/picotls-openssl3"
+            ;;
+          "group-b")
+            PICOTLS_PREFIX="$PWD/picotls-openssl1"
+            ;;
+          "group-c")
+            PICOTLS_PREFIX="$PWD/picotls-libressl"
+            ;;
+          "group-d")
+            PICOTLS_PREFIX="$PWD/picotls-ossl"
+            ;;
+          *)
+            echo "unsupported tls group: ${{ matrix.tls }}"
+            exit 1
+            ;;
+        esac
 
         PICOTLS_CFLAGS="-I$PICOTLS_PREFIX/include/"
         PICOTLS_LIBS="-L$PICOTLS_PREFIX/build -lpicotls-openssl -lpicotls-core"
@@ -444,7 +507,7 @@ jobs:
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
         echo 'BORINGSSL_INCLUDE_DIR='"$BORINGSSL_INCLUDE_DIR" >> $GITHUB_ENV
     - name: Setup aws-lc environment variables
-      if: matrix.tls == 'group-b'
+      if: matrix.tls == 'group-b' || matrix.tls == 'group-d'
       run: |
         BORINGSSL_INCLUDE_DIR="$PWD/aws-lc/include/"
         BORINGSSL_CFLAGS="-I$BORINGSSL_INCLUDE_DIR"
@@ -547,8 +610,16 @@ jobs:
         [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
         "$NGTCP2_SOURCE_DIR"/ci/gen-certificate.sh
 
-        CLIENTS="qtlsclient gtlsclient bsslclient wsslclient ptlsclient"
-        SERVERS="qtlsserver gtlsserver bsslserver wsslserver ptlsserver"
+        if [ "${{ matrix.tls }}" = "group-d" ]; then
+          CLIENTS="osslclient"
+          SERVERS="osslserver"
+        else
+          CLIENTS="qtlsclient"
+          SERVERS="qtlsserver"
+        fi
+
+        CLIENTS="$CLIENTS gtlsclient bsslclient wsslclient ptlsclient"
+        SERVERS="$SERVERS gtlsserver bsslserver wsslserver ptlsserver"
 
         for client in $CLIENTS; do
           for server in $SERVERS; do

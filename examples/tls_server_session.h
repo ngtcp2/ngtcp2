@@ -49,4 +49,8 @@
 #  include "tls_server_session_wolfssl.h"
 #endif // defined(WITH_EXAMPLE_WOLFSSL)
 
+#ifdef WITH_EXAMPLE_OSSL
+#  include "tls_server_session_ossl.h"
+#endif // defined(WITH_EXAMPLE_OSSL)
+
 #endif // !defined(TLS_SERVER_SESSION_H)
