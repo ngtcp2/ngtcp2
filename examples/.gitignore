@@ -12,4 +12,6 @@ ptlsserver
 qtlssimpleclient
 wsslclient
 wsslserver
+osslclient
+osslserver
 gtlssimpleclient

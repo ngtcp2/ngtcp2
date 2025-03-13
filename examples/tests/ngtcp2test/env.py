@@ -22,6 +22,9 @@ class CryptoLib:
         ],
         'boringssl': [
             'TLS_AES_128_CCM_SHA256',  # no plans to
+        ],
+        'ossl': [
+            'TLS_AES_128_CCM_SHA256',  # just broken
         ]
     }
     GNUTLS_CIPHERS = {
