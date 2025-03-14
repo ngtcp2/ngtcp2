@@ -1893,6 +1893,7 @@ static int quic_tls_rls_rec(SSL *, size_t bytes_read, void __attribute__((unused
 {
   DBG("Called quic_tls_rls_rec of %lu bytes\n", bytes_read);
   assert(to_free->rec_len == bytes_read);
+  free(to_free->record);
   free(to_free);
   to_free = NULL;
   return 1;
