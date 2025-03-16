@@ -57,6 +57,10 @@ AC_SUBST(CRYPTO_WOLFSSL_LT_CURRENT, 7)
 AC_SUBST(CRYPTO_WOLFSSL_LT_REVISION, 0)
 AC_SUBST(CRYPTO_WOLFSSL_LT_AGE, 2)
 
+AC_SUBST(CRYPTO_OPENSSL_LT_CURRENT, 1)
+AC_SUBST(CRYPTO_OPENSSL_LT_REVISION, 0)
+AC_SUBST(CRYPTO_OPENSSL_LT_AGE, 0)
+
 # from nghttp2
 major=`echo $PACKAGE_VERSION |cut -d. -f1 | sed -e "s/[^0-9]//g"`
 minor=`echo $PACKAGE_VERSION |cut -d. -f2 | sed -e "s/[^0-9]//g"`
@@ -229,13 +233,24 @@ if test "x${request_openssl}" != "xno"; then
     ]], [[
       SSL_provide_quic_data(NULL, 0, NULL, 0);
     ]])],
-    [AC_MSG_RESULT([yes]); have_openssl_quic=yes],
-    [AC_MSG_RESULT([no]); have_openssl_quic=no])
+    [AC_MSG_RESULT([yes]); have_openssl_quic_provide=yes],
+    [AC_MSG_RESULT([no]); have_openssl_quic_provide=no])
 
+    AC_MSG_CHECKING([for SSL_set_quic_tls_cbs])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+      #include <openssl/ssl.h>
+      #if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
+      #  error This is boringssl.
+      #endif /* OPENSSL_IS_BORINGSSL || OPENSSL_IS_AWSLC */
+    ]], [[
+      SSL_set_quic_tls_cbs(NULL, NULL, NULL);
+    ]])],
+    [AC_MSG_RESULT([yes]); have_openssl_quic_cbs=yes],
+    [AC_MSG_RESULT([no]); have_openssl_quic_cbs=no])
     CFLAGS="$save_CFLAGS"
     LIBS="$save_LIBS"
 
-    if test "x${have_openssl_quic}" = "xno"; then
+    if test "x${have_openssl_quic_provide}" = "xno" -a "x${have_openssl_quic_cbs}" = "xno"; then
       AC_MSG_NOTICE([openssl does not have QUIC interface, disabling it])
       have_openssl=no
       OPENSSL_LIBS=
@@ -250,6 +265,8 @@ if test "x${request_openssl}" = "xyes" &&
 fi
 
 AM_CONDITIONAL([HAVE_OPENSSL], [ test "x${have_openssl}" = "xyes" ])
+AM_CONDITIONAL([HAVE_OPENSSL_PROVIDE], [test "x${have_openssl_quic_provide}" = "xyes"])
+AM_CONDITIONAL([HAVE_OPENSSL_CBS], [test "x${have_openssl_quic_cbs}" = "xyes"])
 
 # GnuTLS (required for libngtcp2_crypto_gnutls)
 have_gnutls=no
@@ -482,11 +499,15 @@ if test "x${lib_only}" = "xno" &&
    test "x${HAVE_CXX20}" = "x1"; then
   enable_examples=yes
 
-  if test "x${have_openssl}" = "xyes"; then
+  if test "x${have_openssl_quic_provide}" = "xyes"; then
     AC_DEFINE([ENABLE_EXAMPLE_QUICTLS], [1],
               [Define to 1 in order to build examples/{qtlsclient,qtlsserver}])
   fi
 
+  if test "x${have_openssl_quic_cbs}" = "xyes"; then
+    AC_DEFINE([ENABLE_EXAMPLE_OPENSSL], [1],
+              [Define to 1 in order to build examples/{opensslclient,opensslserver}])
+  fi
   if test "x${have_gnutls}" = "xyes"; then
     AC_DEFINE([ENABLE_EXAMPLE_GNUTLS], [1],
               [Define to 1 in order to build examples/{gtlsclient,gtlsserver}])
@@ -509,7 +530,8 @@ if test "x${lib_only}" = "xno" &&
 fi
 
 AM_CONDITIONAL([ENABLE_EXAMPLES], [ test "x${enable_examples}" = "xyes" ])
-AM_CONDITIONAL([ENABLE_EXAMPLE_QUICTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_openssl}" = "xyes" ])
+AM_CONDITIONAL([ENABLE_EXAMPLE_QUICTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_openssl_quic_provide}" = "xyes" ])
+AM_CONDITIONAL([ENABLE_EXAMPLE_OPENSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_openssl_quic_cbs}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_GNUTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_gnutls}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_BORINGSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_boringssl}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_PICOTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_picotls}" = "xyes" ])
@@ -737,6 +759,8 @@ AC_CONFIG_FILES([
   crypto/Makefile
   crypto/quictls/Makefile
   crypto/quictls/libngtcp2_crypto_quictls.pc
+  crypto/openssl/Makefile
+  crypto/openssl/libngtcp2_crypto_openssl.pc
   crypto/includes/Makefile
   crypto/gnutls/Makefile
   crypto/gnutls/libngtcp2_crypto_gnutls.pc
@@ -781,7 +805,8 @@ AC_MSG_NOTICE([summary of build options:
     Libtool:
       LIBTOOL_LDFLAGS: ${LIBTOOL_LDFLAGS}
     Crypto helper libraries:
-      libngtcp2_crypto_quictls:   ${have_openssl}
+      libngtcp2_crypto_quictls:   ${have_openssl_quic_provide}
+      libngtcp2_crypto_openssl:   ${have_openssl_quic_cbs}
       libngtcp2_crypto_gnutls:    ${have_gnutls}
       libngtcp2_crypto_boringssl: ${have_boringssl}
       libngtcp2_crypto_picotls:   ${have_picotls}

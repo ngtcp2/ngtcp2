@@ -101,6 +101,30 @@ qtlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	util_openssl.cc
 endif # ENABLE_EXAMPLE_QUICTLS
 
+if ENABLE_EXAMPLE_OPENSSL
+noinst_PROGRAMS += opensslclient opensslserver
+
+opensslclient_CPPFLAGS = ${AM_CPPFLAGS} \
+	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@ -DWITH_EXAMPLE_OPENSSL
+opensslclient_LDADD = ${LDADD} \
+	$(top_builddir)/crypto/openssl/libngtcp2_crypto_openssl.la \
+	@OPENSSL_LIBS@ \
+	@JEMALLOC_LIBS@
+opensslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
+	tls_client_context_openssl.cc tls_client_context_openssl.h \
+	tls_client_session_openssl.cc tls_client_session_openssl.h \
+	tls_session_base_openssl.cc tls_session_base_openssl.h \
+	util_openssl.cc
+
+opensslserver_CPPFLAGS = ${opensslclient_CPPFLAGS}
+opensslserver_LDADD = ${opensslclient_LDADD}
+opensslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
+	tls_server_context_openssl.cc tls_server_context_openssl.h \
+	tls_server_session_openssl.cc tls_server_session_openssl.h \
+	tls_session_base_openssl.cc tls_session_base_openssl.h \
+	util_openssl.cc
+endif # ENABLE_EXAMPLE_QUICTLS
+
 if ENABLE_EXAMPLE_GNUTLS
 noinst_PROGRAMS += gtlsclient gtlsserver gtlssimpleclient
 
