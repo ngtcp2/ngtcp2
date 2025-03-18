@@ -1152,7 +1152,8 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   const EVP_CIPHER *cipher = aead->native_handle;
   size_t taglen = crypto_aead_max_overhead(cipher);
   EVP_CIPHER_CTX *actx = aead_ctx->native_handle;
-  int len;
+  int len = 0;
+  int cipher_nid = EVP_CIPHER_nid(cipher);
 
   DBG("in ngtcp2_crypto_encrypt\n");
   (void)noncelen;
@@ -1161,6 +1162,13 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
     DBG("Failed to init aead context\n");
     ERR_print_errors_fp(stderr);
     return -1;
+  }
+
+  if (cipher_nid == NID_aes_128_ccm) {
+    if (!EVP_EncryptUpdate(actx, NULL, &len, NULL, (int)plaintextlen)) {
+      DBG("Failed to encrypt plaintext\n");
+      return -1;
+    }
   }
 
   if (!EVP_EncryptUpdate(actx, NULL, &len, aad, (int)aadlen)) {
@@ -1187,6 +1195,11 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
     ERR_print_errors_fp(stderr);
     return -1;
   }
+
+  fprintf(stderr, "TAG IS %02x:%02x:%02x:%02x:%02x\n", 
+          dest[plaintextlen], dest[plaintextlen+1],
+          dest[plaintextlen+2], dest[plaintextlen+3],
+          dest[plaintextlen+4]);
 
   return 0;
 }
@@ -1227,8 +1240,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   int cipher_nid = EVP_CIPHER_nid(cipher);
   EVP_CIPHER_CTX *actx = aead_ctx->native_handle;
   int len;
-  const uint8_t *tag;
-  OSSL_PARAM params[2];
+  uint8_t *tag;
 
   DBG("In ngtcp2_crypto_decrypt\n");
 
@@ -1239,21 +1251,28 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   }
 
   ciphertextlen -= taglen;
-  tag = ciphertext + ciphertextlen;
+  tag = (uint8_t *)(ciphertext + ciphertextlen);
 
-  params[0] = OSSL_PARAM_construct_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG,
-                                                (void *)tag, taglen);
-  params[1] = OSSL_PARAM_construct_end();
-
-  if (!EVP_DecryptInit_ex(actx, NULL, NULL, NULL, nonce) ||
-      !EVP_CIPHER_CTX_set_params(actx, params) ||
-      (cipher_nid == NID_aes_128_ccm &&
-      !EVP_DecryptUpdate(actx, NULL, &len, NULL, (int)ciphertextlen)) ||
-      !EVP_DecryptUpdate(actx, NULL, &len, aad, (int)aadlen) ||
-      !EVP_DecryptUpdate(actx, dest, &len, ciphertext, (int)ciphertextlen) ||
-      (cipher_nid != NID_aes_128_ccm &&
-      !EVP_DecryptFinal_ex(actx, dest + ciphertextlen, &len))) {
+  if (!EVP_DecryptInit_ex(actx, NULL, NULL, NULL, nonce))
     return -1;
+
+  if (!EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG, (int)taglen, tag))
+    return -1;
+
+  if (cipher_nid == NID_aes_128_ccm) {
+    if (!EVP_DecryptUpdate(actx, NULL, &len, NULL, (int)ciphertextlen))
+      return -1;
+  }
+
+  if (!EVP_DecryptUpdate(actx, NULL, &len, aad, (int)aadlen))
+    return -1;
+
+  if (!EVP_DecryptUpdate(actx, dest, &len, ciphertext, (int)ciphertextlen))
+    return -1;
+
+  if (cipher_nid != NID_aes_128_ccm) {
+    if (!EVP_DecryptFinal_ex(actx, dest + ciphertextlen, &len))
+      return -1;
   }
 
   return 0;
