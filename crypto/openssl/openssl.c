@@ -1165,6 +1165,14 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   }
 
   if (cipher_nid == NID_aes_128_ccm) {
+    if (!EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG,
+                             (int)taglen, NULL)) {
+      DBG("Failed to set tag lenth\n");
+      return -1;
+    }
+  }
+
+  if (cipher_nid == NID_aes_128_ccm) {
     if (!EVP_EncryptUpdate(actx, NULL, &len, NULL, (int)plaintextlen)) {
       DBG("Failed to encrypt plaintext\n");
       return -1;
@@ -1195,11 +1203,6 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
     ERR_print_errors_fp(stderr);
     return -1;
   }
-
-  fprintf(stderr, "TAG IS %02x:%02x:%02x:%02x:%02x\n", 
-          dest[plaintextlen], dest[plaintextlen+1],
-          dest[plaintextlen+2], dest[plaintextlen+3],
-          dest[plaintextlen+4]);
 
   return 0;
 }
@@ -1270,10 +1273,8 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   if (!EVP_DecryptUpdate(actx, dest, &len, ciphertext, (int)ciphertextlen))
     return -1;
 
-  if (cipher_nid != NID_aes_128_ccm) {
-    if (!EVP_DecryptFinal_ex(actx, dest + ciphertextlen, &len))
-      return -1;
-  }
+  if (!EVP_DecryptFinal_ex(actx, dest + ciphertextlen, &len))
+    return -1;
 
   return 0;
 }
