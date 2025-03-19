@@ -105,7 +105,7 @@ struct record_entry {
  */
 STAILQ_HEAD(record_list, record_entry);
 
-#define get_ssl_rx_queue(s) (struct record_list *)BIO_get_app_data(SSL_get_rbio(s));
+#define get_ssl_rx_queue(s) (struct record_list *)BIO_get_app_data(SSL_get_rbio(s))
 
 /**
  * @brief Initializes cryptographic primitives using OpenSSL.
@@ -1689,6 +1689,41 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn __attribute__((unused)
 }
 
 /**
+ * @brief Frees application data associated with a BIO object on free operation.
+ *
+ * This callback function is intended to be used with a BIO object to
+ * clean up dynamically allocated application data when the BIO is freed.
+ *
+ * @param b        Pointer to the BIO object.
+ * @param oper     Operation code indicating the current BIO operation.
+ * @param argp     Unused parameter.
+ * @param len      Unused parameter.
+ * @param argi     Unused parameter.
+ * @param arg1     Unused parameter.
+ * @param ret      Return value from the previous BIO callback or operation.
+ * @param processed Unused parameter.
+ *
+ * @return Returns the input @p ret value unchanged.
+ */
+static long free_bio_tp_data(BIO *b, int oper,
+                              __attribute__((unused)) const char *argp,
+                              __attribute__((unused)) size_t len,
+                              __attribute__((unused)) int argi,
+                              __attribute__((unused)) long arg1,
+                              __attribute__((unused)) int ret,
+                              __attribute__((unused)) size_t *processed)
+{
+    uint8_t *tp; 
+
+    if (oper == BIO_CB_FREE) {
+        tp = BIO_get_app_data(b);
+        free(tp);
+        BIO_set_app_data(b, NULL);
+    }
+    return ret;
+}
+
+/**
  * @brief Sets the local transport parameters in the TLS session.
  *
  * This function sets the local QUIC transport parameters to be sent in
@@ -1702,8 +1737,30 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn __attribute__((unused)
  */
 int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
                                              size_t len) {
+  uint8_t *tp = malloc(len);
+
+  if (tp == NULL)
+    return -1;
+  memcpy(tp, buf, len);
+
+  /*
+   * This deserves some explination
+   * the passed in buf for the params is stack alocated.
+   * Because calling SSL_set_quic_tls_transport_params records
+   * that pointer in the tls stack, it may be used after this
+   * call returns, causing an ASAN use after out-of-scope error
+   * To fix that we just clone the buffer above with malloc/
+   * memcpy, but then we need to remember to free it to avoid
+   * a leak.  Because we don't have an SSL_get_quic_tls_transport_params
+   * call to fetch the pointer, we need to save it someplace to free it later
+   * do so my storing it int the app data of our write bio, and set a callback
+   * to free it when the BIO itself is freed
+   */
+  BIO_set_app_data(SSL_get_wbio(tls), tp);
+  BIO_set_callback_ex(SSL_get_wbio(tls), free_bio_tp_data);
+
   DBG("Setting local transport params\n");
-  if (SSL_set_quic_tls_transport_params(tls, buf, len) != 1) {
+  if (SSL_set_quic_tls_transport_params(tls, tp, len) != 1) {
     DBG("SSL_set_quic_tls_transport_params failed!\n");
     ERR_print_errors_fp(stderr);
     return -1;
