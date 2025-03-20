@@ -1895,7 +1895,7 @@ static int quic_tls_send(SSL *s, const unsigned char *buf, size_t buf_len,
   return 1;
 }
 
-static struct record_entry *to_free = NULL;
+static uint8_t *to_free = NULL;
 
 /**
  * @brief Callback to provide a previously buffered TLS record to OpenSSL.
@@ -1920,28 +1920,46 @@ static int quic_tls_rcv_rec(SSL *s, const unsigned char **buf, size_t *bytes_rea
 {
   struct record_entry *entry;
   struct record_list *rlist;
+  size_t total_len = 0;
+  unsigned char *rbuf = NULL;
 
   rlist = get_ssl_rx_queue(s);
   assert(rlist != NULL);
 
   DBG("Calling quic_tls_rcv_rec\n");
+start_again:
   STAILQ_FOREACH(entry, rlist, entries) {
     if (entry->ssl == s) {
       if (entry->incomplete) {
         DBG("Entry is incomplete, wait for more data\n");
-        *buf = NULL;
-        *bytes_read = 0;
+        *buf = rbuf;
+        *bytes_read = total_len;
         return 1;
+      }
+
+      if (rbuf && entry->record[0] == 8) {
+        /*
+         * Encrypted extensions is a epoch change
+         * return early
+         */
+        DBG("Ending early on epoch change\n");
+        break;
       }
 
       STAILQ_REMOVE(rlist, entry, record_entry, entries);
       DBG("Found record to push of size %lu\n", entry->rec_len);
-      *buf = entry->record;
-      *bytes_read = entry->rec_len;
-      to_free = entry;
-      return 1;
+      rbuf = realloc(rbuf, total_len + entry->rec_len);
+      memcpy(&rbuf[total_len], entry->record, entry->rec_len);
+      total_len += entry->rec_len;
+      free(entry->record);
+      free(entry);
+      to_free = rbuf;
+      goto start_again;
     }
   }
+
+  *buf = rbuf;
+  *bytes_read = total_len;
   return 1;
 }
 
@@ -1961,8 +1979,6 @@ static int quic_tls_rcv_rec(SSL *s, const unsigned char **buf, size_t *bytes_rea
 static int quic_tls_rls_rec(SSL *, size_t bytes_read, void __attribute__((unused)) *arg)
 {
   DBG("Called quic_tls_rls_rec of %lu bytes\n", bytes_read);
-  assert(to_free->rec_len == bytes_read);
-  free(to_free->record);
   free(to_free);
   to_free = NULL;
   return 1;
