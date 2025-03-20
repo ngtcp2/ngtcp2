@@ -43,7 +43,6 @@
 
 #include "shared.h"
 
-#define OPENSSL_DEBUG
 #ifdef OPENSSL_DEBUG
 #define DBG(format, args...) fprintf(stderr, "OPENSSL: " format, ##args)
 #else
@@ -105,9 +104,25 @@ struct record_entry {
  */
 STAILQ_HEAD(record_list, record_entry);
 
+/**
+ * @struct aux_data
+ * @brief holds auxilliary data we need for each ssl
+ */
 struct aux_data {
+    /*
+     * @brief transport params for our peer
+     */
     uint8_t *tp;
+    /*
+     * @brief The current encryption level we are sending data for
+     */
     ngtcp2_encryption_level level;
+
+    /*
+     * @brief the current record set being fed into the tls stack
+     * to be freed in rls_rec
+     */
+    uint8_t *rec_to_free;
 };
 
 #define get_ssl_rx_queue(s) (struct record_list *)BIO_get_app_data(SSL_get_rbio(s))
@@ -1910,8 +1925,6 @@ static int quic_tls_send(SSL *s, const unsigned char *buf, size_t buf_len,
   return 1;
 }
 
-static uint8_t *to_free = NULL;
-
 /**
  * @brief Callback to provide a previously buffered TLS record to OpenSSL.
  *
@@ -1937,6 +1950,7 @@ static int quic_tls_rcv_rec(SSL *s, const unsigned char **buf, size_t *bytes_rea
   struct record_list *rlist;
   size_t total_len = 0;
   unsigned char *rbuf = NULL;
+  struct aux_data *adata = get_ssl_aux_data(s);
 
   rlist = get_ssl_rx_queue(s);
   assert(rlist != NULL);
@@ -1949,13 +1963,15 @@ start_again:
         DBG("Entry is incomplete, wait for more data\n");
         *buf = rbuf;
         *bytes_read = total_len;
+        adata->rec_to_free = rbuf;
         return 1;
       }
 
       if (rbuf && entry->record[0] == 8) {
         /*
          * Encrypted extensions is a epoch change
-         * return early
+         * return early, as we don't want to feed
+         * records in accross this boundary
          */
         DBG("Ending early on epoch change\n");
         break;
@@ -1968,7 +1984,7 @@ start_again:
       total_len += entry->rec_len;
       free(entry->record);
       free(entry);
-      to_free = rbuf;
+      adata->rec_to_free = rbuf;
       goto start_again;
     }
   }
@@ -1991,11 +2007,13 @@ start_again:
  *
  * @return Always returns 1.
  */
-static int quic_tls_rls_rec(SSL *, size_t bytes_read, void __attribute__((unused)) *arg)
+static int quic_tls_rls_rec(SSL *s, size_t bytes_read, void __attribute__((unused)) *arg)
 {
+  struct aux_data *adata = get_ssl_aux_data(s);
+
   DBG("Called quic_tls_rls_rec of %lu bytes\n", bytes_read);
-  free(to_free);
-  to_free = NULL;
+  free(adata->rec_to_free);
+  adata->rec_to_free = NULL;
   return 1;
 }
 
