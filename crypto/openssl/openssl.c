@@ -1777,35 +1777,6 @@ int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
 }
 
 /**
- * @brief QUIC encryption levels.
- *
- * This enumeration defines the different encryption levels used in
- * QUIC. Each level corresponds to a distinct phase in the QUIC
- * handshake and data transmission process.
- *
- * @enum
- * @var QUIC_ENC_LEVEL_INITIAL
- *      Initial encryption level used for early handshake messages.
- * @var QUIC_ENC_LEVEL_0RTT
- *      0-RTT encryption level used for early data transmission before
- *      handshake completion.
- * @var QUIC_ENC_LEVEL_HANDSHAKE
- *      Handshake encryption level used for the handshake's later stages.
- * @var QUIC_ENC_LEVEL_1RTT
- *      1-RTT encryption level used for application data after the
- *      handshake is complete.
- * @var QUIC_ENC_LEVEL_NUM
- *      Sentinel value representing the total number of encryption levels.
- */
-enum {
-  QUIC_ENC_LEVEL_INITIAL = 0,
-  QUIC_ENC_LEVEL_0RTT,
-  QUIC_ENC_LEVEL_HANDSHAKE,
-  QUIC_ENC_LEVEL_1RTT,
-  QUIC_ENC_LEVEL_NUM       /* Must be the ultimate entry */
-};
-
-/**
  * @brief Converts OpenSSL QUIC encryption level to ngtcp2 encryption level.
  *
  * This function maps an OpenSSL-defined QUIC encryption level to the
@@ -1819,13 +1790,11 @@ enum {
 static ngtcp2_encryption_level ngtcp2_crypto_openssl_from_ossl_encryption_level(
                                                           uint32_t ossl_level) {
   switch (ossl_level) {
-  case QUIC_ENC_LEVEL_INITIAL:
-    return NGTCP2_ENCRYPTION_LEVEL_INITIAL;
-  case QUIC_ENC_LEVEL_0RTT:
+  case OSSL_RECORD_PROTECTION_LEVEL_EARLY:
     return NGTCP2_ENCRYPTION_LEVEL_0RTT;
-  case QUIC_ENC_LEVEL_HANDSHAKE:
+  case OSSL_RECORD_PROTECTION_LEVEL_HANDSHAKE:
     return NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
-  case QUIC_ENC_LEVEL_1RTT:
+  case OSSL_RECORD_PROTECTION_LEVEL_APPLICATION:
     return NGTCP2_ENCRYPTION_LEVEL_1RTT;
   default:
     assert(0);
@@ -2222,20 +2191,44 @@ static int quic_tls_yield_secret(SSL *s, uint32_t prot_level, int dir,
   struct prot_level_keys *keyset = get_keys(s, prot_level);
   struct aux_data *adata = get_ssl_aux_data(s);
 
+  conn_ref = SSL_get_app_data(s);
+  conn = conn_ref->get_conn(conn_ref);
+  level = ngtcp2_crypto_openssl_from_ossl_encryption_level(keyset->prot_level);
+
   DBG("Called quic_tls_yield_secret for %s level %d\n",
-    dir == 1 ? "read" :"write", prot_level);
+    dir == 0 ? "read" :"write", prot_level);
+
+  /*
+   * We have to special case 1RTT keys here
+   * ngtcp2 seems require that both keys be updated synchrnously for all other levels
+   * or we get a close connection/crypto failure
+   * But for 1RTT levels, if we don't update immediately, the transport params
+   * get cleared to early
+   */
+  if (prot_level == 3) {
+    if (dir == 0) {
+        rv = ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL,
+                                                     level, secret, secret_len);
+    } else {
+        rv = ngtcp2_crypto_derive_and_install_tx_key(conn, NULL, NULL, NULL,
+                                                     level, secret, secret_len);
+    }
+    if (rv == 1) {
+      DBG("Failed to install %s key for ngtcp2 level %d\n", dir == 0 ? "read" : "write", level);
+      return 0;
+    }
+    return 1;
+  }
 
   rv = update_secret(keyset, secret, secret_len,
-                     dir == 1 ? RX_SECRET : TX_SECRET);
+                     dir == 0 ? RX_SECRET : TX_SECRET);
 
   /*
    * We have both keys
    */
   if (rv == 2) {
     DBG("Both secrets acquired, installing to ngtcp2\n");
-    conn_ref = SSL_get_app_data(s);
-    conn = conn_ref->get_conn(conn_ref);
-    level = ngtcp2_crypto_openssl_from_ossl_encryption_level(keyset->prot_level);
+    DBG("Both secrets acquired, installing to ngtcp2 for its level %d\n", level);
     rv = ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL,
                                                  level, keyset->rx_secret,
                                                  keyset->rx_len);
