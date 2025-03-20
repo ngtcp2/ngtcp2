@@ -1547,7 +1547,7 @@ Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
     uint16_t n = gso_size;
     memcpy(CMSG_DATA(cm), &n, sizeof(n));
   }
-#endif // UDP_SEGMENT
+#endif // defined(UDP_SEGMENT)
 
   msg.msg_controllen = controllen;
 
