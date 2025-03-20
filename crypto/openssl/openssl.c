@@ -60,7 +60,6 @@ static EVP_CIPHER *crypto_chacha20;
 static EVP_MD *crypto_sha256;
 static EVP_MD *crypto_sha384;
 static EVP_KDF *crypto_hkdf;
-static ngtcp2_encryption_level enc_level;
 
 /**
  * @struct record_entry
@@ -105,7 +104,13 @@ struct record_entry {
  */
 STAILQ_HEAD(record_list, record_entry);
 
+struct aux_data {
+    uint8_t *tp;
+    ngtcp2_encryption_level level;
+};
+
 #define get_ssl_rx_queue(s) (struct record_list *)BIO_get_app_data(SSL_get_rbio(s))
+#define get_ssl_aux_data(s) (struct aux_data *)BIO_get_app_data(SSL_get_wbio(s))
 
 /**
  * @brief Initializes cryptographic primitives using OpenSSL.
@@ -1631,13 +1636,13 @@ out:
  * - -1 on other fatal errors.
  */
 int ngtcp2_crypto_read_write_crypto_data(
-  ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
+  ngtcp2_conn *conn,
+  __attribute__((unused)) ngtcp2_encryption_level encryption_level,
   const uint8_t *data, size_t datalen) {
   SSL *ssl = ngtcp2_conn_get_tls_native_handle(conn);
   int rv;
   int err;
 
-  enc_level = encryption_level;
 
   DBG("CALLING NGTCP2_CRYPTO_READ_WRITE_CRYPTO_DATA\n");
   if (data != NULL)
@@ -1705,7 +1710,7 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn __attribute__((unused)
  *
  * @return Returns the input @p ret value unchanged.
  */
-static long free_bio_tp_data(BIO *b, int oper,
+static long free_bio_aux_data(BIO *b, int oper,
                               __attribute__((unused)) const char *argp,
                               __attribute__((unused)) size_t len,
                               __attribute__((unused)) int argi,
@@ -1713,11 +1718,12 @@ static long free_bio_tp_data(BIO *b, int oper,
                               __attribute__((unused)) int ret,
                               __attribute__((unused)) size_t *processed)
 {
-    uint8_t *tp; 
+    struct aux_data *adata;
 
     if (oper == BIO_CB_FREE) {
-        tp = BIO_get_app_data(b);
-        free(tp);
+        adata = BIO_get_app_data(b);
+        free(adata->tp);
+        free(adata);
         BIO_set_app_data(b, NULL);
     }
     return ret;
@@ -1738,6 +1744,7 @@ static long free_bio_tp_data(BIO *b, int oper,
 int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
                                              size_t len) {
   uint8_t *tp = malloc(len);
+  struct aux_data *adata;
 
   if (tp == NULL)
     return -1;
@@ -1756,8 +1763,8 @@ int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
    * do so my storing it int the app data of our write bio, and set a callback
    * to free it when the BIO itself is freed
    */
-  BIO_set_app_data(SSL_get_wbio(tls), tp);
-  BIO_set_callback_ex(SSL_get_wbio(tls), free_bio_tp_data);
+   adata = (struct aux_data *)get_ssl_aux_data(tls);
+   adata->tp = tp;
 
   DBG("Setting local transport params\n");
   if (SSL_set_quic_tls_transport_params(tls, tp, len) != 1) {
@@ -1904,11 +1911,12 @@ static int quic_tls_send(SSL *s, const unsigned char *buf, size_t buf_len,
                          size_t *consumed, void __attribute__((unused)) *arg)
 {
   ngtcp2_crypto_conn_ref *ref = SSL_get_app_data(s);
+  struct aux_data *adata = BIO_get_app_data(SSL_get_wbio(s));
   int rv;
 
   DBG("Calling quic_tls_send\n");
 
-  rv = ngtcp2_conn_submit_crypto_data(ref->get_conn(ref), enc_level, buf, buf_len);
+  rv = ngtcp2_conn_submit_crypto_data(ref->get_conn(ref), adata->level, buf, buf_len);
   if (rv != 0) {
     ngtcp2_conn_set_tls_error(ref->get_conn(ref), rv);
     return 0;
@@ -2212,6 +2220,7 @@ static int quic_tls_yield_secret(SSL *s, uint32_t prot_level, int dir,
   ngtcp2_encryption_level level;
   int rv;
   struct prot_level_keys *keyset = get_keys(s, prot_level);
+  struct aux_data *adata = get_ssl_aux_data(s);
 
   DBG("Called quic_tls_yield_secret for %s level %d\n",
     dir == 1 ? "read" :"write", prot_level);
@@ -2242,6 +2251,7 @@ static int quic_tls_yield_secret(SSL *s, uint32_t prot_level, int dir,
       return 0;
     }
 
+    adata->level = level;
     remove_keys(keyset);
     return 1;
   }
@@ -2396,6 +2406,7 @@ static void crypto_openssl_configure_session(SSL *ssl) {
   BIO *ssl_read_bio = NULL;
   BIO *ssl_write_bio = NULL;
   struct record_list *rlist;
+  struct aux_data *adata;
 
   if (!SSL_set_quic_tls_cbs(ssl, openssl_quic_dispatch, NULL))
     ERR_print_errors_fp(stderr);
@@ -2419,9 +2430,15 @@ static void crypto_openssl_configure_session(SSL *ssl) {
   rlist = calloc(1, sizeof(struct record_list));
   if (rlist == NULL)
     return;
+  adata = calloc(1, sizeof(struct aux_data));
+  if (adata == NULL)
+    return;
+
   STAILQ_INIT(rlist);
   BIO_set_app_data(ssl_write_bio, rlist);
   BIO_set_callback_ex(ssl_write_bio, free_bio_app_data);
+  BIO_set_app_data(ssl_read_bio, adata);
+  BIO_set_callback_ex(ssl_read_bio, free_bio_aux_data);
 }
 
 /**
