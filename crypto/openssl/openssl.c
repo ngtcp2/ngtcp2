@@ -1669,8 +1669,23 @@ int ngtcp2_crypto_read_write_crypto_data(
     }
 
     ngtcp2_conn_tls_handshake_completed(conn);
+  } else {
+    rv = SSL_read(ssl, NULL, 0);
+    if (rv != 1) {
+      err = SSL_get_error(ssl, rv);
+      switch (err) {
+      case SSL_ERROR_WANT_READ:
+      case SSL_ERROR_WANT_WRITE:
+        return 0;
+      case SSL_ERROR_SSL:
+      case SSL_ERROR_ZERO_RETURN:
+        return -1;
+      default:
+        return -1;
+    
+      }
+     }
   }
-
   return 0;
 }
 
