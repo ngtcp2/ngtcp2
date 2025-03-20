@@ -43,6 +43,7 @@
 
 #include "shared.h"
 
+#define OPENSSL_DEBUG
 #ifdef OPENSSL_DEBUG
 #define DBG(format, args...) fprintf(stderr, "OPENSSL: " format, ##args)
 #else
@@ -1968,201 +1969,6 @@ static int quic_tls_rls_rec(SSL *, size_t bytes_read, void __attribute__((unused
 }
 
 /**
- * @brief Stores cryptographic secrets and metadata for a specific protection level.
- *
- * This structure holds the transmit and receive secrets associated with a given
- * QUIC protection level, along with their lengths. It also maintains a reference
- * to the associated SSL connection and provides linkage for inclusion in a
- * singly-linked tail queue.
- */
-struct prot_level_keys {
-  /**
-   * @brief Queue entry for linked list of protection level keys.
-   */
-  STAILQ_ENTRY(prot_level_keys) entries;
-
-  /**
-   * @brief Pointer to the receive secret for this protection level.
-   */
-  unsigned char *rx_secret;
-
-  /**
-   * @brief Length of the receive secret in bytes.
-   */
-  size_t rx_len;
-
-  /**
-   * @brief Pointer to the transmit secret for this protection level.
-   */
-  unsigned char *tx_secret;
-
-  /**
-   * @brief Length of the transmit secret in bytes.
-   */
-  size_t tx_len;
-
-  /**
-   * @brief Pointer to the associated SSL connection.
-   */
-  SSL *ssl;
-
-  /**
-   * @brief Protection level identifier (e.g., Initial, Handshake, 1-RTT).
-   */
-  uint32_t prot_level;
-};
-
-/**
- * @brief Defines and initializes a singly-linked tail queue of protection level keys.
- *
- * This declaration creates a `prot_level_keys_list` queue named `plist`,
- * which holds a list of `prot_level_keys` structures. The queue is initialized
- * to an empty state using `STAILQ_HEAD_INITIALIZER`.
- *
- * `prot_level_keys_list` can be used to manage the collection of secrets and
- * metadata associated with different QUIC encryption levels.
- */
-STAILQ_HEAD(prot_level_keys_list, prot_level_keys) plist = STAILQ_HEAD_INITIALIZER(plist);
-
-/**
- * @brief Removes and frees a prot_level_keys entry from the list.
- *
- * This function removes the specified `prot_level_keys` entry from the
- * `plist` queue, and frees its associated receive and transmit secrets
- * as well as the structure itself.
- *
- * @param[in] keyset Pointer to the prot_level_keys entry to remove and free.
- */
-static void remove_keys(struct prot_level_keys *keyset)
-{
-  STAILQ_REMOVE(&plist, keyset, prot_level_keys, entries);
-  free(keyset->rx_secret);
-  free(keyset->tx_secret);
-  free(keyset);
-}
-
-/**
- * @brief Creates and inserts a new prot_level_keys entry for the given SSL and protection level.
- *
- * This function allocates and initializes a new `prot_level_keys` structure for
- * the specified SSL connection and protection level. It inserts the new entry at
- * the tail of the `plist` queue.
- *
- * @param[in] ssl         Pointer to the SSL connection associated with the keys.
- * @param[in] prot_level  The protection level for the key entry (e.g., Initial, 1-RTT).
- *
- * @return Pointer to the newly created prot_level_keys entry.
- */
-static struct prot_level_keys *make_key_entry(SSL *ssl, uint32_t prot_level)
-{
-  struct prot_level_keys *new = calloc(1, sizeof(struct prot_level_keys));
-  assert(new != NULL);
-  new->ssl = ssl;
-  new->prot_level = prot_level;
-  STAILQ_INSERT_TAIL(&plist, new, entries);
-  return new;
-}
-
-/**
- * @brief Retrieves the prot_level_keys entry for the given SSL and protection level.
- *
- * This function searches the `plist` queue for a `prot_level_keys` entry that
- * matches the specified SSL connection and protection level. If no existing
- * entry is found, it creates a new one by calling `make_key_entry()` and inserts
- * it into the queue.
- *
- * @param[in] ssl         Pointer to the SSL connection to search for.
- * @param[in] prot_level  The protection level to match.
- *
- * @return Pointer to the found or newly created prot_level_keys entry.
- */
-static struct prot_level_keys *get_keys(SSL *ssl, uint32_t prot_level)
-{
-  struct prot_level_keys *entry;
-
-  STAILQ_FOREACH(entry, &plist, entries) {
-    if (entry->ssl == ssl && entry->prot_level == prot_level)
-      return entry;
-  }
-  /*
-   * No existing key, make a new one
-   */
-  return make_key_entry(ssl, prot_level);
-}
-
-/**
- * @brief Identifiers for receive and transmit secrets.
- *
- * This enumeration defines indices used to identify receive and transmit
- * secrets within secret management structures or arrays. It helps distinguish
- * between secrets used for inbound and outbound encryption operations.
- *
- * @enum
- * @var RX_SECRET
- *      Index for the receive (RX) secret, used to decrypt incoming packets.
- * @var TX_SECRET
- *      Index for the transmit (TX) secret, used to encrypt outgoing packets.
- * @var SECRET_MAX
- *      The maximum number of secrets. Can be used to size arrays or
- *      validate indices.
- */
-enum {
-  RX_SECRET = 0,
-  TX_SECRET,
-  SECRET_MAX
-};
-
-/**
- * @brief Updates the receive or transmit secret for the given key entry.
- *
- * This function allocates memory and updates the receive (RX) or transmit (TX)
- * secret in the specified `prot_level_keys` entry with the provided secret data.
- * It also updates the length of the stored secret.
- *
- * If the opposite direction secret (RX vs. TX) is already set, the return value
- * is incremented to reflect that both secrets are now populated.
- *
- * @param[in,out] key     Pointer to the prot_level_keys entry to update.
- * @param[in]     secret  Pointer to the new secret data to store.
- * @param[in]     len     Length of the secret in bytes.
- * @param[in]     rx_tx   Direction identifier. Use RX_SECRET for receive or
- *                        TX_SECRET for transmit.
- *
- * @return A value indicating how many secrets have been set:
- *         - 1 if this is the first secret being set.
- *         - 2 if both RX and TX secrets are now set.
- */
-static int update_secret(struct prot_level_keys *key,
-                         const unsigned char *secret,
-                         size_t len, uint8_t rx_tx)
-{
-  int ret = 0;
-  unsigned char *lsecret;
-  size_t *llen;
-
-  assert(rx_tx < SECRET_MAX);
-
-  if (rx_tx == RX_SECRET) {
-    key->rx_secret = malloc(len);
-    lsecret = key->rx_secret;
-    llen = &key->rx_len;
-    if (key->tx_secret != NULL)
-      ret++;
-  } else {
-    key->tx_secret = malloc(len);
-    lsecret = key->tx_secret;
-    llen = &key->tx_len;
-    if (key->rx_secret != NULL)
-      ret++;
-  }
-  ret++;
-  assert(lsecret != NULL);
-  memcpy(lsecret, secret, len);
-  *llen = len;
-  return ret;
-}
-
-/**
  * @brief Callback to yield TLS secrets to the QUIC stack.
  *
  * This function is invoked by OpenSSL to provide traffic secrets during
@@ -2188,65 +1994,34 @@ static int quic_tls_yield_secret(SSL *s, uint32_t prot_level, int dir,
   ngtcp2_conn *conn;
   ngtcp2_encryption_level level;
   int rv;
-  struct prot_level_keys *keyset = get_keys(s, prot_level);
   struct aux_data *adata = get_ssl_aux_data(s);
 
   conn_ref = SSL_get_app_data(s);
   conn = conn_ref->get_conn(conn_ref);
-  level = ngtcp2_crypto_openssl_from_ossl_encryption_level(keyset->prot_level);
+  level = ngtcp2_crypto_openssl_from_ossl_encryption_level(prot_level);
 
   DBG("Called quic_tls_yield_secret for %s level %d\n",
     dir == 0 ? "read" :"write", prot_level);
 
-  /*
-   * We have to special case 1RTT keys here
-   * ngtcp2 seems require that both keys be updated synchrnously for all other levels
-   * or we get a close connection/crypto failure
-   * But for 1RTT levels, if we don't update immediately, the transport params
-   * get cleared to early
-   */
-  if (prot_level == 3) {
-    if (dir == 0) {
-        rv = ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL,
-                                                     level, secret, secret_len);
-    } else {
-        rv = ngtcp2_crypto_derive_and_install_tx_key(conn, NULL, NULL, NULL,
-                                                     level, secret, secret_len);
-    }
-    if (rv == 1) {
-      DBG("Failed to install %s key for ngtcp2 level %d\n", dir == 0 ? "read" : "write", level);
-      return 0;
-    }
-    return 1;
-  }
-
-  rv = update_secret(keyset, secret, secret_len,
-                     dir == 0 ? RX_SECRET : TX_SECRET);
-
-  /*
-   * We have both keys
-   */
-  if (rv == 2) {
-    DBG("Both secrets acquired, installing to ngtcp2\n");
-    DBG("Both secrets acquired, installing to ngtcp2 for its level %d\n", level);
-    rv = ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL,
-                                                 level, keyset->rx_secret,
-                                                 keyset->rx_len);
-    if (rv == 1) {
-      DBG("Failed to install rx key\n");
-      return 0;
-    }
+  if (dir == 1) {
     rv = ngtcp2_crypto_derive_and_install_tx_key(conn, NULL, NULL, NULL,
-                                                 level, keyset->tx_secret,
-                                                 keyset->tx_len);
+                                                 level, secret,
+                                                 secret_len);
     if (rv == 1) {
       DBG("Failed to install tx key\n");
       return 0;
     }
 
     adata->level = level;
-    remove_keys(keyset);
-    return 1;
+  } else {
+
+    rv = ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL,
+                                                 level, secret,
+                                                 secret_len);
+    if (rv == 1) {
+      DBG("Failed to install rx key\n");
+      return 0;
+    }
   }
 
   return 1;
