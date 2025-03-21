@@ -87,6 +87,11 @@ struct record_entry {
   uint8_t incomplete;
 
   /**
+   * @brief indicates a record is ready to be freed
+   */
+  uint8_t freeme;
+
+  /**
    * @brief Pointer to the SSL connection context associated with the record.
    */
   SSL *ssl;
@@ -123,11 +128,6 @@ struct aux_data {
      */
     struct record_list rlist;
 
-    /*
-     * @brief the current record set being fed into the tls stack
-     * to be freed in rls_rec
-     */
-    uint8_t *rec_to_free;
 };
 
 #define get_ssl_aux_data(s) (struct aux_data *)BIO_get_app_data(SSL_get_wbio(s))
@@ -1405,147 +1405,6 @@ static struct record_entry *make_new_record(const uint8_t *record, size_t rec_le
 }
 
 /**
- * @brief Processes a TLS record and creates record_entry nodes for each message.
- *
- * Parses the provided TLS record data, extracts individual messages, and creates
- * corresponding record_entry structures. Complete messages are inserted into the
- * rlist queue. Incomplete messages are marked and added for later reassembly.
- * If an incomplete record_entry was passed in, it may be replaced by a completed
- * message and then freed.
- *
- * @param record     Pointer to the TLS record data buffer.
- * @param rec_len    Length of the TLS record data in bytes.
- * @param ssl        Pointer to the SSL connection context associated with the record.
- * @param incomplete Pointer to a possibly incomplete record_entry, which may be
- *                   replaced if a complete message is found.
- *
- * @return None.
- */
-static void make_new_records(const uint8_t *record, size_t rec_len, SSL *ssl,
-                             struct record_entry *incomplete)
-{
-  struct record_entry *new;
-  const uint8_t *idx;
-  uint8_t message_type;
-  size_t total_message_size = 0;
-  uint32_t message_size;
-  struct record_entry *to_delete = NULL;
-  struct aux_data *adata;
-
-  adata = get_ssl_aux_data(ssl);
-  assert(adata != NULL);
-
-  /* set our cursor to the start of the message */
-  idx = record;
-
-  while (total_message_size < rec_len) {
-    message_type = *idx;
-    message_size = *((uint32_t *)idx);
-
-    /* message size is just the lower 3 bytes of the TLS record */
-    message_size = htonl(message_size) & 0x00ffffff;
-
-    /* make sure our message type is valid */
-    assert(message_type <= 20);
-    DBG("message is %s, length %d\n", message_types[message_type], message_size);
-
-    /*
-     * Check to make sure that this record completely fits into
-     * the amount of data we have left in this message, if it
-     * does, great, otherwise, we have to mark it as incomplete
-     * for later re-assembly
-     */
-    if ((total_message_size + (message_size + 4)) <= rec_len) {
-
-        /* 
-         * If the incomplete parameter that is passed to us is non-null
-         * then we are reprocessing a previous message fragment on the list
-         * save the record, as we reuse the incomplete pointer below, and we
-         * will need to remove this from the list when we are done
-         */
-        if (to_delete == NULL)
-            to_delete = incomplete;
-
-        /* this record is complete, we can add it */
-        new = make_new_record(idx, message_size + 4, ssl);
-        assert(new != NULL);
-        DBG("message %s being added as record with len %u\n", message_types[message_type], message_size + 4);
-
-        /*
-         * If we are reprocessing a previous message fragment, we don't
-         * want to add the new record to the tail, in the event we have
-         * other messages for this SSL behind it, and don't want to process
-         * them out of order, instead, add the new record after the partial
-         * message so it winds up in the same place in the queue
-         * Update the incomplete pointer, so any subsequent records also
-         * get added in order.
-         * If, on the other hand, incomplete is NULL, then adding to the
-         * tail of the queue is just fine
-         */
-        if (incomplete != NULL) {
-            STAILQ_INSERT_AFTER(&adata->rlist, incomplete, new, entries);
-            incomplete = new;
-        } else {
-            STAILQ_INSERT_TAIL(&adata->rlist, new, entries);
-        }
-
-    } else {
-        /* This is an incomplete record, create and mark it as such */
-        DBG("message %s is incomplete, marking as such for later reassembly\n", message_types[message_type]);
-        new = make_new_record(idx, rec_len - total_message_size, ssl);
-        assert(new != NULL);
-        new->incomplete = 1;
-        /*
-         * Same as above, if we are reprocessing an incomplete message
-         * add any leftovers after the last record we processed, which may
-         * not be the absolute end of the queue
-         */
-        if (incomplete != NULL) {
-            STAILQ_INSERT_AFTER(&adata->rlist, incomplete, new, entries);
-            incomplete = new;
-        } else {
-            STAILQ_INSERT_TAIL(&adata->rlist, new, entries);
-        }
-    }
-
-    /*
-     * update our total_message size and cursor, to handle the next record
-     */
-    total_message_size += (message_size + 4);
-    idx += (4 + message_size);
-  }
-
-  /*
-   * If to_delete is not null, then we reprocessed a message fragment
-   * and added more records to the queue right behind to_delete.  Because
-   * those new records contain the data that was in this partial fragment,
-   * we need to get rid of this one to avoid reading duplicate data
-   */
-  if (to_delete != NULL) {
-    STAILQ_REMOVE(&adata->rlist, to_delete, record_entry, entries);
-    free(to_delete->record);
-    free(to_delete);
-  }
-}
-
-/**
- * @brief Checks if an incomplete record_entry can now be completed.
- *
- * Calls make_new_records() on the provided record_entry to process its
- * contents. This may result in the record being split into one or more
- * complete record entries and the original record_entry being removed.
- *
- * @param rec Pointer to the record_entry to check and process.
- *
- * @return Always returns 1.
- */
-static int check_record_completion(struct record_entry *rec)
-{
-  make_new_records(rec->record, rec->rec_len, rec->ssl, rec);
-  return 1;
-}
-
-/**
  * @brief Searches for an incomplete record_entry associated with the given SSL.
  *
  * Iterates through the rlist queue to find an incomplete record_entry that
@@ -1576,18 +1435,79 @@ static struct record_entry *get_incomplete_record(const uint8_t *new_record,
        * We have an incomplete record for this SSL
        * merge them
        */
+      STAILQ_REMOVE(&adata->rlist, entry, record_entry, entries);
       entry->record = realloc(entry->record, entry->rec_len + new_rec_len);
       assert(entry->record != NULL);
       memcpy(&entry->record[entry->rec_len], new_record, new_rec_len);
       entry->rec_len += new_rec_len;
       entry->incomplete = 0; /* need to recheck this */
-        return entry;
+      return entry;
     } else {
       /* current record is complete, nothing to coalesce */
       return NULL;
     }
   }
   return NULL;
+}
+
+static void split_add_record(struct record_entry *entry)
+{
+  struct record_entry *leftover = NULL;
+  const uint8_t *idx;
+  uint8_t message_type;
+  size_t total_message_size = 0;
+  uint32_t message_size;
+  struct aux_data *adata;
+  uint8_t incomplete = 0;
+  uint8_t force_split = 0;
+
+  adata = get_ssl_aux_data(entry->ssl);
+  assert(adata != NULL);
+
+  /* set our cursor to the start of the message */
+  idx = entry->record;
+
+  while (total_message_size < entry->rec_len) {
+    message_type = *idx;
+    message_size = *((uint32_t *)idx);
+
+    /* message size is just the lower 3 bytes of the TLS record */
+    message_size = htonl(message_size) & 0x00ffffff;
+
+    /* make sure our message type is valid */
+    assert(message_type <= 20);
+    /*
+     * If this message is larger then the total record length
+     * then we need to create an incomplete record as its remainder
+     * is in the next datagram
+     * also, if this is an epoch key change message (8 is EncryptedExtensions)
+     * then we need to split it as rcv_rec expects that
+     * Note we only need to force the split if the epoch change
+     * isn't the first message in this record
+     */
+    if (total_message_size + message_size + 4 > entry->rec_len)
+        incomplete = 1;
+
+    if ((message_type == 8) && (total_message_size != 0))
+        force_split = 1;
+
+    if (incomplete == 1 || force_split == 1) {
+     /* create the incomplete trailing record */
+     leftover = make_new_record(idx, entry->rec_len - total_message_size,
+                                entry->ssl); 
+     /* reduce the size of this entry to drop whats contained in the leftover */
+     entry->rec_len -= leftover->rec_len;
+     leftover->incomplete = incomplete; 
+     break;
+    }
+    total_message_size += message_size + 4;
+    idx += message_size + 4;
+  }
+
+  /* Add the entry, and potentially the leftover record */
+  STAILQ_INSERT_TAIL(&adata->rlist, entry, entries);
+  if (leftover != NULL)
+    STAILQ_INSERT_TAIL(&adata->rlist, leftover, entries);
 }
 
 /**
@@ -1612,19 +1532,12 @@ static int process_new_message(SSL *ssl, const uint8_t *record, size_t rec_len)
   this_rec = get_incomplete_record(record, rec_len, ssl);
   if (this_rec == NULL) {
     /* No imcomplete records, just create a new one */
-    make_new_records(record, rec_len, ssl, NULL);
-    ret = 1;
-    goto out;
+    this_rec = make_new_record(record, rec_len, ssl);
   }
 
-  /* if we got an incomplete record above, get_incomplete_record
-   * will have merged the new record into it
-   * and we need to recheck its completion status
-   */
-  assert(check_record_completion(this_rec) == 1);
+  split_add_record(this_rec);
   ret = 1;
 
-out:
   return ret;
 }
 
@@ -1949,47 +1862,21 @@ static int quic_tls_rcv_rec(SSL *s, const unsigned char **buf, size_t *bytes_rea
                             void __attribute__((unused)) *arg)
 {
   struct record_entry *entry;
-  size_t total_len = 0;
-  unsigned char *rbuf = NULL;
   struct aux_data *adata = get_ssl_aux_data(s);
 
   adata = get_ssl_aux_data(s);
   assert(adata != NULL);
 
   DBG("Calling quic_tls_rcv_rec\n");
-start_again:
   STAILQ_FOREACH(entry, &adata->rlist, entries) {
-    if (entry->incomplete) {
-      DBG("Entry is incomplete, wait for more data\n");
-      *buf = rbuf;
-      *bytes_read = total_len;
-      adata->rec_to_free = rbuf;
-      return 1;
-    }
-
-    if (rbuf && entry->record[0] == 8) {
-      /*
-       * Encrypted extensions is a epoch change
-       * return early, as we don't want to feed
-       * records in accross this boundary
-       */
-      DBG("Ending early on epoch change\n");
-      break;
-    }
-
-    STAILQ_REMOVE(&adata->rlist, entry, record_entry, entries);
-    DBG("Found record to push of size %lu\n", entry->rec_len);
-    rbuf = realloc(rbuf, total_len + entry->rec_len);
-    memcpy(&rbuf[total_len], entry->record, entry->rec_len);
-    total_len += entry->rec_len;
-    free(entry->record);
-    free(entry);
-    adata->rec_to_free = rbuf;
-    goto start_again;
+    if (entry->incomplete)
+        return 1;
+    if (entry->freeme == 1)
+        continue;
+    *buf = entry->record;
+    *bytes_read = entry->rec_len;
+    entry->freeme = 1;
   }
-
-  *buf = rbuf;
-  *bytes_read = total_len;
   return 1;
 }
 
@@ -2010,10 +1897,18 @@ static int quic_tls_rls_rec(SSL *s, size_t __attribute__((unused)) bytes_read,
                             void __attribute__((unused)) *arg)
 {
   struct aux_data *adata = get_ssl_aux_data(s);
+  struct record_entry *entry;
 
   DBG("Called quic_tls_rls_rec of %lu bytes\n", bytes_read);
-  free(adata->rec_to_free);
-  adata->rec_to_free = NULL;
+  STAILQ_FOREACH(entry, &adata->rlist, entries) {
+    if ((entry->freeme == 1) && (entry->rec_len == bytes_read)) {
+      DBG("Freeing entry\n");
+      STAILQ_REMOVE(&adata->rlist, entry, record_entry, entries); 
+      free(entry->record);
+      free(entry);
+      return 1;
+    }
+  }
   return 1;
 }
 
