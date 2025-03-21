@@ -1492,13 +1492,21 @@ static void split_add_record(struct record_entry *entry)
         force_split = 1;
 
     if (incomplete == 1 || force_split == 1) {
-     /* create the incomplete trailing record */
-     leftover = make_new_record(idx, entry->rec_len - total_message_size,
-                                entry->ssl); 
-     /* reduce the size of this entry to drop whats contained in the leftover */
-     entry->rec_len -= leftover->rec_len;
-     leftover->incomplete = incomplete; 
-     break;
+      if (total_message_size == 0) {
+        /*
+         * If this is the first record, just mark this one
+         * as being incomplete
+         */
+        entry->incomplete = 1;
+      } else {
+        /* create the incomplete trailing record */
+         leftover = make_new_record(idx, entry->rec_len - total_message_size,
+                                    entry->ssl); 
+         /* reduce the size of this entry to drop whats contained in the leftover */
+         entry->rec_len -= leftover->rec_len;
+         leftover->incomplete = incomplete; 
+      }
+      break;
     }
     total_message_size += message_size + 4;
     idx += message_size + 4;
