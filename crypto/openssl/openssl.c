@@ -119,13 +119,17 @@ struct aux_data {
     ngtcp2_encryption_level level;
 
     /*
+     * @brief, this SSL's receive record list
+     */
+    struct record_list rlist;
+
+    /*
      * @brief the current record set being fed into the tls stack
      * to be freed in rls_rec
      */
     uint8_t *rec_to_free;
 };
 
-#define get_ssl_rx_queue(s) (struct record_list *)BIO_get_app_data(SSL_get_rbio(s))
 #define get_ssl_aux_data(s) (struct aux_data *)BIO_get_app_data(SSL_get_wbio(s))
 
 /**
@@ -1426,10 +1430,10 @@ static void make_new_records(const uint8_t *record, size_t rec_len, SSL *ssl,
   size_t total_message_size = 0;
   uint32_t message_size;
   struct record_entry *to_delete = NULL;
-  struct record_list *rlist;
+  struct aux_data *adata;
 
-  rlist = get_ssl_rx_queue(ssl);
-  assert(rlist != NULL);
+  adata = get_ssl_aux_data(ssl);
+  assert(adata != NULL);
 
   /* set our cursor to the start of the message */
   idx = record;
@@ -1479,10 +1483,10 @@ static void make_new_records(const uint8_t *record, size_t rec_len, SSL *ssl,
          * tail of the queue is just fine
          */
         if (incomplete != NULL) {
-            STAILQ_INSERT_AFTER(rlist, incomplete, new, entries);
+            STAILQ_INSERT_AFTER(&adata->rlist, incomplete, new, entries);
             incomplete = new;
         } else {
-            STAILQ_INSERT_TAIL(rlist, new, entries);
+            STAILQ_INSERT_TAIL(&adata->rlist, new, entries);
         }
 
     } else {
@@ -1497,10 +1501,10 @@ static void make_new_records(const uint8_t *record, size_t rec_len, SSL *ssl,
          * not be the absolute end of the queue
          */
         if (incomplete != NULL) {
-            STAILQ_INSERT_AFTER(rlist, incomplete, new, entries);
+            STAILQ_INSERT_AFTER(&adata->rlist, incomplete, new, entries);
             incomplete = new;
         } else {
-            STAILQ_INSERT_TAIL(rlist, new, entries);
+            STAILQ_INSERT_TAIL(&adata->rlist, new, entries);
         }
     }
 
@@ -1518,7 +1522,7 @@ static void make_new_records(const uint8_t *record, size_t rec_len, SSL *ssl,
    * we need to get rid of this one to avoid reading duplicate data
    */
   if (to_delete != NULL) {
-    STAILQ_REMOVE(rlist, to_delete, record_entry, entries);
+    STAILQ_REMOVE(&adata->rlist, to_delete, record_entry, entries);
     free(to_delete->record);
     free(to_delete);
   }
@@ -1561,12 +1565,12 @@ static struct record_entry *get_incomplete_record(const uint8_t *new_record,
                                                   SSL *new_ssl)
 {
   struct record_entry *entry;
-  struct record_list *rlist;
+  struct aux_data *adata;
 
-  rlist = get_ssl_rx_queue(new_ssl);
-  assert(rlist != NULL);
+  adata = get_ssl_aux_data(new_ssl);
+  assert(adata != NULL);
 
-  STAILQ_FOREACH(entry, rlist, entries) {
+  STAILQ_FOREACH(entry, &adata->rlist, entries) {
     if (entry->ssl == new_ssl) {
       if (entry->incomplete) {
         /*
@@ -1947,17 +1951,16 @@ static int quic_tls_rcv_rec(SSL *s, const unsigned char **buf, size_t *bytes_rea
                             void __attribute__((unused)) *arg)
 {
   struct record_entry *entry;
-  struct record_list *rlist;
   size_t total_len = 0;
   unsigned char *rbuf = NULL;
   struct aux_data *adata = get_ssl_aux_data(s);
 
-  rlist = get_ssl_rx_queue(s);
-  assert(rlist != NULL);
+  adata = get_ssl_aux_data(s);
+  assert(adata != NULL);
 
   DBG("Calling quic_tls_rcv_rec\n");
 start_again:
-  STAILQ_FOREACH(entry, rlist, entries) {
+  STAILQ_FOREACH(entry, &adata->rlist, entries) {
     if (entry->ssl == s) {
       if (entry->incomplete) {
         DBG("Entry is incomplete, wait for more data\n");
@@ -1977,7 +1980,7 @@ start_again:
         break;
       }
 
-      STAILQ_REMOVE(rlist, entry, record_entry, entries);
+      STAILQ_REMOVE(&adata->rlist, entry, record_entry, entries);
       DBG("Found record to push of size %lu\n", entry->rec_len);
       rbuf = realloc(rbuf, total_len + entry->rec_len);
       memcpy(&rbuf[total_len], entry->record, entry->rec_len);
@@ -2007,7 +2010,8 @@ start_again:
  *
  * @return Always returns 1.
  */
-static int quic_tls_rls_rec(SSL *s, size_t bytes_read, void __attribute__((unused)) *arg)
+static int quic_tls_rls_rec(SSL *s, size_t __attribute__((unused)) bytes_read,
+                            void __attribute__((unused)) *arg)
 {
   struct aux_data *adata = get_ssl_aux_data(s);
 
@@ -2164,45 +2168,6 @@ static OSSL_DISPATCH openssl_quic_dispatch[] = {
 };
 
 /**
- * @brief Frees the associated app data for our write biod
- *
- * This function is the registered callback for our write_bio
- * Its largely vestigual, simply returning whatever was passed to it
- * except when we get a free callback, in which case we free the associated
- * rx queue that we have set as its app data
- * This allows us to clean up that memory when the ngtcp2 library frees the 
- * associated ssl
- *
- * @param[in] b - bio being acted upon
- * @param[in] oper - the operation being conducted
- * @param[in] *argp - relevant arguments to the operation (unused)
- * @param[in] len - the size of the data being processed (unused)
- * @param[in] argi - context dependent argument (unused)
- * @param[in] arg1 - context dependent argument (unused)
- * @param[in] ret - the return code to return
- * @param[in] *processed - the amount of data consumed (unused)
- *
- * @returns ret always
- */
-static long free_bio_app_data(BIO *b, int oper,
-                              __attribute__((unused)) const char *argp,
-                              __attribute__((unused)) size_t len,
-                              __attribute__((unused)) int argi,
-                              __attribute__((unused)) long arg1,
-                              __attribute__((unused)) int ret,
-                              __attribute__((unused)) size_t *processed)
-{
-    struct record_list *rlist;
-
-    if (oper == BIO_CB_FREE) {
-        rlist = BIO_get_app_data(b);
-        free(rlist);
-        BIO_set_app_data(b, NULL);
-    }
-    return ret;
-}
-
-/**
  * @brief Configures an OpenSSL QUIC TLS session for use with ngtcp2.
  *
  * This function sets up the OpenSSL QUIC TLS callbacks and attaches dummy
@@ -2222,7 +2187,6 @@ static long free_bio_app_data(BIO *b, int oper,
 static void crypto_openssl_configure_session(SSL *ssl) {
   BIO *ssl_read_bio = NULL;
   BIO *ssl_write_bio = NULL;
-  struct record_list *rlist;
   struct aux_data *adata;
 
   if (!SSL_set_quic_tls_cbs(ssl, openssl_quic_dispatch, NULL))
@@ -2244,16 +2208,11 @@ static void crypto_openssl_configure_session(SSL *ssl) {
   BIO_set_mem_eof_return(ssl_write_bio, -1);
   SSL_set_bio(ssl, ssl_write_bio, ssl_read_bio);
 
-  rlist = calloc(1, sizeof(struct record_list));
-  if (rlist == NULL)
-    return;
   adata = calloc(1, sizeof(struct aux_data));
   if (adata == NULL)
     return;
 
-  STAILQ_INIT(rlist);
-  BIO_set_app_data(ssl_write_bio, rlist);
-  BIO_set_callback_ex(ssl_write_bio, free_bio_app_data);
+  STAILQ_INIT(&adata->rlist);
   BIO_set_app_data(ssl_read_bio, adata);
   BIO_set_callback_ex(ssl_read_bio, free_bio_aux_data);
 }
