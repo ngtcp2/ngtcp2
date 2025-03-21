@@ -1571,22 +1571,20 @@ static struct record_entry *get_incomplete_record(const uint8_t *new_record,
   assert(adata != NULL);
 
   STAILQ_FOREACH(entry, &adata->rlist, entries) {
-    if (entry->ssl == new_ssl) {
-      if (entry->incomplete) {
-        /*
-         * We have an incomplete record for this SSL
-         * merge them
-         */
-        entry->record = realloc(entry->record, entry->rec_len + new_rec_len);
-        assert(entry->record != NULL);
-        memcpy(&entry->record[entry->rec_len], new_record, new_rec_len);
-        entry->rec_len += new_rec_len;
-        entry->incomplete = 0; /* need to recheck this */
-          return entry;
-      } else {
-        /* current record is complete, nothing to coalesce */
-        return NULL;
-      }
+    if (entry->incomplete) {
+      /*
+       * We have an incomplete record for this SSL
+       * merge them
+       */
+      entry->record = realloc(entry->record, entry->rec_len + new_rec_len);
+      assert(entry->record != NULL);
+      memcpy(&entry->record[entry->rec_len], new_record, new_rec_len);
+      entry->rec_len += new_rec_len;
+      entry->incomplete = 0; /* need to recheck this */
+        return entry;
+    } else {
+      /* current record is complete, nothing to coalesce */
+      return NULL;
     }
   }
   return NULL;
@@ -1961,35 +1959,33 @@ static int quic_tls_rcv_rec(SSL *s, const unsigned char **buf, size_t *bytes_rea
   DBG("Calling quic_tls_rcv_rec\n");
 start_again:
   STAILQ_FOREACH(entry, &adata->rlist, entries) {
-    if (entry->ssl == s) {
-      if (entry->incomplete) {
-        DBG("Entry is incomplete, wait for more data\n");
-        *buf = rbuf;
-        *bytes_read = total_len;
-        adata->rec_to_free = rbuf;
-        return 1;
-      }
-
-      if (rbuf && entry->record[0] == 8) {
-        /*
-         * Encrypted extensions is a epoch change
-         * return early, as we don't want to feed
-         * records in accross this boundary
-         */
-        DBG("Ending early on epoch change\n");
-        break;
-      }
-
-      STAILQ_REMOVE(&adata->rlist, entry, record_entry, entries);
-      DBG("Found record to push of size %lu\n", entry->rec_len);
-      rbuf = realloc(rbuf, total_len + entry->rec_len);
-      memcpy(&rbuf[total_len], entry->record, entry->rec_len);
-      total_len += entry->rec_len;
-      free(entry->record);
-      free(entry);
+    if (entry->incomplete) {
+      DBG("Entry is incomplete, wait for more data\n");
+      *buf = rbuf;
+      *bytes_read = total_len;
       adata->rec_to_free = rbuf;
-      goto start_again;
+      return 1;
     }
+
+    if (rbuf && entry->record[0] == 8) {
+      /*
+       * Encrypted extensions is a epoch change
+       * return early, as we don't want to feed
+       * records in accross this boundary
+       */
+      DBG("Ending early on epoch change\n");
+      break;
+    }
+
+    STAILQ_REMOVE(&adata->rlist, entry, record_entry, entries);
+    DBG("Found record to push of size %lu\n", entry->rec_len);
+    rbuf = realloc(rbuf, total_len + entry->rec_len);
+    memcpy(&rbuf[total_len], entry->record, entry->rec_len);
+    total_len += entry->rec_len;
+    free(entry->record);
+    free(entry);
+    adata->rec_to_free = rbuf;
+    goto start_again;
   }
 
   *buf = rbuf;
