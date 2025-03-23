@@ -50,11 +50,9 @@ std::string_view TLSSessionBase::get_negotiated_group() const {
 #if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
   return SSL_get_group_name(SSL_get_group_id(ssl_));
 #elif OPENSSL_VERSION_NUMBER >= 0x30000000L
-  auto nid = SSL_get_negotiated_group(ssl_);
-
-  auto name = EC_curve_nid2nist(nid);
+  auto name = SSL_group_to_name(ssl_, SSL_get_negotiated_group(ssl_));
   if (!name) {
-    name = OBJ_nid2sn(nid);
+    return ""sv;
   }
 
   return name;
