@@ -126,16 +126,16 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
 }
 
 const char *crypto_default_ciphers() {
-#if defined(ENABLE_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_QUICTLS)
+#ifdef WITH_EXAMPLE_QUICTLS
   return "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_"
          "SHA256"
 #  ifndef LIBRESSL_VERSION_NUMBER
          ":TLS_AES_128_CCM_SHA256"
 #  endif // !defined(LIBRESSL_VERSION_NUMBER)
     ;
-#else  // !(defined(ENABLE_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_QUICTLS))
+#else  // !defined(WITH_EXAMPLE_QUICTLS)
   return "";
-#endif // !(defined(ENABLE_EXAMPLE_QUICTLS) && defined(WITH_EXAMPLE_QUICTLS))
+#endif // !defined(WITH_EXAMPLE_QUICTLS)
 }
 
 const char *crypto_default_groups() {

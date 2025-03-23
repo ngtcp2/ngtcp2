@@ -481,31 +481,6 @@ if test "x${lib_only}" = "xno" &&
    test "x${have_libev}" = "xyes" &&
    test "x${HAVE_CXX20}" = "x1"; then
   enable_examples=yes
-
-  if test "x${have_openssl}" = "xyes"; then
-    AC_DEFINE([ENABLE_EXAMPLE_QUICTLS], [1],
-              [Define to 1 in order to build examples/{qtlsclient,qtlsserver}])
-  fi
-
-  if test "x${have_gnutls}" = "xyes"; then
-    AC_DEFINE([ENABLE_EXAMPLE_GNUTLS], [1],
-              [Define to 1 in order to build examples/{gtlsclient,gtlsserver}])
-  fi
-
-  if test "x${have_boringssl}" = "xyes"; then
-    AC_DEFINE([ENABLE_EXAMPLE_BORINGSSL], [1],
-              [Define to 1 in order to build examples/{bsslclient,bsslserver}])
-  fi
-
-  if test "x${have_picotls}" = "xyes"; then
-    AC_DEFINE([ENABLE_EXAMPLE_PICOTLS], [1],
-              [Define to 1 in order to build examples/{ptlsclient,ptlsserver}])
-  fi
-
-  if test "x${have_wolfssl}" = "xyes"; then
-    AC_DEFINE([ENABLE_EXAMPLE_WOLFSSL], [1],
-              [Define to 1 in order to build examples/{wsslclient,wsslserver}])
-  fi
 fi
 
 AM_CONDITIONAL([ENABLE_EXAMPLES], [ test "x${enable_examples}" = "xyes" ])
