@@ -80,6 +80,9 @@ std::string_view TLSSessionBase::get_negotiated_group() const {
   auto name = EC_curve_nid2nist(nid);
   if (!name) {
     name = OBJ_nid2sn(nid);
+    if (!name) {
+      return ""sv;
+    }
   }
 
   return name;
