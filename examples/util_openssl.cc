@@ -140,9 +140,9 @@ const char *crypto_default_ciphers() {
 
 const char *crypto_default_groups() {
   return "X25519:P-256:P-384:P-521"
-#if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
+#ifdef WITH_EXAMPLE_BORINGSSL
          ":X25519MLKEM768"
-#endif // defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
+#endif // defined(WITH_EXAMPLE_BORINGSSL)
     ;
 }
 
