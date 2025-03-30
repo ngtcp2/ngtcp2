@@ -5433,11 +5433,13 @@ decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 
   hd->pkt_numlen = (size_t)((dest[0] & NGTCP2_PKT_NUMLEN_MASK) + 1);
 
-  for (i = 0; i < hd->pkt_numlen; ++i) {
+  for (i = 0; i < 4; ++i) {
     *p++ = *(pkt + pkt_num_offset + i) ^ mask[i + 1];
   }
 
-  hd->pkt_num = ngtcp2_get_pkt_num(p - hd->pkt_numlen, hd->pkt_numlen);
+  p -= 4;
+  hd->pkt_num = ngtcp2_get_pkt_num(p, hd->pkt_numlen);
+  p += hd->pkt_numlen;
 
   return p - dest;
 }
