@@ -134,6 +134,9 @@ public:
   int start_closing_period();
   int handle_error();
   int send_conn_close();
+  int send_conn_close(const Endpoint &ep, const Address &local_addr,
+                      const sockaddr *sa, socklen_t salen,
+                      const ngtcp2_pkt_info *pi, std::span<const uint8_t> data);
 
   int update_key(uint8_t *rx_secret, uint8_t *tx_secret,
                  ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
@@ -170,6 +173,12 @@ private:
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
   bool no_gso_;
+  struct {
+    size_t bytes_recv;
+    size_t bytes_sent;
+    size_t num_pkts_recv;
+    size_t next_pkts_recv;
+  } close_wait_;
 
   struct {
     bool send_blocked;
@@ -218,11 +227,11 @@ public:
                          const sockaddr *sa, socklen_t salen);
   int verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                    socklen_t salen);
-  int send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
+  int send_packet(const Endpoint &ep, const ngtcp2_addr &local_addr,
                   const ngtcp2_addr &remote_addr, unsigned int ecn,
                   std::span<const uint8_t> data);
   std::pair<std::span<const uint8_t>, int>
-  send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
+  send_packet(const Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
               const ngtcp2_addr &remote_addr, unsigned int ecn,
               std::span<const uint8_t> data, size_t gso_size);
   void remove(const Handler *h);

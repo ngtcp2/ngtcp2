@@ -348,6 +348,9 @@ Handler::Handler(struct ev_loop *loop, Server *server)
       true
 #endif // !defined(UDP_SEGMENT)
     },
+    close_wait_{
+      .next_pkts_recv = 1,
+    },
     tx_{
       .data = std::unique_ptr<uint8_t[]>(new uint8_t[64_k]),
     } {
@@ -1278,6 +1281,47 @@ int Handler::send_conn_close() {
                               /* ecn = */ 0, conn_closebuf_->data());
 }
 
+int Handler::send_conn_close(const Endpoint &ep, const Address &local_addr,
+                             const sockaddr *sa, socklen_t salen,
+                             const ngtcp2_pkt_info *pi,
+                             std::span<const uint8_t> data) {
+  assert(conn_closebuf_ && conn_closebuf_->size());
+
+  close_wait_.bytes_recv += data.size();
+  ++close_wait_.num_pkts_recv;
+
+  if (close_wait_.num_pkts_recv < close_wait_.next_pkts_recv ||
+      close_wait_.bytes_recv * 3 <
+        close_wait_.bytes_sent + conn_closebuf_->size()) {
+    return 0;
+  }
+
+  auto path = ngtcp2_path{
+    .local =
+      {
+        .addr = const_cast<sockaddr *>(&local_addr.su.sa),
+        .addrlen = local_addr.len,
+      },
+    .remote =
+      {
+        .addr = const_cast<sockaddr *>(sa),
+        .addrlen = salen,
+      },
+    .user_data = const_cast<Endpoint *>(&ep),
+  };
+
+  auto rv = server_->send_packet(ep, path.local, path.remote,
+                                 /* ecn = */ 0, conn_closebuf_->data());
+  if (rv != 0) {
+    return rv;
+  }
+
+  close_wait_.bytes_sent += conn_closebuf_->size();
+  close_wait_.next_pkts_recv *= 2;
+
+  return 0;
+}
+
 void Handler::update_timer() {
   auto expiry = ngtcp2_conn_get_expiry(conn_);
   auto now = util::timestamp();
@@ -1947,8 +1991,7 @@ void Server::read_pkt(Endpoint &ep, const Address &local_addr,
   auto h = (*handler_it).second;
   auto conn = h->conn();
   if (ngtcp2_conn_in_closing_period(conn)) {
-    // TODO do exponential backoff.
-    if (h->send_conn_close() != 0) {
+    if (h->send_conn_close(ep, local_addr, sa, salen, pi, data) != 0) {
       remove(h);
     }
     return;
@@ -2308,7 +2351,7 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
   return 0;
 }
 
-int Server::send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
+int Server::send_packet(const Endpoint &ep, const ngtcp2_addr &local_addr,
                         const ngtcp2_addr &remote_addr, unsigned int ecn,
                         std::span<const uint8_t> data) {
   auto no_gso = false;
@@ -2319,7 +2362,8 @@ int Server::send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
 }
 
 std::pair<std::span<const uint8_t>, int>
-Server::send_packet(Endpoint &ep, bool &no_gso, const ngtcp2_addr &local_addr,
+Server::send_packet(const Endpoint &ep, bool &no_gso,
+                    const ngtcp2_addr &local_addr,
                     const ngtcp2_addr &remote_addr, unsigned int ecn,
                     std::span<const uint8_t> data, size_t gso_size) {
   assert(gso_size);
