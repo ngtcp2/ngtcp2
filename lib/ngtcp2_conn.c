@@ -8208,7 +8208,11 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     /* Run PMTUD just in case if it is prematurely aborted */
     assert(!conn->pmtud);
 
-    return conn_start_pmtud(conn);
+    if (!conn->local.settings.no_pmtud) {
+      return conn_start_pmtud(conn);
+    }
+
+    return 0;
   }
 
   remote_addr_cmp =
