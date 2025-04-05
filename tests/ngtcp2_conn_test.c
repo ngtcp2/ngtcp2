@@ -8856,6 +8856,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   ngtcp2_path_storage new_path1, new_path2, new_path3;
   ngtcp2_ksl_it it;
+  ngtcp2_path_history_entry *ph_ent;
   ngtcp2_tpe tpe;
   ngtcp2_transport_params params;
   conn_options opts;
@@ -8875,13 +8876,19 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_ptrdiff(0, <, spktlen);
   assert_size(1, <, ngtcp2_ksl_len(&conn->scid.set));
 
-  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
-  fr.new_connection_id.seq = 1;
-  fr.new_connection_id.retire_prior_to = 0;
-  fr.new_connection_id.cid = cid;
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+  frs[0].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[0].new_connection_id.seq = 1;
+  frs[0].new_connection_id.retire_prior_to = 0;
+  frs[0].new_connection_id.cid = cid;
+  memcpy(frs[0].new_connection_id.stateless_reset_token, token, sizeof(token));
+  frs[1].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[1].new_connection_id.seq = 2;
+  frs[1].new_connection_id.retire_prior_to = 0;
+  frs[1].new_connection_id.cid = cid;
+  frs[1].new_connection_id.cid.data[0] = 0x1f;
+  memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
 
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
@@ -8895,6 +8902,12 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   assert_int(0, ==, rv);
   assert_not_null(conn->pv);
+  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->path_history.rb));
+
+  ph_ent = ngtcp2_ringbuf_get(&conn->path_history.rb, 0);
+
+  assert_true(ngtcp2_path_eq(&null_path.path, &ph_ent->ps.path));
+  assert_uint64(t, ==, ph_ent->ts);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -8946,6 +8959,26 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_int(0, ==, rv);
   assert_true(ngtcp2_path_eq(&new_path2.path, &conn->dcid.current.ps.path));
   assert_true(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
+
+  /* A remote endpoint migrates back to the new_path1.  Path
+     validation is skipped because new_path1 has been validated. */
+  fr.type = NGTCP2_FRAME_PING;
+
+  ngtcp2_ksl_it_next(&it);
+
+  assert(!ngtcp2_ksl_it_end(&it));
+
+  new_cid = &(((ngtcp2_scid *)ngtcp2_ksl_it_get(&it))->cid);
+  tpe.dcid = *new_cid;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path1.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&new_path1.path, &conn->dcid.current.ps.path));
+  assert_true(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
 
   ngtcp2_conn_del(conn);
 
@@ -9197,7 +9230,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   uint8_t buf[2048];
   size_t pktlen;
   ngtcp2_tstamp t = 900;
-  ngtcp2_frame fr;
+  ngtcp2_frame fr[2];
   int rv;
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
   ngtcp2_cid cid;
@@ -9206,6 +9239,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   ngtcp2_ssize spktlen;
   ngtcp2_path_storage to_path;
   ngtcp2_tpe tpe;
+  ngtcp2_path_history_entry *ph_ent;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
@@ -9213,13 +9247,13 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   setup_default_client(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
-  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
-  fr.new_connection_id.seq = 1;
-  fr.new_connection_id.retire_prior_to = 0;
-  fr.new_connection_id.cid = cid;
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+  fr[0].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr[0].new_connection_id.seq = 1;
+  fr[0].new_connection_id.retire_prior_to = 0;
+  fr[0].new_connection_id.cid = cid;
+  memcpy(fr[0].new_connection_id.stateless_reset_token, token, sizeof(token));
 
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
@@ -9243,10 +9277,10 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   assert_ptrdiff(0, <, spktlen);
 
-  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+  fr[0].type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr[0].path_response.data, 0, sizeof(fr[0].path_response.data));
 
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
 
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
 
@@ -9262,13 +9296,19 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   setup_default_client(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
-  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
-  fr.new_connection_id.seq = 1;
-  fr.new_connection_id.retire_prior_to = 0;
-  fr.new_connection_id.cid = cid;
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+  fr[0].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr[0].new_connection_id.seq = 1;
+  fr[0].new_connection_id.retire_prior_to = 0;
+  fr[0].new_connection_id.cid = cid;
+  memcpy(fr[0].new_connection_id.stateless_reset_token, token, sizeof(token));
+  fr[1].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr[1].new_connection_id.seq = 2;
+  fr[1].new_connection_id.retire_prior_to = 0;
+  fr[1].new_connection_id.cid = cid;
+  fr[1].new_connection_id.cid.data[0] = 0x0e;
+  memcpy(fr[1].new_connection_id.stateless_reset_token, token, sizeof(token));
 
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 2);
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
@@ -9289,10 +9329,10 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   assert_ptrdiff(0, <, spktlen);
 
-  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+  fr[0].type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr[0].path_response.data, 0, sizeof(fr[0].path_response.data));
 
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
@@ -9301,6 +9341,20 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   assert_true(ngtcp2_path_eq(&to_path.path, &conn->dcid.current.ps.path));
   assert_ptr_equal(&ud, conn->dcid.current.ps.path.user_data);
   assert_true(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
+  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->path_history.rb));
+
+  ph_ent = ngtcp2_ringbuf_get(&conn->path_history.rb, 0);
+
+  assert_true(ngtcp2_path_eq(&null_path.path, &ph_ent->ps.path));
+
+  /* Migrate back to the original path.  Path validation is skipped
+     because the path has been validated. */
+  rv = ngtcp2_conn_initiate_migration(conn, &null_path.path, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  assert_true(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
 
   ngtcp2_conn_del(conn);
 }
