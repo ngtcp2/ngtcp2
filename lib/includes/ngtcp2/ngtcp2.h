@@ -214,18 +214,10 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_SECONDS` is a count of tick which corresponds to 1
- * second.
+ * :macro:`NGTCP2_NANOSECONDS` is a count of tick which corresponds to
+ * 1 nanosecond.
  */
-#define NGTCP2_SECONDS ((ngtcp2_duration)1000000000ULL)
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_MILLISECONDS` is a count of tick which corresponds
- * to 1 millisecond.
- */
-#define NGTCP2_MILLISECONDS ((ngtcp2_duration)1000000ULL)
+#define NGTCP2_NANOSECONDS ((ngtcp2_duration)1ULL)
 
 /**
  * @macro
@@ -233,15 +225,23 @@ typedef struct ngtcp2_mem {
  * :macro:`NGTCP2_MICROSECONDS` is a count of tick which corresponds
  * to 1 microsecond.
  */
-#define NGTCP2_MICROSECONDS ((ngtcp2_duration)1000ULL)
+#define NGTCP2_MICROSECONDS ((ngtcp2_duration)(1000ULL * NGTCP2_NANOSECONDS))
 
 /**
  * @macro
  *
- * :macro:`NGTCP2_NANOSECONDS` is a count of tick which corresponds to
- * 1 nanosecond.
+ * :macro:`NGTCP2_MILLISECONDS` is a count of tick which corresponds
+ * to 1 millisecond.
  */
-#define NGTCP2_NANOSECONDS ((ngtcp2_duration)1ULL)
+#define NGTCP2_MILLISECONDS ((ngtcp2_duration)(1000ULL * NGTCP2_MICROSECONDS))
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_SECONDS` is a count of tick which corresponds to 1
+ * second.
+ */
+#define NGTCP2_SECONDS ((ngtcp2_duration)(1000ULL * NGTCP2_MILLISECONDS))
 
 /**
  * @macrosection
