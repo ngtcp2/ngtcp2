@@ -13345,7 +13345,7 @@ int ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   for (i = 0; i < len; ++i) {
     ent = ngtcp2_ringbuf_get(rb, i);
-    if (ngtcp2_tstamp_elapsed(ent->ts, 600 * NGTCP2_SECONDS, ts)) {
+    if (ngtcp2_tstamp_elapsed(ent->ts, 10 * NGTCP2_MINUTES, ts)) {
       return 0;
     }
 
