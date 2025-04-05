@@ -227,6 +227,30 @@ h09wsslserver_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
 	util_wolfssl.cc
 endif # ENABLE_EXAMPLE_WOLFSSL
 
+if ENABLE_EXAMPLE_OSSL
+noinst_PROGRAMS += osslclient osslserver
+
+osslclient_CPPFLAGS = ${AM_CPPFLAGS} \
+	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@ -DWITH_EXAMPLE_OSSL
+osslclient_LDADD = ${LDADD} \
+	$(top_builddir)/crypto/ossl/libngtcp2_crypto_ossl.la \
+	@OPENSSL_LIBS@ \
+	@JEMALLOC_LIBS@
+osslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
+	tls_client_context_ossl.cc tls_client_context_ossl.h \
+	tls_client_session_ossl.cc tls_client_session_ossl.h \
+	tls_session_base_ossl.cc tls_session_base_ossl.h \
+	util_openssl.cc
+
+osslserver_CPPFLAGS = ${osslclient_CPPFLAGS}
+osslserver_LDADD = ${osslclient_LDADD}
+osslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
+	tls_server_context_ossl.cc tls_server_context_ossl.h \
+	tls_server_session_ossl.cc tls_server_session_ossl.h \
+	tls_session_base_ossl.cc tls_session_base_ossl.h \
+	util_openssl.cc
+endif # ENABLE_EXAMPLE_OSSL
+
 check_PROGRAMS = examplestest
 examplestest_SOURCES = examplestest.cc \
 	util_test.cc util_test.h util.cc util.h \

@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,35 +22,41 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_CONTEXT_H
-#define TLS_CLIENT_CONTEXT_H
+#include "tls_server_session_ossl.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // defined(HAVE_CONFIG_H)
+#include <iostream>
 
-#ifdef WITH_EXAMPLE_QUICTLS
-#  include "tls_client_context_quictls.h"
-#endif // defined(WITH_EXAMPLE_QUICTLS)
+#include <openssl/err.h>
 
-#ifdef WITH_EXAMPLE_GNUTLS
-#  include "tls_client_context_gnutls.h"
-#endif // defined(WITH_EXAMPLE_GNUTLS)
+#include "tls_server_context_ossl.h"
+#include "server_base.h"
 
-#ifdef WITH_EXAMPLE_BORINGSSL
-#  include "tls_client_context_boringssl.h"
-#endif // defined(WITH_EXAMPLE_BORINGSSL)
+TLSServerSession::TLSServerSession() {}
 
-#ifdef WITH_EXAMPLE_PICOTLS
-#  include "tls_client_context_picotls.h"
-#endif // defined(WITH_EXAMPLE_PICOTLS)
+TLSServerSession::~TLSServerSession() {}
 
-#ifdef WITH_EXAMPLE_WOLFSSL
-#  include "tls_client_context_wolfssl.h"
-#endif // defined(WITH_EXAMPLE_WOLFSSL)
+int TLSServerSession::init(const TLSServerContext &tls_ctx,
+                           HandlerBase *handler) {
+  auto ssl_ctx = tls_ctx.get_native_handle();
 
-#ifdef WITH_EXAMPLE_OSSL
-#  include "tls_client_context_ossl.h"
-#endif // defined(WITH_EXAMPLE_OSSL)
+  auto ssl = SSL_new(ssl_ctx);
+  if (!ssl) {
+    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
+              << std::endl;
+    return -1;
+  }
 
-#endif // !defined(TLS_CLIENT_CONTEXT_H)
+  ngtcp2_crypto_ossl_ctx_set_ssl(ossl_ctx_, ssl);
+
+  if (ngtcp2_crypto_ossl_configure_server_session(ssl) != 0) {
+    std::cerr << "ngtcp2_crypto_ossl_configure_server_session failed"
+              << std::endl;
+    return -1;
+  }
+
+  SSL_set_app_data(ssl, handler->conn_ref());
+  SSL_set_accept_state(ssl);
+  SSL_set_quic_tls_early_data_enabled(ssl, 1);
+
+  return 0;
+}

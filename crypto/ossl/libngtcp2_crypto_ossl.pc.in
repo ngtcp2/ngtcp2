@@ -1,6 +1,6 @@
 # ngtcp2
 
-# Copyright (c) 2019 ngtcp2
+# Copyright (c) 2025 ngtcp2 contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -20,37 +20,14 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
 
-install(FILES
-    ngtcp2/ngtcp2_crypto.h
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-
-if(HAVE_QUICTLS)
-  install(FILES
-      ngtcp2/ngtcp2_crypto_quictls.h
-      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
-
-if(HAVE_GNUTLS)
-  install(FILES
-      ngtcp2/ngtcp2_crypto_gnutls.h
-      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
-
-if(HAVE_BORINGSSL)
-  install(FILES
-      ngtcp2/ngtcp2_crypto_boringssl.h
-      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
-
-if(HAVE_PICOTLS)
-  install(FILES
-      ngtcp2/ngtcp2_crypto_picotls.h
-      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
-
-if(HAVE_WOLFSSL)
-  install(FILES
-      ngtcp2/ngtcp2_crypto_wolfssl.h
-      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
-endif()
+Name: libngtcp2_crypto_ossl
+Description: ngtcp2 ossl crypto library
+URL: https://github.com/ngtcp2/ngtcp2
+Version: @VERSION@
+Libs: -L${libdir} -lngtcp2_crypto_ossl
+Cflags: -I${includedir}
