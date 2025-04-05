@@ -1251,6 +1251,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     ngtcp2_unreachable();
   }
 
+  ngtcp2_static_ringbuf_path_history_init(&(*pconn)->path_history);
+
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
                  &(*pconn)->cc, settings->initial_pkt_num, &(*pconn)->log,
                  &(*pconn)->qlog, &(*pconn)->rtb_entry_objalloc,
@@ -5628,6 +5630,10 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
         }
       }
 
+      if (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
+        ngtcp2_conn_add_path_history(conn, &conn->dcid.current.ps.path, ts);
+      }
+
       ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
 
       conn_reset_congestion_state(conn, ts);
@@ -8171,13 +8177,14 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
                                                  int new_cid_used,
                                                  ngtcp2_tstamp ts) {
   ngtcp2_dcid dcid;
-  ngtcp2_pv *pv;
+  ngtcp2_pv *pv = NULL;
   int rv;
   ngtcp2_duration pto;
   int require_new_cid;
   int local_addr_eq;
   int pref_addr_migration;
   uint32_t remote_addr_cmp;
+  int validated_path;
 
   assert(conn->server);
 
@@ -8271,25 +8278,32 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   dcid.bytes_recv += dgramlen;
 
-  pto = conn_compute_pto(conn, &conn->pktns);
+  validated_path = ngtcp2_conn_find_path_history(conn, path, ts);
+  if (!validated_path) {
+    pto = conn_compute_pto(conn, &conn->pktns);
 
-  rv = ngtcp2_pv_new(&pv, &dcid, conn_compute_pv_timeout_pto(conn, pto),
-                     NGTCP2_PV_FLAG_NONE, &conn->log, conn->mem);
-  if (rv != 0) {
-    return rv;
+    rv = ngtcp2_pv_new(&pv, &dcid, conn_compute_pv_timeout_pto(conn, pto),
+                       NGTCP2_PV_FLAG_NONE, &conn->log, conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
+
+    if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT)) {
+      ngtcp2_pv_set_fallback(pv, &conn->pv->fallback_dcid,
+                             conn->pv->fallback_pto);
+      /* Unset the flag bit so that conn_stop_pv does not retire
+         DCID. */
+      conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_PRESENT;
+    } else if (!pref_addr_migration) {
+      ngtcp2_pv_set_fallback(pv, &conn->dcid.current, pto);
+    }
   }
 
-  if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT)) {
-    ngtcp2_pv_set_fallback(pv, &conn->pv->fallback_dcid,
-                           conn->pv->fallback_pto);
-    /* Unset the flag bit so that conn_stop_pv does not retire
-       DCID. */
-    conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_PRESENT;
-  } else if (!pref_addr_migration) {
-    ngtcp2_pv_set_fallback(pv, &conn->dcid.current, pto);
-  }
+  if (!pref_addr_migration || validated_path) {
+    if (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
+      ngtcp2_conn_add_path_history(conn, &conn->dcid.current.ps.path, ts);
+    }
 
-  if (!pref_addr_migration) {
     ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
 
     if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_CMP_FLAG_ADDR |
@@ -8300,6 +8314,17 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     conn_reset_ecn_validation_state(conn);
 
     ngtcp2_conn_stop_pmtud(conn);
+
+    if (validated_path) {
+      conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
+
+      if (!conn->local.settings.no_pmtud) {
+        rv = conn_start_pmtud(conn);
+        if (rv != 0) {
+          return rv;
+        }
+      }
+    }
   }
 
   if (conn->pv) {
@@ -13004,22 +13029,37 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
   ngtcp2_dcidtr_pop_unused(&conn->dcid.dtr, &dcid);
   ngtcp2_dcid_set_path(&dcid, path);
 
+  if (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
+    ngtcp2_conn_add_path_history(conn, &conn->dcid.current.ps.path, ts);
+  }
+
   ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
 
   conn_reset_congestion_state(conn, ts);
   conn_reset_ecn_validation_state(conn);
 
-  /* TODO It might be better to add a new flag which indicates that a
-     connection should be closed if this path validation failed.  The
-     current design allows an application to continue, by migrating
-     into yet another path. */
-  rv = ngtcp2_pv_new(&pv, &dcid, conn_compute_pv_timeout(conn),
-                     NGTCP2_PV_FLAG_NONE, &conn->log, conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
+  if (ngtcp2_conn_find_path_history(conn, path, ts)) {
+    conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
 
-  conn->pv = pv;
+    if (!conn->local.settings.no_pmtud) {
+      rv = conn_start_pmtud(conn);
+      if (rv != 0) {
+        return rv;
+      }
+    }
+  } else {
+    /* TODO It might be better to add a new flag which indicates that
+       a connection should be closed if this path validation failed.
+       The current design allows an application to continue, by
+       migrating into yet another path. */
+    rv = ngtcp2_pv_new(&pv, &dcid, conn_compute_pv_timeout(conn),
+                       NGTCP2_PV_FLAG_NONE, &conn->log, conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
+
+    conn->pv = pv;
+  }
 
   return conn_call_activate_dcid(conn, &conn->dcid.current);
 }
@@ -13031,6 +13071,10 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_pv *pv;
 
   assert(!conn->server);
+
+  if (ngtcp2_conn_find_path_history(conn, path, ts)) {
+    return ngtcp2_conn_initiate_immediate_migration(conn, path, ts);
+  }
 
   conn_update_timestamp(conn, ts);
 
@@ -13278,6 +13322,35 @@ size_t ngtcp2_conn_get_stream_loss_count(ngtcp2_conn *conn, int64_t stream_id) {
   }
 
   return strm->tx.loss_count;
+}
+
+void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
+                                  ngtcp2_tstamp ts) {
+  ngtcp2_path_history_entry *ent;
+
+  ent = ngtcp2_ringbuf_push_front(&conn->path_history.rb);
+  ngtcp2_path_storage_init2(&ent->ps, path);
+  ent->ts = ts;
+}
+
+int ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
+                                  ngtcp2_tstamp ts) {
+  ngtcp2_ringbuf *rb = &conn->path_history.rb;
+  size_t i, len = ngtcp2_ringbuf_len(rb);
+  ngtcp2_path_history_entry *ent;
+
+  for (i = 0; i < len; ++i) {
+    ent = ngtcp2_ringbuf_get(rb, i);
+    if (ngtcp2_tstamp_elapsed(ent->ts, 600 * NGTCP2_SECONDS, ts)) {
+      return 0;
+    }
+
+    if (ngtcp2_path_eq(path, &ent->ps.path)) {
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
