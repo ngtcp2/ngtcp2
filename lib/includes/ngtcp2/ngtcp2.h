@@ -244,6 +244,14 @@ typedef struct ngtcp2_mem {
 #define NGTCP2_SECONDS ((ngtcp2_duration)(1000ULL * NGTCP2_MILLISECONDS))
 
 /**
+ * @macro
+ *
+ * :macro:`NGTCP2_MINUTES` is a count of tick which corresponds to 1
+ * minute.
+ */
+#define NGTCP2_MINUTES ((ngtcp2_duration)(60ULL * NGTCP2_SECONDS))
+
+/**
  * @macrosection
  *
  * QUIC protocol version macros
