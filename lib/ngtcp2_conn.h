@@ -311,17 +311,6 @@ typedef struct ngtcp2_early_transport_params {
 ngtcp2_static_ringbuf_def(path_challenge, 4,
                           sizeof(ngtcp2_path_challenge_entry))
 
-/* TODO It might be performance win if we store MTU and/or congestion
-   state in this entry, and restore it when migrate back to this
-   path. */
-typedef struct ngtcp2_path_history_entry {
-  /* ps contains path. */
-  ngtcp2_path_storage ps;
-  /* ts is the timestamp when this entry is added to the path history.
-     It happens when a local endpoint migrates to the another path. */
-  ngtcp2_tstamp ts;
-} ngtcp2_path_history_entry;
-
 ngtcp2_static_ringbuf_def(path_history, 4, sizeof(ngtcp2_path_history_entry))
 
 ngtcp2_objalloc_decl(strm, ngtcp2_strm, oplent)
@@ -1115,10 +1104,11 @@ void ngtcp2_conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
  */
 void ngtcp2_conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
-void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
+void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
                                   ngtcp2_tstamp ts);
 
-int ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
-                                  ngtcp2_tstamp ts);
+const ngtcp2_path_history_entry *
+ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
+                              ngtcp2_tstamp ts);
 
 #endif /* !defined(NGTCP2_CONN_H) */

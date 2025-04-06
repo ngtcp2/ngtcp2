@@ -5631,7 +5631,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
       }
 
       if (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
-        ngtcp2_conn_add_path_history(conn, &conn->dcid.current.ps.path, ts);
+        ngtcp2_conn_add_path_history(conn, &conn->dcid.current, ts);
       }
 
       ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
@@ -8184,7 +8184,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   int local_addr_eq;
   int pref_addr_migration;
   uint32_t remote_addr_cmp;
-  int validated_path;
+  const ngtcp2_path_history_entry *validated_path;
 
   assert(conn->server);
 
@@ -8305,7 +8305,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   if (!pref_addr_migration || validated_path) {
     if (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
-      ngtcp2_conn_add_path_history(conn, &conn->dcid.current.ps.path, ts);
+      ngtcp2_conn_add_path_history(conn, &conn->dcid.current, ts);
     }
 
     ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
@@ -8320,7 +8320,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     ngtcp2_conn_stop_pmtud(conn);
 
     if (validated_path) {
-      conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
+      ngtcp2_dcid_apply_validated_path(&conn->dcid.current, validated_path);
 
       if (!conn->local.settings.no_pmtud) {
         rv = conn_start_pmtud(conn);
@@ -13006,6 +13006,7 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
   int rv;
   ngtcp2_dcid dcid;
   ngtcp2_pv *pv;
+  const ngtcp2_path_history_entry *validated_path;
 
   assert(!conn->server);
 
@@ -13034,7 +13035,7 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
   ngtcp2_dcid_set_path(&dcid, path);
 
   if (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
-    ngtcp2_conn_add_path_history(conn, &conn->dcid.current.ps.path, ts);
+    ngtcp2_conn_add_path_history(conn, &conn->dcid.current, ts);
   }
 
   ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
@@ -13042,8 +13043,9 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
   conn_reset_congestion_state(conn, ts);
   conn_reset_ecn_validation_state(conn);
 
-  if (ngtcp2_conn_find_path_history(conn, path, ts)) {
-    conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
+  validated_path = ngtcp2_conn_find_path_history(conn, path, ts);
+  if (validated_path) {
+    ngtcp2_dcid_apply_validated_path(&conn->dcid.current, validated_path);
 
     if (!conn->local.settings.no_pmtud) {
       rv = conn_start_pmtud(conn);
@@ -13328,17 +13330,19 @@ size_t ngtcp2_conn_get_stream_loss_count(ngtcp2_conn *conn, int64_t stream_id) {
   return strm->tx.loss_count;
 }
 
-void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
+void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
                                   ngtcp2_tstamp ts) {
   ngtcp2_path_history_entry *ent;
 
   ent = ngtcp2_ringbuf_push_front(&conn->path_history.rb);
-  ngtcp2_path_storage_init2(&ent->ps, path);
+  ngtcp2_path_storage_init2(&ent->ps, &dcid->ps.path);
+  ent->max_udp_payload_size = dcid->max_udp_payload_size;
   ent->ts = ts;
 }
 
-int ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
-                                  ngtcp2_tstamp ts) {
+const ngtcp2_path_history_entry *
+ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
+                              ngtcp2_tstamp ts) {
   ngtcp2_ringbuf *rb = &conn->path_history.rb;
   size_t i, len = ngtcp2_ringbuf_len(rb);
   ngtcp2_path_history_entry *ent;
@@ -13346,15 +13350,15 @@ int ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
   for (i = 0; i < len; ++i) {
     ent = ngtcp2_ringbuf_get(rb, i);
     if (ngtcp2_tstamp_elapsed(ent->ts, 10 * NGTCP2_MINUTES, ts)) {
-      return 0;
+      return NULL;
     }
 
     if (ngtcp2_path_eq(path, &ent->ps.path)) {
-      return 1;
+      return ent;
     }
   }
 
-  return 0;
+  return NULL;
 }
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,

@@ -8907,6 +8907,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   ph_ent = ngtcp2_ringbuf_get(&conn->path_history.rb, 0);
 
   assert_true(ngtcp2_path_eq(&null_path.path, &ph_ent->ps.path));
+  assert_size(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==, ph_ent->max_udp_payload_size);
   assert_uint64(t, ==, ph_ent->ts);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -9346,6 +9347,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   ph_ent = ngtcp2_ringbuf_get(&conn->path_history.rb, 0);
 
   assert_true(ngtcp2_path_eq(&null_path.path, &ph_ent->ps.path));
+  assert_size(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==, ph_ent->max_udp_payload_size);
 
   /* Migrate back to the original path.  Path validation is skipped
      because the path has been validated. */
