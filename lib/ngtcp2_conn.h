@@ -206,6 +206,13 @@ typedef struct ngtcp2_pktns {
     /* last_pkt_num is the packet number which the local endpoint sent
        last time.*/
     int64_t last_pkt_num;
+    struct {
+      /* next_pkt_num is the next packet number to skip. */
+      int64_t next_pkt_num;
+      /* exponent makes gap of skipping packets spread
+         exponentially. */
+      int64_t exponent;
+    } skip_pkt;
     ngtcp2_frame_chain *frq;
     /* non_ack_pkt_start_ts is the timestamp since the local endpoint
        starts sending continuous non ACK-eliciting packets. */

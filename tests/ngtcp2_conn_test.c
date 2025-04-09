@@ -1002,6 +1002,8 @@ static void conn_server_new(ngtcp2_conn **pconn, conn_options opts) {
   ngtcp2_conn_server_new(pconn, opts.dcid, opts.scid, opts.path,
                          opts.client_chosen_version, opts.callbacks,
                          opts.settings, opts.params, opts.mem, opts.user_data);
+
+  (*pconn)->pktns.tx.skip_pkt.next_pkt_num = INT64_MAX;
 }
 
 static void setup_default_server_with_options(ngtcp2_conn **pconn,
@@ -1101,6 +1103,8 @@ static void conn_client_new(ngtcp2_conn **pconn, conn_options opts) {
   ngtcp2_conn_client_new(pconn, opts.dcid, opts.scid, opts.path,
                          opts.client_chosen_version, opts.callbacks,
                          opts.settings, opts.params, opts.mem, opts.user_data);
+
+  (*pconn)->pktns.tx.skip_pkt.next_pkt_num = INT64_MAX;
 }
 
 static void setup_default_client_with_options(ngtcp2_conn **pconn,
@@ -5127,6 +5131,58 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   strm = ngtcp2_conn_tx_strmq_top(conn);
 
   assert_int64(stream_id, ==, strm->stream_id);
+
+  ngtcp2_conn_del(conn);
+
+  /* Handling skipped packet lost */
+  setup_default_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  conn->pktns.tx.skip_pkt.next_pkt_num = 0;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_int64(1, ==, conn->pktns.tx.last_pkt_num);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.ack_delay = 0;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  t = ngtcp2_conn_get_expiry(conn);
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_int64(0, ==, ent->hd.pkt_num);
+  assert_true(ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP);
+  assert_true(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED);
+  assert_size(1, ==, conn->pktns.rtb.num_lost_pkts);
+  assert_size(1, ==, conn->pktns.rtb.num_lost_ignore_pkts);
+
+  t = ngtcp2_conn_get_expiry(conn);
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  assert_true(ngtcp2_ksl_it_end(&it));
+  assert_size(0, ==, conn->pktns.rtb.num_lost_pkts);
+  assert_size(0, ==, conn->pktns.rtb.num_lost_ignore_pkts);
 
   ngtcp2_conn_del(conn);
 }
@@ -13750,7 +13806,7 @@ void test_ngtcp2_conn_pmtud_loss(void) {
 
   assert_int(0, ==, rv);
   assert_size(1, ==, conn->pktns.rtb.num_lost_pkts);
-  assert_size(1, ==, conn->pktns.rtb.num_lost_pmtud_pkts);
+  assert_size(1, ==, conn->pktns.rtb.num_lost_ignore_pkts);
   assert_uint64(0, ==, conn->pktns.rtb.cc_bytes_in_flight);
 
   fr.type = NGTCP2_FRAME_ACK;
@@ -13766,7 +13822,7 @@ void test_ngtcp2_conn_pmtud_loss(void) {
 
   assert_int(0, ==, rv);
   assert_size(0, ==, conn->pktns.rtb.num_lost_pkts);
-  assert_size(0, ==, conn->pktns.rtb.num_lost_pmtud_pkts);
+  assert_size(0, ==, conn->pktns.rtb.num_lost_ignore_pkts);
   assert_uint64(0, ==, conn->pktns.rtb.cc_bytes_in_flight);
 
   ngtcp2_conn_del(conn);

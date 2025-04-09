@@ -319,6 +319,46 @@ void test_ngtcp2_rtb_recv_ack(void) {
 
   ngtcp2_rtb_free(&rtb);
 
+  /* acknowledging skipped packet number in the first block */
+  conn_stat_init(&cstat);
+  ngtcp2_cc_reno_init(&cc, &log);
+  ngtcp2_rtb_init(&rtb, &rst, &cc.cc, 0, &log, NULL, &rtb_entry_objalloc,
+                  &frc_objalloc, mem);
+  add_rtb_entry_range_with_flags(&rtb, 0, 1, NGTCP2_RTB_ENTRY_FLAG_SKIP, &cstat,
+                                 &rtb_entry_objalloc);
+
+  fr->largest_ack = 0;
+  fr->first_ack_range = 0;
+  fr->rangecnt = 0;
+
+  num_acked =
+    ngtcp2_rtb_recv_ack(&rtb, fr, &cstat, NULL, &pktns, 1000000009, 1000000009);
+
+  assert_ptrdiff(NGTCP2_ERR_PROTO, ==, num_acked);
+
+  ngtcp2_rtb_free(&rtb);
+
+  /* acknowledging skipped packet number in the second block */
+  conn_stat_init(&cstat);
+  ngtcp2_cc_reno_init(&cc, &log);
+  ngtcp2_rtb_init(&rtb, &rst, &cc.cc, 0, &log, NULL, &rtb_entry_objalloc,
+                  &frc_objalloc, mem);
+  add_rtb_entry_range_with_flags(&rtb, 0, 1, NGTCP2_RTB_ENTRY_FLAG_SKIP, &cstat,
+                                 &rtb_entry_objalloc);
+
+  fr->largest_ack = 2;
+  fr->first_ack_range = 0;
+  fr->rangecnt = 1;
+  fr->ranges[0].gap = 0;
+  fr->ranges[0].len = 0;
+
+  num_acked =
+    ngtcp2_rtb_recv_ack(&rtb, fr, &cstat, NULL, &pktns, 1000000009, 1000000009);
+
+  assert_ptrdiff(NGTCP2_ERR_PROTO, ==, num_acked);
+
+  ngtcp2_rtb_free(&rtb);
+
   ngtcp2_objalloc_free(&rtb_entry_objalloc);
   ngtcp2_objalloc_free(&frc_objalloc);
 }
@@ -402,22 +442,22 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
     ++rtb.num_lost_pkts;
   }
 
-  ++rtb.num_lost_pmtud_pkts;
+  ++rtb.num_lost_ignore_pkts;
 
   assert_size(5, ==, rtb.num_lost_pkts);
-  assert_size(1, ==, rtb.num_lost_pmtud_pkts);
+  assert_size(1, ==, rtb.num_lost_ignore_pkts);
 
   ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777219);
 
   assert_size(5, ==, ngtcp2_ksl_len(&rtb.ents));
   assert_size(3, ==, rtb.num_lost_pkts);
-  assert_size(0, ==, rtb.num_lost_pmtud_pkts);
+  assert_size(0, ==, rtb.num_lost_ignore_pkts);
 
   ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777222);
 
   assert_size(2, ==, ngtcp2_ksl_len(&rtb.ents));
   assert_size(0, ==, rtb.num_lost_pkts);
-  assert_size(0, ==, rtb.num_lost_pmtud_pkts);
+  assert_size(0, ==, rtb.num_lost_ignore_pkts);
 
   ngtcp2_rtb_free(&rtb);
 
@@ -463,16 +503,16 @@ void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
     ++rtb.num_lost_pkts;
   }
 
-  ++rtb.num_lost_pmtud_pkts;
+  ++rtb.num_lost_ignore_pkts;
 
   assert_size(5, ==, rtb.num_lost_pkts);
-  assert_size(1, ==, rtb.num_lost_pmtud_pkts);
+  assert_size(1, ==, rtb.num_lost_ignore_pkts);
 
   ngtcp2_rtb_remove_excessive_lost_pkt(&rtb, 2);
 
   assert_size(4, ==, ngtcp2_ksl_len(&rtb.ents));
   assert_size(2, ==, rtb.num_lost_pkts);
-  assert_size(0, ==, rtb.num_lost_pmtud_pkts);
+  assert_size(0, ==, rtb.num_lost_ignore_pkts);
 
   ngtcp2_rtb_free(&rtb);
 
