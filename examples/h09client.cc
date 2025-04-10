@@ -430,8 +430,11 @@ int extend_max_local_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
 
 namespace {
 void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
-  auto dis = std::uniform_int_distribution<uint8_t>();
-  std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
+  auto rv = util::generate_secure_random({dest, destlen});
+  if (rv != 0) {
+    assert(0);
+    abort();
+  }
 }
 } // namespace
 

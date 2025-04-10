@@ -533,8 +533,11 @@ int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
 
 namespace {
 void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
-  auto dis = std::uniform_int_distribution<uint8_t>();
-  std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
+  auto rv = util::generate_secure_random({dest, destlen});
+  if (rv != 0) {
+    assert(0);
+    abort();
+  }
 }
 } // namespace
 

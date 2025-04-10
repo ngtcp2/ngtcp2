@@ -34,6 +34,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <assert.h>
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -194,11 +195,13 @@ static int client_ssl_init(struct client *c) {
 
 static void rand_cb(uint8_t *dest, size_t destlen,
                     const ngtcp2_rand_ctx *rand_ctx) {
-  size_t i;
+  int rv;
   (void)rand_ctx;
 
-  for (i = 0; i < destlen; ++i) {
-    *dest = (uint8_t)random();
+  rv = RAND_bytes(dest, (int)destlen);
+  if (rv != 1) {
+    assert(0);
+    abort();
   }
 }
 
