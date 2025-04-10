@@ -1032,6 +1032,56 @@ conn_set_local_transport_params(ngtcp2_conn *conn,
   p->version_info_present = 1;
 }
 
+static void conn_update_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
+  uint8_t gap;
+
+  conn->callbacks.rand(&gap, 1, &conn->local.settings.rand_ctx);
+
+  pktns->tx.skip_pkt.next_pkt_num =
+    pktns->tx.last_pkt_num + 3 +
+    (int64_t)gap * (1ll << pktns->tx.skip_pkt.exponent++);
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "next skip pkn=%" PRId64,
+                  pktns->tx.skip_pkt.next_pkt_num);
+}
+
+static int conn_handle_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                                ngtcp2_tstamp ts) {
+  ngtcp2_rtb_entry *rtbent;
+  ngtcp2_pkt_hd hd;
+  int rv;
+
+  assert(NGTCP2_PKTNS_ID_APPLICATION == pktns->id);
+
+  if (pktns->tx.last_pkt_num + 1 != pktns->tx.skip_pkt.next_pkt_num) {
+    return 0;
+  }
+
+  ngtcp2_pkt_hd_init(&hd, 0, NGTCP2_PKT_1RTT, NULL, NULL,
+                     pktns->tx.skip_pkt.next_pkt_num, 0, 0);
+
+  rv = ngtcp2_rtb_entry_objalloc_new(&rtbent, &hd, NULL, ts, 0,
+                                     NGTCP2_RTB_ENTRY_FLAG_SKIP,
+                                     &conn->rtb_entry_objalloc);
+  if (rv != 0) {
+    assert(ngtcp2_err_is_fatal(rv));
+    return rv;
+  }
+
+  rv = ngtcp2_rtb_add(&pktns->rtb, rtbent, &conn->cstat);
+  if (rv != 0) {
+    ngtcp2_rtb_entry_objalloc_del(rtbent, &conn->rtb_entry_objalloc,
+                                  &conn->frc_objalloc, conn->mem);
+    return rv;
+  }
+
+  ++pktns->tx.last_pkt_num;
+
+  conn_update_skip_pkt(conn, pktns);
+
+  return 0;
+}
+
 static size_t buflen_align(size_t buflen) {
   return (buflen + 0x7) & (size_t)~0x7;
 }
@@ -1253,6 +1303,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_static_ringbuf_path_history_init(&(*pconn)->path_history);
 
+  (*pconn)->callbacks = *callbacks;
+
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
                  &(*pconn)->cc, settings->initial_pkt_num, &(*pconn)->log,
                  &(*pconn)->qlog, &(*pconn)->rtb_entry_objalloc,
@@ -1273,6 +1325,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
              &(*pconn)->cc, settings->initial_pkt_num, &(*pconn)->log,
              &(*pconn)->qlog, &(*pconn)->rtb_entry_objalloc,
              &(*pconn)->frc_objalloc, mem);
+
+  conn_update_skip_pkt(*pconn, &(*pconn)->pktns);
 
   scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
   if (scident == NULL) {
@@ -1380,7 +1434,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->keep_alive.timeout = UINT64_MAX;
 
   (*pconn)->oscid = *scid;
-  (*pconn)->callbacks = *callbacks;
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
   (*pconn)->idle_ts = settings->initial_ts;
@@ -3181,6 +3234,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         nfrc->fr.max_data.max_data;
     }
 
+    rv = conn_handle_skip_pkt(conn, pktns, ts);
+    if (rv != 0) {
+      return rv;
+    }
+
     ngtcp2_pkt_hd_init(hd, hd_flags, type, &conn->dcid.current.cid, scid,
                        pktns->tx.last_pkt_num + 1,
                        pktns_select_pkt_numlen(pktns), version);
@@ -4133,6 +4191,12 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     version = conn->negotiated_version;
     cc.ckm = pktns->crypto.tx.ckm;
     cc.hp_ctx = pktns->crypto.tx.hp_ctx;
+
+    rv = conn_handle_skip_pkt(conn, pktns, ts);
+    if (rv != 0) {
+      return rv;
+    }
+
     break;
   default:
     /* We don't support 0-RTT packet in this function. */
