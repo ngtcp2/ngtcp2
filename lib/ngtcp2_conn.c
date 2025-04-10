@@ -5167,7 +5167,6 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
   num_acked =
     ngtcp2_rtb_recv_ack(&pktns->rtb, fr, &conn->cstat, conn, pktns, pkt_ts, ts);
   if (num_acked < 0) {
-    assert(ngtcp2_err_is_fatal((int)num_acked));
     return (int)num_acked;
   }
 
