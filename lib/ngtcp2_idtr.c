@@ -50,6 +50,10 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, int64_t stream_id) {
 
   q = id_from_stream_id(stream_id);
 
+  if (stream_id < 0 || stream_id >= (1ULL << 62)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+  
   if (ngtcp2_gaptr_is_pushed(&idtr->gap, q, 1)) {
     return NGTCP2_ERR_STREAM_IN_USE;
   }
