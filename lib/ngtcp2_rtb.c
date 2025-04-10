@@ -1210,7 +1210,8 @@ void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
   }
 }
 
-void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
+void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb,
+                                        ngtcp2_duration timeout,
                                         ngtcp2_tstamp ts) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
@@ -1230,7 +1231,7 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
     ent = ngtcp2_ksl_it_get(&it);
 
     if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED) ||
-        ts - ent->lost_ts < pto) {
+        ts - ent->lost_ts < timeout) {
       return;
     }
 

@@ -262,7 +262,8 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 /*
  * ngtcp2_rtb_remove_expired_lost_pkt removes expired lost packet.
  */
-void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
+void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb,
+                                        ngtcp2_duration timeout,
                                         ngtcp2_tstamp ts);
 
 /*
