@@ -10796,7 +10796,7 @@ ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(ngtcp2_conn *conn) {
   if (conn->in_pktns) {
     ts = ngtcp2_rtb_lost_pkt_ts(&conn->in_pktns->rtb);
     if (ts != UINT64_MAX) {
-      ts += conn_compute_pto(conn, conn->in_pktns);
+      ts += conn_compute_pto(conn, conn->in_pktns) * 3;
       res = ngtcp2_min_uint64(res, ts);
     }
   }
@@ -10804,14 +10804,14 @@ ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(ngtcp2_conn *conn) {
   if (conn->hs_pktns) {
     ts = ngtcp2_rtb_lost_pkt_ts(&conn->hs_pktns->rtb);
     if (ts != UINT64_MAX) {
-      ts += conn_compute_pto(conn, conn->hs_pktns);
+      ts += conn_compute_pto(conn, conn->hs_pktns) * 3;
       res = ngtcp2_min_uint64(res, ts);
     }
   }
 
   ts = ngtcp2_rtb_lost_pkt_ts(&conn->pktns.rtb);
   if (ts != UINT64_MAX) {
-    ts += conn_compute_pto(conn, &conn->pktns);
+    ts += conn_compute_pto(conn, &conn->pktns) * 3;
     res = ngtcp2_min_uint64(res, ts);
   }
 
@@ -10819,18 +10819,18 @@ ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(ngtcp2_conn *conn) {
 }
 
 void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  ngtcp2_duration pto;
+  ngtcp2_duration timeout;
 
   if (conn->in_pktns) {
-    pto = conn_compute_pto(conn, conn->in_pktns);
-    ngtcp2_rtb_remove_expired_lost_pkt(&conn->in_pktns->rtb, pto, ts);
+    timeout = conn_compute_pto(conn, conn->in_pktns) * 3;
+    ngtcp2_rtb_remove_expired_lost_pkt(&conn->in_pktns->rtb, timeout, ts);
   }
   if (conn->hs_pktns) {
-    pto = conn_compute_pto(conn, conn->hs_pktns);
-    ngtcp2_rtb_remove_expired_lost_pkt(&conn->hs_pktns->rtb, pto, ts);
+    timeout = conn_compute_pto(conn, conn->hs_pktns) * 3;
+    ngtcp2_rtb_remove_expired_lost_pkt(&conn->hs_pktns->rtb, timeout, ts);
   }
-  pto = conn_compute_pto(conn, &conn->pktns);
-  ngtcp2_rtb_remove_expired_lost_pkt(&conn->pktns.rtb, pto, ts);
+  timeout = conn_compute_pto(conn, &conn->pktns) * 3;
+  ngtcp2_rtb_remove_expired_lost_pkt(&conn->pktns.rtb, timeout, ts);
 }
 
 /*
