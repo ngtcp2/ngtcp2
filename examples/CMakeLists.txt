@@ -21,7 +21,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if(LIBEV_FOUND AND HAVE_OPENSSL AND LIBNGHTTP3_FOUND)
+if(LIBEV_FOUND AND HAVE_QUICTLS AND LIBNGHTTP3_FOUND)
   set(qtlsclient_SOURCES
     client.cc
     client_base.cc
@@ -394,4 +394,77 @@ if(LIBEV_FOUND AND HAVE_WOLFSSL AND LIBNGHTTP3_FOUND)
   target_link_libraries(wsslserver ${wolfssl_LIBS})
 
   # TODO prevent wsslclient and example wsslserver from being installed?
+endif()
+
+if(LIBEV_FOUND AND HAVE_OSSL AND LIBNGHTTP3_FOUND)
+  set(osslclient_SOURCES
+    client.cc
+    client_base.cc
+    debug.cc
+    util.cc
+    shared.cc
+    tls_client_context_ossl.cc
+    tls_client_session_ossl.cc
+    tls_session_base_ossl.cc
+    util_openssl.cc
+  )
+
+  set(osslserver_SOURCES
+    server.cc
+    server_base.cc
+    debug.cc
+    util.cc
+    http.cc
+    shared.cc
+    siphash.cc
+    tls_server_context_ossl.cc
+    tls_server_session_ossl.cc
+    tls_session_base_ossl.cc
+    util_openssl.cc
+  )
+
+  set(ossl_INCLUDE_DIRS
+    ${CMAKE_SOURCE_DIR}/lib/includes
+    ${CMAKE_BINARY_DIR}/lib/includes
+    ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/third-party/urlparse
+    ${CMAKE_SOURCE_DIR}/crypto/includes
+
+    ${JEMALLOC_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIRS}
+    ${LIBEV_INCLUDE_DIRS}
+    ${LIBNGHTTP3_INCLUDE_DIRS}
+  )
+
+  set(ossl_LIBS
+    ngtcp2_crypto_ossl
+    ngtcp2
+    ${JEMALLOC_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    ${LIBEV_LIBRARIES}
+    ${LIBNGHTTP3_LIBRARIES}
+  )
+
+  add_executable(osslclient ${osslclient_SOURCES}
+    $<TARGET_OBJECTS:urlparse>
+  )
+  add_executable(osslserver ${osslserver_SOURCES}
+    $<TARGET_OBJECTS:urlparse>
+  )
+  set_target_properties(osslclient PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_OSSL"
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+  )
+  set_target_properties(osslserver PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_OSSL"
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+  )
+  target_include_directories(osslclient PUBLIC ${ossl_INCLUDE_DIRS})
+  target_include_directories(osslserver PUBLIC ${ossl_INCLUDE_DIRS})
+  target_link_libraries(osslclient ${ossl_LIBS})
+  target_link_libraries(osslserver ${ossl_LIBS})
+
+  # TODO prevent client and example servers from being installed?
 endif()

@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,35 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_CONTEXT_H
-#define TLS_CLIENT_CONTEXT_H
+#ifndef TLS_CLIENT_SESSION_OSSL_H
+#define TLS_CLIENT_SESSION_OSSL_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // defined(HAVE_CONFIG_H)
 
-#ifdef WITH_EXAMPLE_QUICTLS
-#  include "tls_client_context_quictls.h"
-#endif // defined(WITH_EXAMPLE_QUICTLS)
+#include "tls_session_base_ossl.h"
+#include "shared.h"
 
-#ifdef WITH_EXAMPLE_GNUTLS
-#  include "tls_client_context_gnutls.h"
-#endif // defined(WITH_EXAMPLE_GNUTLS)
+using namespace ngtcp2;
 
-#ifdef WITH_EXAMPLE_BORINGSSL
-#  include "tls_client_context_boringssl.h"
-#endif // defined(WITH_EXAMPLE_BORINGSSL)
+class TLSClientContext;
+class ClientBase;
 
-#ifdef WITH_EXAMPLE_PICOTLS
-#  include "tls_client_context_picotls.h"
-#endif // defined(WITH_EXAMPLE_PICOTLS)
+class TLSClientSession : public TLSSessionBase {
+public:
+  TLSClientSession();
+  ~TLSClientSession();
 
-#ifdef WITH_EXAMPLE_WOLFSSL
-#  include "tls_client_context_wolfssl.h"
-#endif // defined(WITH_EXAMPLE_WOLFSSL)
+  int init(bool &early_data_enabled, const TLSClientContext &tls_ctx,
+           const char *remote_addr, ClientBase *client, uint32_t quic_version,
+           AppProtocol app_proto);
 
-#ifdef WITH_EXAMPLE_OSSL
-#  include "tls_client_context_ossl.h"
-#endif // defined(WITH_EXAMPLE_OSSL)
+  bool get_early_data_accepted() const;
+};
 
-#endif // !defined(TLS_CLIENT_CONTEXT_H)
+#endif // !defined(TLS_CLIENT_SESSION_OSSL_H)
