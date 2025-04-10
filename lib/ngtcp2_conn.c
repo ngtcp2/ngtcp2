@@ -9251,13 +9251,25 @@ static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
   return 0;
 }
 
-static void conn_sync_stream_id_limit(ngtcp2_conn *conn) {
+static int conn_sync_stream_id_limit(ngtcp2_conn *conn) {
   ngtcp2_transport_params *params = conn->remote.transport_params;
+  const uint64_t MAX_ALLOWED_STREAMS = (1ULL << 60);
 
   assert(params);
 
+  if (params->initial_max_streams_bidi >= MAX_ALLOWED_STREAMS) {
+    // Handle error - close connection with TRANSPORT_PARAMETER_ERROR
+    return NGTCP2_ERR_TRANSPORT_PARAM;
+  }
+  if (params->initial_max_streams_uni >= MAX_ALLOWED_STREAMS) {
+    // Handle error - close connection with TRANSPORT_PARAMETER_ERROR
+    return NGTCP2_ERR_TRANSPORT_PARAM;
+  }
+
   conn->local.bidi.max_streams = params->initial_max_streams_bidi;
   conn->local.uni.max_streams = params->initial_max_streams_uni;
+
+  return 0;
 }
 
 static int strm_set_max_offset(void *data, void *ptr) {
@@ -10447,7 +10459,7 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
                                const uint8_t *iv, size_t ivlen,
                                const ngtcp2_crypto_cipher_ctx *hp_ctx) {
   ngtcp2_pktns *pktns = &conn->pktns;
-  int rv;
+  int rv, ret;
 
   assert(ivlen >= 8);
   assert(!pktns->crypto.rx.hp_ctx.native_handle);
@@ -10467,7 +10479,11 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
 
       conn->remote.transport_params = conn->remote.pending_transport_params;
       conn->remote.pending_transport_params = NULL;
-      conn_sync_stream_id_limit(conn);
+      ret = conn_sync_stream_id_limit(conn);
+
+      if (ret != 0) {
+        return ret;
+      }
       conn->tx.max_offset = conn->remote.transport_params->initial_max_data;
     }
 
@@ -10495,7 +10511,7 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
                                const uint8_t *iv, size_t ivlen,
                                const ngtcp2_crypto_cipher_ctx *hp_ctx) {
   ngtcp2_pktns *pktns = &conn->pktns;
-  int rv;
+  int rv, ret;
 
   assert(ivlen >= 8);
   assert(!pktns->crypto.tx.hp_ctx.native_handle);
@@ -10515,7 +10531,11 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
 
       conn->remote.transport_params = conn->remote.pending_transport_params;
       conn->remote.pending_transport_params = NULL;
-      conn_sync_stream_id_limit(conn);
+      ret = conn_sync_stream_id_limit(conn);
+
+      if (ret != 0) {
+        return ret;
+      }
       conn->tx.max_offset = conn->remote.transport_params->initial_max_data;
     }
   } else if (conn->early.ckm) {
@@ -10917,7 +10937,7 @@ ngtcp2_conn_server_negotiate_version(ngtcp2_conn *conn,
 
 int ngtcp2_conn_set_remote_transport_params(
   ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
-  int rv;
+  int rv, ret;
 
   /* We expect this function is called once per QUIC connection, but
      GnuTLS server seems to call TLS extension callback twice if it
@@ -11010,7 +11030,11 @@ int ngtcp2_conn_set_remote_transport_params(
     if (rv != 0) {
       return rv;
     }
-    conn_sync_stream_id_limit(conn);
+    ret = conn_sync_stream_id_limit(conn);
+
+    if (ret != 0) {
+      return ret;
+    }
     conn->tx.max_offset = conn->remote.transport_params->initial_max_data;
   } else {
     assert(!conn->remote.pending_transport_params);
@@ -11102,6 +11126,7 @@ int ngtcp2_conn_decode_and_set_0rtt_transport_params(ngtcp2_conn *conn,
 int ngtcp2_conn_set_0rtt_remote_transport_params(
   ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
   ngtcp2_transport_params *p;
+  int ret;
 
   assert(!conn->server);
   assert(!conn->remote.transport_params);
@@ -11155,7 +11180,11 @@ int ngtcp2_conn_set_0rtt_remote_transport_params(
   conn->early.transport_params.max_datagram_frame_size =
     params->max_datagram_frame_size;
 
-  conn_sync_stream_id_limit(conn);
+  ret = conn_sync_stream_id_limit(conn);
+
+  if (ret != 0) {
+    return ret;
+  }
 
   conn->tx.max_offset = p->initial_max_data;
 
