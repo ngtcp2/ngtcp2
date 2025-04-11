@@ -123,6 +123,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_persistent_congestion),
   munit_void_test(test_ngtcp2_conn_ack_padding),
   munit_void_test(test_ngtcp2_conn_super_small_rtt),
+  munit_void_test(test_ngtcp2_conn_recv_ack),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
   munit_void_test(test_ngtcp2_conn_post_handshake_failmalloc),
   munit_void_test(test_ngtcp2_accept),
@@ -15534,6 +15535,101 @@ void test_ngtcp2_conn_super_small_rtt(void) {
   expiry = ngtcp2_conn_loss_detection_expiry(conn);
 
   assert_uint64(3000003, ==, expiry);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_recv_ack(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[1200];
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_ssize spktlen;
+  ngtcp2_tpe tpe;
+  ngtcp2_tstamp t = 0;
+  int rv;
+  int64_t stream_id;
+
+  /* Acknowledging skipped packet number. */
+  setup_default_server(&conn);
+  conn->pktns.tx.skip_pkt.next_pkt_num = 0;
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_int64(1, ==, conn->pktns.tx.last_pkt_num);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_PROTO, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Acknowledging skipped packet number along with the following
+     packet. */
+  setup_default_server(&conn);
+  conn->pktns.tx.skip_pkt.next_pkt_num = 0;
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_int64(1, ==, conn->pktns.tx.last_pkt_num);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 1;
+  fr.ack.rangecnt = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_PROTO, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Acknowledging skipped packet number in the second ACK block. */
+  setup_default_client(&conn);
+  conn->pktns.tx.skip_pkt.next_pkt_num = 0;
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_int64(1, ==, conn->pktns.tx.last_pkt_num);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 999, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_int64(2, ==, conn->pktns.tx.last_pkt_num);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_range = 0;
+  fr.ack.rangecnt = 1;
+  fr.ack.ranges[0].gap = 0;
+  fr.ack.ranges[0].len = 0;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_PROTO, ==, rv);
 
   ngtcp2_conn_del(conn);
 }
