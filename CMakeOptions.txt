@@ -2,6 +2,7 @@
 
 option(ENABLE_STATIC_LIB "Build as static libraries" ON)
 option(ENABLE_SHARED_LIB "Build as shared libraries" ON)
+option(ENABLE_LIB_ONLY   "Build libngtcp2 only" OFF)
 
 option(ENABLE_WERROR    "Make compiler warnings fatal" OFF)
 option(ENABLE_DEBUG     "Turn on debug output" OFF)
