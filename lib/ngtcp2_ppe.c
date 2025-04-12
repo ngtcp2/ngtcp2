@@ -49,7 +49,7 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
   ngtcp2_buf *buf = &ppe->buf;
   ngtcp2_crypto_cc *cc = ppe->cc;
 
-  if (ngtcp2_buf_left(buf) < cc->aead.max_overhead) {
+  if (ngtcp2_buf_left(buf) <= cc->aead.max_overhead) {
     return NGTCP2_ERR_NOBUF;
   }
 
@@ -89,7 +89,7 @@ int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, ngtcp2_frame *fr) {
   ngtcp2_buf *buf = &ppe->buf;
   ngtcp2_crypto_cc *cc = ppe->cc;
 
-  if (ngtcp2_buf_left(buf) < cc->aead.max_overhead) {
+  if (ngtcp2_buf_left(buf) <= cc->aead.max_overhead) {
     return NGTCP2_ERR_NOBUF;
   }
 
@@ -173,7 +173,7 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
 size_t ngtcp2_ppe_left(const ngtcp2_ppe *ppe) {
   ngtcp2_crypto_cc *cc = ppe->cc;
 
-  if (ngtcp2_buf_left(&ppe->buf) < cc->aead.max_overhead) {
+  if (ngtcp2_buf_left(&ppe->buf) <= cc->aead.max_overhead) {
     return 0;
   }
 
