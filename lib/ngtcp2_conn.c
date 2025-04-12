@@ -4038,7 +4038,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   /* TODO Push STREAM frame back to ngtcp2_strm if there is an error
      before ngtcp2_rtb_entry is safely created and added. */
-  if (flags & NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY) {
+  if ((flags & (NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY)) &&
+      (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
     lfr.padding.len = ngtcp2_ppe_padding_size(ppe, destlen);
   } else if (require_padding) {
     lfr.padding.len = ngtcp2_ppe_dgram_padding(ppe);
