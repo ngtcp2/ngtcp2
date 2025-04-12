@@ -971,7 +971,8 @@ int Handler::write_streams() {
   for (;;) {
     int64_t stream_id = -1;
     size_t vcnt = 0;
-    uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
+    uint32_t flags =
+      NGTCP2_WRITE_STREAM_FLAG_MORE | NGTCP2_WRITE_STREAM_FLAG_PADDING;
     Stream *stream = nullptr;
 
     if (!sendq_.empty() && ngtcp2_conn_get_max_data_left(conn_)) {
