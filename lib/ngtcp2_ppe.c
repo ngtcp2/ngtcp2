@@ -210,6 +210,10 @@ size_t ngtcp2_ppe_padding_size(ngtcp2_ppe *ppe, size_t n) {
 
   assert(ngtcp2_buf_left(buf) >= len + cc->aead.max_overhead);
 
+  if (len == 0) {
+    return 0;
+  }
+
   buf->last = ngtcp2_setmem(buf->last, 0, len);
 
   return len;
