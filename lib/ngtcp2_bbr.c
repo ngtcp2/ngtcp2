@@ -1200,9 +1200,6 @@ static void bbr_update_max_inflight(ngtcp2_cc_bbr *bbr,
                                     ngtcp2_conn_stat *cstat) {
   uint64_t inflight;
 
-  /* Not documented */
-  /* bbr_update_aggregation_budget(bbr); */
-
   inflight = bbr_bdp_multiple(bbr, bbr->cwnd_gain_h) + bbr->extra_acked;
   bbr->max_inflight = bbr_quantization_budget(bbr, cstat, inflight);
 }
