@@ -182,12 +182,6 @@ size_t ngtcp2_ppe_left(const ngtcp2_ppe *ppe) {
   return buf_left - cc->aead.max_overhead;
 }
 
-size_t ngtcp2_ppe_pktlen(const ngtcp2_ppe *ppe) {
-  ngtcp2_crypto_cc *cc = ppe->cc;
-
-  return ngtcp2_buf_len(&ppe->buf) + cc->aead.max_overhead;
-}
-
 size_t ngtcp2_ppe_padding_size(ngtcp2_ppe *ppe, size_t n) {
   ngtcp2_crypto_cc *cc = ppe->cc;
   ngtcp2_buf *buf = &ppe->buf;
