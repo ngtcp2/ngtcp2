@@ -367,7 +367,7 @@ static void bbr_reset_full_bw(ngtcp2_cc_bbr *bbr) {
 
 static void bbr_check_full_bw_reached(ngtcp2_cc_bbr *bbr,
                                       ngtcp2_conn_stat *cstat) {
-  if (bbr->full_bw_now || bbr->rst->rs.is_app_limited) {
+  if (bbr->full_bw_now || !bbr->round_start || bbr->rst->rs.is_app_limited) {
     return;
   }
 
@@ -375,10 +375,6 @@ static void bbr_check_full_bw_reached(ngtcp2_cc_bbr *bbr,
     bbr_reset_full_bw(bbr);
     bbr->full_bw = cstat->delivery_rate_sec;
 
-    return;
-  }
-
-  if (!bbr->round_start) {
     return;
   }
 
