@@ -47,7 +47,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, macos-13, macos-14]
+        os: [ubuntu-24.04, macos-14, macos-15]
 
     runs-on: ${{ matrix.os }}
 
@@ -227,7 +227,7 @@ jobs:
     - name: Build wolfSSL
       if: steps.cache-wolfssl.outputs.cache-hit != 'true'
       run: |
-        if [ "${{ matrix.os }}" = "macos-14" ]; then
+        if [ "${{ runner.os }}" = "macOS" ]; then
           export EXTRA_CONFIGURE_FLAGS="--enable-armasm"
         else
           export EXTRA_CONFIGURE_FLAGS="--enable-aesni"
@@ -256,7 +256,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, macos-13, macos-14]
+        os: [ubuntu-24.04, macos-14, macos-15]
         compiler: [gcc, clang]
         buildtool: [autotools, distcheck, cmake]
         # group-a ... openssl3, pictols+openssl3, wolfssl, boringssl
@@ -266,9 +266,9 @@ jobs:
         tls: [group-a, group-b, group-c, group-d]
         sockaddr: [native-sockaddr, generic-sockaddr]
         exclude:
-        - os: macos-13
-          buildtool: distcheck
         - os: macos-14
+          buildtool: distcheck
+        - os: macos-15
           buildtool: distcheck
         - compiler: gcc
           buildtool: distcheck
@@ -288,19 +288,19 @@ jobs:
           sockaddr: generic-sockaddr
         - buildtool: cmake
           sockaddr: generic-sockaddr
-        - os: macos-13
-          compiler: gcc
-        - os: macos-13
-          tls: group-c
-        - os: macos-13
-          tls: group-a
         - os: macos-14
           compiler: gcc
         - os: macos-14
           tls: group-c
         - os: macos-14
           tls: group-a
-        - os: macos-13
+        - os: macos-15
+          compiler: gcc
+        - os: macos-15
+          tls: group-c
+        - os: macos-15
+          tls: group-a
+        - os: macos-14
           tls: group-d
 
     runs-on: ${{ matrix.os }}
@@ -517,7 +517,7 @@ jobs:
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
         echo 'BORINGSSL_INCLUDE_DIR='"$BORINGSSL_INCLUDE_DIR" >> $GITHUB_ENV
     - name: Setup libev environment variables
-      if: matrix.os == 'macos-14'
+      if: runner.os == 'macOS'
       run: |
         LIBEV_CFLAGS="-I/opt/homebrew/Cellar/libev/4.33/include"
         LIBEV_LIBS="-L/opt/homebrew/Cellar/libev/4.33/lib -lev"
