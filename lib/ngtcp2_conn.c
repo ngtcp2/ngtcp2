@@ -3763,6 +3763,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     rtb_entry_flags |= conn->pkt.rtb_entry_flags;
     pkt_empty = conn->pkt.pkt_empty;
     hd_logged = conn->pkt.hd_logged;
+    require_padding = conn->pkt.require_padding;
   }
 
   left = ngtcp2_ppe_left(ppe);
@@ -3957,6 +3958,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         conn->pkt.pkt_empty = pkt_empty;
         conn->pkt.rtb_entry_flags = rtb_entry_flags;
         conn->pkt.hd_logged = hd_logged;
+        conn->pkt.require_padding = require_padding;
         conn->flags |= NGTCP2_CONN_FLAG_PPE_PENDING;
       }
 
@@ -3977,6 +3979,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     conn->pkt.pkt_empty = pkt_empty;
     conn->pkt.rtb_entry_flags = rtb_entry_flags;
     conn->pkt.hd_logged = hd_logged;
+    conn->pkt.require_padding = require_padding;
     conn->flags |= NGTCP2_CONN_FLAG_PPE_PENDING;
 
     assert(vmsg);
@@ -10198,16 +10201,12 @@ conn_client_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     if (spktlen > 0 &&
         ngtcp2_pkt_get_type_long(version, dest[0]) == NGTCP2_PKT_INITIAL) {
       wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
-      conn->pkt.require_padding = 1;
     }
   } else {
     assert(!conn->pktns.crypto.rx.ckm);
     assert(!conn->pktns.crypto.tx.ckm);
     assert(conn->early.ckm);
 
-    if (conn->pkt.require_padding) {
-      wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
-    }
     spktlen = conn->pkt.hs_spktlen;
   }
 
@@ -11741,9 +11740,6 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
 
   if (ppe_pending) {
     res = conn->pkt.hs_spktlen;
-    if (conn->pkt.require_padding) {
-      wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
-    }
     /* dest and destlen have already been adjusted in ppe in the first
        run.  They are adjusted for probe packet later. */
     nwrite = conn_write_pkt(conn, pi, dest, destlen, (size_t)res, vmsg,

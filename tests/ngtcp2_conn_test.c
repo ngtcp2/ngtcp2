@@ -9436,6 +9436,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   ngtcp2_ssize shdlen;
   ngtcp2_pkt_hd hd;
   ngtcp2_dcid *dcid;
+  int64_t stream_id;
   ngtcp2_transport_params params;
   ngtcp2_tpe tpe;
   conn_options opts;
@@ -9543,6 +9544,57 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   assert_size(0, <, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
 
   ngtcp2_path_storage_zero(&ps);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+  assert_true(ngtcp2_path_eq(&null_path.path, &ps.path));
+  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_size(0, ==, ngtcp2_dcidtr_bound_len(&conn->dcid.dtr));
+  assert_uint64((uint64_t)spktlen, ==, conn->dcid.current.bytes_sent);
+
+  ngtcp2_conn_del(conn);
+
+  /* PATH_CHALLENGE from the current path is padded at least 1200 with
+     NGTCP2_WRITE_STREAM_FLAG_MORE. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
+  fr.new_connection_id.cid = cid;
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  frs[0].type = NGTCP2_FRAME_PATH_CHALLENGE;
+  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
+  frs[1].type = NGTCP2_FRAME_PADDING;
+  frs[1].padding.len = 1200;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(0, <, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  ngtcp2_path_storage_zero(&ps);
+
+  spktlen = ngtcp2_conn_write_stream(conn, &ps.path, NULL, buf, sizeof(buf),
+                                     NULL, NGTCP2_WRITE_STREAM_FLAG_MORE,
+                                     stream_id, null_data, 10, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
 
   spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
 
