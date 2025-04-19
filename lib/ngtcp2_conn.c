@@ -3276,6 +3276,17 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           require_padding = require_padding || !conn->server ||
                             destlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE;
           /* We don't retransmit PATH_RESPONSE. */
+
+          /* Include PING to make a packet non-probing as per
+             https://datatracker.ietf.org/doc/html/rfc9000#section-9.3.3
+
+             An endpoint that receives a PATH_CHALLENGE on an active
+             path SHOULD send a non-probing packet in response. */
+          lfr.type = NGTCP2_FRAME_PING;
+          rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
+          if (rv != 0) {
+            assert(NGTCP2_ERR_NOBUF == rv);
+          }
         }
       }
     }
