@@ -3763,6 +3763,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     rtb_entry_flags |= conn->pkt.rtb_entry_flags;
     pkt_empty = conn->pkt.pkt_empty;
     hd_logged = conn->pkt.hd_logged;
+    require_padding = conn->pkt.require_padding;
   }
 
   left = ngtcp2_ppe_left(ppe);
@@ -3957,6 +3958,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         conn->pkt.pkt_empty = pkt_empty;
         conn->pkt.rtb_entry_flags = rtb_entry_flags;
         conn->pkt.hd_logged = hd_logged;
+        conn->pkt.require_padding = require_padding;
         conn->flags |= NGTCP2_CONN_FLAG_PPE_PENDING;
       }
 
@@ -3977,6 +3979,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     conn->pkt.pkt_empty = pkt_empty;
     conn->pkt.rtb_entry_flags = rtb_entry_flags;
     conn->pkt.hd_logged = hd_logged;
+    conn->pkt.require_padding = require_padding;
     conn->flags |= NGTCP2_CONN_FLAG_PPE_PENDING;
 
     assert(vmsg);
