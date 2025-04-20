@@ -799,7 +799,7 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
   cstat->congestion_recovery_start_ts = UINT64_MAX;
   cstat->bytes_in_flight = 0;
   cstat->delivery_rate_sec = 0;
-  cstat->pacing_interval = 0;
+  cstat->pacing_interval_m = 0;
   cstat->send_quantum = 64 * 1024;
 }
 
@@ -13355,7 +13355,7 @@ int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn, int64_t stream_id,
 }
 
 void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  ngtcp2_duration pacing_interval;
+  uint64_t pacing_interval_m;
   ngtcp2_duration wait, d;
 
   conn_update_timestamp(conn, ts);
@@ -13364,18 +13364,20 @@ void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return;
   }
 
-  if (conn->cstat.pacing_interval) {
-    pacing_interval = conn->cstat.pacing_interval;
+  if (conn->cstat.pacing_interval_m) {
+    pacing_interval_m = conn->cstat.pacing_interval_m;
   } else {
     /* 1.25 is the under-utilization avoidance factor described in
        https://datatracker.ietf.org/doc/html/rfc9002#section-7.7 */
-    pacing_interval = (conn->cstat.first_rtt_sample_ts == UINT64_MAX
-                         ? NGTCP2_MILLISECONDS
-                         : conn->cstat.smoothed_rtt) *
-                      100 / 125 / conn->cstat.cwnd;
+    pacing_interval_m = ((conn->cstat.first_rtt_sample_ts == UINT64_MAX
+                            ? NGTCP2_MILLISECONDS
+                            : conn->cstat.smoothed_rtt)
+                         << 10) *
+                        100 / 125 / conn->cstat.cwnd;
+    pacing_interval_m = ngtcp2_max_uint64(pacing_interval_m, 1);
   }
 
-  wait = (ngtcp2_duration)(conn->tx.pacing.pktlen * pacing_interval);
+  wait = (ngtcp2_duration)((conn->tx.pacing.pktlen * pacing_interval_m) >> 10);
 
   d = ngtcp2_min_uint64(wait / 2, conn->tx.pacing.compensation);
   wait -= d;
