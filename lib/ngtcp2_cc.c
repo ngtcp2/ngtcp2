@@ -228,12 +228,9 @@ static int64_t cubic_cc_compute_w_cubic(ngtcp2_cc_cubic *cubic,
                                         ngtcp2_tstamp ts) {
   ngtcp2_duration t = ts - cubic->current.epoch_start;
   int64_t tx = (int64_t)((t << 10) / NGTCP2_SECONDS);
-  int64_t time_delta = tx - cubic->current.k;
-  int64_t delta;
-
-  delta = (int64_t)cstat->max_tx_udp_payload_size *
-          ((((time_delta * time_delta) >> 10) * time_delta) >> 10) * 4 / 10;
-  delta >>= 10;
+  int64_t time_delta = ngtcp2_min_int64(tx - cubic->current.k, 3600 << 10);
+  int64_t delta = ((((time_delta * time_delta) >> 10) * time_delta) >> 20) *
+                  (int64_t)cstat->max_tx_udp_payload_size * 4 / 10;
 
   return (int64_t)cubic->current.w_max + delta;
 }
