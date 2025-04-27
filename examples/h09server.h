@@ -151,7 +151,7 @@ public:
   void write_qlog(const void *data, size_t datalen);
   void add_sendq(Stream *stream);
 
-  void on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
+  void on_send_blocked(const Endpoint &ep, const ngtcp2_addr &local_addr,
                        const ngtcp2_addr &remote_addr, unsigned int ecn,
                        std::span<const uint8_t> data, size_t gso_size);
   void start_wev_endpoint(const Endpoint &ep);
@@ -188,7 +188,7 @@ private:
     size_t num_blocked_sent;
     // blocked field is effective only when send_blocked is true.
     struct {
-      Endpoint *endpoint;
+      const Endpoint *endpoint;
       Address local_addr;
       Address remote_addr;
       unsigned int ecn;
@@ -208,22 +208,23 @@ public:
   void disconnect();
   void close();
 
-  int on_read(Endpoint &ep);
-  void read_pkt(Endpoint &ep, const Address &local_addr, const sockaddr *sa,
-                socklen_t salen, const ngtcp2_pkt_info *pi,
+  int on_read(const Endpoint &ep);
+  void read_pkt(const Endpoint &ep, const Address &local_addr,
+                const sockaddr *sa, socklen_t salen, const ngtcp2_pkt_info *pi,
                 std::span<const uint8_t> data);
   int send_version_negotiation(uint32_t version, std::span<const uint8_t> dcid,
-                               std::span<const uint8_t> scid, Endpoint &ep,
-                               const Address &local_addr, const sockaddr *sa,
-                               socklen_t salen);
-  int send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
+                               std::span<const uint8_t> scid,
+                               const Endpoint &ep, const Address &local_addr,
+                               const sockaddr *sa, socklen_t salen);
+  int send_retry(const ngtcp2_pkt_hd *chd, const Endpoint &ep,
                  const Address &local_addr, const sockaddr *sa, socklen_t salen,
                  size_t max_pktlen);
-  int send_stateless_connection_close(const ngtcp2_pkt_hd *chd, Endpoint &ep,
+  int send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
+                                      const Endpoint &ep,
                                       const Address &local_addr,
                                       const sockaddr *sa, socklen_t salen);
   int send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
-                           Endpoint &ep, const Address &local_addr,
+                           const Endpoint &ep, const Address &local_addr,
                            const sockaddr *sa, socklen_t salen);
   int verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                          const sockaddr *sa, socklen_t salen);

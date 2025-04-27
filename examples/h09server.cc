@@ -1092,7 +1092,7 @@ int Handler::send_packet(const ngtcp2_path &path, unsigned int ecn,
   return 0;
 }
 
-void Handler::on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
+void Handler::on_send_blocked(const Endpoint &ep, const ngtcp2_addr &local_addr,
                               const ngtcp2_addr &remote_addr, unsigned int ecn,
                               std::span<const uint8_t> data, size_t gso_size) {
   assert(tx_.num_blocked || !tx_.send_blocked);
@@ -1721,7 +1721,7 @@ int Server::init(const char *addr, const char *port) {
   return 0;
 }
 
-int Server::on_read(Endpoint &ep) {
+int Server::on_read(const Endpoint &ep) {
   sockaddr_union su;
   std::array<uint8_t, 64_k> buf;
   size_t pktcnt = 0;
@@ -1821,7 +1821,7 @@ int Server::on_read(Endpoint &ep) {
   return 0;
 }
 
-void Server::read_pkt(Endpoint &ep, const Address &local_addr,
+void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
                       const sockaddr *sa, socklen_t salen,
                       const ngtcp2_pkt_info *pi,
                       std::span<const uint8_t> data) {
@@ -2013,7 +2013,8 @@ uint32_t generate_reserved_version(const sockaddr *sa, socklen_t salen,
 int Server::send_version_negotiation(uint32_t version,
                                      std::span<const uint8_t> dcid,
                                      std::span<const uint8_t> scid,
-                                     Endpoint &ep, const Address &local_addr,
+                                     const Endpoint &ep,
+                                     const Address &local_addr,
                                      const sockaddr *sa, socklen_t salen) {
   Buffer buf{NGTCP2_MAX_UDP_PAYLOAD_SIZE};
   std::array<uint32_t, 1 + max_preferred_versionslen> sv;
@@ -2059,7 +2060,7 @@ int Server::send_version_negotiation(uint32_t version,
   return 0;
 }
 
-int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
+int Server::send_retry(const ngtcp2_pkt_hd *chd, const Endpoint &ep,
                        const Address &local_addr, const sockaddr *sa,
                        socklen_t salen, size_t max_pktlen) {
   std::array<char, NI_MAXHOST> host;
@@ -2133,7 +2134,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
 }
 
 int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
-                                            Endpoint &ep,
+                                            const Endpoint &ep,
                                             const Address &local_addr,
                                             const sockaddr *sa,
                                             socklen_t salen) {
@@ -2167,7 +2168,7 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
 }
 
 int Server::send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
-                                 Endpoint &ep, const Address &local_addr,
+                                 const Endpoint &ep, const Address &local_addr,
                                  const sockaddr *sa, socklen_t salen) {
   if (stateless_reset_bucket_ == 0) {
     return 0;
