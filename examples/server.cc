@@ -1830,9 +1830,7 @@ int Handler::write_streams() {
 
   if (send_packet(prev_ps.path, prev_ecn, pkt, gso_size) != 0) {
     if (!extra_pkt.empty()) {
-      on_send_blocked(*static_cast<Endpoint *>(ps.path.user_data),
-                      ps.path.local, ps.path.remote, pi.ecn, extra_pkt,
-                      extra_pkt.size());
+      on_send_blocked(ps.path, pi.ecn, extra_pkt, extra_pkt.size());
     }
   } else if (!extra_pkt.empty()) {
     send_packet(ps.path, pi.ecn, extra_pkt, extra_pkt.size());
@@ -1851,7 +1849,7 @@ int Handler::send_packet(const ngtcp2_path &path, unsigned int ecn,
   if (rv != 0) {
     assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
-    on_send_blocked(ep, path.local, path.remote, ecn, rest, gso_size);
+    on_send_blocked(path, ecn, rest, gso_size);
 
     start_wev_endpoint(ep);
 
@@ -1861,8 +1859,7 @@ int Handler::send_packet(const ngtcp2_path &path, unsigned int ecn,
   return 0;
 }
 
-void Handler::on_send_blocked(const Endpoint &ep, const ngtcp2_addr &local_addr,
-                              const ngtcp2_addr &remote_addr, unsigned int ecn,
+void Handler::on_send_blocked(const ngtcp2_path &path, unsigned int ecn,
                               std::span<const uint8_t> data, size_t gso_size) {
   assert(tx_.num_blocked || !tx_.send_blocked);
   assert(tx_.num_blocked < 2);
@@ -1872,12 +1869,12 @@ void Handler::on_send_blocked(const Endpoint &ep, const ngtcp2_addr &local_addr,
 
   auto &p = tx_.blocked[tx_.num_blocked++];
 
-  memcpy(&p.local_addr.su, local_addr.addr, local_addr.addrlen);
-  memcpy(&p.remote_addr.su, remote_addr.addr, remote_addr.addrlen);
+  memcpy(&p.local_addr.su, path.local.addr, path.local.addrlen);
+  memcpy(&p.remote_addr.su, path.remote.addr, path.remote.addrlen);
 
-  p.local_addr.len = local_addr.addrlen;
-  p.remote_addr.len = remote_addr.addrlen;
-  p.endpoint = &ep;
+  p.local_addr.len = path.local.addrlen;
+  p.remote_addr.len = path.remote.addrlen;
+  p.endpoint = static_cast<Endpoint *>(path.user_data);
   p.ecn = ecn;
   p.data = data;
   p.gso_size = gso_size;

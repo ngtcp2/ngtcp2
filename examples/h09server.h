@@ -151,8 +151,7 @@ public:
   void write_qlog(const void *data, size_t datalen);
   void add_sendq(Stream *stream);
 
-  void on_send_blocked(const Endpoint &ep, const ngtcp2_addr &local_addr,
-                       const ngtcp2_addr &remote_addr, unsigned int ecn,
+  void on_send_blocked(const ngtcp2_path &path, unsigned int ecn,
                        std::span<const uint8_t> data, size_t gso_size);
   void start_wev_endpoint(const Endpoint &ep);
   int send_packet(const ngtcp2_path &path, unsigned int ecn,
