@@ -72,7 +72,7 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family);
 // not found, or UDP_GRO is not supported, this function returns 0.
 size_t msghdr_get_udp_gro(msghdr *msg);
 
-void set_port(Address &dst, Address &src);
+void set_port(Address &dst, const Address &src);
 
 // get_local_addr stores preferred local address (interface address)
 // in |iau| for a given destination address |remote_addr|.

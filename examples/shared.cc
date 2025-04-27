@@ -216,7 +216,7 @@ size_t msghdr_get_udp_gro(msghdr *msg) {
   return static_cast<size_t>(gso_size);
 }
 
-void set_port(Address &dst, Address &src) {
+void set_port(Address &dst, const Address &src) {
   switch (dst.su.storage.ss_family) {
   case AF_INET:
     assert(AF_INET == src.su.storage.ss_family);
