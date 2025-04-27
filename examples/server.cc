@@ -1709,6 +1709,8 @@ int Handler::write_streams() {
     std::span{tx_.data.get(), std::max(ngtcp2_conn_get_send_quantum(conn_),
                                        path_max_udp_payload_size)};
   auto buf = txbuf;
+  auto pkt = std::span<const uint8_t>{};
+  auto extra_pkt = std::span<const uint8_t>{};
 
   ngtcp2_path_storage_zero(&ps);
   ngtcp2_path_storage_zero(&prev_ps);
@@ -1792,33 +1794,19 @@ int Handler::write_streams() {
     }
 
     if (nwrite == 0) {
-      auto data = std::span{std::begin(txbuf), std::begin(buf)};
-      if (!data.empty()) {
-        auto &ep = *static_cast<Endpoint *>(prev_ps.path.user_data);
-
-        if (auto [rest, rv] = server_->send_packet(
-              ep, no_gso_, prev_ps.path.local, prev_ps.path.remote, prev_ecn,
-              data, gso_size);
-            rv != NETWORK_ERR_OK) {
-          assert(NETWORK_ERR_SEND_BLOCKED == rv);
-
-          on_send_blocked(ep, prev_ps.path.local, prev_ps.path.remote, prev_ecn,
-                          rest, gso_size);
-
-          start_wev_endpoint(ep);
-        }
+      pkt = std::span{std::begin(txbuf), std::begin(buf)};
+      if (pkt.empty()) {
+        return 0;
       }
 
-      // We are congestion limited.
-      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
-      return 0;
+      break;
     }
 
-    auto last_pkt = std::begin(buf);
+    auto last_pkt_pos = std::begin(buf);
 
     buf = buf.subspan(nwrite);
 
-    if (last_pkt == std::begin(txbuf)) {
+    if (last_pkt_pos == std::begin(txbuf)) {
       ngtcp2_path_copy(&prev_ps.path, &ps.path);
       prev_ecn = pi.ecn;
       gso_size = nwrite;
@@ -1826,66 +1814,51 @@ int Handler::write_streams() {
                static_cast<size_t>(nwrite) > gso_size ||
                (gso_size > path_max_udp_payload_size &&
                 static_cast<size_t>(nwrite) != gso_size)) {
-      auto &ep = *static_cast<Endpoint *>(prev_ps.path.user_data);
-      auto data = std::span{std::begin(txbuf), last_pkt};
-
-      if (auto [rest, rv] =
-            server_->send_packet(ep, no_gso_, prev_ps.path.local,
-                                 prev_ps.path.remote, prev_ecn, data, gso_size);
-          rv != 0) {
-        assert(NETWORK_ERR_SEND_BLOCKED == rv);
-
-        on_send_blocked(ep, prev_ps.path.local, prev_ps.path.remote, prev_ecn,
-                        rest, gso_size);
-
-        data = std::span{last_pkt, std::begin(buf)};
-        on_send_blocked(*static_cast<Endpoint *>(ps.path.user_data),
-                        ps.path.local, ps.path.remote, pi.ecn, data,
-                        data.size());
-
-        start_wev_endpoint(ep);
-      } else {
-        auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
-        auto data = std::span{last_pkt, std::begin(buf)};
-
-        if (auto [rest, rv] =
-              server_->send_packet(ep, no_gso_, ps.path.local, ps.path.remote,
-                                   pi.ecn, data, data.size());
-            rv != 0) {
-          assert(rest.size() == data.size());
-          assert(NETWORK_ERR_SEND_BLOCKED == rv);
-
-          on_send_blocked(ep, ps.path.local, ps.path.remote, pi.ecn, rest,
-                          rest.size());
-
-          start_wev_endpoint(ep);
-        }
-      }
-
-      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
-      return 0;
+      pkt = std::span{std::begin(txbuf), last_pkt_pos};
+      extra_pkt = std::span{last_pkt_pos, std::begin(buf)};
+      break;
     }
 
     if (buf.size() < path_max_udp_payload_size ||
         static_cast<size_t>(nwrite) < gso_size) {
-      auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
-      auto data = std::span{std::begin(txbuf), std::begin(buf)};
-
-      if (auto [rest, rv] = server_->send_packet(
-            ep, no_gso_, ps.path.local, ps.path.remote, pi.ecn, data, gso_size);
-          rv != 0) {
-        assert(NETWORK_ERR_SEND_BLOCKED == rv);
-
-        on_send_blocked(ep, ps.path.local, ps.path.remote, pi.ecn, rest,
-                        gso_size);
-
-        start_wev_endpoint(ep);
-      }
-
-      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
-      return 0;
+      pkt = std::span{std::begin(txbuf), std::begin(buf)};
+      break;
     }
   }
+
+  assert(!pkt.empty());
+
+  if (send_packet(prev_ps.path, prev_ecn, pkt, gso_size) != 0) {
+    if (!extra_pkt.empty()) {
+      on_send_blocked(*static_cast<Endpoint *>(ps.path.user_data),
+                      ps.path.local, ps.path.remote, pi.ecn, extra_pkt,
+                      extra_pkt.size());
+    }
+  } else if (!extra_pkt.empty()) {
+    send_packet(ps.path, pi.ecn, extra_pkt, extra_pkt.size());
+  }
+
+  ngtcp2_conn_update_pkt_tx_time(conn_, ts);
+
+  return 0;
+}
+
+int Handler::send_packet(const ngtcp2_path &path, unsigned int ecn,
+                         std::span<const uint8_t> data, size_t gso_size) {
+  auto &ep = *static_cast<Endpoint *>(path.user_data);
+  auto [rest, rv] = server_->send_packet(ep, no_gso_, path.local, path.remote,
+                                         ecn, data, gso_size);
+  if (rv != 0) {
+    assert(NETWORK_ERR_SEND_BLOCKED == rv);
+
+    on_send_blocked(ep, path.local, path.remote, ecn, rest, gso_size);
+
+    start_wev_endpoint(ep);
+
+    return rv;
+  }
+
+  return 0;
 }
 
 void Handler::on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
