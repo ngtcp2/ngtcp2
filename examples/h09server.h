@@ -155,6 +155,8 @@ public:
                        const ngtcp2_addr &remote_addr, unsigned int ecn,
                        std::span<const uint8_t> data, size_t gso_size);
   void start_wev_endpoint(const Endpoint &ep);
+  int send_packet(const ngtcp2_path &path, unsigned int ecn,
+                  std::span<const uint8_t> data, size_t gso_size);
   int send_blocked_packet();
 
 private:
