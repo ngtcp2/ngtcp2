@@ -2355,7 +2355,7 @@ Server::send_packet(const Endpoint &ep, bool &no_gso,
       auto len = std::min(gso_size, data.size());
 
       auto [_, rv] = send_packet(ep, no_gso, local_addr, remote_addr, ecn,
-                                 {std::begin(data), len}, len);
+                                 data.first(len), len);
       if (rv != 0) {
         return {data, rv};
       }
