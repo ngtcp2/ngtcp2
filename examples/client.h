@@ -97,6 +97,8 @@ public:
   std::pair<std::span<const uint8_t>, int>
   send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
               unsigned int ecn, std::span<const uint8_t> data, size_t gso_size);
+  int send_packet_or_blocked(const ngtcp2_path &path, unsigned int ecn,
+                             std::span<const uint8_t> data, size_t gso_size);
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   int on_extend_max_streams();
   int handle_error();
@@ -133,9 +135,8 @@ public:
   int reset_stream(int64_t stream_id, uint64_t app_error_code);
   int http_stream_close(int64_t stream_id, uint64_t app_error_code);
 
-  void on_send_blocked(const Endpoint &ep, const ngtcp2_addr &remote_addr,
-                       unsigned int ecn, std::span<const uint8_t> data,
-                       size_t gso_size);
+  void on_send_blocked(const ngtcp2_path &path, unsigned int ecn,
+                       std::span<const uint8_t> data, size_t gso_size);
   void start_wev_endpoint(const Endpoint &ep);
   int send_blocked_packet();
 
