@@ -1473,8 +1473,7 @@ Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
     for (; !data.empty();) {
       auto len = std::min(gso_size, data.size());
 
-      auto [_, rv] =
-        send_packet(ep, remote_addr, ecn, {std::begin(data), len}, len);
+      auto [_, rv] = send_packet(ep, remote_addr, ecn, data.first(len), len);
       if (rv != 0) {
         return {data, rv};
       }
