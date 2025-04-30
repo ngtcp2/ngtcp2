@@ -92,25 +92,21 @@ ptls_on_client_hello_t on_client_hello_hq = {on_client_hello_hq_cb};
 namespace {
 auto ticket_hmac = EVP_sha256();
 
-template <size_t N> void random_bytes(std::array<uint8_t, N> &dest) {
-  ptls_openssl_random_bytes(dest.data(), dest.size());
-}
-
-const std::array<uint8_t, 16> &get_ticket_key_name() {
+std::span<const uint8_t> get_ticket_key_name() {
   static std::array<uint8_t, 16> key_name;
-  random_bytes(key_name);
+  ptls_openssl_random_bytes(key_name.data(), key_name.size());
   return key_name;
 }
 
-const std::array<uint8_t, 32> &get_ticket_key() {
+std::span<const uint8_t> get_ticket_key() {
   static std::array<uint8_t, 32> key;
-  random_bytes(key);
+  ptls_openssl_random_bytes(key.data(), key.size());
   return key;
 }
 
-const std::array<uint8_t, 32> &get_ticket_hmac_key() {
+std::span<const uint8_t> get_ticket_hmac_key() {
   static std::array<uint8_t, 32> hmac_key;
-  random_bytes(hmac_key);
+  ptls_openssl_random_bytes(hmac_key.data(), hmac_key.size());
   return hmac_key;
 }
 } // namespace
@@ -124,14 +120,14 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
                   HMAC_CTX *hctx,
 #endif // OPENSSL_VERSION_NUMBER < 0x30000000L
                   int enc) {
-  static const auto &static_key_name = get_ticket_key_name();
-  static const auto &static_key = get_ticket_key();
-  static const auto &static_hmac_key = get_ticket_hmac_key();
+  static const auto static_key_name = get_ticket_key_name();
+  static const auto static_key = get_ticket_key();
+  static const auto static_hmac_key = get_ticket_hmac_key();
 
   if (enc) {
     ptls_openssl_random_bytes(iv, EVP_MAX_IV_LENGTH);
 
-    memcpy(key_name, static_key_name.data(), static_key_name.size());
+    std::ranges::copy(static_key_name, key_name);
 
     if (!EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(),
                             iv)) {
@@ -161,7 +157,8 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
     return 1;
   }
 
-  if (memcmp(key_name, static_key_name.data(), static_key_name.size()) != 0) {
+  if (!std::ranges::equal(std::span{key_name, static_key_name.size()},
+                          static_key_name)) {
     return 0;
   }
 
