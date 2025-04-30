@@ -302,29 +302,7 @@ constexpr uint32_t hex_to_uint(char c) {
   return 256;
 }
 
-template <typename InputIt>
-std::string percent_decode(InputIt first, InputIt last) {
-  std::string result;
-  result.resize(last - first);
-  auto p = std::ranges::begin(result);
-  for (; first != last; ++first) {
-    if (*first != '%') {
-      *p++ = *first;
-      continue;
-    }
-
-    if (first + 1 != last && first + 2 != last && is_hex_digit(*(first + 1)) &&
-        is_hex_digit(*(first + 2))) {
-      *p++ = (hex_to_uint(*(first + 1)) << 4) + hex_to_uint(*(first + 2));
-      first += 2;
-      continue;
-    }
-
-    *p++ = *first;
-  }
-  result.resize(p - std::ranges::begin(result));
-  return result;
-}
+std::string percent_decode(const std::string_view &s);
 
 int make_socket_nonblocking(int fd);
 

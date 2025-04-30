@@ -140,7 +140,7 @@ Request request_path(const std::string_view &uri, bool is_connect) {
     req.path = std::string(uri.data() + u.field_data[URLPARSE_PATH].off,
                            u.field_data[URLPARSE_PATH].len);
     if (req.path.find('%') != std::string::npos) {
-      req.path = util::percent_decode(std::begin(req.path), std::end(req.path));
+      req.path = util::percent_decode(req.path);
     }
     if (!req.path.empty() && req.path.back() == '/') {
       req.path += "index.html";

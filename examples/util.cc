@@ -790,6 +790,30 @@ int write_transport_params(const std::string_view &filename,
                    "QUIC TRANSPORT PARAMETERS", data);
 }
 
+std::string percent_decode(const std::string_view &s) {
+  std::string result;
+  result.resize(s.size());
+  auto p = std::ranges::begin(result);
+  for (auto first = std::ranges::begin(s), last = std::ranges::end(s);
+       first != last; ++first) {
+    if (*first != '%') {
+      *p++ = *first;
+      continue;
+    }
+
+    if (first + 1 != last && first + 2 != last && is_hex_digit(*(first + 1)) &&
+        is_hex_digit(*(first + 2))) {
+      *p++ = (hex_to_uint(*(first + 1)) << 4) + hex_to_uint(*(first + 2));
+      first += 2;
+      continue;
+    }
+
+    *p++ = *first;
+  }
+  result.resize(p - std::ranges::begin(result));
+  return result;
+}
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {
