@@ -770,24 +770,24 @@ std::optional<uint32_t> parse_version(const std::string_view &s) {
 }
 
 std::optional<std::string> read_token(const std::string_view &filename) {
-  return read_pem(filename, "token", "QUIC TOKEN");
+  return read_pem(filename, "token"sv, "QUIC TOKEN"sv);
 }
 
 int write_token(const std::string_view &filename,
                 std::span<const uint8_t> token) {
-  return write_pem(filename, "token", "QUIC TOKEN", token);
+  return write_pem(filename, "token"sv, "QUIC TOKEN"sv, token);
 }
 
 std::optional<std::string>
 read_transport_params(const std::string_view &filename) {
-  return read_pem(filename, "transport parameters",
-                  "QUIC TRANSPORT PARAMETERS");
+  return read_pem(filename, "transport parameters"sv,
+                  "QUIC TRANSPORT PARAMETERS"sv);
 }
 
 int write_transport_params(const std::string_view &filename,
                            std::span<const uint8_t> data) {
-  return write_pem(filename, "transport parameters",
-                   "QUIC TRANSPORT PARAMETERS", data);
+  return write_pem(filename, "transport parameters"sv,
+                   "QUIC TRANSPORT PARAMETERS"sv, data);
 }
 
 std::string percent_decode(const std::string_view &s) {
