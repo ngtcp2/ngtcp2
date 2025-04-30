@@ -29,6 +29,7 @@
 #include <iostream>
 #include <fstream>
 #include <limits>
+#include <algorithm>
 
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
 
@@ -87,7 +88,7 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
   }
 
   for (auto p = in, end = in + inlen; p + alpnlen <= end; p += *p + 1) {
-    if (std::equal(alpn, alpn + alpnlen, p)) {
+    if (std::ranges::equal(alpn, alpn + alpnlen, p, p + alpnlen)) {
       *out = p + 1;
       *outlen = *p;
       return SSL_TLSEXT_ERR_OK;
@@ -129,7 +130,7 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
   }
 
   for (auto p = in, end = in + inlen; p + alpnlen <= end; p += *p + 1) {
-    if (std::equal(alpn, alpn + alpnlen, p)) {
+    if (std::ranges::equal(alpn, alpn + alpnlen, p, p + alpnlen)) {
       *out = p + 1;
       *outlen = *p;
       return SSL_TLSEXT_ERR_OK;

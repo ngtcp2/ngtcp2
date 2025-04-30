@@ -208,8 +208,9 @@ int encrypt_ticket_cb(ptls_encrypt_ticket_t *encrypt_ticket, ptls_t *ptls,
     // TODO Replace std::make_unique with
     // std::make_unique_for_overwrite when it is available.
     auto buf = std::make_unique<uint8_t[]>(src.len + sizeof(ver));
-    auto p = std::copy_n(src.base, src.len, buf.get());
-    p = std::copy_n(reinterpret_cast<uint8_t *>(&ver), sizeof(ver), p);
+    auto p = std::ranges::copy_n(src.base, src.len, buf.get()).out;
+    p = std::ranges::copy_n(reinterpret_cast<uint8_t *>(&ver), sizeof(ver), p)
+          .out;
 
     src.base = buf.get();
     src.len = p - buf.get();
