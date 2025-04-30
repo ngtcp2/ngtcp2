@@ -296,37 +296,37 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
 
   auto fd = fileno(out);
   std::array<uint8_t, 4096> buf;
+  auto input = std::span{reinterpret_cast<const uint8_t *>(data), datalen};
   auto last = buf.data();
-  auto in = reinterpret_cast<const uint8_t *>(data);
   auto repeated = false;
+  std::span<const uint8_t> s, last_s{};
 
-  for (size_t offset = 0; offset < datalen; offset += 16) {
-    auto n = datalen - offset;
-    auto s = in + offset;
+  for (; !input.empty(); input = input.subspan(s.size())) {
+    s = input;
 
-    if (n >= 16) {
-      n = 16;
+    if (s.size() >= 16) {
+      s = s.first(16);
 
-      if (offset > 0) {
-        if (std::ranges::equal(s - 16, s, s, s + 16)) {
-          if (repeated) {
-            continue;
-          }
-
-          repeated = true;
-
-          *last++ = '*';
-          *last++ = '\n';
-
+      if (std::ranges::equal(last_s, s)) {
+        if (repeated) {
           continue;
         }
 
-        repeated = false;
+        repeated = true;
+
+        *last++ = '*';
+        *last++ = '\n';
+
+        continue;
       }
+
+      repeated = false;
     }
 
-    last = hexdump_line(last, {s, n}, offset);
+    last =
+      hexdump_line(last, s, s.data() - reinterpret_cast<const uint8_t *>(data));
     *last++ = '\n';
+    last_s = s;
 
     auto len = static_cast<size_t>(last - buf.data());
     if (len + min_space > buf.size()) {
