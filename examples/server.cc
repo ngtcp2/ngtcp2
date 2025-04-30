@@ -382,7 +382,8 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
     nv = util::make_nv_cc(hdr.name, hdr.value);
   }
 
-  data = (uint8_t *)status_resp_body.data();
+  data = const_cast<uint8_t *>(
+    reinterpret_cast<const uint8_t *>(status_resp_body.data()));
   datalen = status_resp_body.size();
 
   nghttp3_data_reader dr{
