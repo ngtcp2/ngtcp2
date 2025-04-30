@@ -79,7 +79,7 @@ std::string format_hex(std::span<const uint8_t> s) {
   std::string res;
   res.resize(s.size() * 2);
 
-  auto p = std::begin(res);
+  auto p = std::ranges::begin(res);
 
   for (auto c : s) {
     *p++ = LOWER_XDIGITS[c >> 4];
@@ -95,8 +95,8 @@ std::string format_hex(const std::string_view &s) {
 std::string decode_hex(const std::string_view &s) {
   assert(s.size() % 2 == 0);
   std::string res(s.size() / 2, '0');
-  auto p = std::begin(res);
-  for (auto it = std::begin(s); it != std::end(s); it += 2) {
+  auto p = std::ranges::begin(res);
+  for (auto it = std::ranges::begin(s); it != std::ranges::end(s); it += 2) {
     *p++ = (hex_to_uint(*it) << 4) | hex_to_uint(*(it + 1));
   }
   return res;
@@ -308,7 +308,7 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
       n = 16;
 
       if (offset > 0) {
-        if (std::equal(s - 16, s, s)) {
+        if (std::ranges::equal(s - 16, s, s, s + 16)) {
           if (repeated) {
             continue;
           }
@@ -354,7 +354,7 @@ ngtcp2_cid make_cid_key(std::span<const uint8_t> cid) {
 
   ngtcp2_cid res;
 
-  std::ranges::copy(cid, std::begin(res.data));
+  std::ranges::copy(cid, std::ranges::begin(res.data));
   res.datalen = cid.size();
 
   return res;
@@ -434,19 +434,19 @@ read_mime_types(const std::string_view &filename) {
       continue;
     }
 
-    auto p = std::find_if(std::begin(line), std::end(line), rws);
-    if (p == std::begin(line) || p == std::end(line)) {
+    auto p = std::ranges::find_if(line, rws);
+    if (p == std::ranges::begin(line) || p == std::ranges::end(line)) {
       continue;
     }
 
-    auto media_type = std::string{std::begin(line), p};
+    auto media_type = std::string{std::ranges::begin(line), p};
     for (;;) {
-      auto ext = std::find_if_not(p, std::end(line), rws);
-      if (ext == std::end(line)) {
+      auto ext = std::ranges::find_if_not(p, std::ranges::end(line), rws);
+      if (ext == std::ranges::end(line)) {
         break;
       }
 
-      p = std::find_if(ext, std::end(line), rws);
+      p = std::ranges::find_if(ext, std::ranges::end(line), rws);
       dest.emplace(std::string{ext, p}, media_type);
     }
   }
@@ -651,8 +651,8 @@ std::string normalize_path(const std::string_view &path) {
   std::array<char, 1024> res;
   auto p = res.data();
 
-  auto first = std::begin(path);
-  auto last = std::end(path);
+  auto first = std::ranges::begin(path);
+  auto last = std::ranges::end(path);
 
   *p++ = '/';
   ++first;
@@ -683,12 +683,12 @@ std::string normalize_path(const std::string_view &path) {
     if (*(p - 1) != '/') {
       p = eat_file(res.data(), p);
     }
-    auto slash = std::find(first, last, '/');
+    auto slash = std::ranges::find(first, last, '/');
     if (slash == last) {
-      p = std::copy(first, last, p);
+      p = std::ranges::copy(first, last, p).out;
       break;
     }
-    p = std::copy(first, slash + 1, p);
+    p = std::ranges::copy(first, slash + 1, p).out;
     first = slash + 1;
     for (; first != last && *first == '/'; ++first)
       ;
@@ -732,17 +732,18 @@ int create_nonblock_socket(int domain, int type, int protocol) {
 
 std::vector<std::string_view> split_str(const std::string_view &s, char delim) {
   size_t len = 1;
-  auto last = std::end(s);
+  auto last = std::ranges::end(s);
   std::string_view::const_iterator d;
-  for (auto first = std::begin(s); (d = std::find(first, last, delim)) != last;
+  for (auto first = std::ranges::begin(s);
+       (d = std::ranges::find(first, last, delim)) != last;
        ++len, first = d + 1)
     ;
 
   auto list = std::vector<std::string_view>(len);
 
   len = 0;
-  for (auto first = std::begin(s);; ++len) {
-    auto stop = std::find(first, last, delim);
+  for (auto first = std::ranges::begin(s);; ++len) {
+    auto stop = std::ranges::find(first, last, delim);
     // xcode clang does not understand std::string_view{first, stop}.
     list[len] = std::string_view{first, static_cast<size_t>(stop - first)};
     if (stop == last) {

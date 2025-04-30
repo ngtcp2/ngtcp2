@@ -160,8 +160,8 @@ Request request_path(const std::string_view &uri, bool is_connect) {
     auto q = std::string(uri.data() + u.field_data[URLPARSE_QUERY].off,
                          u.field_data[URLPARSE_QUERY].len);
     for (auto p = std::begin(q); p != std::end(q);) {
-      if (util::istarts_with(p, std::end(q), std::begin(urgency_prefix),
-                             std::end(urgency_prefix))) {
+      if (util::istarts_with(std::string_view{p, std::end(q)},
+                             urgency_prefix)) {
         auto urgency_start = p + urgency_prefix.size();
         auto urgency_end = std::find(urgency_start, std::end(q), '&');
         if (urgency_start + 1 == urgency_end && '0' <= *urgency_start &&
@@ -174,8 +174,7 @@ Request request_path(const std::string_view &uri, bool is_connect) {
         p = urgency_end + 1;
         continue;
       }
-      if (util::istarts_with(p, std::end(q), std::begin(inc_prefix),
-                             std::end(inc_prefix))) {
+      if (util::istarts_with(std::string_view{p, std::end(q)}, inc_prefix)) {
         auto inc_start = p + inc_prefix.size();
         auto inc_end = std::find(inc_start, std::end(q), '&');
         if (inc_start + 1 == inc_end &&

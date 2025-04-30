@@ -54,8 +54,8 @@ namespace util {
 inline nghttp3_nv make_nv(const std::string_view &name,
                           const std::string_view &value, uint8_t flags) {
   return nghttp3_nv{
-    reinterpret_cast<uint8_t *>(const_cast<char *>(std::data(name))),
-    reinterpret_cast<uint8_t *>(const_cast<char *>(std::data(value))),
+    reinterpret_cast<uint8_t *>(const_cast<char *>(std::ranges::data(name))),
+    reinterpret_cast<uint8_t *>(const_cast<char *>(std::ranges::data(value))),
     name.size(),
     value.size(),
     flags,
@@ -136,17 +136,13 @@ struct CaseCmp {
   }
 };
 
-template <typename InputIterator1, typename InputIterator2>
-bool istarts_with(InputIterator1 first1, InputIterator1 last1,
-                  InputIterator2 first2, InputIterator2 last2) {
-  if (last1 - first1 < last2 - first2) {
-    return false;
-  }
-  return std::equal(first2, last2, first1, CaseCmp());
-}
-
-template <typename S, typename T> bool istarts_with(const S &a, const T &b) {
-  return istarts_with(a.begin(), a.end(), b.begin(), b.end());
+// istarts_with returns true if |s| starts with |prefix|.  Comparison
+// is performed in case-insensitive manner.
+inline bool istarts_with(const std::string_view &s,
+                         const std::string_view &prefix) {
+  return s.size() >= prefix.size() &&
+         std::ranges::mismatch(s, prefix, CaseCmp()).in2 ==
+           std::ranges::end(prefix);
 }
 
 // make_cid_key returns the key for |cid|.
@@ -185,7 +181,7 @@ template <typename InputIt> std::string b64encode(InputIt first, InputIt last) {
   size_t r = len % 3;
   res.resize((len + 2) / 3 * 4);
   auto j = last - r;
-  auto p = std::begin(res);
+  auto p = std::ranges::begin(res);
   while (first != j) {
     uint32_t n = static_cast<uint8_t>(*first++) << 16;
     n += static_cast<uint8_t>(*first++) << 8;
@@ -310,7 +306,7 @@ template <typename InputIt>
 std::string percent_decode(InputIt first, InputIt last) {
   std::string result;
   result.resize(last - first);
-  auto p = std::begin(result);
+  auto p = std::ranges::begin(result);
   for (; first != last; ++first) {
     if (*first != '%') {
       *p++ = *first;
@@ -326,7 +322,7 @@ std::string percent_decode(InputIt first, InputIt last) {
 
     *p++ = *first;
   }
-  result.resize(p - std::begin(result));
+  result.resize(p - std::ranges::begin(result));
   return result;
 }
 
