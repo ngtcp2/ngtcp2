@@ -48,8 +48,8 @@ int on_client_hello_h3_cb(ptls_on_client_hello_t *self, ptls_t *ptls,
 
   for (size_t i = 0; i < negprotos.count; ++i) {
     auto &proto = negprotos.list[i];
-    if (H3_ALPN_V1[0] == proto.len &&
-        memcmp(&H3_ALPN_V1[1], proto.base, proto.len) == 0) {
+    if (std::ranges::equal(H3_ALPN_V1.subspan(1),
+                           std::span{proto.base, proto.len})) {
       if (ptls_set_negotiated_protocol(
             ptls, reinterpret_cast<char *>(proto.base), proto.len) != 0) {
         return -1;
@@ -72,8 +72,8 @@ int on_client_hello_hq_cb(ptls_on_client_hello_t *self, ptls_t *ptls,
 
   for (size_t i = 0; i < negprotos.count; ++i) {
     auto &proto = negprotos.list[i];
-    if (HQ_ALPN_V1[0] == proto.len &&
-        memcmp(&HQ_ALPN_V1[1], proto.base, proto.len) == 0) {
+    if (std::ranges::equal(HQ_ALPN_V1.subspan(1),
+                           std::span{proto.base, proto.len})) {
       if (ptls_set_negotiated_protocol(
             ptls, reinterpret_cast<char *>(proto.base), proto.len) != 0) {
         return -1;

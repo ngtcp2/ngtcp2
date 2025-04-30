@@ -67,8 +67,6 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
                             unsigned int inlen, void *arg) {
   auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
-  const uint8_t *alpn;
-  size_t alpnlen;
   // This should be the negotiated version, but we have not set the
   // negotiated version when this callback is called.
   auto version = ngtcp2_conn_get_client_chosen_version(h->conn());
@@ -76,8 +74,6 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
   case NGTCP2_PROTO_VER_V2:
-    alpn = H3_ALPN_V1;
-    alpnlen = str_size(H3_ALPN_V1);
     break;
   default:
     if (!config.quiet) {
@@ -87,8 +83,9 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
-  for (auto p = in, end = in + inlen; p + alpnlen <= end; p += *p + 1) {
-    if (std::ranges::equal(alpn, alpn + alpnlen, p, p + alpnlen)) {
+  for (auto p = in, end = in + inlen; p + H3_ALPN_V1.size() <= end;
+       p += *p + 1) {
+    if (std::ranges::equal(H3_ALPN_V1, std::span{p, H3_ALPN_V1.size()})) {
       *out = p + 1;
       *outlen = *p;
       return SSL_TLSEXT_ERR_OK;
@@ -96,7 +93,7 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
   }
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << &alpn[1] << std::endl;
+    std::cerr << "Client did not present ALPN " << &H3_ALPN_V1[1] << std::endl;
   }
 
   return SSL_TLSEXT_ERR_ALERT_FATAL;
@@ -109,8 +106,6 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
                             unsigned int inlen, void *arg) {
   auto conn_ref = static_cast<ngtcp2_crypto_conn_ref *>(SSL_get_app_data(ssl));
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
-  const uint8_t *alpn;
-  size_t alpnlen;
   // This should be the negotiated version, but we have not set the
   // negotiated version when this callback is called.
   auto version = ngtcp2_conn_get_client_chosen_version(h->conn());
@@ -118,8 +113,6 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
   case NGTCP2_PROTO_VER_V2:
-    alpn = HQ_ALPN_V1;
-    alpnlen = str_size(HQ_ALPN_V1);
     break;
   default:
     if (!config.quiet) {
@@ -129,8 +122,9 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
-  for (auto p = in, end = in + inlen; p + alpnlen <= end; p += *p + 1) {
-    if (std::ranges::equal(alpn, alpn + alpnlen, p, p + alpnlen)) {
+  for (auto p = in, end = in + inlen; p + HQ_ALPN_V1.size() <= end;
+       p += *p + 1) {
+    if (std::ranges::equal(HQ_ALPN_V1, std::span{p, HQ_ALPN_V1.size()})) {
       *out = p + 1;
       *outlen = *p;
       return SSL_TLSEXT_ERR_OK;
@@ -138,7 +132,7 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
   }
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << &alpn[1] << std::endl;
+    std::cerr << "Client did not present ALPN " << &HQ_ALPN_V1[1] << std::endl;
   }
 
   return SSL_TLSEXT_ERR_ALERT_FATAL;

@@ -69,10 +69,10 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   switch (app_proto) {
   case AppProtocol::H3:
-    wolfSSL_set_alpn_protos(ssl_, H3_ALPN, str_size(H3_ALPN));
+    wolfSSL_set_alpn_protos(ssl_, H3_ALPN.data(), H3_ALPN.size());
     break;
   case AppProtocol::HQ:
-    wolfSSL_set_alpn_protos(ssl_, HQ_ALPN, str_size(HQ_ALPN));
+    wolfSSL_set_alpn_protos(ssl_, HQ_ALPN.data(), HQ_ALPN.size());
     break;
   }
 
