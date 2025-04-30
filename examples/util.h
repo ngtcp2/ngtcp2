@@ -162,53 +162,6 @@ bool prohibited_port(uint16_t port);
 // strccalgo stringifies |cc_algo|.
 std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 
-namespace {
-constexpr char B64_CHARS[] = {
-  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-  'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/',
-};
-} // namespace
-
-template <typename InputIt> std::string b64encode(InputIt first, InputIt last) {
-  std::string res;
-  size_t len = last - first;
-  if (len == 0) {
-    return res;
-  }
-  size_t r = len % 3;
-  res.resize((len + 2) / 3 * 4);
-  auto j = last - r;
-  auto p = std::ranges::begin(res);
-  while (first != j) {
-    uint32_t n = static_cast<uint8_t>(*first++) << 16;
-    n += static_cast<uint8_t>(*first++) << 8;
-    n += static_cast<uint8_t>(*first++);
-    *p++ = B64_CHARS[n >> 18];
-    *p++ = B64_CHARS[(n >> 12) & 0x3fu];
-    *p++ = B64_CHARS[(n >> 6) & 0x3fu];
-    *p++ = B64_CHARS[n & 0x3fu];
-  }
-
-  if (r == 2) {
-    uint32_t n = static_cast<uint8_t>(*first++) << 16;
-    n += static_cast<uint8_t>(*first++) << 8;
-    *p++ = B64_CHARS[n >> 18];
-    *p++ = B64_CHARS[(n >> 12) & 0x3fu];
-    *p++ = B64_CHARS[(n >> 6) & 0x3fu];
-    *p++ = '=';
-  } else if (r == 1) {
-    uint32_t n = static_cast<uint8_t>(*first++) << 16;
-    *p++ = B64_CHARS[n >> 18];
-    *p++ = B64_CHARS[(n >> 12) & 0x3fu];
-    *p++ = '=';
-    *p++ = '=';
-  }
-  return res;
-}
-
 // read_mime_types reads "MIME media types and the extensions" file
 // denoted by |filename| and returns the mapping of extension to MIME
 // media type.
