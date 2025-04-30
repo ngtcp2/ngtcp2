@@ -755,14 +755,14 @@ std::vector<std::string_view> split_str(const std::string_view &s, char delim) {
 }
 
 std::optional<uint32_t> parse_version(const std::string_view &s) {
-  auto k = s;
-  if (!util::istarts_with(k, "0x"sv)) {
+  if (!util::istarts_with(s, "0x"sv)) {
     return {};
   }
-  k = k.substr(2);
+  auto k = s.substr(2);
+  auto k_last = k.data() + k.size();
   uint32_t v;
-  auto rv = std::from_chars(k.data(), k.data() + k.size(), v, 16);
-  if (rv.ptr != k.data() + k.size() || rv.ec != std::errc{}) {
+  auto rv = std::from_chars(k.data(), k_last, v, 16);
+  if (rv.ptr != k_last || rv.ec != std::errc{}) {
     return {};
   }
 
