@@ -47,7 +47,7 @@ enum class AppProtocol {
 };
 
 template <size_t N>
-constexpr std::span<const uint8_t> as_uint8_span(const uint8_t (&s)[N]) {
+consteval std::span<const uint8_t> as_uint8_span(const uint8_t (&s)[N]) {
   return {s, N - 1};
 }
 
