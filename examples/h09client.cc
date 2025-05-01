@@ -80,11 +80,11 @@ int Stream::open_file(const std::string_view &path) {
 
   std::string_view filename;
 
-  auto it = std::find(std::rbegin(path), std::rend(path), '/').base();
-  if (it == std::end(path)) {
+  auto it = std::ranges::find(std::rbegin(path), std::rend(path), '/').base();
+  if (it == std::ranges::end(path)) {
     filename = "index.html"sv;
   } else {
-    filename = std::string_view{it, static_cast<size_t>(std::end(path) - it)};
+    filename = std::string_view{it, std::ranges::end(path)};
     if (filename == ".."sv || filename == "."sv) {
       std::cerr << "Invalid file name: " << filename << std::endl;
       return -1;
@@ -398,7 +398,7 @@ int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
 void Client::recv_version_negotiation(const uint32_t *sv, size_t nsv) {
   offered_versions_.resize(nsv);
-  std::copy_n(sv, nsv, std::begin(offered_versions_));
+  std::ranges::copy_n(sv, nsv, std::ranges::begin(offered_versions_));
 }
 
 namespace {
@@ -556,7 +556,7 @@ int extend_max_stream_data(ngtcp2_conn *conn, int64_t stream_id,
 
 int Client::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
   auto it = streams_.find(stream_id);
-  assert(it != std::end(streams_));
+  assert(it != std::ranges::end(streams_));
   auto &stream = (*it).second;
 
   if (nghttp3_buf_len(&stream->reqbuf)) {
@@ -726,8 +726,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     settings.pmtud_probeslen = config.pmtud_probes.size();
 
     if (!config.max_udp_payload_size) {
-      settings.max_tx_udp_payload_size = *std::max_element(
-        std::begin(config.pmtud_probes), std::end(config.pmtud_probes));
+      settings.max_tx_udp_payload_size =
+        *std::ranges::max_element(config.pmtud_probes);
     }
   }
 
@@ -995,7 +995,7 @@ int Client::write_streams() {
     Stream *stream = nullptr;
 
     if (!sendq_.empty() && ngtcp2_conn_get_max_data_left(conn_)) {
-      stream = *std::begin(sendq_);
+      stream = *std::ranges::begin(sendq_);
 
       stream_id = stream->stream_id;
       vec.base = stream->reqbuf.pos;
@@ -1018,13 +1018,13 @@ int Client::write_streams() {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
       case NGTCP2_ERR_STREAM_SHUT_WR:
         assert(ndatalen == -1);
-        sendq_.erase(std::begin(sendq_));
+        sendq_.erase(std::ranges::begin(sendq_));
         continue;
       case NGTCP2_ERR_WRITE_MORE:
         assert(ndatalen >= 0);
         stream->reqbuf.pos += ndatalen;
         if (nghttp3_buf_len(&stream->reqbuf) == 0) {
-          sendq_.erase(std::begin(sendq_));
+          sendq_.erase(std::ranges::begin(sendq_));
         }
         continue;
       }
@@ -1039,12 +1039,12 @@ int Client::write_streams() {
     } else if (ndatalen >= 0) {
       stream->reqbuf.pos += ndatalen;
       if (nghttp3_buf_len(&stream->reqbuf) == 0) {
-        sendq_.erase(std::begin(sendq_));
+        sendq_.erase(std::ranges::begin(sendq_));
       }
     }
 
     if (nwrite == 0) {
-      pkt = std::span{std::begin(txbuf), std::begin(buf)};
+      pkt = std::span{std::ranges::begin(txbuf), std::ranges::begin(buf)};
       if (pkt.empty()) {
         return 0;
       }
@@ -1052,11 +1052,11 @@ int Client::write_streams() {
       break;
     }
 
-    auto last_pkt_pos = std::begin(buf);
+    auto last_pkt_pos = std::ranges::begin(buf);
 
     buf = buf.subspan(nwrite);
 
-    if (last_pkt_pos == std::begin(txbuf)) {
+    if (last_pkt_pos == std::ranges::begin(txbuf)) {
       ngtcp2_path_copy(&prev_ps.path, &ps.path);
       prev_ecn = pi.ecn;
       gso_size = nwrite;
@@ -1064,14 +1064,14 @@ int Client::write_streams() {
                static_cast<size_t>(nwrite) > gso_size ||
                (gso_size > path_max_udp_payload_size &&
                 static_cast<size_t>(nwrite) != gso_size)) {
-      pkt = std::span{std::begin(txbuf), last_pkt_pos};
-      extra_pkt = std::span{last_pkt_pos, std::begin(buf)};
+      pkt = std::span{std::ranges::begin(txbuf), last_pkt_pos};
+      extra_pkt = std::span{last_pkt_pos, std::ranges::begin(buf)};
       break;
     }
 
     if (buf.size() < path_max_udp_payload_size ||
         static_cast<size_t>(nwrite) < gso_size) {
-      pkt = std::span{std::begin(txbuf), std::begin(buf)};
+      pkt = std::span{std::ranges::begin(txbuf), std::ranges::begin(buf)};
       break;
     }
   }
@@ -1688,7 +1688,7 @@ int Client::handle_error() {
 
 int Client::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
   auto it = streams_.find(stream_id);
-  assert(it != std::end(streams_));
+  assert(it != std::ranges::end(streams_));
   auto &stream = (*it).second;
 
   sendq_.erase(stream.get());
@@ -1772,7 +1772,7 @@ int Client::submit_http_request(Stream *stream) {
 int Client::recv_stream_data(uint32_t flags, int64_t stream_id,
                              std::span<const uint8_t> data) {
   auto it = streams_.find(stream_id);
-  assert(it != std::end(streams_));
+  assert(it != std::ranges::end(streams_));
   auto &stream = (*it).second;
 
   ngtcp2_conn_extend_max_stream_offset(conn_, stream_id, data.size());
@@ -1793,7 +1793,7 @@ int Client::recv_stream_data(uint32_t flags, int64_t stream_id,
 int Client::acked_stream_data_offset(int64_t stream_id, uint64_t offset,
                                      uint64_t datalen) {
   auto it = streams_.find(stream_id);
-  assert(it != std::end(streams_));
+  assert(it != std::ranges::end(streams_));
   auto &stream = (*it).second;
   (void)stream;
   assert(static_cast<uint64_t>(stream->reqbuf.end - stream->reqbuf.begin) >=
@@ -2609,7 +2609,7 @@ int main(int argc, char **argv) {
         }
         auto l = util::split_str(optarg);
         config.available_versions.resize(l.size());
-        auto it = std::begin(config.available_versions);
+        auto it = std::ranges::begin(config.available_versions);
         for (const auto &k : l) {
           if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
@@ -2641,7 +2641,7 @@ int main(int argc, char **argv) {
                     << max_preferred_versionslen << std::endl;
         }
         config.preferred_versions.resize(l.size());
-        auto it = std::begin(config.preferred_versions);
+        auto it = std::ranges::begin(config.preferred_versions);
         for (const auto &k : l) {
           if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
@@ -2778,18 +2778,16 @@ int main(int argc, char **argv) {
 
   if (!ngtcp2_is_reserved_version(config.version)) {
     if (!config.preferred_versions.empty() &&
-        std::find(std::begin(config.preferred_versions),
-                  std::end(config.preferred_versions),
-                  config.version) == std::end(config.preferred_versions)) {
+        std::ranges::find(config.preferred_versions, config.version) ==
+          std::ranges::end(config.preferred_versions)) {
       std::cerr << "preferred-version: must include version " << std::hex
                 << "0x" << config.version << std::dec << std::endl;
       exit(EXIT_FAILURE);
     }
 
     if (!config.available_versions.empty() &&
-        std::find(std::begin(config.available_versions),
-                  std::end(config.available_versions),
-                  config.version) == std::end(config.available_versions)) {
+        std::ranges::find(config.available_versions, config.version) ==
+          std::ranges::end(config.available_versions)) {
       std::cerr << "available-versions: must include version " << std::hex
                 << "0x" << config.version << std::dec << std::endl;
       exit(EXIT_FAILURE);

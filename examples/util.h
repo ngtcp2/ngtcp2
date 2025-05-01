@@ -54,8 +54,8 @@ namespace util {
 inline nghttp3_nv make_nv(const std::string_view &name,
                           const std::string_view &value, uint8_t flags) {
   return nghttp3_nv{
-    reinterpret_cast<uint8_t *>(const_cast<char *>(std::data(name))),
-    reinterpret_cast<uint8_t *>(const_cast<char *>(std::data(value))),
+    reinterpret_cast<uint8_t *>(const_cast<char *>(std::ranges::data(name))),
+    reinterpret_cast<uint8_t *>(const_cast<char *>(std::ranges::data(value))),
     name.size(),
     value.size(),
     flags,
@@ -136,17 +136,13 @@ struct CaseCmp {
   }
 };
 
-template <typename InputIterator1, typename InputIterator2>
-bool istarts_with(InputIterator1 first1, InputIterator1 last1,
-                  InputIterator2 first2, InputIterator2 last2) {
-  if (last1 - first1 < last2 - first2) {
-    return false;
-  }
-  return std::equal(first2, last2, first1, CaseCmp());
-}
-
-template <typename S, typename T> bool istarts_with(const S &a, const T &b) {
-  return istarts_with(a.begin(), a.end(), b.begin(), b.end());
+// istarts_with returns true if |s| starts with |prefix|.  Comparison
+// is performed in case-insensitive manner.
+inline bool istarts_with(const std::string_view &s,
+                         const std::string_view &prefix) {
+  return s.size() >= prefix.size() &&
+         std::ranges::mismatch(s, prefix, CaseCmp()).in2 ==
+           std::ranges::end(prefix);
 }
 
 // make_cid_key returns the key for |cid|.
@@ -165,53 +161,6 @@ bool prohibited_port(uint16_t port);
 
 // strccalgo stringifies |cc_algo|.
 std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
-
-namespace {
-constexpr char B64_CHARS[] = {
-  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-  'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/',
-};
-} // namespace
-
-template <typename InputIt> std::string b64encode(InputIt first, InputIt last) {
-  std::string res;
-  size_t len = last - first;
-  if (len == 0) {
-    return res;
-  }
-  size_t r = len % 3;
-  res.resize((len + 2) / 3 * 4);
-  auto j = last - r;
-  auto p = std::begin(res);
-  while (first != j) {
-    uint32_t n = static_cast<uint8_t>(*first++) << 16;
-    n += static_cast<uint8_t>(*first++) << 8;
-    n += static_cast<uint8_t>(*first++);
-    *p++ = B64_CHARS[n >> 18];
-    *p++ = B64_CHARS[(n >> 12) & 0x3fu];
-    *p++ = B64_CHARS[(n >> 6) & 0x3fu];
-    *p++ = B64_CHARS[n & 0x3fu];
-  }
-
-  if (r == 2) {
-    uint32_t n = static_cast<uint8_t>(*first++) << 16;
-    n += static_cast<uint8_t>(*first++) << 8;
-    *p++ = B64_CHARS[n >> 18];
-    *p++ = B64_CHARS[(n >> 12) & 0x3fu];
-    *p++ = B64_CHARS[(n >> 6) & 0x3fu];
-    *p++ = '=';
-  } else if (r == 1) {
-    uint32_t n = static_cast<uint8_t>(*first++) << 16;
-    *p++ = B64_CHARS[n >> 18];
-    *p++ = B64_CHARS[(n >> 12) & 0x3fu];
-    *p++ = '=';
-    *p++ = '=';
-  }
-  return res;
-}
 
 // read_mime_types reads "MIME media types and the extensions" file
 // denoted by |filename| and returns the mapping of extension to MIME
@@ -306,29 +255,7 @@ constexpr uint32_t hex_to_uint(char c) {
   return 256;
 }
 
-template <typename InputIt>
-std::string percent_decode(InputIt first, InputIt last) {
-  std::string result;
-  result.resize(last - first);
-  auto p = std::begin(result);
-  for (; first != last; ++first) {
-    if (*first != '%') {
-      *p++ = *first;
-      continue;
-    }
-
-    if (first + 1 != last && first + 2 != last && is_hex_digit(*(first + 1)) &&
-        is_hex_digit(*(first + 2))) {
-      *p++ = (hex_to_uint(*(first + 1)) << 4) + hex_to_uint(*(first + 2));
-      first += 2;
-      continue;
-    }
-
-    *p++ = *first;
-  }
-  result.resize(p - std::begin(result));
-  return result;
-}
+std::string percent_decode(const std::string_view &s);
 
 int make_socket_nonblocking(int fd);
 

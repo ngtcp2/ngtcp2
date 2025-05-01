@@ -25,111 +25,113 @@
  */
 #include "http.h"
 
+using namespace std::literals;
+
 namespace ngtcp2 {
 
 namespace http {
 
-std::string get_reason_phrase(unsigned int status_code) {
+std::string_view get_reason_phrase(unsigned int status_code) {
   switch (status_code) {
   case 100:
-    return "Continue";
+    return "Continue"sv;
   case 101:
-    return "Switching Protocols";
+    return "Switching Protocols"sv;
   case 200:
-    return "OK";
+    return "OK"sv;
   case 201:
-    return "Created";
+    return "Created"sv;
   case 202:
-    return "Accepted";
+    return "Accepted"sv;
   case 203:
-    return "Non-Authoritative Information";
+    return "Non-Authoritative Information"sv;
   case 204:
-    return "No Content";
+    return "No Content"sv;
   case 205:
-    return "Reset Content";
+    return "Reset Content"sv;
   case 206:
-    return "Partial Content";
+    return "Partial Content"sv;
   case 300:
-    return "Multiple Choices";
+    return "Multiple Choices"sv;
   case 301:
-    return "Moved Permanently";
+    return "Moved Permanently"sv;
   case 302:
-    return "Found";
+    return "Found"sv;
   case 303:
-    return "See Other";
+    return "See Other"sv;
   case 304:
-    return "Not Modified";
+    return "Not Modified"sv;
   case 305:
-    return "Use Proxy";
-  // case 306: return "(Unused)";
+    return "Use Proxy"sv;
+  // case 306: return "(Unused)"sv;
   case 307:
-    return "Temporary Redirect";
+    return "Temporary Redirect"sv;
   case 308:
-    return "Permanent Redirect";
+    return "Permanent Redirect"sv;
   case 400:
-    return "Bad Request";
+    return "Bad Request"sv;
   case 401:
-    return "Unauthorized";
+    return "Unauthorized"sv;
   case 402:
-    return "Payment Required";
+    return "Payment Required"sv;
   case 403:
-    return "Forbidden";
+    return "Forbidden"sv;
   case 404:
-    return "Not Found";
+    return "Not Found"sv;
   case 405:
-    return "Method Not Allowed";
+    return "Method Not Allowed"sv;
   case 406:
-    return "Not Acceptable";
+    return "Not Acceptable"sv;
   case 407:
-    return "Proxy Authentication Required";
+    return "Proxy Authentication Required"sv;
   case 408:
-    return "Request Timeout";
+    return "Request Timeout"sv;
   case 409:
-    return "Conflict";
+    return "Conflict"sv;
   case 410:
-    return "Gone";
+    return "Gone"sv;
   case 411:
-    return "Length Required";
+    return "Length Required"sv;
   case 412:
-    return "Precondition Failed";
+    return "Precondition Failed"sv;
   case 413:
-    return "Payload Too Large";
+    return "Payload Too Large"sv;
   case 414:
-    return "URI Too Long";
+    return "URI Too Long"sv;
   case 415:
-    return "Unsupported Media Type";
+    return "Unsupported Media Type"sv;
   case 416:
-    return "Requested Range Not Satisfiable";
+    return "Requested Range Not Satisfiable"sv;
   case 417:
-    return "Expectation Failed";
+    return "Expectation Failed"sv;
   case 421:
-    return "Misdirected Request";
+    return "Misdirected Request"sv;
   case 426:
-    return "Upgrade Required";
+    return "Upgrade Required"sv;
   case 428:
-    return "Precondition Required";
+    return "Precondition Required"sv;
   case 429:
-    return "Too Many Requests";
+    return "Too Many Requests"sv;
   case 431:
-    return "Request Header Fields Too Large";
+    return "Request Header Fields Too Large"sv;
   case 451:
-    return "Unavailable For Legal Reasons";
+    return "Unavailable For Legal Reasons"sv;
   case 500:
-    return "Internal Server Error";
+    return "Internal Server Error"sv;
   case 501:
-    return "Not Implemented";
+    return "Not Implemented"sv;
   case 502:
-    return "Bad Gateway";
+    return "Bad Gateway"sv;
   case 503:
-    return "Service Unavailable";
+    return "Service Unavailable"sv;
   case 504:
-    return "Gateway Timeout";
+    return "Gateway Timeout"sv;
   case 505:
-    return "HTTP Version Not Supported";
+    return "HTTP Version Not Supported"sv;
   case 511:
-    return "Network Authentication Required";
+    return "Network Authentication Required"sv;
   default:
-    return "";
+    return ""sv;
   }
 }
 

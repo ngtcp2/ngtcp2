@@ -79,7 +79,7 @@ std::string format_hex(std::span<const uint8_t> s) {
   std::string res;
   res.resize(s.size() * 2);
 
-  auto p = std::begin(res);
+  auto p = std::ranges::begin(res);
 
   for (auto c : s) {
     *p++ = LOWER_XDIGITS[c >> 4];
@@ -95,8 +95,8 @@ std::string format_hex(const std::string_view &s) {
 std::string decode_hex(const std::string_view &s) {
   assert(s.size() % 2 == 0);
   std::string res(s.size() / 2, '0');
-  auto p = std::begin(res);
-  for (auto it = std::begin(s); it != std::end(s); it += 2) {
+  auto p = std::ranges::begin(res);
+  for (auto it = std::ranges::begin(s); it != std::ranges::end(s); it += 2) {
     *p++ = (hex_to_uint(*it) << 4) | hex_to_uint(*(it + 1));
   }
   return res;
@@ -296,37 +296,37 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
 
   auto fd = fileno(out);
   std::array<uint8_t, 4096> buf;
+  auto input = std::span{reinterpret_cast<const uint8_t *>(data), datalen};
   auto last = buf.data();
-  auto in = reinterpret_cast<const uint8_t *>(data);
   auto repeated = false;
+  std::span<const uint8_t> s, last_s{};
 
-  for (size_t offset = 0; offset < datalen; offset += 16) {
-    auto n = datalen - offset;
-    auto s = in + offset;
+  for (; !input.empty(); input = input.subspan(s.size())) {
+    s = input;
 
-    if (n >= 16) {
-      n = 16;
+    if (s.size() >= 16) {
+      s = s.first(16);
 
-      if (offset > 0) {
-        if (std::equal(s - 16, s, s)) {
-          if (repeated) {
-            continue;
-          }
-
-          repeated = true;
-
-          *last++ = '*';
-          *last++ = '\n';
-
+      if (std::ranges::equal(last_s, s)) {
+        if (repeated) {
           continue;
         }
 
-        repeated = false;
+        repeated = true;
+
+        *last++ = '*';
+        *last++ = '\n';
+
+        continue;
       }
+
+      repeated = false;
     }
 
-    last = hexdump_line(last, {s, n}, offset);
+    last =
+      hexdump_line(last, s, s.data() - reinterpret_cast<const uint8_t *>(data));
     *last++ = '\n';
+    last_s = s;
 
     auto len = static_cast<size_t>(last - buf.data());
     if (len + min_space > buf.size()) {
@@ -354,7 +354,7 @@ ngtcp2_cid make_cid_key(std::span<const uint8_t> cid) {
 
   ngtcp2_cid res;
 
-  std::ranges::copy(cid, std::begin(res.data));
+  std::ranges::copy(cid, std::ranges::begin(res.data));
   res.datalen = cid.size();
 
   return res;
@@ -434,19 +434,19 @@ read_mime_types(const std::string_view &filename) {
       continue;
     }
 
-    auto p = std::find_if(std::begin(line), std::end(line), rws);
-    if (p == std::begin(line) || p == std::end(line)) {
+    auto p = std::ranges::find_if(line, rws);
+    if (p == std::ranges::begin(line) || p == std::ranges::end(line)) {
       continue;
     }
 
-    auto media_type = std::string{std::begin(line), p};
+    auto media_type = std::string{std::ranges::begin(line), p};
     for (;;) {
-      auto ext = std::find_if_not(p, std::end(line), rws);
-      if (ext == std::end(line)) {
+      auto ext = std::ranges::find_if_not(p, std::ranges::end(line), rws);
+      if (ext == std::ranges::end(line)) {
         break;
       }
 
-      p = std::find_if(ext, std::end(line), rws);
+      p = std::ranges::find_if(ext, std::ranges::end(line), rws);
       dest.emplace(std::string{ext, p}, media_type);
     }
   }
@@ -651,8 +651,8 @@ std::string normalize_path(const std::string_view &path) {
   std::array<char, 1024> res;
   auto p = res.data();
 
-  auto first = std::begin(path);
-  auto last = std::end(path);
+  auto first = std::ranges::begin(path);
+  auto last = std::ranges::end(path);
 
   *p++ = '/';
   ++first;
@@ -683,12 +683,12 @@ std::string normalize_path(const std::string_view &path) {
     if (*(p - 1) != '/') {
       p = eat_file(res.data(), p);
     }
-    auto slash = std::find(first, last, '/');
+    auto slash = std::ranges::find(first, last, '/');
     if (slash == last) {
-      p = std::copy(first, last, p);
+      p = std::ranges::copy(first, last, p).out;
       break;
     }
-    p = std::copy(first, slash + 1, p);
+    p = std::ranges::copy(first, slash + 1, p).out;
     first = slash + 1;
     for (; first != last && *first == '/'; ++first)
       ;
@@ -732,17 +732,18 @@ int create_nonblock_socket(int domain, int type, int protocol) {
 
 std::vector<std::string_view> split_str(const std::string_view &s, char delim) {
   size_t len = 1;
-  auto last = std::end(s);
+  auto last = std::ranges::end(s);
   std::string_view::const_iterator d;
-  for (auto first = std::begin(s); (d = std::find(first, last, delim)) != last;
+  for (auto first = std::ranges::begin(s);
+       (d = std::ranges::find(first, last, delim)) != last;
        ++len, first = d + 1)
     ;
 
   auto list = std::vector<std::string_view>(len);
 
   len = 0;
-  for (auto first = std::begin(s);; ++len) {
-    auto stop = std::find(first, last, delim);
+  for (auto first = std::ranges::begin(s);; ++len) {
+    auto stop = std::ranges::find(first, last, delim);
     // xcode clang does not understand std::string_view{first, stop}.
     list[len] = std::string_view{first, static_cast<size_t>(stop - first)};
     if (stop == last) {
@@ -754,14 +755,14 @@ std::vector<std::string_view> split_str(const std::string_view &s, char delim) {
 }
 
 std::optional<uint32_t> parse_version(const std::string_view &s) {
-  auto k = s;
-  if (!util::istarts_with(k, "0x"sv)) {
+  if (!util::istarts_with(s, "0x"sv)) {
     return {};
   }
-  k = k.substr(2);
+  auto k = s.substr(2);
+  auto k_last = k.data() + k.size();
   uint32_t v;
-  auto rv = std::from_chars(k.data(), k.data() + k.size(), v, 16);
-  if (rv.ptr != k.data() + k.size() || rv.ec != std::errc{}) {
+  auto rv = std::from_chars(k.data(), k_last, v, 16);
+  if (rv.ptr != k_last || rv.ec != std::errc{}) {
     return {};
   }
 
@@ -769,24 +770,48 @@ std::optional<uint32_t> parse_version(const std::string_view &s) {
 }
 
 std::optional<std::string> read_token(const std::string_view &filename) {
-  return read_pem(filename, "token", "QUIC TOKEN");
+  return read_pem(filename, "token"sv, "QUIC TOKEN"sv);
 }
 
 int write_token(const std::string_view &filename,
                 std::span<const uint8_t> token) {
-  return write_pem(filename, "token", "QUIC TOKEN", token);
+  return write_pem(filename, "token"sv, "QUIC TOKEN"sv, token);
 }
 
 std::optional<std::string>
 read_transport_params(const std::string_view &filename) {
-  return read_pem(filename, "transport parameters",
-                  "QUIC TRANSPORT PARAMETERS");
+  return read_pem(filename, "transport parameters"sv,
+                  "QUIC TRANSPORT PARAMETERS"sv);
 }
 
 int write_transport_params(const std::string_view &filename,
                            std::span<const uint8_t> data) {
-  return write_pem(filename, "transport parameters",
-                   "QUIC TRANSPORT PARAMETERS", data);
+  return write_pem(filename, "transport parameters"sv,
+                   "QUIC TRANSPORT PARAMETERS"sv, data);
+}
+
+std::string percent_decode(const std::string_view &s) {
+  std::string result;
+  result.resize(s.size());
+  auto p = std::ranges::begin(result);
+  for (auto first = std::ranges::begin(s), last = std::ranges::end(s);
+       first != last; ++first) {
+    if (*first != '%') {
+      *p++ = *first;
+      continue;
+    }
+
+    if (first + 1 != last && first + 2 != last && is_hex_digit(*(first + 1)) &&
+        is_hex_digit(*(first + 2))) {
+      *p++ = (hex_to_uint(*(first + 1)) << 4) + hex_to_uint(*(first + 2));
+      first += 2;
+      continue;
+    }
+
+    *p++ = *first;
+  }
+  result.resize(p - std::ranges::begin(result));
+  return result;
 }
 
 } // namespace util

@@ -140,7 +140,7 @@ Request request_path(const std::string_view &uri, bool is_connect) {
     req.path = std::string(uri.data() + u.field_data[URLPARSE_PATH].off,
                            u.field_data[URLPARSE_PATH].len);
     if (req.path.find('%') != std::string::npos) {
-      req.path = util::percent_decode(std::begin(req.path), std::end(req.path));
+      req.path = util::percent_decode(req.path);
     }
     if (!req.path.empty() && req.path.back() == '/') {
       req.path += "index.html";
@@ -159,38 +159,39 @@ Request request_path(const std::string_view &uri, bool is_connect) {
     static constexpr auto inc_prefix = "i="sv;
     auto q = std::string(uri.data() + u.field_data[URLPARSE_QUERY].off,
                          u.field_data[URLPARSE_QUERY].len);
-    for (auto p = std::begin(q); p != std::end(q);) {
-      if (util::istarts_with(p, std::end(q), std::begin(urgency_prefix),
-                             std::end(urgency_prefix))) {
+    for (auto p = std::ranges::begin(q); p != std::ranges::end(q);) {
+      if (util::istarts_with(std::string_view{p, std::ranges::end(q)},
+                             urgency_prefix)) {
         auto urgency_start = p + urgency_prefix.size();
-        auto urgency_end = std::find(urgency_start, std::end(q), '&');
+        auto urgency_end =
+          std::ranges::find(urgency_start, std::ranges::end(q), '&');
         if (urgency_start + 1 == urgency_end && '0' <= *urgency_start &&
             *urgency_start <= '7') {
           req.pri.urgency = *urgency_start - '0';
         }
-        if (urgency_end == std::end(q)) {
+        if (urgency_end == std::ranges::end(q)) {
           break;
         }
         p = urgency_end + 1;
         continue;
       }
-      if (util::istarts_with(p, std::end(q), std::begin(inc_prefix),
-                             std::end(inc_prefix))) {
+      if (util::istarts_with(std::string_view{p, std::ranges::end(q)},
+                             inc_prefix)) {
         auto inc_start = p + inc_prefix.size();
-        auto inc_end = std::find(inc_start, std::end(q), '&');
+        auto inc_end = std::ranges::find(inc_start, std::ranges::end(q), '&');
         if (inc_start + 1 == inc_end &&
             (*inc_start == '0' || *inc_start == '1')) {
           req.pri.inc = *inc_start - '0';
         }
-        if (inc_end == std::end(q)) {
+        if (inc_end == std::ranges::end(q)) {
           break;
         }
         p = inc_end + 1;
         continue;
       }
 
-      p = std::find(p, std::end(q), '&');
-      if (p == std::end(q)) {
+      p = std::ranges::find(p, std::ranges::end(q), '&');
+      if (p == std::ranges::end(q)) {
         break;
       }
       ++p;
@@ -217,7 +218,7 @@ std::unordered_map<std::string, FileEntry> file_cache;
 
 std::pair<FileEntry, int> Stream::open_file(const std::string &path) {
   auto it = file_cache.find(path);
-  if (it != std::end(file_cache)) {
+  if (it != std::ranges::end(file_cache)) {
     return {(*it).second, 0};
   }
 
@@ -269,7 +270,8 @@ int64_t Stream::find_dyn_length(const std::string_view &path) {
 
   uint64_t n = 0;
 
-  for (auto it = std::begin(path) + 1; it != std::end(path); ++it) {
+  for (auto it = std::ranges::begin(path) + 1; it != std::ranges::end(path);
+       ++it) {
     if (*it < '0' || '9' < *it) {
       return -1;
     }
@@ -380,7 +382,8 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
     nv = util::make_nv_cc(hdr.name, hdr.value);
   }
 
-  data = (uint8_t *)status_resp_body.data();
+  data = const_cast<uint8_t *>(
+    reinterpret_cast<const uint8_t *>(status_resp_body.data()));
   datalen = status_resp_body.size();
 
   nghttp3_data_reader dr{
@@ -460,13 +463,15 @@ int Stream::start_response(nghttp3_conn *httpconn) {
 
     dr.read_data = read_data;
 
-    auto ext = std::end(req.path) - 1;
-    for (; ext != std::begin(req.path) && *ext != '.' && *ext != '/'; --ext)
+    auto ext = std::ranges::end(req.path) - 1;
+    for (; ext != std::ranges::begin(req.path) && *ext != '.' && *ext != '/';
+         --ext)
       ;
     if (*ext == '.') {
       ++ext;
-      auto it = config.mime_types.find(std::string{ext, std::end(req.path)});
-      if (it != std::end(config.mime_types)) {
+      auto it =
+        config.mime_types.find(std::string{ext, std::ranges::end(req.path)});
+      if (it != std::ranges::end(config.mime_types)) {
         content_type = (*it).second;
       }
     }
@@ -825,7 +830,7 @@ void Handler::on_stream_open(int64_t stream_id) {
   }
   auto it = streams_.find(stream_id);
   (void)it;
-  assert(it == std::end(streams_));
+  assert(it == std::ranges::end(streams_));
   streams_.emplace(stream_id, std::make_unique<Stream>(stream_id, this));
 }
 
@@ -1056,7 +1061,7 @@ int http_begin_request_headers(nghttp3_conn *conn, int64_t stream_id,
 
 void Handler::http_begin_request_headers(int64_t stream_id) {
   auto it = streams_.find(stream_id);
-  assert(it != std::end(streams_));
+  assert(it != std::ranges::end(streams_));
   auto &stream = (*it).second;
 
   nghttp3_conn_set_stream_user_data(httpconn_, stream_id, stream.get());
@@ -1186,7 +1191,7 @@ int http_stream_close(nghttp3_conn *conn, int64_t stream_id,
 
 void Handler::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
   auto it = streams_.find(stream_id);
-  if (it == std::end(streams_)) {
+  if (it == std::ranges::end(streams_)) {
     return;
   }
 
@@ -1498,8 +1503,8 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     settings.pmtud_probeslen = config.pmtud_probes.size();
 
     if (!config.max_udp_payload_size) {
-      settings.max_tx_udp_payload_size = *std::max_element(
-        std::begin(config.pmtud_probes), std::end(config.pmtud_probes));
+      settings.max_tx_udp_payload_size =
+        *std::ranges::max_element(config.pmtud_probes);
     }
   }
 
@@ -1794,7 +1799,7 @@ int Handler::write_streams() {
     }
 
     if (nwrite == 0) {
-      pkt = std::span{std::begin(txbuf), std::begin(buf)};
+      pkt = std::span{std::ranges::begin(txbuf), std::ranges::begin(buf)};
       if (pkt.empty()) {
         return 0;
       }
@@ -1802,11 +1807,11 @@ int Handler::write_streams() {
       break;
     }
 
-    auto last_pkt_pos = std::begin(buf);
+    auto last_pkt_pos = std::ranges::begin(buf);
 
     buf = buf.subspan(nwrite);
 
-    if (last_pkt_pos == std::begin(txbuf)) {
+    if (last_pkt_pos == std::ranges::begin(txbuf)) {
       ngtcp2_path_copy(&prev_ps.path, &ps.path);
       prev_ecn = pi.ecn;
       gso_size = nwrite;
@@ -1814,14 +1819,14 @@ int Handler::write_streams() {
                static_cast<size_t>(nwrite) > gso_size ||
                (gso_size > path_max_udp_payload_size &&
                 static_cast<size_t>(nwrite) != gso_size)) {
-      pkt = std::span{std::begin(txbuf), last_pkt_pos};
-      extra_pkt = std::span{last_pkt_pos, std::begin(buf)};
+      pkt = std::span{std::ranges::begin(txbuf), last_pkt_pos};
+      extra_pkt = std::span{last_pkt_pos, std::ranges::begin(buf)};
       break;
     }
 
     if (buf.size() < path_max_udp_payload_size ||
         static_cast<size_t>(nwrite) < gso_size) {
-      pkt = std::span{std::begin(txbuf), std::begin(buf)};
+      pkt = std::span{std::ranges::begin(txbuf), std::ranges::begin(buf)};
       break;
     }
   }
@@ -2235,7 +2240,7 @@ void Server::disconnect() {
   ev_signal_stop(loop_, &sigintev_);
 
   while (!handlers_.empty()) {
-    auto it = std::begin(handlers_);
+    auto it = std::ranges::begin(handlers_);
     auto &h = (*it).second;
 
     h->handle_error();
@@ -2575,7 +2580,7 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
   auto dcid_key = util::make_cid_key({vc.dcid, vc.dcidlen});
 
   auto handler_it = handlers_.find(dcid_key);
-  if (handler_it == std::end(handlers_)) {
+  if (handler_it == std::ranges::end(handlers_)) {
     ngtcp2_pkt_hd hd;
 
     if (auto rv = ngtcp2_accept(&hd, data.data(), data.size()); rv != 0) {
@@ -2749,7 +2754,7 @@ int Server::send_version_negotiation(uint32_t version,
   Buffer buf{NGTCP2_MAX_UDP_PAYLOAD_SIZE};
   std::array<uint32_t, 1 + max_preferred_versionslen> sv;
 
-  auto p = std::begin(sv);
+  auto p = std::ranges::begin(sv);
 
   *p++ = generate_reserved_version(sa, salen, version);
 
@@ -2764,7 +2769,7 @@ int Server::send_version_negotiation(uint32_t version,
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
     buf.wpos(), buf.left(), std::uniform_int_distribution<uint8_t>()(randgen),
     dcid.data(), dcid.size(), scid.data(), scid.size(), sv.data(),
-    p - std::begin(sv));
+    p - std::ranges::begin(sv));
   if (nwrite < 0) {
     std::cerr << "ngtcp2_pkt_write_version_negotiation: "
               << ngtcp2_strerror(nwrite) << std::endl;
@@ -3263,49 +3268,56 @@ void Server::on_stateless_reset_regen() {
 }
 
 namespace {
-int parse_host_port(Address &dest, int af, const char *first,
-                    const char *last) {
-  if (std::distance(first, last) == 0) {
+int parse_host_port(Address &dest, int af, const std::string_view &host_port) {
+  if (host_port.empty()) {
     return -1;
   }
 
-  const char *host_begin, *host_end, *it;
+  auto first = std::ranges::begin(host_port);
+  auto last = std::ranges::end(host_port);
+
+  std::string_view hostv;
+
   if (*first == '[') {
-    host_begin = first + 1;
-    it = std::find(host_begin, last, ']');
+    ++first;
+
+    auto it = std::ranges::find(first, last, ']');
     if (it == last) {
       return -1;
     }
-    host_end = it;
-    ++it;
-    if (it == last || *it != ':') {
+
+    hostv = std::string_view{first, it};
+    first = it + 1;
+
+    if (first == last || *first != ':') {
       return -1;
     }
   } else {
-    host_begin = first;
-    it = std::find(host_begin, last, ':');
+    auto it = std::ranges::find(first, last, ':');
     if (it == last) {
       return -1;
     }
-    host_end = it;
+
+    hostv = std::string_view{first, it};
+    first = it;
   }
 
-  if (++it == last) {
+  if (++first == last) {
     return -1;
   }
-  auto svc_begin = it;
 
   std::array<char, NI_MAXHOST> host;
-  *std::copy(host_begin, host_end, std::begin(host)) = '\0';
+  *std::ranges::copy(hostv, std::ranges::begin(host)).out = '\0';
 
   addrinfo hints{
     .ai_family = af,
     .ai_socktype = SOCK_DGRAM,
   };
   addrinfo *res;
+  auto svc = first;
 
-  if (auto rv = getaddrinfo(host.data(), svc_begin, &hints, &res); rv != 0) {
-    std::cerr << "getaddrinfo: [" << host.data() << "]:" << svc_begin << ": "
+  if (auto rv = getaddrinfo(host.data(), svc, &hints, &res); rv != 0) {
+    std::cerr << "getaddrinfo: [" << host.data() << "]:" << svc << ": "
               << gai_strerror(rv) << std::endl;
     return -1;
   }
@@ -3667,8 +3679,7 @@ int main(int argc, char **argv) {
         break;
       case 4:
         // --preferred-ipv4-addr
-        if (parse_host_port(config.preferred_ipv4_addr, AF_INET, optarg,
-                            optarg + strlen(optarg)) != 0) {
+        if (parse_host_port(config.preferred_ipv4_addr, AF_INET, optarg) != 0) {
           std::cerr << "preferred-ipv4-addr: could not use "
                     << std::quoted(optarg) << std::endl;
           exit(EXIT_FAILURE);
@@ -3676,8 +3687,8 @@ int main(int argc, char **argv) {
         break;
       case 5:
         // --preferred-ipv6-addr
-        if (parse_host_port(config.preferred_ipv6_addr, AF_INET6, optarg,
-                            optarg + strlen(optarg)) != 0) {
+        if (parse_host_port(config.preferred_ipv6_addr, AF_INET6, optarg) !=
+            0) {
           std::cerr << "preferred-ipv6-addr: could not use "
                     << std::quoted(optarg) << std::endl;
           exit(EXIT_FAILURE);
@@ -3849,7 +3860,7 @@ int main(int argc, char **argv) {
                     << max_preferred_versionslen << std::endl;
         }
         config.preferred_versions.resize(l.size());
-        auto it = std::begin(config.preferred_versions);
+        auto it = std::ranges::begin(config.preferred_versions);
         for (const auto &k : l) {
           if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;
@@ -3878,7 +3889,7 @@ int main(int argc, char **argv) {
         // --available-versions
         auto l = util::split_str(optarg);
         config.available_versions.resize(l.size());
-        auto it = std::begin(config.available_versions);
+        auto it = std::ranges::begin(config.available_versions);
         for (const auto &k : l) {
           if (k == "v1"sv) {
             *it++ = NGTCP2_PROTO_VER_V1;

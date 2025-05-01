@@ -142,7 +142,8 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
         } else {
           hsprops.client.session_ticket.base = new uint8_t[datalen];
           hsprops.client.session_ticket.len = datalen;
-          memcpy(hsprops.client.session_ticket.base, data, datalen);
+          std::ranges::copy_n(data, datalen,
+                              hsprops.client.session_ticket.base);
 
           if (!config.disable_early_data) {
             // No easy way to check max_early_data from ticket.  We

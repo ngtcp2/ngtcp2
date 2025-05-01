@@ -28,6 +28,7 @@
 #include <iostream>
 #include <fstream>
 #include <array>
+#include <algorithm>
 
 #include <ngtcp2/ngtcp2_crypto_gnutls.h>
 
@@ -60,10 +61,8 @@ int client_hello_cb(gnutls_session_t session, unsigned int htype, unsigned when,
 
   // TODO Fix this to properly select ALPN based on app_proto.
 
-  // strip the first byte from H3_ALPN_V1
-  auto h3 = reinterpret_cast<const char *>(&H3_ALPN_V1[1]);
-  if (static_cast<size_t>(H3_ALPN_V1[0]) != alpn.size ||
-      !std::equal(alpn.data, alpn.data + alpn.size, h3)) {
+  if (!std::ranges::equal(std::span{alpn.data, alpn.size},
+                          H3_ALPN_V1.subspan(1))) {
     return -1;
   }
 
