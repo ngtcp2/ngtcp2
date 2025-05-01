@@ -31,7 +31,7 @@
 
 #include <vector>
 #include <deque>
-#include <map>
+#include <unordered_map>
 #include <string_view>
 #include <memory>
 #include <span>
@@ -157,7 +157,7 @@ private:
   ev_timer delay_stream_timer_;
   ev_signal sigintev_;
   struct ev_loop *loop_;
-  std::map<int64_t, std::unique_ptr<Stream>> streams_;
+  std::unordered_map<int64_t, std::unique_ptr<Stream>> streams_;
   std::vector<uint32_t> offered_versions_;
   nghttp3_conn *httpconn_;
   // addr_ is the server host address.
