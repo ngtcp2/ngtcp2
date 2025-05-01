@@ -141,8 +141,7 @@ struct CaseCmp {
 inline bool istarts_with(const std::string_view &s,
                          const std::string_view &prefix) {
   return s.size() >= prefix.size() &&
-         std::ranges::mismatch(s, prefix, CaseCmp()).in2 ==
-           std::ranges::end(prefix);
+         std::ranges::equal(s.substr(0, prefix.size()), prefix, CaseCmp());
 }
 
 // make_cid_key returns the key for |cid|.
