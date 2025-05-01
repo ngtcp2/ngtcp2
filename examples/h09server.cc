@@ -2530,51 +2530,55 @@ void Server::on_stateless_reset_regen() {
 
 namespace {
 int parse_host_port(Address &dest, int af, const std::string_view &host_port) {
-  if (host_port.size() == 0) {
+  if (host_port.empty()) {
     return -1;
   }
 
   auto first = std::ranges::begin(host_port);
   auto last = std::ranges::end(host_port);
 
-  std::string_view::const_iterator host_begin, host_end, it;
+  std::string_view hostv;
 
   if (*first == '[') {
-    host_begin = first + 1;
-    it = std::ranges::find(host_begin, last, ']');
+    ++first;
+
+    auto it = std::ranges::find(first, last, ']');
     if (it == last) {
       return -1;
     }
-    host_end = it;
-    ++it;
-    if (it == last || *it != ':') {
+
+    hostv = std::string_view{first, it};
+    first = it + 1;
+
+    if (first == last || *first != ':') {
       return -1;
     }
   } else {
-    host_begin = first;
-    it = std::ranges::find(host_begin, last, ':');
+    auto it = std::ranges::find(first, last, ':');
     if (it == last) {
       return -1;
     }
-    host_end = it;
+
+    hostv = std::string_view{first, it};
+    first = it;
   }
 
-  if (++it == last) {
+  if (++first == last) {
     return -1;
   }
-  auto svc_begin = it;
 
   std::array<char, NI_MAXHOST> host;
-  *std::ranges::copy(host_begin, host_end, std::ranges::begin(host)).out = '\0';
+  *std::ranges::copy(hostv, std::ranges::begin(host)).out = '\0';
 
   addrinfo hints{
     .ai_family = af,
     .ai_socktype = SOCK_DGRAM,
   };
   addrinfo *res;
+  auto svc = first;
 
-  if (auto rv = getaddrinfo(host.data(), svc_begin, &hints, &res); rv != 0) {
-    std::cerr << "getaddrinfo: [" << host.data() << "]:" << svc_begin << ": "
+  if (auto rv = getaddrinfo(host.data(), svc, &hints, &res); rv != 0) {
+    std::cerr << "getaddrinfo: [" << host.data() << "]:" << svc << ": "
               << gai_strerror(rv) << std::endl;
     return -1;
   }
