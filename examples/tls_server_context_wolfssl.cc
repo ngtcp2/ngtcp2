@@ -70,11 +70,11 @@ int alpn_select_proto_h3_cb(WOLFSSL *ssl, const unsigned char **out,
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
-  for (auto p = in, end = in + inlen; p + H3_ALPN_V1.size() <= end;
-       p += *p + 1) {
-    if (std::ranges::equal(H3_ALPN_V1, std::span{p, H3_ALPN_V1.size()})) {
-      *out = p + 1;
-      *outlen = *p;
+  for (auto s = std::span{in, inlen}; s.size() >= H3_ALPN_V1.size();
+       s = s.subspan(s[0] + 1)) {
+    if (std::ranges::equal(H3_ALPN_V1, s.first(H3_ALPN_V1.size()))) {
+      *out = &s[1];
+      *outlen = s[0];
       return SSL_TLSEXT_ERR_OK;
     }
   }
@@ -110,11 +110,11 @@ int alpn_select_proto_hq_cb(WOLFSSL *ssl, const unsigned char **out,
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
-  for (auto p = in, end = in + inlen; p + HQ_ALPN_V1.size() <= end;
-       p += *p + 1) {
-    if (std::ranges::equal(HQ_ALPN_V1, std::span{p, HQ_ALPN_V1.size()})) {
-      *out = p + 1;
-      *outlen = *p;
+  for (auto s = std::span{in, inlen}; s.size() >= HQ_ALPN_V1.size();
+       s = s.subspan(s[0] + 1)) {
+    if (std::ranges::equal(HQ_ALPN_V1, s.first(HQ_ALPN_V1.size()))) {
+      *out = &s[1];
+      *outlen = s[0];
       return SSL_TLSEXT_ERR_OK;
     }
   }
