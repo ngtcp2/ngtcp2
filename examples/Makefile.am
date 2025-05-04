@@ -138,11 +138,12 @@ endif # ENABLE_EXAMPLE_GNUTLS
 if ENABLE_EXAMPLE_BORINGSSL
 noinst_PROGRAMS += bsslclient bsslserver
 
-bsslclient_CPPFLAGS = ${AM_CPPFLAGS} @BORINGSSL_CFLAGS@ -DWITH_EXAMPLE_BORINGSSL
-bsslclient_LDADD = ${LDADD} \
+bsslclient_CPPFLAGS = @BORINGSSL_CFLAGS@ -DWITH_EXAMPLE_BORINGSSL ${AM_CPPFLAGS}
+bsslclient_LDADD = \
 	$(top_builddir)/crypto/boringssl/libngtcp2_crypto_boringssl.a \
 	@BORINGSSL_LIBS@ \
-	@JEMALLOC_LIBS@
+	@JEMALLOC_LIBS@ \
+        ${LDADD}
 bsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 	tls_client_context_boringssl.cc tls_client_context_boringssl.h \
 	tls_client_session_boringssl.cc tls_client_session_boringssl.h \
