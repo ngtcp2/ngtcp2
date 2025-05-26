@@ -61,7 +61,7 @@ directory require at least one of the following TLS backends:
 - `quictls
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1w+quic>`_
 - GnuTLS >= 3.7.5
-- BoringSSL (commit 23018360710de333b3343e63cbb3bd2dceb3287d);
+- BoringSSL (commit 9295969e1dad2c31d0d99481734c1c68dcbc6403);
   or aws-lc >= 1.39.0
 - Picotls (commit bbcdbe6dc31ec5d4b72a7beece4daf58098bad42)
 - wolfSSL >= 5.5.0
@@ -115,7 +115,7 @@ Build with BoringSSL
 
    $ git clone https://boringssl.googlesource.com/boringssl
    $ cd boringssl
-   $ git checkout 23018360710de333b3343e63cbb3bd2dceb3287d
+   $ git checkout 9295969e1dad2c31d0d99481734c1c68dcbc6403
    $ cmake -B build -DCMAKE_POSITION_INDEPENDENT_CODE=ON
    $ make -j$(nproc) -C build
    $ cd ..
@@ -132,7 +132,7 @@ Build with BoringSSL
    $ # For Mac users who have installed libev with MacPorts, append
    $ # LIBEV_CFLAGS="-I/opt/local/include" LIBEV_LIBS="-L/opt/local/lib -lev"
    $ ./configure PKG_CONFIG_PATH=$PWD/../nghttp3/build/lib/pkgconfig \
-       BORINGSSL_LIBS="-L$PWD/../boringssl/build/ssl -lssl -L$PWD/../boringssl/build/crypto -lcrypto" \
+       BORINGSSL_LIBS="-L$PWD/../boringssl/build -lssl -lcrypto" \
        BORINGSSL_CFLAGS="-I$PWD/../boringssl/include" \
        --with-boringssl
    $ make -j$(nproc) check
