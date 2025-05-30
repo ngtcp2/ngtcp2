@@ -49,6 +49,11 @@ int generate_secure_random(std::span<uint8_t> data) {
   return 0;
 }
 
+std::optional<HPKEPrivateKey>
+read_hpke_private_key_pem(const std::string_view &filename) {
+  return {};
+}
+
 int generate_secret(std::span<uint8_t> secret) {
   std::array<uint8_t, 16> rand;
 

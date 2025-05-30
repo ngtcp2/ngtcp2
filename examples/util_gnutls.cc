@@ -65,6 +65,11 @@ int generate_secret(std::span<uint8_t> secret) {
   return 0;
 }
 
+std::optional<HPKEPrivateKey>
+read_hpke_private_key_pem(const std::string_view &filename) {
+  return {};
+}
+
 std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
                                              const std::string_view &name,
                                              const std::string_view &type) {

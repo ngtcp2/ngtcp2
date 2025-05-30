@@ -523,6 +523,35 @@ std::vector<std::string_view> split_str(const std::string_view &s,
 // hex string and must start with "0x" (.e.g, 0x00000001).
 std::optional<uint32_t> parse_version(const std::string_view &s);
 
+// read_file reads a file denoted by |path| and returns its content.
+std::optional<std::vector<uint8_t>> read_file(const std::string_view &path);
+
+enum HPKEPrivateKeyType : uint16_t {
+  HPKE_DHKEM_X25519_HKDF_SHA256 = 0x0020,
+};
+
+// HPKEPrivateKey contains HPKE private key.
+struct HPKEPrivateKey {
+  // type is HPKE private key type.
+  HPKEPrivateKeyType type;
+  // bytes contains raw private key.
+  std::vector<uint8_t> bytes;
+};
+
+// ECHServerConfig is a server-side ECH configuration.
+struct ECHServerConfig {
+  // private_key contains a private key used for decrypting encrypted
+  // Client Hello.
+  HPKEPrivateKey private_key;
+  // ech_config contains a serialized ECHConfig.
+  std::vector<uint8_t> ech_config;
+};
+
+// read_ech_server_config reads server-side ECH configuration from a
+// file denoted by |path|.
+std::optional<ECHServerConfig>
+read_ech_server_config(const std::string_view &path);
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);

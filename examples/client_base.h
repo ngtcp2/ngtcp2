@@ -191,6 +191,8 @@ struct Config {
   uint32_t initial_pkt_num;
   // pmtud_probes is the array of UDP datagram payload size to probes.
   std::vector<uint16_t> pmtud_probes;
+  // ech_config_list contains ECHConfigList.
+  std::vector<uint8_t> ech_config_list;
 };
 
 class ClientBase {

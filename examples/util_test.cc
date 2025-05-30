@@ -55,6 +55,13 @@ const MunitSuite util_suite{
 };
 
 namespace util {
+std::optional<HPKEPrivateKey>
+read_hpke_private_key_pem(const std::string_view &filename) {
+  return {};
+}
+} // namespace util
+
+namespace util {
 std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
                                              const std::string_view &name,
                                              const std::string_view &type) {

@@ -32,9 +32,11 @@
 #  include <netinet/in.h>
 #endif // defined(HAVE_NETINET_IN_H)
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <sys/mman.h>
 
 #include <cassert>
 #include <cstring>
@@ -53,6 +55,9 @@ using namespace std::literals;
 namespace ngtcp2 {
 
 namespace util {
+
+std::optional<HPKEPrivateKey>
+read_hpke_private_key_pem(const std::string_view &filename);
 
 std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
                                              const std::string_view &name,
@@ -785,6 +790,49 @@ std::string percent_decode(const std::string_view &s) {
   return result;
 }
 
+std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
+  auto fd = open(path.data(), O_RDONLY);
+  if (fd == -1) {
+    return {};
+  }
+
+  auto fd_d = defer(close, fd);
+
+  auto size = lseek(fd, 0, SEEK_END);
+  if (size == static_cast<off_t>(-1)) {
+    return {};
+  }
+
+  auto addr =
+    mmap(nullptr, static_cast<size_t>(size), PROT_READ, MAP_SHARED, fd, 0);
+  if (addr == MAP_FAILED) {
+    return {};
+  }
+
+  auto addr_d = defer(munmap, addr, static_cast<size_t>(size));
+
+  auto p = static_cast<uint8_t *>(addr);
+
+  return {{p, p + size}};
+}
+
+std::optional<ECHServerConfig>
+read_ech_server_config(const std::string_view &path) {
+  auto pkey = read_hpke_private_key_pem(path);
+  if (!pkey) {
+    return {};
+  }
+
+  auto ech_config = read_pem(path, "ECH config"sv, "ECHCONFIG"sv);
+  if (!ech_config) {
+    return {};
+  }
+
+  return ECHServerConfig{
+    .private_key = std::move(*pkey),
+    .ech_config = std::move(*ech_config),
+  };
+}
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {
