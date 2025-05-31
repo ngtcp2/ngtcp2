@@ -217,6 +217,9 @@ std::mt19937 make_mt19937();
 
 ngtcp2_tstamp timestamp();
 
+// system_clock_now returns the current timestamp of system clock.
+ngtcp2_tstamp system_clock_now();
+
 bool numeric_host(const char *hostname);
 
 bool numeric_host(const char *hostname, int family);
