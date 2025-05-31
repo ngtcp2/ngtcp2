@@ -762,7 +762,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     settings.initial_pkt_num = config.initial_pkt_num;
   }
 
-  std::string token;
+  std::vector<uint8_t> token;
 
   if (!config.token_file.empty()) {
     std::cerr << "Reading token file " << config.token_file << std::endl;
@@ -770,7 +770,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     auto t = util::read_token(config.token_file);
     if (t) {
       token = std::move(*t);
-      settings.token = reinterpret_cast<const uint8_t *>(token.data());
+      settings.token = token.data();
       settings.tokenlen = token.size();
     }
   }
@@ -845,8 +845,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       early_data_ = false;
     } else {
       auto rv = ngtcp2_conn_decode_and_set_0rtt_transport_params(
-        conn_, reinterpret_cast<const uint8_t *>(params->data()),
-        params->size());
+        conn_, params->data(), params->size());
       if (rv != 0) {
         std::cerr << "ngtcp2_conn_decode_and_set_0rtt_transport_params: "
                   << ngtcp2_strerror(rv) << std::endl;

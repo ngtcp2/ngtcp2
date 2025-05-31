@@ -73,9 +73,9 @@ int generate_secret(std::span<uint8_t> secret) {
   return 0;
 }
 
-std::optional<std::string> read_pem(const std::string_view &filename,
-                                    const std::string_view &name,
-                                    const std::string_view &type) {
+std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
+                                             const std::string_view &name,
+                                             const std::string_view &type) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "r");
   if (f == nullptr) {
     std::cerr << "Could not open " << name << " file " << filename << std::endl;
@@ -103,7 +103,7 @@ std::optional<std::string> read_pem(const std::string_view &filename,
     return {};
   }
 
-  return std::string{data, data + datalen};
+  return {{data, data + datalen}};
 }
 
 int write_pem(const std::string_view &filename, const std::string_view &name,

@@ -499,11 +499,12 @@ int make_socket_nonblocking(int fd);
 
 int create_nonblock_socket(int domain, int type, int protocol);
 
-std::optional<std::string> read_token(const std::string_view &filename);
+std::optional<std::vector<uint8_t>>
+read_token(const std::string_view &filename);
 int write_token(const std::string_view &filename,
                 std::span<const uint8_t> token);
 
-std::optional<std::string>
+std::optional<std::vector<uint8_t>>
 read_transport_params(const std::string_view &filename);
 int write_transport_params(const std::string_view &filename,
                            std::span<const uint8_t> data);

@@ -65,9 +65,9 @@ int generate_secret(std::span<uint8_t> secret) {
   return 0;
 }
 
-std::optional<std::string> read_pem(const std::string_view &filename,
-                                    const std::string_view &name,
-                                    const std::string_view &type) {
+std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
+                                             const std::string_view &name,
+                                             const std::string_view &type) {
   auto f = std::ifstream(filename.data());
   if (!f) {
     std::cerr << "Could not read " << name << " file " << filename << std::endl;
@@ -90,11 +90,11 @@ std::optional<std::string> read_pem(const std::string_view &filename,
     return {};
   }
 
-  auto res = std::string{d.data, d.data + d.size};
+  auto res = std::vector(d.data, d.data + d.size);
 
   gnutls_free(d.data);
 
-  return res;
+  return std::move(res);
 }
 
 int write_pem(const std::string_view &filename, const std::string_view &name,
