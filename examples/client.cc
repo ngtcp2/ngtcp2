@@ -731,7 +731,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     } else {
       path = std::string{config.qlog_dir};
       path += '/';
-      path += util::format_hex({scid.data, scid.datalen});
+      path += util::format_hex(scid.data, as_signed(scid.datalen));
       path += ".sqlog";
     }
     qlog_ = fopen(path.c_str(), "w");

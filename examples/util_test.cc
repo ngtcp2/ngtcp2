@@ -83,21 +83,22 @@ void test_util_format_durationf() {
 }
 
 void test_util_format_uint() {
-  assert_stdstring_equal("0", util::format_uint(0));
-  assert_stdstring_equal("18446744073709551615",
+  assert_stdstring_equal("0"s, util::format_uint(0u));
+  assert_stdstring_equal("18446744073709551615"s,
                          util::format_uint(18446744073709551615ull));
 }
 
 void test_util_format_uint_iec() {
-  assert_stdstring_equal("0", util::format_uint_iec(0));
-  assert_stdstring_equal("1023", util::format_uint_iec((1 << 10) - 1));
-  assert_stdstring_equal("1K", util::format_uint_iec(1 << 10));
-  assert_stdstring_equal("1M", util::format_uint_iec(1 << 20));
-  assert_stdstring_equal("1G", util::format_uint_iec(1 << 30));
+  assert_stdstring_equal("0"s, util::format_uint_iec(0u));
+  assert_stdstring_equal("1023"s, util::format_uint_iec((1u << 10) - 1));
+  assert_stdstring_equal("1K"s, util::format_uint_iec(1u << 10));
+  assert_stdstring_equal("1M"s, util::format_uint_iec(1u << 20));
+  assert_stdstring_equal("1G"s, util::format_uint_iec(1u << 30));
   assert_stdstring_equal(
-    "18446744073709551615",
+    "18446744073709551615"s,
     util::format_uint_iec(std::numeric_limits<uint64_t>::max()));
-  assert_stdstring_equal("1025K", util::format_uint_iec((1 << 20) + (1 << 10)));
+  assert_stdstring_equal("1025K"s,
+                         util::format_uint_iec((1u << 20) + (1u << 10)));
 }
 
 void test_util_format_duration() {
@@ -402,7 +403,9 @@ void test_util_hexdump() {
 void test_util_format_hex() {
   auto a = std::to_array<uint8_t>({0xde, 0xad, 0xbe, 0xef});
 
-  assert_stdstring_equal("deadbeef", util::format_hex(a));
+  assert_stdstring_equal("deadbeef"s, util::format_hex(a));
+  assert_stdstring_equal("deadbeef"s, util::format_hex(0xdeadbeef));
+  assert_stdstring_equal("beef"s, util::format_hex(a.data() + 2, 2));
 }
 
 } // namespace ngtcp2

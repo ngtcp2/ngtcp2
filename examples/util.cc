@@ -61,37 +61,6 @@ std::optional<std::string> read_pem(const std::string_view &filename,
 int write_pem(const std::string_view &filename, const std::string_view &name,
               const std::string_view &type, std::span<const uint8_t> data);
 
-namespace {
-constexpr char LOWER_XDIGITS[] = "0123456789abcdef";
-} // namespace
-
-std::string format_hex(uint8_t c) {
-  std::string s;
-  s.resize(2);
-
-  s[0] = LOWER_XDIGITS[c >> 4];
-  s[1] = LOWER_XDIGITS[c & 0xf];
-
-  return s;
-}
-
-std::string format_hex(std::span<const uint8_t> s) {
-  std::string res;
-  res.resize(s.size() * 2);
-
-  auto p = std::ranges::begin(res);
-
-  for (auto c : s) {
-    *p++ = LOWER_XDIGITS[c >> 4];
-    *p++ = LOWER_XDIGITS[c & 0x0f];
-  }
-  return res;
-}
-
-std::string format_hex(const std::string_view &s) {
-  return format_hex({reinterpret_cast<const uint8_t *>(s.data()), s.size()});
-}
-
 std::string decode_hex(const std::string_view &s) {
   assert(s.size() % 2 == 0);
   std::string res(s.size() / 2, '0');
@@ -191,14 +160,7 @@ bool numeric_host(const char *hostname, int family) {
 namespace {
 uint8_t *hexdump_addr(uint8_t *dest, size_t addr) {
   // Lower 32 bits are displayed.
-  for (size_t i = 0; i < 4; ++i) {
-    auto a = (addr >> (3 - i) * 8) & 0xff;
-
-    *dest++ = as_unsigned(LOWER_XDIGITS[a >> 4]);
-    *dest++ = as_unsigned(LOWER_XDIGITS[a & 0xf]);
-  }
-
-  return dest;
+  return format_hex(static_cast<uint32_t>(addr), dest);
 }
 } // namespace
 
@@ -223,8 +185,7 @@ uint8_t *hexdump_ascii(uint8_t *dest, std::span<const uint8_t> data) {
 namespace {
 uint8_t *hexdump8(uint8_t *dest, std::span<const uint8_t> data) {
   for (auto c : data) {
-    *dest++ = as_unsigned(LOWER_XDIGITS[c >> 4]);
-    *dest++ = as_unsigned(LOWER_XDIGITS[c & 0xf]);
+    dest = format_hex(c, dest);
     *dest++ = ' ';
   }
 
@@ -485,7 +446,7 @@ parse_uint_internal(const std::string_view &s) {
 
   for (size_t i = 0; i < s.size(); ++i) {
     auto c = s[i];
-    if (c < '0' || '9' < c) {
+    if (!is_digit(c)) {
       return {{res, i}};
     }
 
@@ -819,7 +780,7 @@ std::string percent_decode(const std::string_view &s) {
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {
-  return os << "0x" << util::format_hex({cid.data, cid.datalen});
+  return os << "0x" << util::format_hex(cid.data, as_signed(cid.datalen));
 }
 
 } // namespace ngtcp2
