@@ -437,25 +437,57 @@ int generate_secret(std::span<uint8_t> secret);
 // it cannot consume a previous path component, it just removes "..".
 std::string normalize_path(const std::string_view &path);
 
-constexpr bool is_digit(const char c) { return '0' <= c && c <= '9'; }
+template <std::predicate<size_t> Pred>
+constexpr auto pred_tbl_gen256(Pred pred) {
+  std::array<bool, 256> tbl;
 
-constexpr bool is_hex_digit(const char c) {
-  return is_digit(c) || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f');
+  for (size_t i = 0; i < tbl.size(); ++i) {
+    tbl[i] = pred(i);
+  }
+
+  return tbl;
 }
 
-// Returns integer corresponding to hex notation |c|.  If
+constexpr auto digit_pred(size_t i) noexcept { return '0' <= i && i <= '9'; }
+
+constinit const auto is_digit_tbl = pred_tbl_gen256(digit_pred);
+
+constexpr bool is_digit(char c) noexcept {
+  return is_digit_tbl[static_cast<uint8_t>(c)];
+}
+
+constinit const auto is_hex_digit_tbl = pred_tbl_gen256([](auto i) {
+  return digit_pred(i) || ('A' <= i && i <= 'F') || ('a' <= i && i <= 'f');
+});
+
+constexpr bool is_hex_digit(char c) noexcept {
+  return is_hex_digit_tbl[static_cast<uint8_t>(c)];
+}
+
+constinit const auto hex_to_uint_tbl = []() {
+  std::array<uint32_t, 256> tbl;
+
+  std::ranges::fill(tbl, 256);
+
+  for (char i = '0'; i <= '9'; ++i) {
+    tbl[static_cast<uint8_t>(i)] = static_cast<uint32_t>(i - '0');
+  }
+
+  for (char i = 'A'; i <= 'F'; ++i) {
+    tbl[static_cast<uint8_t>(i)] = static_cast<uint32_t>(i - 'A' + 10);
+  }
+
+  for (char i = 'a'; i <= 'f'; ++i) {
+    tbl[static_cast<uint8_t>(i)] = static_cast<uint32_t>(i - 'a' + 10);
+  }
+
+  return tbl;
+}();
+
+// hex_to_uint returns integer corresponding to hex notation |c|.  If
 // is_hex_digit(c) is false, it returns 256.
-constexpr uint32_t hex_to_uint(char c) {
-  if (c <= '9') {
-    return static_cast<uint32_t>(c - '0');
-  }
-  if (c <= 'Z') {
-    return static_cast<uint32_t>(c - 'A' + 10);
-  }
-  if (c <= 'z') {
-    return static_cast<uint32_t>(c - 'a' + 10);
-  }
-  return 256;
+constexpr uint32_t hex_to_uint(char c) noexcept {
+  return hex_to_uint_tbl[static_cast<uint8_t>(c)];
 }
 
 std::string percent_decode(const std::string_view &s);
