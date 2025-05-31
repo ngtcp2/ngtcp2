@@ -144,6 +144,13 @@ ngtcp2_tstamp timestamp() {
       .count());
 }
 
+ngtcp2_tstamp system_clock_now() {
+  return static_cast<ngtcp2_tstamp>(
+    std::chrono::floor<std::chrono::nanoseconds>(
+      std::chrono::system_clock::now().time_since_epoch())
+      .count());
+}
+
 bool numeric_host(const char *hostname) {
   return numeric_host(hostname, AF_INET) || numeric_host(hostname, AF_INET6);
 }

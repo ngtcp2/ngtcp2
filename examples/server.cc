@@ -720,10 +720,7 @@ int Handler::handshake_completed() {
   std::array<uint8_t, NGTCP2_CRYPTO_MAX_REGULAR_TOKENLEN> token;
 
   auto path = ngtcp2_conn_get_path(conn_);
-  auto t = static_cast<ngtcp2_tstamp>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(
-      std::chrono::system_clock::now().time_since_epoch())
-      .count());
+  auto t = util::system_clock_now();
 
   auto tokenlen = ngtcp2_crypto_generate_regular_token(
     token.data(), config.static_secret.data(), config.static_secret.size(),
@@ -975,10 +972,7 @@ int path_validation(ngtcp2_conn *conn, uint32_t flags, const ngtcp2_path *path,
   }
 
   std::array<uint8_t, NGTCP2_CRYPTO_MAX_REGULAR_TOKENLEN> token;
-  auto t = static_cast<ngtcp2_tstamp>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(
-      std::chrono::system_clock::now().time_since_epoch())
-      .count());
+  auto t = util::system_clock_now();
 
   auto tokenlen = ngtcp2_crypto_generate_regular_token(
     token.data(), config.static_secret.data(), config.static_secret.size(),
@@ -2830,10 +2824,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, const Endpoint &ep,
 
   std::array<uint8_t, NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN2> token;
 
-  auto t = static_cast<ngtcp2_tstamp>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(
-      std::chrono::system_clock::now().time_since_epoch())
-      .count());
+  auto t = util::system_clock_now();
 
   auto tokenlen = ngtcp2_crypto_generate_retry_token2(
     token.data(), config.static_secret.data(), config.static_secret.size(),
@@ -3006,10 +2997,7 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
     util::hexdump(stderr, hd->token, hd->tokenlen);
   }
 
-  auto t = static_cast<ngtcp2_tstamp>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(
-      std::chrono::system_clock::now().time_since_epoch())
-      .count());
+  auto t = util::system_clock_now();
 
   rv = ngtcp2_crypto_verify_retry_token2(
     ocid, hd->token, hd->tokenlen, config.static_secret.data(),
@@ -3054,10 +3042,7 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
     util::hexdump(stderr, hd->token, hd->tokenlen);
   }
 
-  auto t = static_cast<ngtcp2_tstamp>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(
-      std::chrono::system_clock::now().time_since_epoch())
-      .count());
+  auto t = util::system_clock_now();
 
   if (ngtcp2_crypto_verify_regular_token(hd->token, hd->tokenlen,
                                          config.static_secret.data(),
