@@ -53,7 +53,7 @@ int save_ticket_cb(ptls_save_ticket_t *self, ptls_t *ptls, ptls_iovec_t input) {
   }
 
   if (!PEM_write_bio(f, "PICOTLS SESSION PARAMETERS", "", input.base,
-                     input.len)) {
+                     static_cast<long>(input.len))) {
     std::cerr << "Unable to write TLS session to file" << std::endl;
   }
 

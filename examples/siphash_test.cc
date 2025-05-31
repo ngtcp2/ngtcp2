@@ -80,7 +80,7 @@ void test_siphash_vector(void) {
   std::array<uint8_t, 64> in;
 
   for (size_t i = 0; i < 64; ++i) {
-    in[i] = i;
+    in[i] = static_cast<uint8_t>(i);
     auto h = siphash24(key, std::span{in}.first(i));
 
     uint64_t expect;

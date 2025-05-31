@@ -128,7 +128,7 @@ int TLSClientSession::init(bool &early_data_enabled,
     if (f) {
       f.seekg(0, std::ios::end);
       auto pos = f.tellg();
-      std::vector<char> content(pos);
+      std::vector<char> content(static_cast<size_t>(pos));
       f.seekg(0, std::ios::beg);
       f.read(content.data(), pos);
 

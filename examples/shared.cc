@@ -54,7 +54,7 @@
 
 namespace ngtcp2 {
 
-unsigned int msghdr_get_ecn(msghdr *msg, int family) {
+uint8_t msghdr_get_ecn(msghdr *msg, int family) {
   switch (family) {
   case AF_INET:
     for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {

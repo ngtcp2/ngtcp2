@@ -128,7 +128,7 @@ static constexpr uint8_t lowcase_tbl[] = {
 };
 
 constexpr char lowcase(char c) noexcept {
-  return lowcase_tbl[static_cast<uint8_t>(c)];
+  return as_signed(lowcase_tbl[static_cast<uint8_t>(c)]);
 }
 
 struct CaseCmp {
@@ -178,7 +178,7 @@ template <typename T> std::string format_uint(T n) {
     ;
   std::string res(nlen, '\0');
   for (; n; n /= 10) {
-    res[--nlen] = (n % 10) + '0';
+    res[--nlen] = static_cast<char>((n % 10) + '0');
   }
   return res;
 }
@@ -244,13 +244,13 @@ constexpr bool is_hex_digit(const char c) {
 // is_hex_digit(c) is false, it returns 256.
 constexpr uint32_t hex_to_uint(char c) {
   if (c <= '9') {
-    return c - '0';
+    return static_cast<uint32_t>(c - '0');
   }
   if (c <= 'Z') {
-    return c - 'A' + 10;
+    return static_cast<uint32_t>(c - 'A' + 10);
   }
   if (c <= 'z') {
-    return c - 'a' + 10;
+    return static_cast<uint32_t>(c - 'a' + 10);
   }
   return 256;
 }

@@ -148,8 +148,9 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
       return 0;
     }
 #else  // OPENSSL_VERSION_NUMBER < 0x30000000L
-    if (!HMAC_Init_ex(hctx, static_hmac_key.data(), static_hmac_key.size(),
-                      ticket_hmac, nullptr)) {
+    if (!HMAC_Init_ex(hctx, static_hmac_key.data(),
+                      static_cast<int>(static_hmac_key.size()), ticket_hmac,
+                      nullptr)) {
       return 0;
     }
 #endif // OPENSSL_VERSION_NUMBER < 0x30000000L
@@ -181,8 +182,9 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
     return 0;
   }
 #else  // OPENSSL_VERSION_NUMBER < 0x30000000L
-  if (!HMAC_Init_ex(hctx, static_hmac_key.data(), static_hmac_key.size(),
-                    ticket_hmac, nullptr)) {
+  if (!HMAC_Init_ex(hctx, static_hmac_key.data(),
+                    static_cast<int>(static_hmac_key.size()), ticket_hmac,
+                    nullptr)) {
     return 0;
   }
 #endif // OPENSSL_VERSION_NUMBER < 0x30000000L
@@ -205,12 +207,12 @@ int encrypt_ticket_cb(ptls_encrypt_ticket_t *encrypt_ticket, ptls_t *ptls,
     // TODO Replace std::make_unique with
     // std::make_unique_for_overwrite when it is available.
     auto buf = std::make_unique<uint8_t[]>(src.len + sizeof(ver));
-    auto p = std::ranges::copy_n(src.base, src.len, buf.get()).out;
+    auto p = std::ranges::copy_n(src.base, as_signed(src.len), buf.get()).out;
     p = std::ranges::copy_n(reinterpret_cast<uint8_t *>(&ver), sizeof(ver), p)
           .out;
 
     src.base = buf.get();
-    src.len = p - buf.get();
+    src.len = as_unsigned(p - buf.get());
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
     rv = ptls_openssl_encrypt_ticket_evp(dst, src, ticket_key_cb);

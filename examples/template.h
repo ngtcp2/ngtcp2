@@ -31,6 +31,16 @@
 #include <type_traits>
 #include <span>
 
+template <std::integral T>
+[[nodiscard]] constexpr auto as_unsigned(T n) noexcept {
+  return static_cast<std::make_unsigned_t<T>>(n);
+}
+
+template <std::unsigned_integral T>
+[[nodiscard]] constexpr auto as_signed(T n) noexcept {
+  return static_cast<std::make_signed_t<T>>(n);
+}
+
 // inspired by <http://blog.korfuri.fr/post/go-defer-in-cpp/>, but our
 // template can take functions returning other than void.
 template <typename F, typename... T> struct Defer {

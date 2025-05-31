@@ -62,7 +62,7 @@ extern std::ofstream keylog_file;
 namespace {
 int keylog_callback(gnutls_session_t session, const char *label,
                     const gnutls_datum_t *secret) {
-  keylog_file.write(label, strlen(label));
+  keylog_file.write(label, static_cast<std::streamsize>(strlen(label)));
   keylog_file.put(' ');
 
   gnutls_datum_t crandom;

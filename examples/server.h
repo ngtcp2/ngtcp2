@@ -162,7 +162,7 @@ public:
   int on_stream_reset(int64_t stream_id);
   int on_stream_stop_sending(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
-  void shutdown_read(int64_t stream_id, int app_error_code);
+  void shutdown_read(int64_t stream_id, uint64_t app_error_code);
   void http_acked_stream_data(Stream *stream, uint64_t datalen);
   void http_stream_close(int64_t stream_id, uint64_t app_error_code);
   int http_stop_sending(int64_t stream_id, uint64_t app_error_code);

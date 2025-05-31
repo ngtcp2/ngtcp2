@@ -234,7 +234,7 @@ extern std::ofstream keylog_file;
 #ifdef HAVE_SECRET_CALLBACK
 namespace {
 void keylog_callback(const WOLFSSL *ssl, const char *line) {
-  keylog_file.write(line, strlen(line));
+  keylog_file.write(line, static_cast<std::streamsize>(strlen(line)));
   keylog_file.put('\n');
   keylog_file.flush();
 }

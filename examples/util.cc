@@ -97,7 +97,7 @@ std::string decode_hex(const std::string_view &s) {
   std::string res(s.size() / 2, '0');
   auto p = std::ranges::begin(res);
   for (auto it = std::ranges::begin(s); it != std::ranges::end(s); it += 2) {
-    *p++ = (hex_to_uint(*it) << 4) | hex_to_uint(*(it + 1));
+    *p++ = static_cast<char>((hex_to_uint(*it) << 4) | hex_to_uint(*(it + 1)));
   }
   return res;
 }
@@ -157,7 +157,7 @@ std::string format_durationf(uint64_t ns) {
   }
 
   auto res = format_uint(ns / 1000);
-  res += format_fraction2(ns % 1000);
+  res += format_fraction2(static_cast<uint32_t>(ns % 1000));
   res += units[unit];
 
   return res;
@@ -169,9 +169,10 @@ std::mt19937 make_mt19937() {
 }
 
 ngtcp2_tstamp timestamp() {
-  return std::chrono::duration_cast<std::chrono::nanoseconds>(
-           std::chrono::steady_clock::now().time_since_epoch())
-    .count();
+  return static_cast<ngtcp2_tstamp>(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(
+      std::chrono::steady_clock::now().time_since_epoch())
+      .count());
 }
 
 bool numeric_host(const char *hostname) {
@@ -193,8 +194,8 @@ uint8_t *hexdump_addr(uint8_t *dest, size_t addr) {
   for (size_t i = 0; i < 4; ++i) {
     auto a = (addr >> (3 - i) * 8) & 0xff;
 
-    *dest++ = LOWER_XDIGITS[a >> 4];
-    *dest++ = LOWER_XDIGITS[a & 0xf];
+    *dest++ = as_unsigned(LOWER_XDIGITS[a >> 4]);
+    *dest++ = as_unsigned(LOWER_XDIGITS[a & 0xf]);
   }
 
   return dest;
@@ -222,8 +223,8 @@ uint8_t *hexdump_ascii(uint8_t *dest, std::span<const uint8_t> data) {
 namespace {
 uint8_t *hexdump8(uint8_t *dest, std::span<const uint8_t> data) {
   for (auto c : data) {
-    *dest++ = LOWER_XDIGITS[c >> 4];
-    *dest++ = LOWER_XDIGITS[c & 0xf];
+    *dest++ = as_unsigned(LOWER_XDIGITS[c >> 4]);
+    *dest++ = as_unsigned(LOWER_XDIGITS[c & 0xf]);
     *dest++ = ' ';
   }
 
@@ -323,8 +324,8 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
       repeated = false;
     }
 
-    last =
-      hexdump_line(last, s, s.data() - reinterpret_cast<const uint8_t *>(data));
+    last = hexdump_line(
+      last, s, as_unsigned(s.data() - reinterpret_cast<const uint8_t *>(data)));
     *last++ = '\n';
     last_s = s;
 
@@ -488,7 +489,7 @@ parse_uint_internal(const std::string_view &s) {
       return {{res, i}};
     }
 
-    auto d = c - '0';
+    auto d = static_cast<uint64_t>(c - '0');
     if (res > (std::numeric_limits<uint64_t>::max() - d) / 10) {
       return {};
     }
@@ -803,14 +804,15 @@ std::string percent_decode(const std::string_view &s) {
 
     if (first + 1 != last && first + 2 != last && is_hex_digit(*(first + 1)) &&
         is_hex_digit(*(first + 2))) {
-      *p++ = (hex_to_uint(*(first + 1)) << 4) + hex_to_uint(*(first + 2));
+      *p++ = static_cast<char>((hex_to_uint(*(first + 1)) << 4) +
+                               hex_to_uint(*(first + 2)));
       first += 2;
       continue;
     }
 
     *p++ = *first;
   }
-  result.resize(p - std::ranges::begin(result));
+  result.resize(as_unsigned(p - std::ranges::begin(result)));
   return result;
 }
 

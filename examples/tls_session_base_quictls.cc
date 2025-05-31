@@ -50,7 +50,8 @@ std::string_view TLSSessionBase::get_negotiated_group() const {
 #ifdef WITH_EXAMPLE_BORINGSSL
   return SSL_get_group_name(SSL_get_group_id(ssl_));
 #elif OPENSSL_VERSION_NUMBER >= 0x30000000L
-  auto name = SSL_group_to_name(ssl_, SSL_get_negotiated_group(ssl_));
+  auto name =
+    SSL_group_to_name(ssl_, static_cast<int>(SSL_get_negotiated_group(ssl_)));
   if (!name) {
     return ""sv;
   }
