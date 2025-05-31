@@ -61,7 +61,7 @@ int generate_secret(std::span<uint8_t> secret) {
     return -1;
   }
 
-  unsigned int mdlen = secret.size();
+  auto mdlen = static_cast<unsigned int>(secret.size());
   if (!wolfSSL_EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
       !wolfSSL_EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
       !wolfSSL_EVP_DigestFinal_ex(ctx, secret.data(), &mdlen)) {
@@ -114,7 +114,8 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
     return -1;
   }
 
-  wolfSSL_PEM_write_bio(f, type.data(), "", data.data(), data.size());
+  wolfSSL_PEM_write_bio(f, type.data(), "", data.data(),
+                        static_cast<long>(data.size()));
   wolfSSL_BIO_free(f);
 
   return 0;

@@ -66,8 +66,7 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
   }
 
   unsigned char sbuffer[16 * 1024], *data;
-  unsigned int sz;
-  sz = wolfSSL_i2d_SSL_SESSION(session, nullptr);
+  auto sz = wolfSSL_i2d_SSL_SESSION(session, nullptr);
   if (sz <= 0) {
     std::cerr << "Could not export TLS session in " << config.session_file
               << std::endl;
@@ -171,7 +170,7 @@ extern std::ofstream keylog_file;
 #ifdef HAVE_SECRET_CALLBACK
 namespace {
 void keylog_callback(const WOLFSSL *ssl, const char *line) {
-  keylog_file.write(line, strlen(line));
+  keylog_file.write(line, static_cast<std::streamsize>(strlen(line)));
   keylog_file.put('\n');
   keylog_file.flush();
 }

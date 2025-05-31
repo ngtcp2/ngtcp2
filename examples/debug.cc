@@ -183,9 +183,10 @@ void log_printf(void *user_data, const char *fmt, ...) {
     n = buf.size() - 1;
   }
 
-  buf[n++] = '\n';
+  buf[static_cast<size_t>(n++)] = '\n';
 
-  while (write(fileno(stderr), buf.data(), n) == -1 && errno == EINTR)
+  while (write(fileno(stderr), buf.data(), static_cast<size_t>(n)) == -1 &&
+         errno == EINTR)
     ;
 }
 

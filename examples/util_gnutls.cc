@@ -76,13 +76,13 @@ std::optional<std::string> read_pem(const std::string_view &filename,
 
   f.seekg(0, std::ios::end);
   auto pos = f.tellg();
-  std::vector<char> content(pos);
+  std::vector<char> content(static_cast<size_t>(pos));
   f.seekg(0, std::ios::beg);
   f.read(content.data(), pos);
 
   gnutls_datum_t s;
   s.data = reinterpret_cast<unsigned char *>(content.data());
-  s.size = content.size();
+  s.size = static_cast<unsigned int>(content.size());
 
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_decode2(type.data(), &s, &d); rv < 0) {

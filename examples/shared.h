@@ -61,7 +61,7 @@ constexpr auto H3_ALPN_V1 = as_uint8_span(RAW_H3_ALPN);
 
 // msghdr_get_ecn gets ECN bits from |msg|.  |family| is the address
 // family from which packet is received.
-unsigned int msghdr_get_ecn(msghdr *msg, int family);
+uint8_t msghdr_get_ecn(msghdr *msg, int family);
 
 // fd_set_recv_ecn sets socket option to |fd| so that it can receive
 // ECN bits.

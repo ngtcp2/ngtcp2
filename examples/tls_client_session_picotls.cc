@@ -140,8 +140,9 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
           std::cerr << "TLS session file contains unexpected name: " << name
                     << std::endl;
         } else {
-          hsprops.client.session_ticket.base = new uint8_t[datalen];
-          hsprops.client.session_ticket.len = datalen;
+          hsprops.client.session_ticket.base =
+            new uint8_t[static_cast<size_t>(datalen)];
+          hsprops.client.session_ticket.len = static_cast<size_t>(datalen);
           std::ranges::copy_n(data, datalen,
                               hsprops.client.session_ticket.base);
 

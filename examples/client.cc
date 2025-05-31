@@ -341,7 +341,7 @@ int Client::handshake_completed() {
       ngtcp2_conn_encode_0rtt_transport_params(conn_, data.data(), data.size());
     if (datalen < 0) {
       std::cerr << "Could not encode 0-RTT transport parameters: "
-                << ngtcp2_strerror(datalen) << std::endl;
+                << ngtcp2_strerror(static_cast<int>(datalen)) << std::endl;
     } else if (util::write_transport_params(
                  config.tp_file, {data.data(), static_cast<size_t>(datalen)}) !=
                0) {
@@ -408,7 +408,8 @@ int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
 void Client::recv_version_negotiation(const uint32_t *sv, size_t nsv) {
   offered_versions_.resize(nsv);
-  std::ranges::copy_n(sv, nsv, std::ranges::begin(offered_versions_));
+  std::ranges::copy_n(sv, as_signed(nsv),
+                      std::ranges::begin(offered_versions_));
 }
 
 namespace {
@@ -1066,11 +1067,12 @@ int Client::write_streams() {
       sveccnt = nghttp3_conn_writev_stream(httpconn_, &stream_id, &fin,
                                            vec.data(), vec.size());
       if (sveccnt < 0) {
-        std::cerr << "nghttp3_conn_writev_stream: " << nghttp3_strerror(sveccnt)
-                  << std::endl;
+        std::cerr << "nghttp3_conn_writev_stream: "
+                  << nghttp3_strerror(static_cast<int>(sveccnt)) << std::endl;
         ngtcp2_ccerr_set_application_error(
-          &last_error_, nghttp3_err_infer_quic_app_error_code(sveccnt), nullptr,
-          0);
+          &last_error_,
+          nghttp3_err_infer_quic_app_error_code(static_cast<int>(sveccnt)),
+          nullptr, 0);
         disconnect();
         return -1;
       }
@@ -1104,8 +1106,8 @@ int Client::write_streams() {
         continue;
       case NGTCP2_ERR_WRITE_MORE:
         assert(ndatalen >= 0);
-        if (auto rv =
-              nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+        if (auto rv = nghttp3_conn_add_write_offset(httpconn_, stream_id,
+                                                    as_unsigned(ndatalen));
             rv != 0) {
           std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
                     << std::endl;
@@ -1120,14 +1122,15 @@ int Client::write_streams() {
 
       assert(ndatalen == -1);
 
-      std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
-                << std::endl;
-      ngtcp2_ccerr_set_liberr(&last_error_, nwrite, nullptr, 0);
+      std::cerr << "ngtcp2_conn_write_stream: "
+                << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
+      ngtcp2_ccerr_set_liberr(&last_error_, static_cast<int>(nwrite), nullptr,
+                              0);
       disconnect();
       return -1;
     } else if (ndatalen >= 0) {
-      if (auto rv =
-            nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+      if (auto rv = nghttp3_conn_add_write_offset(httpconn_, stream_id,
+                                                  as_unsigned(ndatalen));
           rv != 0) {
         std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
                   << std::endl;
@@ -1149,12 +1152,12 @@ int Client::write_streams() {
 
     auto last_pkt_pos = std::ranges::begin(buf);
 
-    buf = buf.subspan(nwrite);
+    buf = buf.subspan(as_unsigned(nwrite));
 
     if (last_pkt_pos == std::ranges::begin(txbuf)) {
       ngtcp2_path_copy(&prev_ps.path, &ps.path);
       prev_ecn = pi.ecn;
-      gso_size = nwrite;
+      gso_size = as_unsigned(nwrite);
     } else if (!ngtcp2_path_eq(&prev_ps.path, &ps.path) || prev_ecn != pi.ecn ||
                static_cast<size_t>(nwrite) > gso_size ||
                (gso_size > path_max_udp_payload_size &&
@@ -1626,12 +1629,18 @@ Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
     cm->cmsg_level = SOL_UDP;
     cm->cmsg_type = UDP_SEGMENT;
     cm->cmsg_len = CMSG_LEN(sizeof(uint16_t));
-    uint16_t n = gso_size;
+    auto n = static_cast<uint16_t>(gso_size);
     memcpy(CMSG_DATA(cm), &n, sizeof(n));
   }
 #endif // defined(UDP_SEGMENT)
 
-  msg.msg_controllen = controllen;
+  msg.msg_controllen =
+#ifndef __APPLE__
+    controllen
+#else  // defined(__APPLE__)
+    static_cast<socklen_t>(controllen)
+#endif // defined(__APPLE__)
+    ;
 
   ssize_t nwrite = 0;
 
@@ -1768,7 +1777,7 @@ int Client::handle_error() {
     util::timestamp());
   if (nwrite < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: "
-              << ngtcp2_strerror(nwrite) << std::endl;
+              << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
     return -1;
   }
 
@@ -1932,16 +1941,18 @@ int Client::recv_stream_data(uint32_t flags, int64_t stream_id,
     nghttp3_conn_read_stream(httpconn_, stream_id, data.data(), data.size(),
                              flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   if (nconsumed < 0) {
-    std::cerr << "nghttp3_conn_read_stream: " << nghttp3_strerror(nconsumed)
-              << std::endl;
+    std::cerr << "nghttp3_conn_read_stream: "
+              << nghttp3_strerror(static_cast<int>(nconsumed)) << std::endl;
     ngtcp2_ccerr_set_application_error(
-      &last_error_, nghttp3_err_infer_quic_app_error_code(nconsumed), nullptr,
-      0);
+      &last_error_,
+      nghttp3_err_infer_quic_app_error_code(static_cast<int>(nconsumed)),
+      nullptr, 0);
     return -1;
   }
 
-  ngtcp2_conn_extend_max_stream_offset(conn_, stream_id, nconsumed);
-  ngtcp2_conn_extend_max_offset(conn_, nconsumed);
+  ngtcp2_conn_extend_max_stream_offset(conn_, stream_id,
+                                       static_cast<uint64_t>(nconsumed));
+  ngtcp2_conn_extend_max_offset(conn_, static_cast<uint64_t>(nconsumed));
 
   return 0;
 }
@@ -3178,7 +3189,7 @@ int main(int argc, char **argv) {
               << std::endl;
             exit(EXIT_FAILURE);
           } else {
-            config.pmtud_probes.push_back(*n);
+            config.pmtud_probes.push_back(static_cast<uint16_t>(*n));
           }
         }
         break;
@@ -3227,7 +3238,7 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
     config.fd = fd;
-    config.datalen = st.st_size;
+    config.datalen = static_cast<size_t>(st.st_size);
     if (config.datalen) {
       auto addr = mmap(nullptr, config.datalen, PROT_READ, MAP_SHARED, fd, 0);
       if (addr == MAP_FAILED) {
@@ -3242,7 +3253,7 @@ int main(int argc, char **argv) {
   auto addr = argv[optind++];
   auto port = argv[optind++];
 
-  if (parse_requests(&argv[optind], argc - optind) != 0) {
+  if (parse_requests(&argv[optind], static_cast<size_t>(argc - optind)) != 0) {
     exit(EXIT_FAILURE);
   }
 

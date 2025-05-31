@@ -146,7 +146,7 @@ public:
 
   Stream *find_stream(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
-  void shutdown_read(int64_t stream_id, int app_error_code);
+  void shutdown_read(int64_t stream_id, uint64_t app_error_code);
 
   void write_qlog(const void *data, size_t datalen);
   void add_sendq(Stream *stream);

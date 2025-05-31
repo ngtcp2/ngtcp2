@@ -42,6 +42,7 @@
 #include "tls_server_session.h"
 #include "network.h"
 #include "shared.h"
+#include "template.h"
 
 using namespace ngtcp2;
 
@@ -160,8 +161,8 @@ struct Buffer {
   Buffer(const uint8_t *data, size_t datalen);
   explicit Buffer(size_t datalen);
 
-  size_t size() const { return tail - begin; }
-  size_t left() const { return buf.data() + buf.size() - tail; }
+  size_t size() const { return as_unsigned(tail - begin); }
+  size_t left() const { return as_unsigned(buf.data() + buf.size() - tail); }
   uint8_t *const wpos() { return tail; }
   std::span<const uint8_t> data() const { return {begin, size()}; }
   void push(size_t len) { tail += len; }

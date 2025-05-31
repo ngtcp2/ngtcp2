@@ -43,7 +43,13 @@ namespace ngtcp2 {
 namespace util {
 
 int generate_secure_random(std::span<uint8_t> data) {
-  if (RAND_bytes(data.data(), static_cast<int>(data.size())) != 1) {
+#ifdef WITH_EXAMPLE_BORINGSSL
+  using size_type = size_t;
+#else  // !defined(WITH_EXAMPLE_BORINGSSL)
+  using size_type = int;
+#endif // !defined(WITH_EXAMPLE_BORINGSSL)
+
+  if (RAND_bytes(data.data(), static_cast<size_type>(data.size())) != 1) {
     return -1;
   }
 
@@ -64,7 +70,7 @@ int generate_secret(std::span<uint8_t> secret) {
 
   auto ctx_deleter = defer(EVP_MD_CTX_free, ctx);
 
-  unsigned int mdlen = secret.size();
+  auto mdlen = static_cast<unsigned int>(secret.size());
   if (!EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
       !EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
       !EVP_DigestFinal_ex(ctx, secret.data(), &mdlen)) {
@@ -119,7 +125,8 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
     return -1;
   }
 
-  PEM_write_bio(f, type.data(), "", data.data(), data.size());
+  PEM_write_bio(f, type.data(), "", data.data(),
+                static_cast<long>(data.size()));
   BIO_free(f);
 
   return 0;

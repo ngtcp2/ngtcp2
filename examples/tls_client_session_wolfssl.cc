@@ -78,7 +78,7 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   if (!config.sni.empty()) {
     wolfSSL_UseSNI(ssl_, WOLFSSL_SNI_HOST_NAME, config.sni.data(),
-                   config.sni.length());
+                   static_cast<uint16_t>(config.sni.length()));
   } else if (util::numeric_host(remote_addr)) {
     // If remote host is numeric address, just send "localhost" as SNI
     // for now.
@@ -86,7 +86,7 @@ int TLSClientSession::init(bool &early_data_enabled,
                    sizeof("localhost") - 1);
   } else {
     wolfSSL_UseSNI(ssl_, WOLFSSL_SNI_HOST_NAME, remote_addr,
-                   strlen(remote_addr));
+                   static_cast<uint16_t>(strlen(remote_addr)));
   }
 
   // Just use QUIC v1
@@ -103,7 +103,6 @@ int TLSClientSession::init(bool &early_data_enabled,
       unsigned char *data;
       const unsigned char *pdata;
       long datalen;
-      unsigned int ret;
       WOLFSSL_SESSION *session;
 
       if (wolfSSL_PEM_read_bio(f, &name, &header, &data, &datalen) != 1) {
@@ -120,7 +119,7 @@ int TLSClientSession::init(bool &early_data_enabled,
             std::cerr << "Could not parse TLS session from file "
                       << config.session_file << std::endl;
           } else {
-            ret = wolfSSL_set_session(ssl_, session);
+            auto ret = wolfSSL_set_session(ssl_, session);
             if (ret != WOLFSSL_SUCCESS) {
               std::cerr << "Could not install TLS session from file "
                         << config.session_file << std::endl;
