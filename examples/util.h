@@ -78,11 +78,131 @@ inline nghttp3_nv make_nv_nn(const std::string_view &name,
                  NGHTTP3_NV_FLAG_NO_COPY_NAME | NGHTTP3_NV_FLAG_NO_COPY_VALUE);
 }
 
-std::string format_hex(uint8_t c);
+constinit const auto hexdigits = []() {
+  constexpr char LOWER_XDIGITS[] = "0123456789abcdef";
 
-std::string format_hex(std::span<const uint8_t> s);
+  std::array<char, 512> tbl;
 
-std::string format_hex(const std::string_view &s);
+  for (size_t i = 0; i < 256; ++i) {
+    tbl[i * 2] = LOWER_XDIGITS[static_cast<size_t>(i >> 4)];
+    tbl[i * 2 + 1] = LOWER_XDIGITS[static_cast<size_t>(i & 0xf)];
+  }
+
+  return tbl;
+}();
+
+// format_hex converts a range [|first|, |last|) in hex format, and
+// stores the result in another range, beginning at |result|.  It
+// returns an output iterator to the element past the last element
+// stored.
+template <std::input_iterator I, std::weakly_incrementable O>
+requires(std::indirectly_writable<O, char> &&
+         sizeof(std::iter_value_t<I>) == sizeof(uint8_t))
+constexpr O format_hex(I first, I last, O result) {
+  for (; first != last; ++first) {
+    result = std::ranges::copy_n(
+               hexdigits.data() + static_cast<uint8_t>(*first) * 2, 2, result)
+               .out;
+  }
+
+  return result;
+}
+
+// format_hex converts a range [|first|, |first| + |n|) in hex format,
+// and stores the result in another range, beginning at |result|.  It
+// returns an output iterator to the element past the last element
+// stored.
+template <std::input_iterator I, std::weakly_incrementable O>
+requires(std::indirectly_writable<O, char> &&
+         sizeof(std::iter_value_t<I>) == sizeof(uint8_t))
+constexpr O format_hex(I first, std::iter_difference_t<I> n, O result) {
+  return format_hex(first, std::ranges::next(first, n), std::move(result));
+}
+
+// format_hex converts a range [|first|, |first| + |n|) in hex format,
+// and returns it.
+template <std::input_iterator I>
+requires(sizeof(std::iter_value_t<I>) == sizeof(uint8_t))
+constexpr std::string format_hex(I first, std::iter_difference_t<I> n) {
+  if (n <= 0) {
+    return {};
+  }
+
+  std::string res;
+
+  res.resize(as_unsigned(n * 2));
+
+  format_hex(std::move(first), std::move(n), std::ranges::begin(res));
+
+  return res;
+}
+
+// format_hex converts |R| in hex format, and stores the result in
+// another range, beginning at |result|.  It returns an output
+// iterator to the element past the last element stored.
+template <std::ranges::input_range R, std::weakly_incrementable O>
+requires(std::indirectly_writable<O, char> &&
+         !std::is_array_v<std::remove_cvref_t<R>> &&
+         sizeof(std::ranges::range_value_t<R>) == sizeof(uint8_t))
+constexpr O format_hex(R &&r, O result) {
+  return format_hex(std::ranges::begin(r), std::ranges::end(r),
+                    std::move(result));
+}
+
+// format_hex converts |R| in hex format, and returns the result.
+template <std::ranges::input_range R>
+requires(!std::is_array_v<std::remove_cvref_t<R>> &&
+         sizeof(std::ranges::range_value_t<R>) == sizeof(uint8_t))
+constexpr std::string format_hex(R &&r) {
+  std::string res;
+
+  res.resize(as_unsigned(std::ranges::distance(r) * 2));
+
+  format_hex(std::forward<R>(r), std::ranges::begin(res));
+
+  return res;
+}
+
+// format_hex converts |n| in hex format, and stores the result in
+// another range, beginning at |result|.  It returns an output
+// iterator to the element past the last element stored.
+template <std::unsigned_integral T, std::weakly_incrementable O>
+requires(std::indirectly_writable<O, char>)
+constexpr O format_hex(T n, O result) {
+  if constexpr (sizeof(n) == 1) {
+    return std::ranges::copy_n(hexdigits.data() + n * 2, 2, result).out;
+  }
+
+  if constexpr (std::endian::native == std::endian::little) {
+    auto end = reinterpret_cast<uint8_t *>(&n);
+    auto p = end + sizeof(n);
+
+    for (; p != end; --p) {
+      result =
+        std::ranges::copy_n(hexdigits.data() + *(p - 1) * 2, 2, result).out;
+    }
+  } else {
+    auto p = reinterpret_cast<uint8_t *>(&n);
+    auto end = p + sizeof(n);
+
+    for (; p != end; ++p) {
+      result = std::ranges::copy_n(hexdigits.data() + *p * 2, 2, result).out;
+    }
+  }
+
+  return result;
+}
+
+// format_hex converts |n| in hex format, and returns it.
+template <std::unsigned_integral T> constexpr std::string format_hex(T n) {
+  std::string res;
+
+  res.resize(sizeof(n) * 2);
+
+  format_hex(std::move(n), std::ranges::begin(res));
+
+  return res;
+}
 
 std::string decode_hex(const std::string_view &s);
 

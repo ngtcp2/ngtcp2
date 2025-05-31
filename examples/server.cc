@@ -1477,7 +1477,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   if (!config.qlog_dir.empty()) {
     auto path = std::string{config.qlog_dir};
     path += '/';
-    path += util::format_hex({scid_.data, scid_.datalen});
+    path += util::format_hex(scid_.data, as_signed(scid_.datalen));
     path += ".sqlog";
     qlog_ = fopen(path.c_str(), "w");
     if (qlog_ == nullptr) {

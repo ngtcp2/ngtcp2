@@ -402,7 +402,9 @@ void test_util_hexdump() {
 void test_util_format_hex() {
   auto a = std::to_array<uint8_t>({0xde, 0xad, 0xbe, 0xef});
 
-  assert_stdstring_equal("deadbeef", util::format_hex(a));
+  assert_stdstring_equal("deadbeef"s, util::format_hex(a));
+  assert_stdstring_equal("deadbeef"s, util::format_hex(0xdeadbeef));
+  assert_stdstring_equal("beef"s, util::format_hex(a.data() + 2, 2));
 }
 
 } // namespace ngtcp2

@@ -65,33 +65,6 @@ namespace {
 constexpr char LOWER_XDIGITS[] = "0123456789abcdef";
 } // namespace
 
-std::string format_hex(uint8_t c) {
-  std::string s;
-  s.resize(2);
-
-  s[0] = LOWER_XDIGITS[c >> 4];
-  s[1] = LOWER_XDIGITS[c & 0xf];
-
-  return s;
-}
-
-std::string format_hex(std::span<const uint8_t> s) {
-  std::string res;
-  res.resize(s.size() * 2);
-
-  auto p = std::ranges::begin(res);
-
-  for (auto c : s) {
-    *p++ = LOWER_XDIGITS[c >> 4];
-    *p++ = LOWER_XDIGITS[c & 0x0f];
-  }
-  return res;
-}
-
-std::string format_hex(const std::string_view &s) {
-  return format_hex({reinterpret_cast<const uint8_t *>(s.data()), s.size()});
-}
-
 std::string decode_hex(const std::string_view &s) {
   assert(s.size() % 2 == 0);
   std::string res(s.size() / 2, '0');
@@ -819,7 +792,7 @@ std::string percent_decode(const std::string_view &s) {
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {
-  return os << "0x" << util::format_hex({cid.data, cid.datalen});
+  return os << "0x" << util::format_hex(cid.data, as_signed(cid.datalen));
 }
 
 } // namespace ngtcp2
