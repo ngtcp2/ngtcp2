@@ -55,9 +55,9 @@ const MunitSuite util_suite{
 };
 
 namespace util {
-std::optional<std::string> read_pem(const std::string_view &filename,
-                                    const std::string_view &name,
-                                    const std::string_view &type) {
+std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
+                                             const std::string_view &name,
+                                             const std::string_view &type) {
   return {};
 }
 } // namespace util
