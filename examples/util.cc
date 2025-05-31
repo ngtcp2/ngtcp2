@@ -61,10 +61,6 @@ std::optional<std::string> read_pem(const std::string_view &filename,
 int write_pem(const std::string_view &filename, const std::string_view &name,
               const std::string_view &type, std::span<const uint8_t> data);
 
-namespace {
-constexpr char LOWER_XDIGITS[] = "0123456789abcdef";
-} // namespace
-
 std::string decode_hex(const std::string_view &s) {
   assert(s.size() % 2 == 0);
   std::string res(s.size() / 2, '0');
@@ -164,14 +160,7 @@ bool numeric_host(const char *hostname, int family) {
 namespace {
 uint8_t *hexdump_addr(uint8_t *dest, size_t addr) {
   // Lower 32 bits are displayed.
-  for (size_t i = 0; i < 4; ++i) {
-    auto a = (addr >> (3 - i) * 8) & 0xff;
-
-    *dest++ = as_unsigned(LOWER_XDIGITS[a >> 4]);
-    *dest++ = as_unsigned(LOWER_XDIGITS[a & 0xf]);
-  }
-
-  return dest;
+  return format_hex(static_cast<uint32_t>(addr), dest);
 }
 } // namespace
 
@@ -196,8 +185,7 @@ uint8_t *hexdump_ascii(uint8_t *dest, std::span<const uint8_t> data) {
 namespace {
 uint8_t *hexdump8(uint8_t *dest, std::span<const uint8_t> data) {
   for (auto c : data) {
-    *dest++ = as_unsigned(LOWER_XDIGITS[c >> 4]);
-    *dest++ = as_unsigned(LOWER_XDIGITS[c & 0xf]);
+    dest = format_hex(c, dest);
     *dest++ = ' ';
   }
 
