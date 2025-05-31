@@ -446,7 +446,7 @@ parse_uint_internal(const std::string_view &s) {
 
   for (size_t i = 0; i < s.size(); ++i) {
     auto c = s[i];
-    if (c < '0' || '9' < c) {
+    if (!is_digit(c)) {
       return {{res, i}};
     }
 
