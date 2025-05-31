@@ -288,25 +288,108 @@ std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 std::optional<std::unordered_map<std::string, std::string>>
 read_mime_types(const std::string_view &filename);
 
+constinit const auto count_digit_tbl = []() {
+  std::array<uint64_t, std::numeric_limits<uint64_t>::digits10> tbl;
+
+  uint64_t x = 1;
+
+  for (size_t i = 0; i < tbl.size(); ++i) {
+    x *= 10;
+    tbl[i] = x - 1;
+  }
+
+  return tbl;
+}();
+
+// count_digit returns the minimum number of digits to represent |x|
+// in base 10.
+//
+// credit:
+// https://lemire.me/blog/2025/01/07/counting-the-digits-of-64-bit-integers/
+template <std::unsigned_integral T> constexpr size_t count_digit(T x) {
+  auto y = static_cast<size_t>(19 * (std::numeric_limits<T>::digits - 1 -
+                                     std::countl_zero(static_cast<T>(x | 1))) >>
+                               6);
+
+  y += x > count_digit_tbl[y];
+
+  return y + 1;
+}
+
+constinit const auto utos_digits = []() {
+  std::array<char, 200> a;
+
+  for (size_t i = 0; i < 100; ++i) {
+    a[i * 2] = '0' + static_cast<char>(i / 10);
+    a[i * 2 + 1] = '0' + static_cast<char>(i % 10);
+  }
+
+  return a;
+}();
+
+struct UIntFormatter {
+  template <std::unsigned_integral T, std::weakly_incrementable O>
+  requires(std::indirectly_writable<O, char>)
+  constexpr O operator()(T n, O result) {
+    using result_type = std::iter_value_t<O>;
+
+    if (n < 10) {
+      *result++ = static_cast<result_type>('0' + static_cast<char>(n));
+      return result;
+    }
+
+    if (n < 100) {
+      return std::ranges::copy_n(utos_digits.data() + n * 2, 2, result).out;
+    }
+
+    std::ranges::advance(result, as_signed(count_digit(n)));
+
+    auto p = result;
+
+    for (; n >= 100; n /= 100) {
+      std::ranges::advance(p, -2);
+      std::ranges::copy_n(utos_digits.data() + (n % 100) * 2, 2, p);
+    }
+
+    if (n < 10) {
+      *--p = static_cast<result_type>('0' + static_cast<char>(n));
+      return result;
+    }
+
+    std::ranges::advance(p, -2);
+    std::ranges::copy_n(utos_digits.data() + n * 2, 2, p);
+
+    return result;
+  }
+};
+
+template <std::unsigned_integral T, std::weakly_incrementable O>
+requires(std::indirectly_writable<O, char>)
+constexpr O utos(T n, O result) {
+  return UIntFormatter{}(std::move(n), std::move(result));
+}
+
 // format_uint converts |n| into string.
-template <typename T> std::string format_uint(T n) {
+template <std::unsigned_integral T> constexpr std::string format_uint(T n) {
+  using namespace std::literals;
+
   if (n == 0) {
-    return "0";
+    return "0"s;
   }
-  size_t nlen = 0;
-  for (auto t = n; t; t /= 10, ++nlen)
-    ;
-  std::string res(nlen, '\0');
-  for (; n; n /= 10) {
-    res[--nlen] = static_cast<char>((n % 10) + '0');
-  }
+
+  std::string res;
+
+  res.resize(count_digit(n));
+
+  utos(n, std::ranges::begin(res));
+
   return res;
 }
 
 // format_uint_iec converts |n| into string with the IEC unit (either
 // "G", "M", or "K").  It chooses the largest unit which does not drop
 // precision.
-template <typename T> std::string format_uint_iec(T n) {
+template <std::unsigned_integral T> std::string format_uint_iec(T n) {
   if (n >= (1 << 30) && (n & ((1 << 30) - 1)) == 0) {
     return format_uint(n / (1 << 30)) + 'G';
   }

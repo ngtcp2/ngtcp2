@@ -334,7 +334,7 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
     *pflags |= NGHTTP3_DATA_FLAG_EOF;
     if (config.send_trailers) {
       *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;
-      auto stream_id_str = util::format_uint(stream_id);
+      auto stream_id_str = util::format_uint(as_unsigned(stream_id));
       auto trailers = std::to_array({
         util::make_nv_nc("x-ngtcp2-stream-id"sv, stream_id_str),
       });
@@ -399,7 +399,7 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
   }
 
   if (config.send_trailers) {
-    auto stream_id_str = util::format_uint(stream_id);
+    auto stream_id_str = util::format_uint(as_unsigned(stream_id));
     auto trailers = std::to_array({
       util::make_nv_nc("x-ngtcp2-stream-id"sv, stream_id_str),
     });
@@ -488,7 +488,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     content_type = "application/octet-stream"sv;
   }
 
-  auto content_length_str = util::format_uint(content_length);
+  auto content_length_str = util::format_uint(as_unsigned(content_length));
 
   std::array<nghttp3_nv, 5> nva{
     util::make_nv_nn(":status"sv, "200"sv),
@@ -549,7 +549,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   }
 
   if (config.send_trailers && dyn_len == -1) {
-    auto stream_id_str = util::format_uint(stream_id);
+    auto stream_id_str = util::format_uint(as_unsigned(stream_id));
     auto trailers = std::to_array({
       util::make_nv_nc("x-ngtcp2-stream-id"sv, stream_id_str),
     });
