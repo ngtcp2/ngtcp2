@@ -47,6 +47,7 @@ public:
            AppProtocol app_proto);
 
   bool get_early_data_accepted() const;
+  bool get_ech_accepted() const;
 };
 
 #endif // !defined(TLS_CLIENT_SESSION_BORINGSSL_H)

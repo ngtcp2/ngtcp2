@@ -43,6 +43,7 @@
 #include "network.h"
 #include "shared.h"
 #include "template.h"
+#include "util.h"
 
 using namespace ngtcp2;
 
@@ -155,6 +156,8 @@ struct Config {
   uint32_t initial_pkt_num;
   // pmtud_probes is the array of UDP datagram payload size to probes.
   std::vector<uint16_t> pmtud_probes;
+  // ech_config contains server-side ECH configuration.
+  util::ECHServerConfig ech_config;
 };
 
 struct Buffer {

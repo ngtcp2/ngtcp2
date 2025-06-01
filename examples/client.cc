@@ -333,6 +333,10 @@ int Client::handshake_completed() {
     }
     std::cerr << "Negotiated ALPN is " << tls_session_.get_selected_alpn()
               << std::endl;
+
+    if (!config.ech_config_list.empty() && tls_session_.get_ech_accepted()) {
+      std::cerr << "ECH was accepted" << std::endl;
+    }
   }
 
   if (config.tp_file) {
@@ -2666,6 +2670,9 @@ Options:
   --pmtud-probes=<SIZE>[[,<SIZE>]...]
               Specify UDP datagram payload sizes  to probe in Path MTU
               Discovery.  <SIZE> must be strictly larger than 1200.
+  --ech-config-list-file=<PATH>
+              Read ECHConfigList  from <PATH>.  ECH is  only attempted
+              if an underlying TLS stack supports it.
   -h, --help  Display this help and exit.
 
 ---
@@ -2690,6 +2697,7 @@ int main(int argc, char **argv) {
   char *data_path = nullptr;
   const char *private_key_file = nullptr;
   const char *cert_file = nullptr;
+  const char *ech_config_list_file = nullptr;
 
   if (argc) {
     prog = basename(argv[0]);
@@ -2750,6 +2758,7 @@ int main(int argc, char **argv) {
       {"wait-for-ticket", no_argument, &flag, 41},
       {"initial-pkt-num", required_argument, &flag, 42},
       {"pmtud-probes", required_argument, &flag, 43},
+      {"ech-config-list-file", required_argument, &flag, 44},
       {},
     };
 
@@ -3193,6 +3202,10 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      case 44:
+        // --ech-config-list-file
+        ech_config_list_file = optarg;
+        break;
       }
       break;
     default:
@@ -3247,6 +3260,17 @@ int main(int argc, char **argv) {
       }
       config.data = static_cast<uint8_t *>(addr);
     }
+  }
+
+  if (ech_config_list_file) {
+    auto ech_config = util::read_file(ech_config_list_file);
+    if (!ech_config) {
+      std::cerr << "ech-config-list-file: Could not read ECHConfigList"
+                << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    config.ech_config_list = std::move(*ech_config);
   }
 
   auto addr = argv[optind++];

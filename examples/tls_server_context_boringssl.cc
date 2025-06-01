@@ -32,6 +32,7 @@
 #include <ngtcp2/ngtcp2_crypto_boringssl.h>
 
 #include <openssl/err.h>
+#include <openssl/hpke.h>
 
 #include "server_base.h"
 #include "template.h"
@@ -212,6 +213,39 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     return -1;
   }
 #endif // defined(HAVE_LIBBROTLI)
+
+  if (!config.ech_config.ech_config.empty()) {
+    const auto &echconf = config.ech_config;
+
+    auto pkey = EVP_HPKE_KEY_new();
+
+    if (EVP_HPKE_KEY_init(pkey, EVP_hpke_x25519_hkdf_sha256(),
+                          echconf.private_key.bytes.data(),
+                          echconf.private_key.bytes.size()) != 1) {
+      std::cerr << "EVP_HPKE_KEY_init failed: "
+                << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+
+      return -1;
+    }
+
+    auto pkey_d = defer(EVP_HPKE_KEY_free, pkey);
+
+    auto keys = SSL_ECH_KEYS_new();
+    auto keys_d = defer(SSL_ECH_KEYS_free, keys);
+
+    if (SSL_ECH_KEYS_add(keys, 1, echconf.ech_config.data(),
+                         echconf.ech_config.size(), pkey) != 1) {
+      std::cerr << "SSL_ECH_KEYS_add failed: "
+                << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+      return -1;
+    }
+
+    if (SSL_CTX_set1_ech_keys(ssl_ctx_, keys) != 1) {
+      std::cerr << "SSL_CTX_set1_ech_keys failed: "
+                << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+      return -1;
+    }
+  }
 
   return 0;
 }

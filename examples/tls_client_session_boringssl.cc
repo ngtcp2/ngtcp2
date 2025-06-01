@@ -99,9 +99,21 @@ int TLSClientSession::init(bool &early_data_enabled,
     }
   }
 
+  if (!config.ech_config_list.empty() &&
+      SSL_set1_ech_config_list(ssl_, config.ech_config_list.data(),
+                               config.ech_config_list.size()) != 1) {
+    std::cerr << "Could not set ECHConfigList: "
+              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    return -1;
+  }
+
   return 0;
 }
 
 bool TLSClientSession::get_early_data_accepted() const {
   return SSL_early_data_accepted(ssl_);
+}
+
+bool TLSClientSession::get_ech_accepted() const {
+  return SSL_ech_accepted(ssl_);
 }

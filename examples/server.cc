@@ -3540,6 +3540,13 @@ Options:
   --pmtud-probes=<SIZE>[[,<SIZE>]...]
               Specify UDP datagram payload sizes  to probe in Path MTU
               Discovery.  <SIZE> must be strictly larger than 1200.
+  --ech-config-file=<PATH>
+              Read private  key and  ECHConfig from |PATH|.   The file
+              denoted by |PATH| must contain private key and ECHConfig
+              as                      described                     in
+              https://datatracker.ietf.org/doc/html/draft-farrell-tls-pemesni.
+              ECH configuration  is only applied if  an underlying TLS
+              stack supports it.
   -h, --help  Display this help and exit.
 
 ---
@@ -3567,6 +3574,8 @@ int main(int argc, char **argv) {
   if (argc) {
     prog = basename(argv[0]);
   }
+
+  std::string_view ech_config_file;
 
   for (;;) {
     static int flag = 0;
@@ -3609,6 +3618,7 @@ int main(int argc, char **argv) {
       {"ack-thresh", required_argument, &flag, 30},
       {"initial-pkt-num", required_argument, &flag, 31},
       {"pmtud-probes", required_argument, &flag, 32},
+      {"ech-config-file", required_argument, &flag, 33},
       {},
     };
 
@@ -3958,6 +3968,10 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      case 33:
+        // --ech-config-file
+        ech_config_file = optarg;
+        break;
       }
       break;
     default:
@@ -3991,6 +4005,17 @@ int main(int argc, char **argv) {
               << std::quoted(config.mime_types_file) << std::endl;
   } else {
     config.mime_types = std::move(*mt);
+  }
+
+  if (!ech_config_file.empty()) {
+    auto ech_config = util::read_ech_server_config(ech_config_file);
+    if (!ech_config) {
+      std::cerr << "ech-config-file: Could not read private key and ECHConfig"
+                << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    config.ech_config = std::move(*ech_config);
   }
 
   TLSServerContext tls_ctx;

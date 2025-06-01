@@ -84,6 +84,47 @@ namespace {
 void openssl_free_wrap(void *ptr) { OPENSSL_free(ptr); }
 } // namespace
 
+std::optional<HPKEPrivateKey>
+read_hpke_private_key_pem(const std::string_view &filename) {
+  auto f = BIO_new_file(filename.data(), "r");
+  if (f == nullptr) {
+    std::cerr << "Could not open file " << filename << std::endl;
+    return {};
+  }
+
+  auto f_d = defer(BIO_free, f);
+
+  EVP_PKEY *pkey;
+
+  if (PEM_read_bio_PrivateKey(f, &pkey, nullptr, nullptr) == nullptr) {
+    return {};
+  }
+
+  auto pkey_d = defer(EVP_PKEY_free, pkey);
+
+  HPKEPrivateKey res;
+
+  switch (EVP_PKEY_id(pkey)) {
+  case EVP_PKEY_X25519: {
+    res.type = HPKE_DHKEM_X25519_HKDF_SHA256;
+
+    size_t len;
+
+    EVP_PKEY_get_raw_private_key(pkey, nullptr, &len);
+
+    res.bytes.resize(len);
+
+    EVP_PKEY_get_raw_private_key(pkey, &res.bytes[0], &len);
+
+    break;
+  }
+  default:
+    return {};
+  }
+
+  return std::move(res);
+}
+
 std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
                                              const std::string_view &name,
                                              const std::string_view &type) {
@@ -95,26 +136,32 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
 
   auto f_d = defer(BIO_free, f);
 
-  char *pem_type, *header;
-  unsigned char *data;
-  long datalen;
+  for (;;) {
+    char *pem_type, *header;
+    unsigned char *data;
+    long datalen;
 
-  if (PEM_read_bio(f, &pem_type, &header, &data, &datalen) != 1) {
-    std::cerr << "Could not read " << name << " file " << filename << std::endl;
-    return {};
+    if (PEM_read_bio(f, &pem_type, &header, &data, &datalen) != 1) {
+      std::cerr << "Could not read " << name << " file " << filename
+                << std::endl;
+      return {};
+    }
+
+    auto pem_type_d = defer(openssl_free_wrap, pem_type);
+    auto pem_header = defer(openssl_free_wrap, header);
+    auto data_d = defer(openssl_free_wrap, data);
+
+    if (type != pem_type) {
+      continue;
+    }
+
+    return {{data, data + datalen}};
   }
 
-  auto pem_type_d = defer(openssl_free_wrap, pem_type);
-  auto pem_header = defer(openssl_free_wrap, header);
-  auto data_d = defer(openssl_free_wrap, data);
+  std::cerr << name << " file " << filename << " does not contain " << type
+            << std::endl;
 
-  if (type != pem_type) {
-    std::cerr << name << " file " << filename << " contains unexpected type"
-              << std::endl;
-    return {};
-  }
-
-  return {{data, data + datalen}};
+  return {};
 }
 
 int write_pem(const std::string_view &filename, const std::string_view &name,
