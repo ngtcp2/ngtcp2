@@ -532,7 +532,7 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   dest = ngtcp2_transport_params_convert_to_latest(
     &paramsbuf, NGTCP2_TRANSPORT_PARAMS_V1, src);
 
-  assert_ptr_equal(dest, src);
+  assert_ptr_equal(src, dest);
   assert_uint64(srcbuf.initial_max_stream_data_bidi_local, ==,
                 dest->initial_max_stream_data_bidi_local);
   assert_uint64(srcbuf.initial_max_stream_data_bidi_remote, ==,
