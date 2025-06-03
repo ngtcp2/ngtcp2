@@ -96,12 +96,12 @@ void test_ngtcp2_settings_convert_to_latest(void) {
 
   memcpy(src, &srcbuf, v1len);
 
-  dest = ngtcp2_settings_convert_to_latest(&settingsbuf,
-                                           NGTCP2_TRANSPORT_PARAMS_V1, src);
+  dest =
+    ngtcp2_settings_convert_to_latest(&settingsbuf, NGTCP2_SETTINGS_V1, src);
 
   free(src);
 
-  assert_ptr_equal(dest, &settingsbuf);
+  assert_ptr_equal(&settingsbuf, dest);
   assert_ptr_equal(srcbuf.qlog_write, dest->qlog_write);
   assert_enum(ngtcp2_cc_algo, srcbuf.cc_algo, ==, dest->cc_algo);
   assert_uint64(srcbuf.initial_ts, ==, dest->initial_ts);
