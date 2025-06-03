@@ -2209,6 +2209,27 @@ int http_recv_settings(nghttp3_conn *conn, const nghttp3_settings *settings,
 }
 } // namespace
 
+namespace {
+int http_recv_origin(nghttp3_conn *conn, const nghttp3_cvec *origin,
+                     void *conn_user_data) {
+  if (!config.quiet) {
+    debug::print_http_origin(origin);
+  }
+
+  return 0;
+}
+} // namespace
+
+namespace {
+int http_end_origin(nghttp3_conn *conn, void *conn_user_data) {
+  if (!config.quiet) {
+    debug::print_http_end_origin();
+  }
+
+  return 0;
+}
+} // namespace
+
 int Client::setup_httpconn() {
   if (httpconn_) {
     return 0;
@@ -2233,6 +2254,8 @@ int Client::setup_httpconn() {
     .stop_sending = ::http_stop_sending,
     .reset_stream = ::http_reset_stream,
     .recv_settings = ::http_recv_settings,
+    .recv_origin = ::http_recv_origin,
+    .end_origin = ::http_end_origin,
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);
