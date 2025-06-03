@@ -158,6 +158,8 @@ struct Config {
   std::vector<uint16_t> pmtud_probes;
   // ech_config contains server-side ECH configuration.
   util::ECHServerConfig ech_config;
+  // origin_list contains a payload of ORIGIN frame.
+  std::optional<std::vector<uint8_t>> origin_list;
 };
 
 struct Buffer {

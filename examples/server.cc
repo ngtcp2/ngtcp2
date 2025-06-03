@@ -1292,6 +1292,15 @@ int Handler::setup_httpconn() {
   settings.qpack_max_dtable_capacity = 4096;
   settings.qpack_blocked_streams = 100;
 
+  nghttp3_cvec origin_list;
+
+  if (config.origin_list) {
+    origin_list.base = config.origin_list->data();
+    origin_list.len = config.origin_list->size();
+
+    settings.origin_list = &origin_list;
+  }
+
   auto mem = nghttp3_mem_default();
 
   if (auto rv =
@@ -3547,6 +3556,9 @@ Options:
               https://datatracker.ietf.org/doc/html/draft-farrell-tls-pemesni.
               ECH configuration  is only applied if  an underlying TLS
               stack supports it.
+  --origin=<ORIGIN>
+              Specify the origin to send in ORIGIN frame.  Repeat to
+              add multiple origins.
   -h, --help  Display this help and exit.
 
 ---
@@ -3619,6 +3631,7 @@ int main(int argc, char **argv) {
       {"initial-pkt-num", required_argument, &flag, 31},
       {"pmtud-probes", required_argument, &flag, 32},
       {"ech-config-file", required_argument, &flag, 33},
+      {"origin", required_argument, &flag, 34},
       {},
     };
 
@@ -3972,6 +3985,28 @@ int main(int argc, char **argv) {
         // --ech-config-file
         ech_config_file = optarg;
         break;
+      case 34: {
+        // --origin
+        auto origin = std::string_view{optarg};
+
+        if (auto max = std::numeric_limits<uint16_t>::max();
+            max < origin.size()) {
+          std::cerr << "origin: must be less than or equal to " << max
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        }
+
+        if (!config.origin_list) {
+          config.origin_list = std::vector<uint8_t>();
+        }
+
+        config.origin_list->push_back(static_cast<uint8_t>(origin.size() >> 8));
+        config.origin_list->push_back(origin.size() & 0xff);
+        config.origin_list->insert(config.origin_list->end(), origin.begin(),
+                                   origin.end());
+
+        break;
+      }
       }
       break;
     default:

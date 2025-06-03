@@ -296,6 +296,13 @@ void print_http_settings(const nghttp3_settings *settings) {
           settings->h3_datagram);
 }
 
+void print_http_origin(const nghttp3_cvec *origin) {
+  fprintf(outfile, "http: origin [%.*s]\n", static_cast<int>(origin->len),
+          origin->base);
+}
+
+void print_http_end_origin() { fprintf(outfile, "http: origin ended\n"); }
+
 std::string_view secret_title(ngtcp2_encryption_level level) {
   switch (level) {
   case NGTCP2_ENCRYPTION_LEVEL_0RTT:
