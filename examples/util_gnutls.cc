@@ -99,7 +99,7 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
 
   gnutls_free(d.data);
 
-  return std::move(res);
+  return res;
 }
 
 int write_pem(const std::string_view &filename, const std::string_view &name,
