@@ -122,7 +122,7 @@ read_hpke_private_key_pem(const std::string_view &filename) {
     return {};
   }
 
-  return std::move(res);
+  return res;
 }
 
 std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
