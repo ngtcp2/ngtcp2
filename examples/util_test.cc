@@ -76,6 +76,10 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
 }
 } // namespace util
 
+namespace util {
+int generate_secure_random(std::span<uint8_t> data) { return -1; }
+} // namespace util
+
 void test_util_format_durationf() {
   assert_stdstring_equal("0ns", util::format_durationf(0));
   assert_stdstring_equal("999ns", util::format_durationf(999));

@@ -552,6 +552,8 @@ struct ECHServerConfig {
 std::optional<ECHServerConfig>
 read_ech_server_config(const std::string_view &path);
 
+std::span<uint64_t, 2> generate_siphash_key();
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);
@@ -561,8 +563,7 @@ std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);
 namespace std {
 template <> struct hash<ngtcp2_cid> {
   hash() {
-    assert(0 == ngtcp2::util::generate_secure_random(
-                  as_writable_uint8_span(std::span{key})));
+    std::ranges::copy(ngtcp2::util::generate_siphash_key(), key.begin());
   }
 
   std::size_t operator()(const ngtcp2_cid &cid) const noexcept {

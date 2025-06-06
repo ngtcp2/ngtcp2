@@ -833,6 +833,25 @@ read_ech_server_config(const std::string_view &path) {
     .ech_config = std::move(*ech_config),
   };
 }
+
+std::span<uint64_t, 2> generate_siphash_key() {
+  static auto key = []() {
+    std::array<uint64_t, 2> key;
+
+    auto rv = generate_secure_random(as_writable_uint8_span(std::span{key}));
+    if (rv != 0) {
+      assert(0);
+      abort();
+    }
+
+    return key;
+  }();
+
+  ++key[0];
+
+  return key;
+}
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {
