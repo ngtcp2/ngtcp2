@@ -39,6 +39,7 @@
 #include "ngtcp2_net.h"
 #include "ngtcp2_transport_params.h"
 #include "ngtcp2_settings.h"
+#include "ngtcp2_callbacks.h"
 #include "ngtcp2_tstamp.h"
 #include "ngtcp2_frame_chain.h"
 
@@ -276,6 +277,33 @@ static int conn_call_remove_connection_id(ngtcp2_conn *conn,
   }
 
   rv = conn->callbacks.remove_connection_id(conn, cid, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_begin_path_validation(ngtcp2_conn *conn,
+                                           const ngtcp2_pv *pv) {
+  int rv;
+  uint32_t flags = NGTCP2_PATH_VALIDATION_FLAG_NONE;
+  const ngtcp2_path *old_path = NULL;
+
+  if (!pv || !conn->callbacks.begin_path_validation) {
+    return 0;
+  }
+
+  if (pv->flags & NGTCP2_PV_FLAG_PREFERRED_ADDR) {
+    flags |= NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR;
+  }
+
+  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
+    old_path = &pv->fallback_dcid.ps.path;
+  }
+
+  rv = conn->callbacks.begin_path_validation(conn, flags, &pv->dcid.ps.path,
+                                             old_path, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -1109,13 +1137,15 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   uint32_t *preferred_versions;
   ngtcp2_settings settingsbuf;
   ngtcp2_transport_params paramsbuf;
-  (void)callbacks_version;
+  ngtcp2_callbacks callbacksbuf;
   (void)settings_version;
 
   settings =
     ngtcp2_settings_convert_to_latest(&settingsbuf, settings_version, settings);
   params = ngtcp2_transport_params_convert_to_latest(
     &paramsbuf, transport_params_version, params);
+  callbacks = ngtcp2_callbacks_convert_to_latest(&callbacksbuf,
+                                                 callbacks_version, callbacks);
 
   assert(settings->max_window <= NGTCP2_MAX_VARINT);
   assert(settings->max_stream_window <= NGTCP2_MAX_VARINT);
@@ -5786,7 +5816,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
   conn->pv = npv;
 
-  return 0;
+  return conn_call_begin_path_validation(conn, conn->pv);
 }
 
 /*
@@ -8030,7 +8060,12 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
 
   conn->pv = pv;
 
-  return conn_call_activate_dcid(conn, &pv->dcid);
+  rv = conn_call_activate_dcid(conn, &pv->dcid);
+  if (rv != 0) {
+    return rv;
+  }
+
+  return conn_call_begin_path_validation(conn, conn->pv);
 }
 
 /*
@@ -8421,7 +8456,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   conn->pv = pv;
 
-  return 0;
+  return conn_call_begin_path_validation(conn, conn->pv);
 }
 
 /*
@@ -13138,7 +13173,12 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
     conn->pv = pv;
   }
 
-  return conn_call_activate_dcid(conn, &conn->dcid.current);
+  rv = conn_call_activate_dcid(conn, &conn->dcid.current);
+  if (rv != 0) {
+    return rv;
+  }
+
+  return conn_call_begin_path_validation(conn, conn->pv);
 }
 
 int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
@@ -13178,7 +13218,12 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   conn->pv = pv;
 
-  return conn_call_activate_dcid(conn, &pv->dcid);
+  rv = conn_call_activate_dcid(conn, &pv->dcid);
+  if (rv != 0) {
+    return rv;
+  }
+
+  return conn_call_begin_path_validation(conn, conn->pv);
 }
 
 uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn) {

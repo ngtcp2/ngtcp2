@@ -289,6 +289,11 @@ typedef struct {
     int64_t stream_id;
     uint64_t app_error_code;
   } stream_close;
+  struct {
+    uint32_t flags;
+    ngtcp2_path_storage path;
+    ngtcp2_path_storage fallback_path;
+  } begin_path_validation;
 } my_user_data;
 
 static int client_initial(ngtcp2_conn *conn, void *user_data) {
@@ -728,6 +733,30 @@ static int lost_datagram(ngtcp2_conn *conn, uint64_t dgram_id,
   (void)conn;
   (void)dgram_id;
   (void)user_data;
+
+  return 0;
+}
+
+static int begin_path_validation(ngtcp2_conn *conn, uint32_t flags,
+                                 const ngtcp2_path *path,
+                                 const ngtcp2_path *fallback_path,
+                                 void *user_data) {
+  my_user_data *ud = user_data;
+  (void)conn;
+
+  if (!ud) {
+    return 0;
+  }
+
+  ud->begin_path_validation.flags = flags;
+  ngtcp2_path_storage_init2(&ud->begin_path_validation.path, path);
+
+  if (fallback_path) {
+    ngtcp2_path_storage_init2(&ud->begin_path_validation.fallback_path,
+                              fallback_path);
+  } else {
+    ngtcp2_path_storage_zero(&ud->begin_path_validation.fallback_path);
+  }
 
   return 0;
 }
@@ -12440,9 +12469,19 @@ void test_ngtcp2_conn_path_validation(void) {
   ngtcp2_path_storage rpath, wpath;
   ngtcp2_pv_entry *ent;
   ngtcp2_tpe tpe;
+  my_user_data ud;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   /* server starts path validation in NAT rebinding scenario. */
-  setup_default_server(&conn);
+  server_default_callbacks(&callbacks);
+  callbacks.begin_path_validation = begin_path_validation;
+
+  conn_options_clear(&opts);
+  opts.callbacks = &callbacks;
+  opts.user_data = &ud;
+
+  setup_default_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   /* This will send NEW_CONNECTION_ID frames */
@@ -12455,12 +12494,21 @@ void test_ngtcp2_conn_path_validation(void) {
   /* Just change remote port */
   path_init(&rpath, 0, 0, 0, 1);
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  ud.begin_path_validation.flags = 0;
+  ngtcp2_path_storage_zero(&ud.begin_path_validation.path);
+  ngtcp2_path_storage_zero(&ud.begin_path_validation.fallback_path);
+
   rv = ngtcp2_conn_read_pkt(conn, &rpath.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
   assert_not_null(conn->pv);
   assert_uint64(0, ==, conn->pv->dcid.seq);
   assert_true(ngtcp2_path_eq(&conn->pv->dcid.ps.path, &rpath.path));
+  assert_uint32(0, ==, ud.begin_path_validation.flags);
+  assert_true(ngtcp2_path_eq(&rpath.path, &ud.begin_path_validation.path.path));
+  assert_true(ngtcp2_path_eq(&null_path.path,
+                             &ud.begin_path_validation.fallback_path.path));
 
   ngtcp2_path_storage_zero(&wpath);
   spktlen =
