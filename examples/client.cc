@@ -1234,7 +1234,7 @@ void Client::update_timer() {
 
 #ifdef HAVE_LINUX_RTNETLINK_H
 namespace {
-int bind_addr(Address &local_addr, int fd, const in_addr_union *iau_param,
+int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
               int family) {
   addrinfo hints{
     .ai_flags = AI_PASSIVE,
@@ -1242,10 +1242,9 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau_param,
     .ai_socktype = SOCK_DGRAM,
   };
   addrinfo *res, *rp;
-  char *node = nullptr;
+  char *node;
   std::array<char, NI_MAXHOST> nodebuf;
   in_addr_union iau_storage;
-  const in_addr_union *iau = iau_param;
 
   if (!config.client_ip.empty()) {
     if (family == AF_INET) {
@@ -1270,6 +1269,8 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau_param,
       return -1;
     }
     node = nodebuf.data();
+    } else {
+    node = nullptr;
   }
 
   if (auto rv = getaddrinfo(node, "0", &hints, &res); rv != 0) {
@@ -2389,6 +2390,7 @@ int run(Client &c, const char *addr, const char *port,
   }
 
 #ifdef HAVE_LINUX_RTNETLINK_H
+  in_addr_union iau;
   in_addr_union iau_auto;
   in_addr_union *iau_ptr = nullptr;
 
@@ -2402,7 +2404,7 @@ int run(Client &c, const char *addr, const char *port,
   }
   // If config.client_ip is set, iau_ptr remains nullptr and bind_addr will handle it.
 
-  if (bind_addr(local_addr, fd, iau_ptr, remote_addr.su.sa.sa_family) != 0) {
+  if (bind_addr(local_addr, fd, &iau, remote_addr.su.sa.sa_family) != 0) {
     close(fd);
     return -1;
   }
