@@ -193,6 +193,8 @@ struct Config {
   std::vector<uint16_t> pmtud_probes;
   // ech_config_list contains ECHConfigList.
   std::vector<uint8_t> ech_config_list;
+  // client_ip is the client IP address to use.
+  std::string client_ip;
 };
 
 class ClientBase {
