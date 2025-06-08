@@ -1269,7 +1269,7 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
       return -1;
     }
     node = nodebuf.data();
-    } else {
+  } else {
     node = nullptr;
   }
 
