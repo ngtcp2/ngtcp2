@@ -1234,7 +1234,7 @@ void Client::update_timer() {
 
 #ifdef HAVE_LINUX_RTNETLINK_H
 namespace {
-int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
+int bind_addr(Address &local_addr, int fd, const in_addr_union *iau_param,
               int family) {
   addrinfo hints{
     .ai_flags = AI_PASSIVE,
@@ -1242,18 +1242,34 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
     .ai_socktype = SOCK_DGRAM,
   };
   addrinfo *res, *rp;
-  char *node;
+  char *node = nullptr;
   std::array<char, NI_MAXHOST> nodebuf;
+  in_addr_union iau_storage;
+  const in_addr_union *iau = iau_param;
 
-  if (iau) {
+  if (!config.client_ip.empty()) {
+    if (family == AF_INET) {
+      if (inet_pton(AF_INET, config.client_ip.c_str(), &iau_storage.in) != 1) {
+        std::cerr << "inet_pton: Could not parse client IP " << config.client_ip << std::endl;
+        return -1;
+      }
+    } else if (family == AF_INET6) {
+      if (inet_pton(AF_INET6, config.client_ip.c_str(), &iau_storage.in6) != 1) {
+        std::cerr << "inet_pton: Could not parse client IP " << config.client_ip << std::endl;
+        return -1;
+      }
+    } else {
+      // Should not happen with current supported families
+      return -1;
+    }
+    iau = &iau_storage;
+    node = const_cast<char *>(config.client_ip.c_str());
+  } else if (iau) {
     if (inet_ntop(family, iau, nodebuf.data(), nodebuf.size()) == nullptr) {
       std::cerr << "inet_ntop: " << strerror(errno) << std::endl;
       return -1;
     }
-
     node = nodebuf.data();
-  } else {
-    node = nullptr;
   }
 
   if (auto rv = getaddrinfo(node, "0", &hints, &res); rv != 0) {
@@ -1290,6 +1306,35 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
 #ifndef HAVE_LINUX_RTNETLINK_H
 namespace {
 int connect_sock(Address &local_addr, int fd, const Address &remote_addr) {
+  if (!config.client_ip.empty()) {
+    addrinfo hints{
+        .ai_flags = AI_PASSIVE,
+        .ai_family = remote_addr.su.sa.sa_family,
+        .ai_socktype = SOCK_DGRAM,
+    };
+    addrinfo *res, *rp;
+
+    if (auto rv = getaddrinfo(config.client_ip.c_str(), "0", &hints, &res);
+        rv != 0) {
+      std::cerr << "getaddrinfo for local bind: " << gai_strerror(rv)
+                << std::endl;
+      return -1;
+    }
+
+    auto res_d = defer(freeaddrinfo, res);
+
+    for (rp = res; rp; rp = rp->ai_next) {
+      if (bind(fd, rp->ai_addr, rp->ai_addrlen) != -1) {
+        break;
+      }
+    }
+
+    if (!rp) {
+      std::cerr << "Could not bind to client IP " << config.client_ip << ": " << strerror(errno) << std::endl;
+      return -1;
+    }
+  }
+
   if (connect(fd, &remote_addr.su.sa, remote_addr.len) != 0) {
     std::cerr << "connect: " << strerror(errno) << std::endl;
     return -1;
@@ -2344,15 +2389,20 @@ int run(Client &c, const char *addr, const char *port,
   }
 
 #ifdef HAVE_LINUX_RTNETLINK_H
-  in_addr_union iau;
+  in_addr_union iau_auto;
+  in_addr_union *iau_ptr = nullptr;
 
-  if (get_local_addr(iau, remote_addr) != 0) {
-    std::cerr << "Could not get local address" << std::endl;
-    close(fd);
-    return -1;
+  if (config.client_ip.empty()) {
+    if (get_local_addr(iau_auto, remote_addr) != 0) {
+      std::cerr << "Could not get local address" << std::endl;
+      close(fd);
+      return -1;
+    }
+    iau_ptr = &iau_auto;
   }
+  // If config.client_ip is set, iau_ptr remains nullptr and bind_addr will handle it.
 
-  if (bind_addr(local_addr, fd, &iau, remote_addr.su.sa.sa_family) != 0) {
+  if (bind_addr(local_addr, fd, iau_ptr, remote_addr.su.sa.sa_family) != 0) {
     close(fd);
     return -1;
   }
@@ -2461,23 +2511,60 @@ void print_usage() {
 namespace {
 void config_set_default(Config &config) {
   config = Config{
+    // .dcid, .scid, .scid_present are not set here as they need specific values or are flags.
     .tx_loss_prob = 0.,
     .rx_loss_prob = 0.,
     .fd = -1,
     .ciphers = util::crypto_default_ciphers(),
     .groups = util::crypto_default_groups(),
+    // .nstreams is typically set based on command line args or defaults to requests.size()
+    // .data is set if a data file is provided
+    // .datalen is set if a data file is provided
     .version = NGTCP2_PROTO_VER_V1,
+    // .quiet is a flag, defaults to false
     .timeout = 30 * NGTCP2_SECONDS,
+    // .session_file is set by command line
+    // .tp_file is set by command line
+    // .show_secret is a flag, defaults to false
+    // .change_local_addr is set by command line
+    // .key_update is set by command line
+    // .delay_stream is set by command line
+    // .nat_rebinding is a flag, defaults to false
+    // .no_preferred_addr is a flag, defaults to false
     .http_method = "GET"sv,
+    // .download is set by command line
+    // .requests is populated by command line args
+    // .no_quic_dump is a flag, defaults to false
+    // .no_http_dump is a flag, defaults to false
+    // .qlog_file is set by command line
+    // .qlog_dir is set by command line
     .max_data = 24_m,
     .max_stream_data_bidi_local = 16_m,
+    .max_stream_data_bidi_remote = config.max_stream_data_bidi_remote, // Keep previous default if any, or set explicitly
     .max_stream_data_uni = 16_m,
+    .max_streams_bidi = config.max_streams_bidi, // Keep previous default
     .max_streams_uni = 100,
+    .max_window = config.max_window, // Keep previous default
+    .max_stream_window = config.max_stream_window, // Keep previous default
+    // .exit_on_first_stream_close is a flag, defaults to false
+    // .exit_on_all_streams_close is a flag, defaults to false
+    // .disable_early_data is a flag, defaults to false
+    // .static_secret is generated later
     .cc_algo = NGTCP2_CC_ALGO_CUBIC,
+    // .token_file is set by command line
+    // .sni is set by command line or from host
     .initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT,
+    // .max_udp_payload_size is set by command line or based on pmtud_probes
     .handshake_timeout = UINT64_MAX,
+    // .preferred_versions is set by command line
+    // .available_versions is set by command line
+    // .no_pmtud is a flag, defaults to false
     .ack_thresh = 2,
+    // .wait_for_ticket is a flag, defaults to false
     .initial_pkt_num = UINT32_MAX,
+    // .pmtud_probes is set by command line
+    // .ech_config_list is set by command line
+    .client_ip = "",
   };
 }
 } // namespace
@@ -2696,6 +2783,10 @@ Options:
   --ech-config-list-file=<PATH>
               Read ECHConfigList  from <PATH>.  ECH is  only attempted
               if an underlying TLS stack supports it.
+  --client-ip=<IP>
+              Specify the client IP address to use. If not specified,
+              the client IP address is automatically assigned by the
+              operating system.
   -h, --help  Display this help and exit.
 
 ---
@@ -2782,6 +2873,7 @@ int main(int argc, char **argv) {
       {"initial-pkt-num", required_argument, &flag, 42},
       {"pmtud-probes", required_argument, &flag, 43},
       {"ech-config-list-file", required_argument, &flag, 44},
+      {"client-ip", required_argument, &flag, 45},
       {},
     };
 
@@ -3228,6 +3320,10 @@ int main(int argc, char **argv) {
       case 44:
         // --ech-config-list-file
         ech_config_list_file = optarg;
+        break;
+      case 45:
+        // --client-ip
+        config.client_ip = optarg;
         break;
       }
       break;
