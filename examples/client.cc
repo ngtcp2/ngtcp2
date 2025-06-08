@@ -2511,59 +2511,22 @@ void print_usage() {
 namespace {
 void config_set_default(Config &config) {
   config = Config{
-    // .dcid, .scid, .scid_present are not set here as they need specific values or are flags.
     .tx_loss_prob = 0.,
     .rx_loss_prob = 0.,
     .fd = -1,
     .ciphers = util::crypto_default_ciphers(),
     .groups = util::crypto_default_groups(),
-    // .nstreams is typically set based on command line args or defaults to requests.size()
-    // .data is set if a data file is provided
-    // .datalen is set if a data file is provided
     .version = NGTCP2_PROTO_VER_V1,
-    // .quiet is a flag, defaults to false
     .timeout = 30 * NGTCP2_SECONDS,
-    // .session_file is set by command line
-    // .tp_file is set by command line
-    // .show_secret is a flag, defaults to false
-    // .change_local_addr is set by command line
-    // .key_update is set by command line
-    // .delay_stream is set by command line
-    // .nat_rebinding is a flag, defaults to false
-    // .no_preferred_addr is a flag, defaults to false
     .http_method = "GET"sv,
-    // .download is set by command line
-    // .requests is populated by command line args
-    // .no_quic_dump is a flag, defaults to false
-    // .no_http_dump is a flag, defaults to false
-    // .qlog_file is set by command line
-    // .qlog_dir is set by command line
     .max_data = 24_m,
     .max_stream_data_bidi_local = 16_m,
-    .max_stream_data_bidi_remote = config.max_stream_data_bidi_remote, // Keep previous default if any, or set explicitly
     .max_stream_data_uni = 16_m,
-    .max_streams_bidi = config.max_streams_bidi, // Keep previous default
     .max_streams_uni = 100,
-    .max_window = config.max_window, // Keep previous default
-    .max_stream_window = config.max_stream_window, // Keep previous default
-    // .exit_on_first_stream_close is a flag, defaults to false
-    // .exit_on_all_streams_close is a flag, defaults to false
-    // .disable_early_data is a flag, defaults to false
-    // .static_secret is generated later
     .cc_algo = NGTCP2_CC_ALGO_CUBIC,
-    // .token_file is set by command line
-    // .sni is set by command line or from host
     .initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT,
-    // .max_udp_payload_size is set by command line or based on pmtud_probes
     .handshake_timeout = UINT64_MAX,
-    // .preferred_versions is set by command line
-    // .available_versions is set by command line
-    // .no_pmtud is a flag, defaults to false
     .ack_thresh = 2,
-    // .wait_for_ticket is a flag, defaults to false
-    .initial_pkt_num = UINT32_MAX,
-    // .pmtud_probes is set by command line
-    // .ech_config_list is set by command line
     .client_ip = "",
   };
 }
