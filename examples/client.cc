@@ -2527,6 +2527,7 @@ void config_set_default(Config &config) {
     .initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT,
     .handshake_timeout = UINT64_MAX,
     .ack_thresh = 2,
+    .initial_pkt_num = UINT32_MAX,
     .client_ip = "",
   };
 }
