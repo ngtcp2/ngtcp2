@@ -2404,7 +2404,7 @@ int run(Client &c, const char *addr, const char *port,
   }
   // If config.client_ip is set, iau_ptr remains nullptr and bind_addr will handle it.
 
-  if (bind_addr(local_addr, fd, &iau, remote_addr.su.sa.sa_family) != 0) {
+  if (bind_addr(local_addr, fd, iau_ptr, remote_addr.su.sa.sa_family) != 0) {
     close(fd);
     return -1;
   }
