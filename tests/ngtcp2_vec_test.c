@@ -600,7 +600,7 @@ void test_ngtcp2_vec_copy_at_most(void) {
   /* 0 length vectors */
   {
     ngtcp2_vec dst[1];
-    const ngtcp2_vec src[1];
+    const ngtcp2_vec src[1] = {0};
 
     n = ngtcp2_vec_copy_at_most(dst, 0, src, 0, 100);
 
