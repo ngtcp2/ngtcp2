@@ -1619,7 +1619,11 @@ typedef enum ngtcp2_cc_algo {
   /**
    * :enum:`NGTCP2_CC_ALGO_BBR` represents BBR v2.
    */
-  NGTCP2_CC_ALGO_BBR = 0x02
+  NGTCP2_CC_ALGO_BBR = 0x02,
+  /**
+   * :enum:`NGTCP2_CC_ALGO_WAVE` represents Wave.
+   */
+  NGTCP2_CC_ALGO_WAVE = 0x03
 } ngtcp2_cc_algo;
 
 /**

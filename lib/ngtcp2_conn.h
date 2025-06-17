@@ -43,6 +43,7 @@
 #include "ngtcp2_pq.h"
 #include "ngtcp2_cc.h"
 #include "ngtcp2_bbr.h"
+#include "ngtcp2_wave.h"
 #include "ngtcp2_pv.h"
 #include "ngtcp2_pmtud.h"
 #include "ngtcp2_cid.h"
@@ -636,6 +637,7 @@ struct ngtcp2_conn {
     ngtcp2_cc_reno reno;
     ngtcp2_cc_cubic cubic;
     ngtcp2_cc_bbr bbr;
+    ngtcp2_cc_wave wave;
   };
   /* path_history remembers the paths that have been validated
      successfully.  The path is added to this history when a local
