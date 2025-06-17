@@ -313,14 +313,6 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
                             void *user_data, void *stream_user_data) {
   auto stream = static_cast<Stream *>(stream_user_data);
 
-  ngtcp2_conn_info ci;
-
-  ngtcp2_conn_get_conn_info(stream->handler->conn(), &ci);
-
-  if (stream->dynbuflen > ci.cwnd) {
-    return NGHTTP3_ERR_WOULDBLOCK;
-  }
-
   auto len =
     std::min(dyn_buf->size(), static_cast<size_t>(stream->dyndataleft));
 
@@ -1162,19 +1154,6 @@ int http_acked_stream_data(nghttp3_conn *conn, int64_t stream_id,
 
 void Handler::http_acked_stream_data(Stream *stream, uint64_t datalen) {
   stream->http_acked_stream_data(datalen);
-
-  ngtcp2_conn_info ci;
-
-  ngtcp2_conn_get_conn_info(stream->handler->conn(), &ci);
-
-  if (stream->dynresp && stream->dynbuflen < ci.cwnd) {
-    if (auto rv = nghttp3_conn_resume_stream(httpconn_, stream->stream_id);
-        rv != 0) {
-      // TODO Handle error
-      std::cerr << "nghttp3_conn_resume_stream: " << nghttp3_strerror(rv)
-                << std::endl;
-    }
-  }
 }
 
 namespace {
