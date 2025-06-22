@@ -446,6 +446,8 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
     if (rtb->qlog) {
       ngtcp2_qlog_pkt_lost(rtb->qlog, ent);
     }
+
+    rtb->rst->lost += ent->pktlen;
   }
 
   if (ent->flags &
@@ -941,8 +943,6 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       }
     }
   }
-
-  rtb->rst->lost += cc_ack.bytes_lost;
 
   cc_ack.largest_pkt_sent_ts = largest_pkt_sent_ts;
   if (num_acked && cc->on_ack_recv) {
