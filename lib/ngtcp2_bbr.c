@@ -980,9 +980,8 @@ static void bbr_handle_lost_packet(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
   }
 
   rs->tx_in_flight = pkt->tx_in_flight;
-  /* bbr->rst->lost is not incremented for pkt yet */
-  assert(bbr->rst->lost + pkt->pktlen >= pkt->lost);
-  rs->lost = bbr->rst->lost + pkt->pktlen - pkt->lost;
+  assert(bbr->rst->lost >= pkt->lost);
+  rs->lost = bbr->rst->lost - pkt->lost;
   rs->is_app_limited = pkt->is_app_limited;
 
   if (bbr_is_inflight_too_high(bbr)) {

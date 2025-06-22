@@ -451,13 +451,17 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   if (ent->flags &
       (NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE | NGTCP2_RTB_ENTRY_FLAG_SKIP)) {
     ++rtb->num_lost_ignore_pkts;
-  } else if (rtb->cc->on_pkt_lost) {
-    cc->on_pkt_lost(cc, cstat,
-                    ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen,
-                                       pktns->id, ent->ts, ent->rst.lost,
-                                       ent->rst.tx_in_flight,
-                                       ent->rst.is_app_limited),
-                    ts);
+  } else if (ent->hd.pkt_num >= rtb->cc_pkt_num) {
+    rtb->rst->lost += ent->pktlen;
+
+    if (rtb->cc->on_pkt_lost) {
+      cc->on_pkt_lost(cc, cstat,
+                      ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen,
+                                         pktns->id, ent->ts, ent->rst.lost,
+                                         ent->rst.tx_in_flight,
+                                         ent->rst.is_app_limited),
+                      ts);
+    }
   }
 
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
@@ -704,6 +708,8 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   ngtcp2_cc *cc = rtb->cc;
   ngtcp2_cc_pkt pkt;
 
+  assert(ent->hd.pkt_num >= rtb->cc_pkt_num);
+
   ngtcp2_rst_update_rate_sample(rtb->rst, ent, ts);
 
   if (cc->on_pkt_acked) {
@@ -843,7 +849,6 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     }
 
     rtb_remove(rtb, &it, &acked_ent, ent, cstat);
-    ++num_acked;
   }
 
   for (i = 0; i < fr->rangecnt; ++i) {
@@ -873,7 +878,6 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       }
 
       rtb_remove(rtb, &it, &acked_ent, ent, cstat);
-      ++num_acked;
     }
   }
 
@@ -882,7 +886,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       ngtcp2_max_uint64(pkt_ts - largest_pkt_sent_ts, NGTCP2_NANOSECONDS);
 
     rv = ngtcp2_conn_update_rtt(conn, cc_ack.rtt, fr->ack_delay_unscaled, ts);
-    if (rv == 0 && cc->new_rtt_sample) {
+    if (rv == 0 && cc->new_rtt_sample &&
+        rtb->largest_acked_tx_pkt_num >= rtb->cc_pkt_num) {
       cc->new_rtt_sample(cc, cstat, ts);
     }
   }
@@ -904,9 +909,12 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
         cc_ack.bytes_delivered += ent->pktlen;
         cc_ack.pkt_delivered = ent->rst.delivered;
+
+        rtb_on_pkt_acked(rtb, ent, cstat, pktns, ts);
+
+        ++num_acked;
       }
 
-      rtb_on_pkt_acked(rtb, ent, cstat, pktns, ts);
       acked_ent = ent->next;
       ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
                                     rtb->frc_objalloc, rtb->mem);
@@ -921,6 +929,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     for (ent = acked_ent; ent; ent = acked_ent) {
       rtb_on_pkt_acked(rtb, ent, cstat, pktns, ts);
       acked_ent = ent->next;
+      ++num_acked;
       ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
                                     rtb->frc_objalloc, rtb->mem);
     }
@@ -941,8 +950,6 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       }
     }
   }
-
-  rtb->rst->lost += cc_ack.bytes_lost;
 
   cc_ack.largest_pkt_sent_ts = largest_pkt_sent_ts;
   if (num_acked && cc->on_ack_recv) {
