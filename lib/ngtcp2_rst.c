@@ -57,7 +57,6 @@ void ngtcp2_rst_reset(ngtcp2_rst *rst) {
   rst->app_limited = 0;
   rst->is_cwnd_limited = 0;
   rst->lost = 0;
-  rst->valid_after_seq = rst->last_seq;
 }
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
@@ -101,24 +100,18 @@ void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
   cstat->delivery_rate_sec = rs->delivered * NGTCP2_SECONDS / rs->interval;
 }
 
-static int rst_is_newest_pkt(const ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
-                             const ngtcp2_rs *rs) {
-  return ent->ts > rst->first_sent_ts ||
-         (ent->ts == rst->first_sent_ts && ent->rst.end_seq > rs->last_end_seq);
+static int is_newest_pkt(const ngtcp2_rtb_entry *ent, const ngtcp2_rs *rs) {
+  return ent->rst.end_seq > rs->last_end_seq;
 }
 
 void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts) {
   ngtcp2_rs *rs = &rst->rs;
 
-  if (ent->rst.end_seq <= rst->valid_after_seq) {
-    return;
-  }
-
   rst->delivered += ent->pktlen;
   rst->delivered_ts = ts;
 
-  if (rs->prior_ts == UINT64_MAX || rst_is_newest_pkt(rst, ent, rs)) {
+  if (rs->prior_ts == UINT64_MAX || is_newest_pkt(ent, rs)) {
     rs->prior_delivered = ent->rst.delivered;
     rs->prior_ts = ent->rst.delivered_ts;
     rs->is_app_limited = ent->rst.is_app_limited;
