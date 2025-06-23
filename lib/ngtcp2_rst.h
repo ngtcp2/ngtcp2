@@ -72,10 +72,6 @@ typedef struct ngtcp2_rst {
      across all packet number spaces, we can replace this with a
      packet number. */
   int64_t last_seq;
-  /* valid_after_seq is the sequence number, and ignore a packet if
-     the sequence number of the packet is less than or equal to this
-     number. */
-  int64_t valid_after_seq;
   int is_cwnd_limited;
 } ngtcp2_rst;
 

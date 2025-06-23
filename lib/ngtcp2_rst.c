@@ -57,7 +57,6 @@ void ngtcp2_rst_reset(ngtcp2_rst *rst) {
   rst->app_limited = 0;
   rst->is_cwnd_limited = 0;
   rst->lost = 0;
-  rst->valid_after_seq = rst->last_seq;
 }
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
@@ -110,10 +109,6 @@ static int rst_is_newest_pkt(const ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
 void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts) {
   ngtcp2_rs *rs = &rst->rs;
-
-  if (ent->rst.end_seq <= rst->valid_after_seq) {
-    return;
-  }
 
   rst->delivered += ent->pktlen;
   rst->delivered_ts = ts;
