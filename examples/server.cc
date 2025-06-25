@@ -2587,6 +2587,35 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
       return;
     }
 
+      // Check if the client's version is in the server's available_versions.
+      // If not, send a version negotiation packet.
+      // Ensure config.available_versions is not empty before iterating.
+      // If config.available_versions is empty, it means server supports default versions,
+      // and ngtcp2 library handles it. This check is for when server explicitly restricts versions.
+      if (!config.available_versions.empty()) {
+        bool version_found = false;
+        for (uint32_t available_ver : config.available_versions) {
+          if (hd.version == available_ver) {
+            version_found = true;
+            break;
+          }
+        }
+
+        if (!version_found) {
+          if (!config.quiet) {
+            std::cerr << "Client version " << std::hex << "0x" << hd.version
+                      << std::dec << " is not in the configured available_versions. Sending Version Negotiation."
+                      << std::endl;
+          }
+          // vc contains the CIDs from the initial packet decode.
+          // hd also contains them, but vc is what ngtcp2_pkt_decode_version_cid gave us.
+          // It's safer to use CIDs from vc for constructing VN packet.
+          send_version_negotiation(hd.version, {vc.scid, vc.scidlen}, {vc.dcid, vc.dcidlen},
+                                   ep, local_addr, sa, salen);
+          return;
+        }
+      }
+
     ngtcp2_cid ocid;
     ngtcp2_cid *pocid = nullptr;
     ngtcp2_token_type token_type = NGTCP2_TOKEN_TYPE_UNKNOWN;
