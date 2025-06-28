@@ -1,0 +1,81 @@
+name: Update All Branches from Upstream
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Run once every 24 hours at midnight UTC
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  update-all-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for all branches and tags
+          token: ${{ secrets.GITHUB_TOKEN }} # Uses the GITHUB_TOKEN provided by Actions
+
+      - name: Set up Git user
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Add upstream remote and fetch
+        run: |
+          git remote add upstream https://github.com/ngtcp2/ngtcp2.git
+          git fetch upstream
+          echo "Upstream remote added and fetched."
+
+      - name: Determine Upstream Default Branch
+        id: upstream_default_branch
+        run: |
+          # Get the default branch of the upstream remote
+          DEFAULT_BRANCH_UPSTREAM=$(git remote show upstream | grep 'HEAD branch' | cut -d' ' -f5)
+          if [ -z "$DEFAULT_BRANCH_UPSTREAM" ]; then
+            echo "Could not determine upstream default branch. Exiting."
+            exit 1
+          fi
+          echo "UPSTREAM_DEFAULT_BRANCH=$DEFAULT_BRANCH_UPSTREAM" >> $GITHUB_OUTPUT
+          echo "Upstream default branch is: $DEFAULT_BRANCH_UPSTREAM"
+
+      - name: Update all local branches from upstream default
+        env:
+          UPSTREAM_DEFAULT_BRANCH: ${{ steps.upstream_default_branch.outputs.UPSTREAM_DEFAULT_BRANCH }}
+        run: |
+          echo "Starting branch update process against upstream/${UPSTREAM_DEFAULT_BRANCH}..."
+          
+          # Get all local branches that are also on origin (your fork)
+          # This avoids trying to update detached HEADs or other non-branch refs
+          for branch in $(git branch -r | grep 'origin/' | grep -v 'origin/HEAD' | sed 's/origin\///'); do
+            echo "--- Processing branch: $branch ---"
+            git checkout $branch
+            
+            echo "Current HEAD is $(git rev-parse HEAD)"
+            echo "Attempting to rebase $branch onto upstream/${UPSTREAM_DEFAULT_BRANCH}..."
+            
+            # Attempt rebase
+            if git rebase upstream/${UPSTREAM_DEFAULT_BRANCH}; then
+              echo "Rebase successful for $branch."
+              echo "Pushing $branch to origin with force..."
+              git push origin $branch --force
+              echo "$branch updated and pushed successfully."
+            else
+              echo "Rebase failed for $branch. Aborting rebase and skipping push for this branch."
+              echo "You may need to resolve conflicts manually for $branch."
+              git rebase --abort # Clean up failed rebase
+              # Optionally, you could add error handling here, like creating an issue
+            fi
+            echo "--- Finished processing branch: $branch ---"
+            echo ""
+          done
+          
+          # Attempt to switch back to the local default branch (if it exists)
+          # First, determine local default branch name
+          LOCAL_DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5 || echo "main")
+          if git show-ref --verify --quiet refs/heads/$LOCAL_DEFAULT_BRANCH; then
+            echo "Switching back to local default branch: $LOCAL_DEFAULT_BRANCH"
+            git checkout $LOCAL_DEFAULT_BRANCH
+          else
+            echo "Local default branch $LOCAL_DEFAULT_BRANCH not found. Staying on last processed branch or detached HEAD."
+          fi
+          echo "Branch update process complete."
