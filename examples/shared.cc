@@ -110,7 +110,7 @@ void fd_set_ip_mtu_discover(int fd, int family) {
 
   switch (family) {
   case AF_INET:
-    val = IP_PMTUDISC_DO;
+    val = IP_PMTUDISC_PROBE;
     if (setsockopt(fd, IPPROTO_IP, IP_MTU_DISCOVER, &val,
                    static_cast<socklen_t>(sizeof(val))) == -1) {
       std::cerr << "setsockopt: IP_MTU_DISCOVER: " << strerror(errno)
@@ -118,7 +118,7 @@ void fd_set_ip_mtu_discover(int fd, int family) {
     }
     break;
   case AF_INET6:
-    val = IPV6_PMTUDISC_DO;
+    val = IPV6_PMTUDISC_PROBE;
     if (setsockopt(fd, IPPROTO_IPV6, IPV6_MTU_DISCOVER, &val,
                    static_cast<socklen_t>(sizeof(val))) == -1) {
       std::cerr << "setsockopt: IPV6_MTU_DISCOVER: " << strerror(errno)
