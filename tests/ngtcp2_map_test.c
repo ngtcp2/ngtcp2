@@ -56,7 +56,7 @@ static void strentry_init(strentry *entry, ngtcp2_map_key_type key,
 void test_ngtcp2_map(void) {
   strentry foo, FOO, bar, baz, shrubbery;
   ngtcp2_map map;
-  ngtcp2_map_init(&map, ngtcp2_mem_default());
+  ngtcp2_map_init(&map, 0, ngtcp2_mem_default());
 
   strentry_init(&foo, 1, "foo");
   strentry_init(&FOO, 1, "FOO");
@@ -130,7 +130,7 @@ void test_ngtcp2_map_functional(void) {
   int i;
   strentry *ent;
 
-  ngtcp2_map_init(&map, ngtcp2_mem_default());
+  ngtcp2_map_init(&map, 0, ngtcp2_mem_default());
   for (i = 0; i < NUM_ENT; ++i) {
     strentry_init(&arr[i], (ngtcp2_map_key_type)(i + 1), "foo");
     order[i] = i + 1;
@@ -183,7 +183,7 @@ void test_ngtcp2_map_each(void) {
            *baz = mem->malloc(sizeof(strentry), NULL),
            *shrubbery = mem->malloc(sizeof(strentry), NULL);
   ngtcp2_map map;
-  ngtcp2_map_init(&map, ngtcp2_mem_default());
+  ngtcp2_map_init(&map, 0, ngtcp2_mem_default());
 
   strentry_init(foo, 1, "foo");
   strentry_init(bar, 2, "bar");
@@ -206,7 +206,7 @@ void test_ngtcp2_map_clear(void) {
 
   strentry_init(&foo, 1, "foo");
 
-  ngtcp2_map_init(&map, mem);
+  ngtcp2_map_init(&map, 0, mem);
 
   assert_int(0, ==, ngtcp2_map_insert(&map, foo.key, &foo));
 
