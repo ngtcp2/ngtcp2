@@ -201,10 +201,10 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
 
   assert(data);
 
-  /* Load factor is 0.75 */
+  /* Load factor is 7/8 */
   /* Under the very initial condition, that is map->size == 0 and
-     map->hashbits == 0, 4 > 3 still holds nicely. */
-  if ((map->size + 1) * 4 > (1u << map->hashbits) * 3) {
+     map->hashbits == 0, 8 > 7 still holds nicely. */
+  if ((map->size + 1) * 8 > (1u << map->hashbits) * 7) {
     if (map->hashbits) {
       rv = map_resize(map, map->hashbits + 1);
       if (rv != 0) {
