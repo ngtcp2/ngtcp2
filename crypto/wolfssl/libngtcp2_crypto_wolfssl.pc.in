@@ -31,3 +31,4 @@ URL: https://github.com/ngtcp2/ngtcp2
 Version: @VERSION@
 Libs: -L${libdir} -lngtcp2_crypto_wolfssl
 Cflags: -I${includedir}
+Requires: wolfssl
