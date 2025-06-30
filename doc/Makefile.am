@@ -30,12 +30,15 @@ SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = source
 BUILDDIR      = build
+SPHINX_BUILDERS = html man epub
+
+EXTRA_DIST = mkapiref.py source/index.rst source/programmers-guide.rst
 
 # Put it first so that "make" without argument is like "make help".
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-.PHONY: help html apiref cryptoapiref
+.PHONY: help html apiref cryptoapiref man epub pdf latexpdf doc
 
 apiref: mkapiref.py \
 	$(top_builddir)/lib/includes/ngtcp2/version.h \
@@ -62,5 +65,23 @@ cryptoapiref: mkapiref.py \
 html-local: apiref cryptoapiref
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
+sphinx-build: apiref cryptoapiref
+	@$(SPHINXBUILD) -M $(SPHINX_BUILDER) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+man: apiref cryptoapiref
+	$(MAKE) $(MAKEOPTS) sphinx-build SPHINX_BUILDER=man
+
+epub: apiref cryptoapiref
+	$(MAKE) $(MAKEOPTS) sphinx-build SPHINX_BUILDER=epub
+
+pdf-local: apiref cryptoapiref
+	$(MAKE) $(MAKEOPTS) sphinx-build SPHINX_BUILDER=latexpdf
+
+latexpdf: pdf
+
+doc:
+	for SPHINX_BUILDER in $(SPHINX_BUILDERS); do \
+		$(MAKE) $(MAKEOPTS) sphinx-build SPHINX_BUILDER=$${SPHINX_BUILDER}; \
+	done
 clean-local:
 	-rm -rf "$(BUILDDIR)"
