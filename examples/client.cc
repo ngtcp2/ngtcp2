@@ -476,12 +476,19 @@ int extend_max_local_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
 } // namespace
 
 namespace {
-void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
-  auto rv = util::generate_secure_random({dest, destlen});
+void rand_bytes(void *dest, size_t destlen) {
+  auto rv =
+    util::generate_secure_random({static_cast<uint8_t *>(dest), destlen});
   if (rv != 0) {
     assert(0);
     abort();
   }
+}
+} // namespace
+
+namespace {
+void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
+  rand_bytes(dest, destlen);
 }
 } // namespace
 
@@ -2256,6 +2263,7 @@ int Client::setup_httpconn() {
     .recv_settings = ::http_recv_settings,
     .recv_origin = ::http_recv_origin,
     .end_origin = ::http_end_origin,
+    .rand = rand_bytes,
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);
