@@ -894,9 +894,8 @@ int Handler::on_stream_stop_sending(int64_t stream_id) {
 }
 
 namespace {
-void rand_bytes(void *dest, size_t destlen) {
-  auto rv =
-    util::generate_secure_random({static_cast<uint8_t *>(dest), destlen});
+void rand_bytes(uint8_t *dest, size_t destlen) {
+  auto rv = util::generate_secure_random({dest, destlen});
   if (rv != 0) {
     assert(0);
     abort();

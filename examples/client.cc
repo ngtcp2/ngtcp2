@@ -476,9 +476,8 @@ int extend_max_local_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
 } // namespace
 
 namespace {
-void rand_bytes(void *dest, size_t destlen) {
-  auto rv =
-    util::generate_secure_random({static_cast<uint8_t *>(dest), destlen});
+void rand_bytes(uint8_t *dest, size_t destlen) {
+  auto rv = util::generate_secure_random({dest, destlen});
   if (rv != 0) {
     assert(0);
     abort();
