@@ -7070,6 +7070,73 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   assert_int(NGTCP2_ERR_INTERNAL, ==, rv);
 
   ngtcp2_conn_del(conn);
+
+  /* Received too many overlapping STREAM frames (0 length). */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  for (i = 0; i < NGTCP2_DEFAULT_GLITCH_RATELIM_BURST; ++i) {
+    pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+    rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+    assert_int(0, ==, rv);
+  }
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_INTERNAL, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Received too many overlapping STREAM frames (nonzero length). */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .offset = 10,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .base = null_data,
+        .len = 10,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  for (i = 0; i < NGTCP2_DEFAULT_GLITCH_RATELIM_BURST; ++i) {
+    pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+    rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+    assert_int(0, ==, rv);
+  }
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_INTERNAL, ==, rv);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_ping(void) {
