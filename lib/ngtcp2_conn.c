@@ -7213,8 +7213,11 @@ static int conn_max_data_violated(ngtcp2_conn *conn, uint64_t datalen) {
  * NGTCP2_ERR_FINAL_SIZE
  *     STREAM frame has strictly larger end offset than it is
  *     permitted.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  */
-static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
+static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
+                            ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_strm *strm;
   ngtcp2_idtr *idtr;
@@ -7256,8 +7259,11 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
     if (local_stream) {
-      /* TODO The stream has been closed.  This should be responded
-         with RESET_STREAM, or simply ignored. */
+      /* The stream has been closed. */
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
 
@@ -7267,8 +7273,11 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         return rv;
       }
       assert(rv == NGTCP2_ERR_STREAM_IN_USE);
-      /* TODO The stream has been closed.  This should be responded
-         with RESET_STREAM, or simply ignored. */
+      /* The stream has been closed. */
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
 
@@ -8957,6 +8966,8 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
  *     Flow control limit is violated.
  * NGTCP2_ERR_FINAL_SIZE
  *     Frame has strictly larger end offset than it is permitted.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  */
 static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                   const ngtcp2_pkt_info *pi, const uint8_t *pkt,
@@ -9360,7 +9371,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       ++num_ack_processed;
       break;
     case NGTCP2_FRAME_STREAM:
-      rv = conn_recv_stream(conn, &fr->stream);
+      rv = conn_recv_stream(conn, &fr->stream, ts);
       if (rv != 0) {
         return rv;
       }

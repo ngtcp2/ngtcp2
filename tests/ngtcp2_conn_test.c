@@ -6264,12 +6264,14 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   int64_t pkt_num = 612;
   ngtcp2_tstamp t = 0;
   ngtcp2_frame fr;
+  ngtcp2_frame frs[2];
   size_t pktlen;
+  ngtcp2_ssize spktlen;
   int rv;
   int64_t stream_id;
   size_t i;
   ngtcp2_tpe tpe;
-  ngtcp2_transport_params params;
+  ngtcp2_transport_params params, remote_params;
   ngtcp2_callbacks callbacks;
   conn_options opts;
 
@@ -6949,6 +6951,123 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   assert_false(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   assert_uint64(599, ==, ud.stream_data.offset);
   assert_size(1, ==, ud.stream_data.datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Received too many STREAM frames on closed remote stream. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_shutdown_stream(conn, 0, 0, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  frs[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+  frs[1].reset_stream = (ngtcp2_reset_stream){
+    .type = NGTCP2_FRAME_RESET_STREAM,
+    .app_error_code = NGTCP2_APP_ERR01,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+  };
+
+  for (i = 0; i < NGTCP2_DEFAULT_GLITCH_RATELIM_BURST; ++i) {
+    pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+    rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+    assert_int(0, ==, rv);
+  }
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_INTERNAL, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Received too many STREAMS frames on closed local streams. */
+  server_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_streams_bidi = 1;
+
+  opts = (conn_options){
+    .remote_params = &remote_params,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_shutdown_stream(conn, 0, stream_id, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  frs[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+  frs[1].reset_stream = (ngtcp2_reset_stream){
+    .type = NGTCP2_FRAME_RESET_STREAM,
+    .stream_id = stream_id,
+    .app_error_code = NGTCP2_APP_ERR01,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .stream_id = stream_id,
+  };
+
+  for (i = 0; i < NGTCP2_DEFAULT_GLITCH_RATELIM_BURST; ++i) {
+    pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+    rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+    assert_int(0, ==, rv);
+  }
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_INTERNAL, ==, rv);
 
   ngtcp2_conn_del(conn);
 }
