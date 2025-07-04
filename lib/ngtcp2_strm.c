@@ -196,6 +196,8 @@ int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm, ngtcp2_frame_chain *frc) {
     if (rv != 0) {
       return rv;
     }
+  } else if (ngtcp2_ksl_len(strm->tx.streamfrq) >= 1000) {
+    return NGTCP2_ERR_INTERNAL;
   }
 
   return ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &frc->fr.stream.offset,
