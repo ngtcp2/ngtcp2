@@ -53,6 +53,7 @@
 #include "ngtcp2_conn_stat.h"
 #include "ngtcp2_dcidtr.h"
 #include "ngtcp2_pcg.h"
+#include "ngtcp2_ratelim.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -114,6 +115,13 @@ typedef enum {
 /* NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY adds padding to the QUIC
    packet as much as possible if the packet is not empty. */
 #define NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY 0x08u
+
+/* NGTCP2_DEFAULT_GLITCH_RATELIM_BURST is the maximum number of tokens
+   in glitch rate limiter.  It is also the initial value. */
+#define NGTCP2_DEFAULT_GLITCH_RATELIM_BURST 1000
+/* NGTCP2_DEFAULT_GLITCH_RATELIM_RATE is the rate of tokens generated
+   per second for glitch rate limiter. */
+#define NGTCP2_DEFAULT_GLITCH_RATELIM_RATE 33
 
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
@@ -650,6 +658,10 @@ struct ngtcp2_conn {
      successfully.  The path is added to this history when a local
      endpoint migrates to the another path. */
   ngtcp2_static_ringbuf_path_history path_history;
+  /* glitch_rlim is the rate limit of glitches that can be tolerated.
+     If more than those glitches are detected, a connection is
+     closed. */
+  ngtcp2_ratelim glitch_rlim;
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;

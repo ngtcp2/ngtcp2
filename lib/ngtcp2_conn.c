@@ -1337,6 +1337,10 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_static_ringbuf_path_history_init(&(*pconn)->path_history);
 
+  ngtcp2_ratelim_init(&(*pconn)->glitch_rlim,
+                      NGTCP2_DEFAULT_GLITCH_RATELIM_BURST,
+                      NGTCP2_DEFAULT_GLITCH_RATELIM_RATE, settings->initial_ts);
+
   (*pconn)->callbacks = *callbacks;
 
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
