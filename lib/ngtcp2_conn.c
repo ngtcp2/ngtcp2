@@ -7088,23 +7088,23 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     fin = (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
           rx_offset == strm->rx.last_offset;
 
-    if (fin || datalen) {
-      if (fin) {
-        sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
-      }
-      if (!conn_is_tls_handshake_completed(conn)) {
-        sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
-      }
-      rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data,
-                                      (size_t)datalen);
-      if (rv != 0) {
-        return rv;
-      }
+    assert(fin || datalen);
 
-      rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
-      if (rv != 0) {
-        return rv;
-      }
+    if (fin) {
+      sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
+    }
+    if (!conn_is_tls_handshake_completed(conn)) {
+      sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
+    }
+    rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data,
+                                    (size_t)datalen);
+    if (rv != 0) {
+      return rv;
+    }
+
+    rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
+    if (rv != 0) {
+      return rv;
     }
   } else if (fr->datacnt && !(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING)) {
     rv = ngtcp2_strm_recv_reordering(strm, fr->data[0].base, fr->data[0].len,
