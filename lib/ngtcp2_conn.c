@@ -6575,6 +6575,7 @@ static int is_unrecoverable_error(int liberr) {
   case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
   case NGTCP2_ERR_TRANSPORT_PARAM:
   case NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE:
+  case NGTCP2_ERR_INTERNAL:
     return 1;
   }
 
