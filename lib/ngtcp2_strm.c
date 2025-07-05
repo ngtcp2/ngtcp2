@@ -400,7 +400,11 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
   datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
 
   /* datalen could be zero if 0 length STREAM has been sent */
-  if (left == 0 && datalen) {
+  /* We might see more data in the queue, then left < datalen could be
+     true.  We only see the first one for now. */
+  if ((fr->type == NGTCP2_FRAME_STREAM &&
+       (left < datalen && left < NGTCP2_MIN_STREAM_DATALEN)) ||
+      (left == 0 && datalen)) {
     rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &fr->offset, frc);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));

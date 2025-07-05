@@ -3122,6 +3122,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   ngtcp2_strm *strm;
   int pkt_empty = 1;
   uint64_t ndatalen = 0;
+  uint64_t wdatalen;
   int send_stream = 0;
   int stream_blocked = 0;
   int send_datagram = 0;
@@ -3812,10 +3813,12 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   left = ngtcp2_ppe_left(ppe);
 
   if (*pfrc == NULL && send_stream && ngtcp2_pq_empty(&conn->tx.strmq) &&
-      (ndatalen = ngtcp2_pkt_stream_max_datalen(
+      (wdatalen = ngtcp2_pkt_stream_max_datalen(
          vmsg->stream.strm->stream_id, vmsg->stream.strm->tx.offset, ndatalen,
          left)) != (size_t)-1 &&
-      (ndatalen || datalen == 0)) {
+      (wdatalen == ndatalen || wdatalen >= NGTCP2_MIN_STREAM_DATALEN) &&
+      (wdatalen || datalen == 0)) {
+    ndatalen = wdatalen;
     datacnt = ngtcp2_vec_copy_at_most(data, NGTCP2_MAX_STREAM_DATACNT,
                                       vmsg->stream.data, vmsg->stream.datacnt,
                                       (size_t)ndatalen);
