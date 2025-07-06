@@ -7234,6 +7234,10 @@ void test_ngtcp2_conn_writev_stream(void) {
     .base = null_data,
     .len = 10,
   };
+  ngtcp2_vec large_datav = {
+    .base = null_data,
+    .len = 800,
+  };
   ngtcp2_vec vec;
   ngtcp2_ssize datalen;
   size_t left;
@@ -7280,7 +7284,7 @@ void test_ngtcp2_conn_writev_stream(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* +1 buffer size */
+  /* +10 buffer size */
   setup_default_client(&conn);
 
   /* This will sends NEW_CONNECTION_ID frames */
@@ -7292,12 +7296,12 @@ void test_ngtcp2_conn_writev_stream(void) {
 
   assert_int(0, ==, rv);
 
-  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 40, &datalen,
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 39 + 10, &datalen,
                                       NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
                                       &datav, 1, ++t);
 
   assert_ptrdiff(0, <, spktlen);
-  assert_ptrdiff(1, ==, datalen);
+  assert_ptrdiff(10, ==, datalen);
 
   ngtcp2_conn_del(conn);
 
@@ -7338,6 +7342,34 @@ void test_ngtcp2_conn_writev_stream(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   assert_ptrdiff(0, <, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Do not write too small STREAM frame */
+  client_default_remote_transport_params(&remote_params);
+
+  conn_options_clear(&opts);
+  opts.remote_params = &remote_params;
+
+  setup_default_client_with_options(&conn, opts);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &large_datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+  assert_ptrdiff((ngtcp2_ssize)ngtcp2_vec_len(&large_datav, 1), ==, datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &large_datav, 1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
 
   ngtcp2_conn_del(conn);
 
