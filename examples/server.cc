@@ -2312,6 +2312,7 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
     fd_set_recv_ecn(fd, rp->ai_family);
     fd_set_ip_mtu_discover(fd, rp->ai_family);
     fd_set_ip_dontfrag(fd, family);
+    fd_set_udp_gro(fd);
 
     if (bind(fd, rp->ai_addr, rp->ai_addrlen) != -1) {
       break;
@@ -2397,6 +2398,7 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
   fd_set_recv_ecn(fd, addr.su.sa.sa_family);
   fd_set_ip_mtu_discover(fd, addr.su.sa.sa_family);
   fd_set_ip_dontfrag(fd, addr.su.sa.sa_family);
+  fd_set_udp_gro(fd);
 
   if (bind(fd, &addr.su.sa, addr.len) == -1) {
     std::cerr << "bind: " << strerror(errno) << std::endl;
