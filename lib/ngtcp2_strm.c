@@ -120,7 +120,7 @@ uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm) {
 /* strm_rob_heavily_fragmented returns nonzero if the number of gaps
    in |rob| exceeds the limit. */
 static int strm_rob_heavily_fragmented(const ngtcp2_rob *rob) {
-  return ngtcp2_ksl_len(&rob->gapksl) >= 5000;
+  return ngtcp2_ksl_len(&rob->gapksl) >= 1000;
 }
 
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
@@ -138,11 +138,16 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
     }
   }
 
+  rv = ngtcp2_rob_push(strm->rx.rob, offset, data, datalen);
+  if (rv != 0) {
+    return rv;
+  }
+
   if (strm_rob_heavily_fragmented(strm->rx.rob)) {
     return NGTCP2_ERR_INTERNAL;
   }
 
-  return ngtcp2_rob_push(strm->rx.rob, offset, data, datalen);
+  return 0;
 }
 
 void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset) {
@@ -743,7 +748,16 @@ int ngtcp2_strm_ack_data(ngtcp2_strm *strm, uint64_t offset, uint64_t len) {
     }
   }
 
-  return ngtcp2_gaptr_push(strm->tx.acked_offset, offset, len);
+  rv = ngtcp2_gaptr_push(strm->tx.acked_offset, offset, len);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (ngtcp2_ksl_len(&strm->tx.acked_offset->gap) >= 1000) {
+    return NGTCP2_ERR_INTERNAL;
+  }
+
+  return 0;
 }
 
 void ngtcp2_strm_set_app_error_code(ngtcp2_strm *strm,
