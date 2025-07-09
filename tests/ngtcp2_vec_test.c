@@ -50,12 +50,13 @@ void test_ngtcp2_vec_split(void) {
 
   /* No split occurs */
   acnt = 1;
-  a[0].len = 135;
-  a[0].base = nulldata;
+  a[0] = (ngtcp2_vec){
+    .len = 135,
+    .base = nulldata,
+  };
 
   bcnt = 0;
-  b[0].len = 0;
-  b[0].base = NULL;
+  b[0] = (ngtcp2_vec){0};
 
   nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 135, 16);
 
@@ -69,12 +70,13 @@ void test_ngtcp2_vec_split(void) {
 
   /* Split once */
   acnt = 1;
-  a[0].len = 135;
-  a[0].base = nulldata;
+  a[0] = (ngtcp2_vec){
+    .len = 135,
+    .base = nulldata,
+  };
 
   bcnt = 0;
-  b[0].len = 0;
-  b[0].base = NULL;
+  b[0] = (ngtcp2_vec){0};
 
   nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 87, 16);
 
@@ -88,14 +90,17 @@ void test_ngtcp2_vec_split(void) {
 
   /* Multiple a vector; split at ngtcp2_vec boundary */
   acnt = 2;
-  a[0].len = 33;
-  a[0].base = nulldata;
-  a[1].len = 89;
-  a[1].base = nulldata + 33;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
+  a[1] = (ngtcp2_vec){
+    .len = 89,
+    .base = nulldata + 33,
+  };
 
   bcnt = 0;
-  b[0].len = 0;
-  b[0].base = NULL;
+  b[0] = (ngtcp2_vec){0};
 
   nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 33, 16);
 
@@ -109,16 +114,21 @@ void test_ngtcp2_vec_split(void) {
 
   /* Multiple a vector; not split at ngtcp2_vec boundary */
   acnt = 3;
-  a[0].len = 33;
-  a[0].base = nulldata;
-  a[1].len = 89;
-  a[1].base = nulldata + 33;
-  a[2].len = 211;
-  a[2].base = nulldata + 33 + 89;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
+  a[1] = (ngtcp2_vec){
+    .len = 89,
+    .base = nulldata + 33,
+  };
+  a[2] = (ngtcp2_vec){
+    .len = 211,
+    .base = nulldata + 33 + 89,
+  };
 
   bcnt = 0;
-  b[0].len = 0;
-  b[0].base = NULL;
+  b[0] = (ngtcp2_vec){0};
 
   nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 34, 16);
 
@@ -137,16 +147,24 @@ void test_ngtcp2_vec_split(void) {
   /* Multiple a vector; split at ngtcp2_vec boundary; continuous
      data */
   acnt = 2;
-  a[0].len = 33;
-  a[0].base = nulldata;
-  a[1].len = 89;
-  a[1].base = nulldata + 33;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
+  a[1] = (ngtcp2_vec){
+    .len = 89,
+    .base = nulldata + 33,
+  };
 
   bcnt = 2;
-  b[0].len = 17;
-  b[0].base = nulldata + 33 + 89;
-  b[1].len = 3;
-  b[1].base = nulldata + 33 + 89 + 17;
+  b[0] = (ngtcp2_vec){
+    .len = 17,
+    .base = nulldata + 33 + 89,
+  };
+  b[1] = (ngtcp2_vec){
+    .len = 3,
+    .base = nulldata + 33 + 89 + 17,
+  };
 
   nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 33, 16);
 
@@ -163,16 +181,24 @@ void test_ngtcp2_vec_split(void) {
   /* Multiple a vector; not split at ngtcp2_vec boundary; continuous
      data; nmove == 0 */
   acnt = 2;
-  a[0].len = 33;
-  a[0].base = nulldata;
-  a[1].len = 89;
-  a[1].base = nulldata + 33;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
+  a[1] = (ngtcp2_vec){
+    .len = 89,
+    .base = nulldata + 33,
+  };
 
   bcnt = 2;
-  b[0].len = 17;
-  b[0].base = nulldata + 33 + 89;
-  b[1].len = 3;
-  b[1].base = nulldata + 33 + 89 + 17;
+  b[0] = (ngtcp2_vec){
+    .len = 17,
+    .base = nulldata + 33 + 89,
+  };
+  b[1] = (ngtcp2_vec){
+    .len = 3,
+    .base = nulldata + 33 + 89 + 17,
+  };
 
   nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 34, 16);
 
@@ -191,18 +217,28 @@ void test_ngtcp2_vec_split(void) {
   /* Multiple a vector; not split at ngtcp2_vec boundary; continuous
      data */
   acnt = 3;
-  a[0].len = 33;
-  a[0].base = nulldata;
-  a[1].len = 89;
-  a[1].base = nulldata + 33;
-  a[2].len = 211;
-  a[2].base = nulldata + 33 + 89;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
+  a[1] = (ngtcp2_vec){
+    .len = 89,
+    .base = nulldata + 33,
+  };
+  a[2] = (ngtcp2_vec){
+    .len = 211,
+    .base = nulldata + 33 + 89,
+  };
 
   bcnt = 2;
-  b[0].len = 17;
-  b[0].base = nulldata + 33 + 89 + 211;
-  b[1].len = 3;
-  b[1].base = nulldata + 33 + 89 + 211 + 17;
+  b[0] = (ngtcp2_vec){
+    .len = 17,
+    .base = nulldata + 33 + 89 + 211,
+  };
+  b[1] = (ngtcp2_vec){
+    .len = 3,
+    .base = nulldata + 33 + 89 + 211 + 17,
+  };
 
   nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 34, 16);
 
@@ -223,16 +259,24 @@ void test_ngtcp2_vec_split(void) {
   /* Multiple a vector; split at ngtcp2_vec boundary; not continuous
      data */
   acnt = 2;
-  a[0].len = 33;
-  a[0].base = nulldata;
-  a[1].len = 89;
-  a[1].base = nulldata + 33;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
+  a[1] = (ngtcp2_vec){
+    .len = 89,
+    .base = nulldata + 33,
+  };
 
   bcnt = 2;
-  b[0].len = 17;
-  b[0].base = nulldata + 256;
-  b[1].len = 3;
-  b[1].base = nulldata + 256 + 17;
+  b[0] = (ngtcp2_vec){
+    .len = 17,
+    .base = nulldata + 256,
+  };
+  b[1] = (ngtcp2_vec){
+    .len = 3,
+    .base = nulldata + 256 + 17,
+  };
 
   nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 33, 16);
 
@@ -250,14 +294,20 @@ void test_ngtcp2_vec_split(void) {
 
   /* maxcnt exceeded; continuous */
   acnt = 2;
-  a[0].len = 33;
-  a[0].base = nulldata;
-  a[1].len = 89;
-  a[1].base = nulldata + 33;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
+  a[1] = (ngtcp2_vec){
+    .len = 89,
+    .base = nulldata + 33,
+  };
 
   bcnt = 1;
-  b[0].len = 17;
-  b[0].base = nulldata + 33 + 89;
+  b[0] = (ngtcp2_vec){
+    .len = 17,
+    .base = nulldata + 33 + 89,
+  };
 
   nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 32, 1);
 
@@ -265,14 +315,20 @@ void test_ngtcp2_vec_split(void) {
 
   /* maxcnt exceeded; not continuous */
   acnt = 2;
-  a[0].len = 33;
-  a[0].base = nulldata;
-  a[1].len = 89;
-  a[1].base = nulldata + 33;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
+  a[1] = (ngtcp2_vec){
+    .len = 89,
+    .base = nulldata + 33,
+  };
 
   bcnt = 1;
-  b[0].len = 17;
-  b[0].base = nulldata + 256;
+  b[0] = (ngtcp2_vec){
+    .len = 17,
+    .base = nulldata + 256,
+  };
 
   nsplit = ngtcp2_vec_split(b, &bcnt, a, &acnt, 33, 1);
 
@@ -287,12 +343,16 @@ void test_ngtcp2_vec_merge(void) {
 
   /* Merge one ngtcp2_vec completely */
   acnt = 1;
-  a[0].len = 33;
-  a[0].base = nulldata;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
 
   bcnt = 1;
-  b[0].len = 11;
-  b[0].base = nulldata + 33;
+  b[0] = (ngtcp2_vec){
+    .len = 11,
+    .base = nulldata + 33,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 11, 16);
 
@@ -304,12 +364,16 @@ void test_ngtcp2_vec_merge(void) {
 
   /* Merge ngtcp2_vec partially */
   acnt = 1;
-  a[0].len = 33;
-  a[0].base = nulldata;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
 
   bcnt = 1;
-  b[0].len = 11;
-  b[0].base = nulldata + 33;
+  b[0] = (ngtcp2_vec){
+    .len = 11,
+    .base = nulldata + 33,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 10, 16);
 
@@ -323,12 +387,16 @@ void test_ngtcp2_vec_merge(void) {
 
   /* Merge one ngtcp2_vec completely; data is not continuous */
   acnt = 1;
-  a[0].len = 33;
-  a[0].base = nulldata;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
 
   bcnt = 1;
-  b[0].len = 11;
-  b[0].base = nulldata + 256;
+  b[0] = (ngtcp2_vec){
+    .len = 11,
+    .base = nulldata + 256,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 11, 16);
 
@@ -342,12 +410,16 @@ void test_ngtcp2_vec_merge(void) {
 
   /* Merge ngtcp2_vec partially; data is not continuous */
   acnt = 1;
-  a[0].len = 33;
-  a[0].base = nulldata;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
 
   bcnt = 1;
-  b[0].len = 11;
-  b[0].base = nulldata + 256;
+  b[0] = (ngtcp2_vec){
+    .len = 11,
+    .base = nulldata + 256,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 10, 16);
 
@@ -363,14 +435,20 @@ void test_ngtcp2_vec_merge(void) {
 
   /* Merge ends at the ngtcp2_vec boundary */
   acnt = 1;
-  a[0].len = 33;
-  a[0].base = nulldata;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
 
   bcnt = 2;
-  b[0].len = 11;
-  b[0].base = nulldata + 256;
-  b[1].len = 19;
-  b[1].base = nulldata + 256 + 11;
+  b[0] = (ngtcp2_vec){
+    .len = 11,
+    .base = nulldata + 256,
+  };
+  b[1] = (ngtcp2_vec){
+    .len = 19,
+    .base = nulldata + 256 + 11,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 11, 16);
 
@@ -386,14 +464,20 @@ void test_ngtcp2_vec_merge(void) {
 
   /* Merge occurs at the last object */
   acnt = 1;
-  a[0].len = 33;
-  a[0].base = nulldata;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
 
   bcnt = 2;
-  b[0].len = 11;
-  b[0].base = nulldata + 33;
-  b[1].len = 99;
-  b[1].base = nulldata + 33 + 11;
+  b[0] = (ngtcp2_vec){
+    .len = 11,
+    .base = nulldata + 33,
+  };
+  b[1] = (ngtcp2_vec){
+    .len = 99,
+    .base = nulldata + 33 + 11,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 100, 1);
 
@@ -407,12 +491,16 @@ void test_ngtcp2_vec_merge(void) {
 
   /* No merge occurs if object is full */
   acnt = 1;
-  a[0].len = 33;
-  a[0].base = nulldata;
+  a[0] = (ngtcp2_vec){
+    .len = 33,
+    .base = nulldata,
+  };
 
   bcnt = 1;
-  b[0].len = 3;
-  b[0].base = nulldata + 100;
+  b[0] = (ngtcp2_vec){
+    .len = 3,
+    .base = nulldata + 100,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 3, 1);
 
@@ -430,8 +518,10 @@ void test_ngtcp2_vec_merge(void) {
   acnt = 0;
   bcnt = 1;
 
-  b[0].len = 100;
-  b[0].base = nulldata;
+  b[0] = (ngtcp2_vec){
+    .len = 100,
+    .base = nulldata,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 99, 1);
 
@@ -445,10 +535,14 @@ void test_ngtcp2_vec_merge(void) {
   acnt = 0;
   bcnt = 2;
 
-  b[0].len = 100;
-  b[0].base = nulldata;
-  b[1].len = 55;
-  b[1].base = nulldata;
+  b[0] = (ngtcp2_vec){
+    .len = 100,
+    .base = nulldata,
+  };
+  b[1] = (ngtcp2_vec){
+    .len = 55,
+    .base = nulldata,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 103, 2);
 
@@ -467,10 +561,14 @@ void test_ngtcp2_vec_merge(void) {
   acnt = 0;
   bcnt = 2;
 
-  b[0].len = 100;
-  b[0].base = nulldata;
-  b[1].len = 55;
-  b[1].base = nulldata + 100;
+  b[0] = (ngtcp2_vec){
+    .len = 100,
+    .base = nulldata,
+  };
+  b[1] = (ngtcp2_vec){
+    .len = 55,
+    .base = nulldata + 100,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 103, 2);
 
@@ -486,10 +584,14 @@ void test_ngtcp2_vec_merge(void) {
   acnt = 0;
   bcnt = 2;
 
-  b[0].len = 100;
-  b[0].base = nulldata;
-  b[1].len = 55;
-  b[1].base = nulldata;
+  b[0] = (ngtcp2_vec){
+    .len = 100,
+    .base = nulldata,
+  };
+  b[1] = (ngtcp2_vec){
+    .len = 55,
+    .base = nulldata,
+  };
 
   nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 103, 1);
 

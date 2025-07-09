@@ -735,13 +735,17 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   size_t i;
 
   /* 32 bits Stream ID + 62 bits Offset + Data Length */
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.fin = 0;
-  fr.stream_id = 0xf1f2f3f4u;
-  fr.offset = 0x31f2f3f4f5f6f7f8llu;
-  fr.datacnt = 1;
-  fr.data[0].len = strsize(data);
-  fr.data[0].base = (uint8_t *)data;
+  fr = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .stream_id = 0xf1f2f3f4u,
+    .offset = 0x31f2f3f4f5f6f7f8llu,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .len = strsize(data),
+        .base = (uint8_t *)data,
+      },
+  };
 
   framelen = 1 + 8 + 8 + 1 + 17;
 
@@ -771,13 +775,16 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   memset(&nfr, 0, sizeof(nfr));
 
   /* 6 bits Stream ID + No Offset + Data Length */
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.fin = 0;
-  fr.stream_id = 0x31;
-  fr.offset = 0;
-  fr.datacnt = 1;
-  fr.data[0].len = strsize(data);
-  fr.data[0].base = (uint8_t *)data;
+  fr = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .stream_id = 0x31,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .len = strsize(data),
+        .base = (uint8_t *)data,
+      },
+  };
 
   framelen = 1 + 1 + 1 + 17;
 
@@ -807,13 +814,18 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   memset(&nfr, 0, sizeof(nfr));
 
   /* Fin + 32 bits Stream ID + 62 bits Offset + Data Length */
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.fin = 1;
-  fr.stream_id = 0xf1f2f3f4u;
-  fr.offset = 0x31f2f3f4f5f6f7f8llu;
-  fr.datacnt = 1;
-  fr.data[0].len = strsize(data);
-  fr.data[0].base = (uint8_t *)data;
+  fr = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .fin = 1,
+    .stream_id = 0xf1f2f3f4u,
+    .offset = 0x31f2f3f4f5f6f7f8llu,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .len = strsize(data),
+        .base = (uint8_t *)data,
+      },
+  };
 
   framelen = 1 + 8 + 8 + 1 + 17;
 
@@ -845,13 +857,18 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   memset(&nfr, 0, sizeof(nfr));
 
   /* NOBUF: Fin + 32 bits Stream ID + 62 bits Offset + Data Length */
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.fin = 1;
-  fr.stream_id = 0xf1f2f3f4u;
-  fr.offset = 0x31f2f3f4f5f6f7f8llu;
-  fr.datacnt = 1;
-  fr.data[0].len = strsize(data);
-  fr.data[0].base = (uint8_t *)data;
+  fr = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .fin = 1,
+    .stream_id = 0xf1f2f3f4u,
+    .offset = 0x31f2f3f4f5f6f7f8llu,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .len = strsize(data),
+        .base = (uint8_t *)data,
+      },
+  };
 
   framelen = 1 + 8 + 8 + 1 + 17;
 
@@ -870,11 +887,10 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   ngtcp2_ack_range *ranges;
 
   /* 0 Num Blocks */
-  fr->type = NGTCP2_FRAME_ACK;
-  fr->largest_ack = 0xf1f2f3f4llu;
-  fr->first_ack_range = 0;
-  fr->ack_delay = 0;
-  fr->rangecnt = 0;
+  *fr = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = 0xf1f2f3f4llu,
+  };
 
   framelen = 1 + 8 + 1 + 1 + 1;
 
@@ -900,16 +916,22 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   memset(&nmfr, 0, sizeof(nmfr));
 
   /* 2 Num Blocks */
-  fr->type = NGTCP2_FRAME_ACK;
-  fr->largest_ack = 0xf1f2f3f4llu;
-  fr->first_ack_range = 0xe1e2e3e4llu;
-  fr->ack_delay = 0xf1f2;
-  fr->rangecnt = 2;
+  *fr = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = 0xf1f2f3f4llu,
+    .first_ack_range = 0xe1e2e3e4llu,
+    .ack_delay = 0xf1f2,
+    .rangecnt = 2,
+  };
   ranges = fr->ranges;
-  ranges[0].gap = 255;
-  ranges[0].len = 0xd1d2d3d4llu;
-  ranges[1].gap = 1;
-  ranges[1].len = 0xd1d2d3d4llu;
+  ranges[0] = (ngtcp2_ack_range){
+    .gap = 255,
+    .len = 0xd1d2d3d4llu,
+  };
+  ranges[1] = (ngtcp2_ack_range){
+    .gap = 1,
+    .len = 0xd1d2d3d4llu,
+  };
 
   framelen = 1 + 8 + 4 + 1 + 8 + (2 + 8) + (1 + 8);
 
@@ -950,14 +972,16 @@ void test_ngtcp2_pkt_encode_ack_ecn_frame(void) {
   ngtcp2_ack_range *ranges;
 
   /* 0 Num Blocks */
-  fr->type = NGTCP2_FRAME_ACK_ECN;
-  fr->largest_ack = 0xf1f2f3f4llu;
-  fr->first_ack_range = 0;
-  fr->ack_delay = 0;
-  fr->rangecnt = 0;
-  fr->ecn.ect0 = 64;
-  fr->ecn.ect1 = 16384;
-  fr->ecn.ce = 1073741824;
+  *fr = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK_ECN,
+    .largest_ack = 0xf1f2f3f4llu,
+    .ecn =
+      {
+        .ect0 = 64,
+        .ect1 = 16384,
+        .ce = 1073741824,
+      },
+  };
 
   framelen = 1 + 8 + 1 + 1 + 1 + 2 + 4 + 8;
 
@@ -986,19 +1010,27 @@ void test_ngtcp2_pkt_encode_ack_ecn_frame(void) {
   memset(&nmfr, 0, sizeof(nmfr));
 
   /* 2 Num Blocks */
-  fr->type = NGTCP2_FRAME_ACK_ECN;
-  fr->largest_ack = 0xf1f2f3f4llu;
-  fr->first_ack_range = 0xe1e2e3e4llu;
-  fr->ack_delay = 0xf1f2;
-  fr->rangecnt = 2;
+  *fr = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK_ECN,
+    .largest_ack = 0xf1f2f3f4llu,
+    .first_ack_range = 0xe1e2e3e4llu,
+    .ack_delay = 0xf1f2,
+    .rangecnt = 2,
+    .ecn =
+      {
+        .ect1 = 64,
+        .ce = 16384,
+      },
+  };
   ranges = fr->ranges;
-  ranges[0].gap = 255;
-  ranges[0].len = 0xd1d2d3d4llu;
-  ranges[1].gap = 1;
-  ranges[1].len = 0xd1d2d3d4llu;
-  fr->ecn.ect0 = 0;
-  fr->ecn.ect1 = 64;
-  fr->ecn.ce = 16384;
+  ranges[0] = (ngtcp2_ack_range){
+    .gap = 255,
+    .len = 0xd1d2d3d4llu,
+  };
+  ranges[1] = (ngtcp2_ack_range){
+    .gap = 1,
+    .len = 0xd1d2d3d4llu,
+  };
 
   framelen = 1 + 8 + 4 + 1 + 8 + (2 + 8) + (1 + 8) + 1 + 2 + 4;
 
@@ -1040,10 +1072,12 @@ void test_ngtcp2_pkt_encode_reset_stream_frame(void) {
   size_t framelen = 1 + 4 + 4 + 8;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_RESET_STREAM;
-  fr.stream_id = 1000000007;
-  fr.app_error_code = 0xe1e2;
-  fr.final_size = 0x31f2f3f4f5f6f7f8llu;
+  fr = (ngtcp2_reset_stream){
+    .type = NGTCP2_FRAME_RESET_STREAM,
+    .stream_id = 1000000007,
+    .app_error_code = 0xe1e2,
+    .final_size = 0x31f2f3f4f5f6f7f8llu,
+  };
 
   rv = ngtcp2_pkt_encode_reset_stream_frame(buf, sizeof(buf), &fr);
 
@@ -1076,11 +1110,11 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
   memset(reason, 0xfa, sizeof(reason));
 
   /* no Reason Phrase */
-  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
-  fr.error_code = 0xf1f2u;
-  fr.frame_type = 255;
-  fr.reasonlen = 0;
-  fr.reason = NULL;
+  fr = (ngtcp2_connection_close){
+    .type = NGTCP2_FRAME_CONNECTION_CLOSE,
+    .error_code = 0xf1f2u,
+    .frame_type = 255,
+  };
 
   framelen = 1 + 4 + 2 + 1;
 
@@ -1106,11 +1140,12 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
   memset(&nfr, 0, sizeof(nfr));
 
   /* 1024 bytes Reason Phrase */
-  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
-  fr.error_code = 0xf3f4u;
-  fr.frame_type = 0;
-  fr.reasonlen = sizeof(reason);
-  fr.reason = reason;
+  fr = (ngtcp2_connection_close){
+    .type = NGTCP2_FRAME_CONNECTION_CLOSE,
+    .error_code = 0xf3f4u,
+    .reasonlen = sizeof(reason),
+    .reason = reason,
+  };
 
   framelen = 1 + 4 + 1 + 2 + sizeof(reason);
 
@@ -1147,11 +1182,11 @@ void test_ngtcp2_pkt_encode_connection_close_app_frame(void) {
   memset(reason, 0xfa, sizeof(reason));
 
   /* no Reason Phrase */
-  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE_APP;
-  fr.error_code = 0xf1f2u;
-  fr.frame_type = 0xff; /* This must be ignored. */
-  fr.reasonlen = 0;
-  fr.reason = NULL;
+  fr = (ngtcp2_connection_close){
+    .type = NGTCP2_FRAME_CONNECTION_CLOSE_APP,
+    .error_code = 0xf1f2u,
+    .frame_type = 0xff, /* This must be ignored. */
+  };
 
   framelen = 1 + 4 + 1;
 
@@ -1185,8 +1220,10 @@ void test_ngtcp2_pkt_encode_max_data_frame(void) {
   size_t framelen = 1 + 8;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_MAX_DATA;
-  fr.max_data = 0x31f2f3f4f5f6f7f8llu;
+  fr = (ngtcp2_max_data){
+    .type = NGTCP2_FRAME_MAX_DATA,
+    .max_data = 0x31f2f3f4f5f6f7f8llu,
+  };
 
   rv = ngtcp2_pkt_encode_max_data_frame(buf, sizeof(buf), &fr);
 
@@ -1213,9 +1250,11 @@ void test_ngtcp2_pkt_encode_max_stream_data_frame(void) {
   size_t framelen = 1 + 8 + 8;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
-  fr.stream_id = 0xf1f2f3f4u;
-  fr.max_stream_data = 0x35f6f7f8f9fafbfcllu;
+  fr = (ngtcp2_max_stream_data){
+    .type = NGTCP2_FRAME_MAX_STREAM_DATA,
+    .stream_id = 0xf1f2f3f4u,
+    .max_stream_data = 0x35f6f7f8f9fafbfcllu,
+  };
 
   rv = ngtcp2_pkt_encode_max_stream_data_frame(buf, sizeof(buf), &fr);
 
@@ -1243,8 +1282,10 @@ void test_ngtcp2_pkt_encode_max_streams_frame(void) {
   size_t framelen = 1 + 8;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_MAX_STREAMS_BIDI;
-  fr.max_streams = 0xf1f2f3f4u;
+  fr = (ngtcp2_max_streams){
+    .type = NGTCP2_FRAME_MAX_STREAMS_BIDI,
+    .max_streams = 0xf1f2f3f4u,
+  };
 
   rv = ngtcp2_pkt_encode_max_streams_frame(buf, sizeof(buf), &fr);
 
@@ -1291,8 +1332,10 @@ void test_ngtcp2_pkt_encode_data_blocked_frame(void) {
   size_t framelen = 1 + 8;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_DATA_BLOCKED;
-  fr.offset = 0x31f2f3f4f5f6f7f8llu;
+  fr = (ngtcp2_data_blocked){
+    .type = NGTCP2_FRAME_DATA_BLOCKED,
+    .offset = 0x31f2f3f4f5f6f7f8llu,
+  };
 
   rv = ngtcp2_pkt_encode_data_blocked_frame(buf, sizeof(buf), &fr);
 
@@ -1319,9 +1362,11 @@ void test_ngtcp2_pkt_encode_stream_data_blocked_frame(void) {
   size_t framelen = 1 + 8 + 8;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
-  fr.stream_id = 0xf1f2f3f4u;
-  fr.offset = 0x35f6f7f8f9fafbfcllu;
+  fr = (ngtcp2_stream_data_blocked){
+    .type = NGTCP2_FRAME_STREAM_DATA_BLOCKED,
+    .stream_id = 0xf1f2f3f4u,
+    .offset = 0x35f6f7f8f9fafbfcllu,
+  };
 
   rv = ngtcp2_pkt_encode_stream_data_blocked_frame(buf, sizeof(buf), &fr);
 
@@ -1349,8 +1394,10 @@ void test_ngtcp2_pkt_encode_streams_blocked_frame(void) {
   size_t framelen = 1 + 8;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_STREAMS_BLOCKED_BIDI;
-  fr.max_streams = 0xf1f2f3f4u;
+  fr = (ngtcp2_streams_blocked){
+    .type = NGTCP2_FRAME_STREAMS_BLOCKED_BIDI,
+    .max_streams = 0xf1f2f3f4u,
+  };
 
   rv = ngtcp2_pkt_encode_streams_blocked_frame(buf, sizeof(buf), &fr);
 
@@ -1377,9 +1424,11 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
   size_t framelen = 1 + 4 + 2 + 1 + 18 + NGTCP2_STATELESS_RESET_TOKENLEN;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
-  fr.seq = 1000000009;
-  fr.retire_prior_to = 255;
+  fr = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1000000009,
+    .retire_prior_to = 255,
+  };
   scid_init(&fr.cid);
   memset(fr.stateless_reset_token, 0xe1, sizeof(fr.stateless_reset_token));
 
@@ -1411,9 +1460,11 @@ void test_ngtcp2_pkt_encode_stop_sending_frame(void) {
   size_t framelen = 1 + 8 + 4;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_STOP_SENDING;
-  fr.stream_id = 0xf1f2f3f4u;
-  fr.app_error_code = 0xe1e2u;
+  fr = (ngtcp2_stop_sending){
+    .type = NGTCP2_FRAME_STOP_SENDING,
+    .stream_id = 0xf1f2f3f4u,
+    .app_error_code = 0xe1e2u,
+  };
 
   rv = ngtcp2_pkt_encode_stop_sending_frame(buf, sizeof(buf), &fr);
 
@@ -1502,14 +1553,16 @@ void test_ngtcp2_pkt_encode_crypto_frame(void) {
   size_t framelen;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_CRYPTO;
-  fr.flags = 0;
-  fr.fin = 0;
-  fr.stream_id = 0;
-  fr.offset = 0x31f2f3f4f5f6f7f8llu;
-  fr.datacnt = 1;
-  fr.data[0].len = strsize(data);
-  fr.data[0].base = (uint8_t *)data;
+  fr = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .offset = 0x31f2f3f4f5f6f7f8llu,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .len = strsize(data),
+        .base = (uint8_t *)data,
+      },
+  };
 
   framelen = 1 + 8 + 1 + 17;
 
@@ -1545,9 +1598,11 @@ void test_ngtcp2_pkt_encode_new_token_frame(void) {
   size_t framelen;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_NEW_TOKEN;
-  fr.token = (uint8_t *)token;
-  fr.tokenlen = strsize(token);
+  fr = (ngtcp2_new_token){
+    .type = NGTCP2_FRAME_NEW_TOKEN,
+    .token = (uint8_t *)token,
+    .tokenlen = strsize(token),
+  };
 
   framelen = 1 + 1 + strsize(token);
 
@@ -1577,8 +1632,10 @@ void test_ngtcp2_pkt_encode_retire_connection_id_frame(void) {
   size_t framelen;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
-  fr.seq = 1000000007;
+  fr = (ngtcp2_retire_connection_id){
+    .type = NGTCP2_FRAME_RETIRE_CONNECTION_ID,
+    .seq = 1000000007,
+  };
 
   framelen = 1 + ngtcp2_put_uvarintlen(fr.seq);
 
@@ -1626,11 +1683,16 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
   size_t framelen;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_DATAGRAM_LEN;
-  fr.datacnt = 1;
-  fr.data = fr.rdata;
-  fr.rdata[0].len = strsize(data);
-  fr.rdata[0].base = (uint8_t *)data;
+  fr = (ngtcp2_datagram){
+    .type = NGTCP2_FRAME_DATAGRAM_LEN,
+    .datacnt = 1,
+    .data = fr.rdata,
+    .rdata[0] =
+      {
+        .len = strsize(data),
+        .base = (uint8_t *)data,
+      },
+  };
 
   framelen = 1 + 1 + 17;
 
@@ -1656,11 +1718,16 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
   memset(&nfr, 0, sizeof(nfr));
 
   /* Without length field */
-  fr.type = NGTCP2_FRAME_DATAGRAM;
-  fr.datacnt = 1;
-  fr.data = fr.rdata;
-  fr.rdata[0].len = strsize(data);
-  fr.rdata[0].base = (uint8_t *)data;
+  fr = (ngtcp2_datagram){
+    .type = NGTCP2_FRAME_DATAGRAM,
+    .datacnt = 1,
+    .data = fr.rdata,
+    .rdata[0] =
+      {
+        .len = strsize(data),
+        .base = (uint8_t *)data,
+      },
+  };
 
   framelen = 1 + 17;
 
@@ -1686,9 +1753,9 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
   memset(&nfr, 0, sizeof(nfr));
 
   /* Zero length data with length field */
-  fr.type = NGTCP2_FRAME_DATAGRAM_LEN;
-  fr.datacnt = 0;
-  fr.data = NULL;
+  fr = (ngtcp2_datagram){
+    .type = NGTCP2_FRAME_DATAGRAM_LEN,
+  };
 
   framelen = 1 + 1;
 
@@ -1714,9 +1781,9 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
   memset(&nfr, 0, sizeof(nfr));
 
   /* Zero length data without length field */
-  fr.type = NGTCP2_FRAME_DATAGRAM;
-  fr.datacnt = 0;
-  fr.data = NULL;
+  fr = (ngtcp2_datagram){
+    .type = NGTCP2_FRAME_DATAGRAM,
+  };
 
   framelen = 1;
 
@@ -1755,31 +1822,37 @@ void test_ngtcp2_pkt_validate_ack(void) {
   ngtcp2_ack fr;
 
   /* too long first_ack_range */
-  fr.largest_ack = 1;
-  fr.first_ack_range = 2;
-  fr.rangecnt = 0;
+  fr = (ngtcp2_ack){
+    .largest_ack = 1,
+    .first_ack_range = 2,
+  };
 
   rv = ngtcp2_pkt_validate_ack(&fr, 0);
 
   assert_ptrdiff(NGTCP2_ERR_ACK_FRAME, ==, rv);
 
   /* gap is too large */
-  fr.largest_ack = 250;
-  fr.first_ack_range = 1;
-  fr.rangecnt = 1;
-  fr.ranges[0].gap = 248;
-  fr.ranges[0].len = 0;
+  fr = (ngtcp2_ack){
+    .largest_ack = 250,
+    .first_ack_range = 1,
+    .rangecnt = 1,
+    .ranges[0].gap = 248,
+  };
 
   rv = ngtcp2_pkt_validate_ack(&fr, 0);
 
   assert_ptrdiff(NGTCP2_ERR_ACK_FRAME, ==, rv);
 
   /* too large range len */
-  fr.largest_ack = 250;
-  fr.first_ack_range = 0;
-  fr.rangecnt = 1;
-  fr.ranges[0].gap = 248;
-  fr.ranges[0].len = 1;
+  fr = (ngtcp2_ack){
+    .largest_ack = 250,
+    .rangecnt = 1,
+    .ranges[0] =
+      {
+        .gap = 248,
+        .len = 1,
+      },
+  };
 
   rv = ngtcp2_pkt_validate_ack(&fr, 0);
 
@@ -1787,9 +1860,9 @@ void test_ngtcp2_pkt_validate_ack(void) {
 
   /* first ack range contains packet number that is smaller than the
      minimum. */
-  fr.largest_ack = 250;
-  fr.first_ack_range = 0;
-  fr.rangecnt = 0;
+  fr = (ngtcp2_ack){
+    .largest_ack = 250,
+  };
 
   rv = ngtcp2_pkt_validate_ack(&fr, 251);
 
@@ -1797,11 +1870,10 @@ void test_ngtcp2_pkt_validate_ack(void) {
 
   /* second ack range contains packet number that is smaller than the
      minimum. */
-  fr.largest_ack = 250;
-  fr.first_ack_range = 0;
-  fr.rangecnt = 1;
-  fr.ranges[0].gap = 0;
-  fr.ranges[0].len = 0;
+  fr = (ngtcp2_ack){
+    .largest_ack = 250,
+    .rangecnt = 1,
+  };
 
   rv = ngtcp2_pkt_validate_ack(&fr, 249);
 

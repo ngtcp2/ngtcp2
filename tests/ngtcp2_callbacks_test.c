@@ -486,52 +486,51 @@ static int begin_path_validation(ngtcp2_conn *conn, uint32_t flags,
 }
 
 void test_ngtcp2_callbacks_convert_to_latest(void) {
-  ngtcp2_callbacks *src, srcbuf, callbacksbuf;
+  ngtcp2_callbacks srcbuf = {
+    .client_initial = client_initial,
+    .recv_client_initial = recv_client_initial,
+    .recv_crypto_data = recv_crypto_data,
+    .handshake_completed = handshake_completed,
+    .recv_version_negotiation = recv_version_negotiation,
+    .encrypt = encrypt,
+    .decrypt = decrypt,
+    .hp_mask = hp_mask,
+    .recv_stream_data = recv_stream_data,
+    .acked_stream_data_offset = acked_stream_data_offset,
+    .stream_open = stream_open,
+    .stream_close = stream_close,
+    .recv_stateless_reset = recv_stateless_reset,
+    .recv_retry = recv_retry,
+    .extend_max_local_streams_bidi = extend_max_local_streams_bidi,
+    .extend_max_local_streams_uni = extend_max_local_streams_uni,
+    .rand = rand_cb,
+    .get_new_connection_id = get_new_connection_id,
+    .remove_connection_id = remove_connection_id,
+    .update_key = update_key,
+    .path_validation = path_validation,
+    .select_preferred_addr = select_preferred_addr,
+    .stream_reset = stream_reset,
+    .extend_max_remote_streams_bidi = extend_max_remote_streams_bidi,
+    .extend_max_remote_streams_uni = extend_max_remote_streams_uni,
+    .extend_max_stream_data = extend_max_stream_data,
+    .dcid_status = dcid_status,
+    .handshake_confirmed = handshake_confirmed,
+    .recv_new_token = recv_new_token,
+    .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
+    .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
+    .recv_datagram = recv_datagram,
+    .ack_datagram = ack_datagram,
+    .lost_datagram = lost_datagram,
+    .get_path_challenge_data = get_path_challenge_data,
+    .stream_stop_sending = stream_stop_sending,
+    .version_negotiation = version_negotiation,
+    .recv_rx_key = recv_rx_key,
+    .recv_tx_key = recv_tx_key,
+    .tls_early_data_rejected = tls_early_data_rejected,
+  };
+  ngtcp2_callbacks *src, callbacksbuf;
   const ngtcp2_callbacks *dest;
   size_t v1len;
-
-  memset(&srcbuf, 0, sizeof(srcbuf));
-
-  srcbuf.client_initial = client_initial;
-  srcbuf.recv_client_initial = recv_client_initial;
-  srcbuf.recv_crypto_data = recv_crypto_data;
-  srcbuf.handshake_completed = handshake_completed;
-  srcbuf.recv_version_negotiation = recv_version_negotiation;
-  srcbuf.encrypt = encrypt;
-  srcbuf.decrypt = decrypt;
-  srcbuf.hp_mask = hp_mask;
-  srcbuf.recv_stream_data = recv_stream_data;
-  srcbuf.acked_stream_data_offset = acked_stream_data_offset;
-  srcbuf.stream_open = stream_open;
-  srcbuf.stream_close = stream_close;
-  srcbuf.recv_stateless_reset = recv_stateless_reset;
-  srcbuf.recv_retry = recv_retry;
-  srcbuf.extend_max_local_streams_bidi = extend_max_local_streams_bidi;
-  srcbuf.extend_max_local_streams_uni = extend_max_local_streams_uni;
-  srcbuf.rand = rand_cb;
-  srcbuf.get_new_connection_id = get_new_connection_id;
-  srcbuf.remove_connection_id = remove_connection_id;
-  srcbuf.update_key = update_key;
-  srcbuf.path_validation = path_validation;
-  srcbuf.select_preferred_addr = select_preferred_addr;
-  srcbuf.stream_reset = stream_reset;
-  srcbuf.extend_max_remote_streams_bidi = extend_max_remote_streams_bidi;
-  srcbuf.extend_max_remote_streams_uni = extend_max_remote_streams_uni;
-  srcbuf.extend_max_stream_data = extend_max_stream_data;
-  srcbuf.dcid_status = dcid_status;
-  srcbuf.handshake_confirmed = handshake_confirmed;
-  srcbuf.recv_new_token = recv_new_token;
-  srcbuf.delete_crypto_aead_ctx = delete_crypto_aead_ctx;
-  srcbuf.delete_crypto_cipher_ctx = delete_crypto_cipher_ctx;
-  srcbuf.recv_datagram = recv_datagram;
-  srcbuf.ack_datagram = ack_datagram;
-  srcbuf.lost_datagram = lost_datagram;
-  srcbuf.get_path_challenge_data = get_path_challenge_data;
-  srcbuf.stream_stop_sending = stream_stop_sending;
-  srcbuf.version_negotiation = version_negotiation;
-  srcbuf.recv_rx_key = recv_rx_key;
-  srcbuf.recv_tx_key = recv_tx_key;
-  srcbuf.tls_early_data_rejected = tls_early_data_rejected;
 
   v1len = ngtcp2_callbackslen_version(NGTCP2_CALLBACKS_V1);
 
@@ -598,55 +597,55 @@ void test_ngtcp2_callbacks_convert_to_latest(void) {
 }
 
 void test_ngtcp2_callbacks_convert_to_old(void) {
-  ngtcp2_callbacks src, *dest, destbuf;
+  ngtcp2_callbacks src = {
+    .client_initial = client_initial,
+    .recv_client_initial = recv_client_initial,
+    .recv_crypto_data = recv_crypto_data,
+    .handshake_completed = handshake_completed,
+    .recv_version_negotiation = recv_version_negotiation,
+    .encrypt = encrypt,
+    .decrypt = decrypt,
+    .hp_mask = hp_mask,
+    .recv_stream_data = recv_stream_data,
+    .acked_stream_data_offset = acked_stream_data_offset,
+    .stream_open = stream_open,
+    .stream_close = stream_close,
+    .recv_stateless_reset = recv_stateless_reset,
+    .recv_retry = recv_retry,
+    .extend_max_local_streams_bidi = extend_max_local_streams_bidi,
+    .extend_max_local_streams_uni = extend_max_local_streams_uni,
+    .rand = rand_cb,
+    .get_new_connection_id = get_new_connection_id,
+    .remove_connection_id = remove_connection_id,
+    .update_key = update_key,
+    .path_validation = path_validation,
+    .select_preferred_addr = select_preferred_addr,
+    .stream_reset = stream_reset,
+    .extend_max_remote_streams_bidi = extend_max_remote_streams_bidi,
+    .extend_max_remote_streams_uni = extend_max_remote_streams_uni,
+    .extend_max_stream_data = extend_max_stream_data,
+    .dcid_status = dcid_status,
+    .handshake_confirmed = handshake_confirmed,
+    .recv_new_token = recv_new_token,
+    .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
+    .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
+    .recv_datagram = recv_datagram,
+    .ack_datagram = ack_datagram,
+    .lost_datagram = lost_datagram,
+    .get_path_challenge_data = get_path_challenge_data,
+    .stream_stop_sending = stream_stop_sending,
+    .version_negotiation = version_negotiation,
+    .recv_rx_key = recv_rx_key,
+    .recv_tx_key = recv_tx_key,
+    .tls_early_data_rejected = tls_early_data_rejected,
+    .begin_path_validation = begin_path_validation,
+  };
+  ngtcp2_callbacks *dest, destbuf;
   size_t v1len;
 
   v1len = ngtcp2_callbackslen_version(NGTCP2_CALLBACKS_V1);
 
   dest = malloc(v1len);
-
-  memset(&src, 0, sizeof(src));
-  src.client_initial = client_initial;
-  src.recv_client_initial = recv_client_initial;
-  src.recv_crypto_data = recv_crypto_data;
-  src.handshake_completed = handshake_completed;
-  src.recv_version_negotiation = recv_version_negotiation;
-  src.encrypt = encrypt;
-  src.decrypt = decrypt;
-  src.hp_mask = hp_mask;
-  src.recv_stream_data = recv_stream_data;
-  src.acked_stream_data_offset = acked_stream_data_offset;
-  src.stream_open = stream_open;
-  src.stream_close = stream_close;
-  src.recv_stateless_reset = recv_stateless_reset;
-  src.recv_retry = recv_retry;
-  src.extend_max_local_streams_bidi = extend_max_local_streams_bidi;
-  src.extend_max_local_streams_uni = extend_max_local_streams_uni;
-  src.rand = rand_cb;
-  src.get_new_connection_id = get_new_connection_id;
-  src.remove_connection_id = remove_connection_id;
-  src.update_key = update_key;
-  src.path_validation = path_validation;
-  src.select_preferred_addr = select_preferred_addr;
-  src.stream_reset = stream_reset;
-  src.extend_max_remote_streams_bidi = extend_max_remote_streams_bidi;
-  src.extend_max_remote_streams_uni = extend_max_remote_streams_uni;
-  src.extend_max_stream_data = extend_max_stream_data;
-  src.dcid_status = dcid_status;
-  src.handshake_confirmed = handshake_confirmed;
-  src.recv_new_token = recv_new_token;
-  src.delete_crypto_aead_ctx = delete_crypto_aead_ctx;
-  src.delete_crypto_cipher_ctx = delete_crypto_cipher_ctx;
-  src.recv_datagram = recv_datagram;
-  src.ack_datagram = ack_datagram;
-  src.lost_datagram = lost_datagram;
-  src.get_path_challenge_data = get_path_challenge_data;
-  src.stream_stop_sending = stream_stop_sending;
-  src.version_negotiation = version_negotiation;
-  src.recv_rx_key = recv_rx_key;
-  src.recv_tx_key = recv_tx_key;
-  src.tls_early_data_rejected = tls_early_data_rejected;
-  src.begin_path_validation = begin_path_validation;
 
   ngtcp2_callbacks_convert_to_old(NGTCP2_CALLBACKS_V1, dest, &src);
 

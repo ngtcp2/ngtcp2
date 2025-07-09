@@ -45,14 +45,17 @@ void test_ngtcp2_addr_eq(void) {
   ngtcp2_addr a, b;
 
   {
-    ngtcp2_sockaddr_in saa, sab;
+    ngtcp2_sockaddr_in saa = {
+      .sin_family = NGTCP2_AF_INET,
+      .sin_port = 100,
+    };
+    ngtcp2_sockaddr_in sab = {
+      .sin_family = NGTCP2_AF_INET,
+      .sin_port = 100,
+    };
 
-    saa.sin_family = NGTCP2_AF_INET;
-    sab.sin_family = NGTCP2_AF_INET;
     memcpy(&saa.sin_addr, "1234", sizeof(saa.sin_addr));
     memcpy(&sab.sin_addr, "1234", sizeof(sab.sin_addr));
-    saa.sin_port = 100;
-    sab.sin_port = 100;
 
     ngtcp2_addr_init(&a, (const ngtcp2_sockaddr *)&saa, sizeof(saa));
     ngtcp2_addr_init(&b, (const ngtcp2_sockaddr *)&sab, sizeof(sab));
@@ -70,14 +73,17 @@ void test_ngtcp2_addr_eq(void) {
   }
 
   {
-    ngtcp2_sockaddr_in6 saa, sab;
+    ngtcp2_sockaddr_in6 saa = {
+      .sin6_family = NGTCP2_AF_INET6,
+      .sin6_port = 100,
+    };
+    ngtcp2_sockaddr_in6 sab = {
+      .sin6_family = NGTCP2_AF_INET6,
+      .sin6_port = 100,
+    };
 
-    saa.sin6_family = NGTCP2_AF_INET6;
-    sab.sin6_family = NGTCP2_AF_INET6;
     memcpy(&saa.sin6_addr, "1234123412341234", sizeof(saa.sin6_addr));
     memcpy(&sab.sin6_addr, "1234123412341234", sizeof(sab.sin6_addr));
-    saa.sin6_port = 100;
-    sab.sin6_port = 100;
 
     ngtcp2_addr_init(&a, (const ngtcp2_sockaddr *)&saa, sizeof(saa));
     ngtcp2_addr_init(&b, (const ngtcp2_sockaddr *)&sab, sizeof(sab));
@@ -95,11 +101,12 @@ void test_ngtcp2_addr_eq(void) {
   }
 
   {
-    ngtcp2_sockaddr_in saa = {0};
-    ngtcp2_sockaddr_in6 sab = {0};
-
-    saa.sin_family = NGTCP2_AF_INET;
-    sab.sin6_family = NGTCP2_AF_INET6;
+    ngtcp2_sockaddr_in saa = {
+      .sin_family = NGTCP2_AF_INET,
+    };
+    ngtcp2_sockaddr_in6 sab = {
+      .sin6_family = NGTCP2_AF_INET6,
+    };
 
     ngtcp2_addr_init(&a, (const ngtcp2_sockaddr *)&saa, sizeof(saa));
     ngtcp2_addr_init(&b, (const ngtcp2_sockaddr *)&sab, sizeof(sab));
@@ -112,14 +119,17 @@ void test_ngtcp2_addr_cmp(void) {
   ngtcp2_addr a, b;
 
   {
-    ngtcp2_sockaddr_in saa, sab;
+    ngtcp2_sockaddr_in saa = {
+      .sin_family = NGTCP2_AF_INET,
+      .sin_port = 100,
+    };
+    ngtcp2_sockaddr_in sab = {
+      .sin_family = NGTCP2_AF_INET,
+      .sin_port = 100,
+    };
 
-    saa.sin_family = NGTCP2_AF_INET;
-    sab.sin_family = NGTCP2_AF_INET;
     memcpy(&saa.sin_addr, "1234", sizeof(saa.sin_addr));
     memcpy(&sab.sin_addr, "1234", sizeof(sab.sin_addr));
-    saa.sin_port = 100;
-    sab.sin_port = 100;
 
     ngtcp2_addr_init(&a, (const ngtcp2_sockaddr *)&saa, sizeof(saa));
     ngtcp2_addr_init(&b, (const ngtcp2_sockaddr *)&sab, sizeof(sab));
@@ -141,14 +151,17 @@ void test_ngtcp2_addr_cmp(void) {
   }
 
   {
-    ngtcp2_sockaddr_in6 saa, sab;
+    ngtcp2_sockaddr_in6 saa = {
+      .sin6_family = NGTCP2_AF_INET6,
+      .sin6_port = 100,
+    };
+    ngtcp2_sockaddr_in6 sab = {
+      .sin6_family = NGTCP2_AF_INET6,
+      .sin6_port = 100,
+    };
 
-    saa.sin6_family = NGTCP2_AF_INET6;
-    sab.sin6_family = NGTCP2_AF_INET6;
     memcpy(&saa.sin6_addr, "1234123412341234", sizeof(saa.sin6_addr));
     memcpy(&sab.sin6_addr, "1234123412341234", sizeof(sab.sin6_addr));
-    saa.sin6_port = 100;
-    sab.sin6_port = 100;
 
     ngtcp2_addr_init(&a, (const ngtcp2_sockaddr *)&saa, sizeof(saa));
     ngtcp2_addr_init(&b, (const ngtcp2_sockaddr *)&sab, sizeof(sab));
@@ -170,11 +183,12 @@ void test_ngtcp2_addr_cmp(void) {
   }
 
   {
-    ngtcp2_sockaddr_in saa = {0};
-    ngtcp2_sockaddr_in6 sab = {0};
-
-    saa.sin_family = NGTCP2_AF_INET;
-    sab.sin6_family = NGTCP2_AF_INET6;
+    ngtcp2_sockaddr_in saa = {
+      .sin_family = NGTCP2_AF_INET,
+    };
+    ngtcp2_sockaddr_in6 sab = {
+      .sin6_family = NGTCP2_AF_INET6,
+    };
 
     ngtcp2_addr_init(&a, (const ngtcp2_sockaddr *)&saa, sizeof(saa));
     ngtcp2_addr_init(&b, (const ngtcp2_sockaddr *)&sab, sizeof(sab));

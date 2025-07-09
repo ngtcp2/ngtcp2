@@ -60,10 +60,10 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_init(&qlog.buf, buf, sizeof(buf));
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->padding.type = NGTCP2_FRAME_PADDING;
-    fr->padding.len = 122;
+    fr->padding = (ngtcp2_padding){
+      .type = NGTCP2_FRAME_PADDING,
+      .len = 122,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -75,9 +75,9 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_PING;
+    fr->ping = (ngtcp2_ping){
+      .type = NGTCP2_FRAME_PING,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -89,11 +89,11 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_ACK;
-    fr->ack.ack_delay_unscaled = 31 * NGTCP2_MILLISECONDS;
-    fr->ack.largest_ack = 1000000007;
+    fr->ack = (ngtcp2_ack){
+      .type = NGTCP2_FRAME_ACK,
+      .ack_delay_unscaled = 31 * NGTCP2_MILLISECONDS,
+      .largest_ack = 1000000007,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -107,15 +107,18 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_ACK;
-    fr->ack.ack_delay_unscaled = 31 * NGTCP2_MILLISECONDS;
-    fr->ack.largest_ack = 1000000007;
-    fr->ack.first_ack_range = 11;
-    fr->ack.rangecnt = 1;
-    fr->ack.ranges[0].gap = 17;
-    fr->ack.ranges[0].len = 73;
+    fr->ack = (ngtcp2_ack){
+      .type = NGTCP2_FRAME_ACK,
+      .ack_delay_unscaled = 31 * NGTCP2_MILLISECONDS,
+      .largest_ack = 1000000007,
+      .first_ack_range = 11,
+      .rangecnt = 1,
+      .ranges[0] =
+        {
+          .gap = 17,
+          .len = 73,
+        },
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -129,15 +132,19 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_ACK;
-    fr->ack.ack_delay_unscaled = 31 * NGTCP2_MILLISECONDS;
-    fr->ack.largest_ack = 1000000007;
-    fr->ack.first_ack_range = 11;
-    fr->ack.rangecnt = 2;
-    fr->ack.ranges[0].gap = 17;
-    fr->ack.ranges[0].len = 73;
+    fr->ack = (ngtcp2_ack){
+      .type = NGTCP2_FRAME_ACK,
+      .ack_delay_unscaled = 31 * NGTCP2_MILLISECONDS,
+      .largest_ack = 1000000007,
+      .first_ack_range = 11,
+      .rangecnt = 2,
+      .ranges[0] =
+        {
+          .gap = 17,
+          .len = 73,
+        },
+    };
+    fr->ack.ranges[1] = (ngtcp2_ack_range){0};
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -151,14 +158,17 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_ACK_ECN;
-    fr->ack.ack_delay_unscaled = 31 * NGTCP2_MILLISECONDS;
-    fr->ack.largest_ack = 1000000007;
-    fr->ack.ecn.ect1 = 678912;
-    fr->ack.ecn.ect0 = 892363;
-    fr->ack.ecn.ce = 956923;
+    fr->ack = (ngtcp2_ack){
+      .type = NGTCP2_FRAME_ACK_ECN,
+      .ack_delay_unscaled = 31 * NGTCP2_MILLISECONDS,
+      .largest_ack = 1000000007,
+      .ecn =
+        {
+          .ect1 = 678912,
+          .ect0 = 892363,
+          .ce = 956923,
+        },
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -172,12 +182,12 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_RESET_STREAM;
-    fr->reset_stream.stream_id = 1000000009;
-    fr->reset_stream.app_error_code = 761111;
-    fr->reset_stream.final_size = 1000000007;
+    fr->reset_stream = (ngtcp2_reset_stream){
+      .type = NGTCP2_FRAME_RESET_STREAM,
+      .stream_id = 1000000009,
+      .app_error_code = 761111,
+      .final_size = 1000000007,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -191,11 +201,11 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_STOP_SENDING;
-    fr->stop_sending.stream_id = 1000000009;
-    fr->stop_sending.app_error_code = 3119999;
+    fr->stop_sending = (ngtcp2_stop_sending){
+      .type = NGTCP2_FRAME_STOP_SENDING,
+      .stream_id = 1000000009,
+      .app_error_code = 3119999,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -208,12 +218,12 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_CRYPTO;
-    fr->stream.offset = 65000011;
-    fr->stream.datacnt = 1;
-    fr->stream.data[0].len = 111187;
+    fr->stream = (ngtcp2_stream){
+      .type = NGTCP2_FRAME_CRYPTO,
+      .offset = 65000011,
+      .datacnt = 1,
+      .data[0].len = 111187,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -226,11 +236,11 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_NEW_TOKEN;
-    fr->new_token.tokenlen = 8;
-    fr->new_token.token = (uint8_t *)"\x12\x34\x56\x78\x9a\xbc\xde\xf0";
+    fr->new_token = (ngtcp2_new_token){
+      .type = NGTCP2_FRAME_NEW_TOKEN,
+      .tokenlen = 8,
+      .token = (uint8_t *)"\x12\x34\x56\x78\x9a\xbc\xde\xf0",
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -243,14 +253,14 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_STREAM;
-    fr->stream.stream_id = 1000000007;
-    fr->stream.offset = 1000000009;
-    fr->stream.datacnt = 1;
-    fr->stream.data[0].len = 8888888;
-    fr->stream.fin = 1;
+    fr->stream = (ngtcp2_stream){
+      .type = NGTCP2_FRAME_STREAM,
+      .stream_id = 1000000007,
+      .offset = 1000000009,
+      .datacnt = 1,
+      .data[0].len = 8888888,
+      .fin = 1,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -264,13 +274,13 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_STREAM;
-    fr->stream.stream_id = 1000000007;
-    fr->stream.offset = 1000000009;
-    fr->stream.datacnt = 1;
-    fr->stream.data[0].len = 8888888;
+    fr->stream = (ngtcp2_stream){
+      .type = NGTCP2_FRAME_STREAM,
+      .stream_id = 1000000007,
+      .offset = 1000000009,
+      .datacnt = 1,
+      .data[0].len = 8888888,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -283,10 +293,10 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_MAX_DATA;
-    fr->max_data.max_data = 89624231;
+    fr->max_data = (ngtcp2_max_data){
+      .type = NGTCP2_FRAME_MAX_DATA,
+      .max_data = 89624231,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -298,11 +308,11 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_MAX_STREAM_DATA;
-    fr->max_stream_data.stream_id = 1000000009;
-    fr->max_stream_data.max_stream_data = 3479131413562775697;
+    fr->max_stream_data = (ngtcp2_max_stream_data){
+      .type = NGTCP2_FRAME_MAX_STREAM_DATA,
+      .stream_id = 1000000009,
+      .max_stream_data = 3479131413562775697,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -315,10 +325,10 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_MAX_STREAMS_BIDI;
-    fr->max_streams.max_streams = 3947405932436725448;
+    fr->max_streams = (ngtcp2_max_streams){
+      .type = NGTCP2_FRAME_MAX_STREAMS_BIDI,
+      .max_streams = 3947405932436725448,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -331,10 +341,10 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_MAX_STREAMS_UNI;
-    fr->max_streams.max_streams = 2650981103699753174;
+    fr->max_streams = (ngtcp2_max_streams){
+      .type = NGTCP2_FRAME_MAX_STREAMS_UNI,
+      .max_streams = 2650981103699753174,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -347,10 +357,10 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_DATA_BLOCKED;
-    fr->data_blocked.offset = 141245489541204826;
+    fr->data_blocked = (ngtcp2_data_blocked){
+      .type = NGTCP2_FRAME_DATA_BLOCKED,
+      .offset = 141245489541204826,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -363,11 +373,11 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
-    fr->stream_data_blocked.stream_id = 1000000007;
-    fr->stream_data_blocked.offset = 3510083742766371473;
+    fr->stream_data_blocked = (ngtcp2_stream_data_blocked){
+      .type = NGTCP2_FRAME_STREAM_DATA_BLOCKED,
+      .stream_id = 1000000007,
+      .offset = 3510083742766371473,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -380,10 +390,10 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_STREAMS_BLOCKED_BIDI;
-    fr->streams_blocked.max_streams = 267807966110011001;
+    fr->streams_blocked = (ngtcp2_streams_blocked){
+      .type = NGTCP2_FRAME_STREAMS_BLOCKED_BIDI,
+      .max_streams = 267807966110011001,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -396,10 +406,10 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_STREAMS_BLOCKED_UNI;
-    fr->streams_blocked.max_streams = 4147150966951874727;
+    fr->streams_blocked = (ngtcp2_streams_blocked){
+      .type = NGTCP2_FRAME_STREAMS_BLOCKED_UNI,
+      .max_streams = 4147150966951874727,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -412,11 +422,11 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_NEW_CONNECTION_ID;
-    fr->new_connection_id.seq = 2322933918954521341;
-    fr->new_connection_id.retire_prior_to = 353598537829135415;
+    fr->new_connection_id = (ngtcp2_new_connection_id){
+      .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+      .seq = 2322933918954521341,
+      .retire_prior_to = 353598537829135415,
+    };
     ngtcp2_cid_init(&fr->new_connection_id.cid,
                     (const uint8_t *)"\x01\x02\x03\x04\x05\x06\x07\x08", 8);
     memcpy(fr->new_connection_id.stateless_reset_token,
@@ -438,10 +448,10 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
-    fr->retire_connection_id.seq = 923246273261945495;
+    fr->retire_connection_id = (ngtcp2_retire_connection_id){
+      .type = NGTCP2_FRAME_RETIRE_CONNECTION_ID,
+      .seq = 923246273261945495,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -454,9 +464,9 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_PATH_CHALLENGE;
+    fr->path_challenge = (ngtcp2_path_challenge){
+      .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    };
     memcpy(fr->path_challenge.data, "\x11\x22\x33\x44\x55\x66\x77\x88",
            NGTCP2_PATH_CHALLENGE_DATALEN);
 
@@ -471,9 +481,9 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_PATH_RESPONSE;
+    fr->path_response = (ngtcp2_path_response){
+      .type = NGTCP2_FRAME_PATH_RESPONSE,
+    };
     memcpy(fr->path_challenge.data, "\x22\x33\x44\x55\x66\x77\x88\x99",
            NGTCP2_PATH_CHALLENGE_DATALEN);
 
@@ -488,10 +498,10 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_CONNECTION_CLOSE;
-    fr->connection_close.error_code = 3270540419184339176;
+    fr->connection_close = (ngtcp2_connection_close){
+      .type = NGTCP2_FRAME_CONNECTION_CLOSE,
+      .error_code = 3270540419184339176,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -506,10 +516,10 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_CONNECTION_CLOSE_APP;
-    fr->connection_close.error_code = 1069447711149177103;
+    fr->connection_close = (ngtcp2_connection_close){
+      .type = NGTCP2_FRAME_CONNECTION_CLOSE_APP,
+      .error_code = 1069447711149177103,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -523,9 +533,9 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_HANDSHAKE_DONE;
+    fr->handshake_done = (ngtcp2_handshake_done){
+      .type = NGTCP2_FRAME_HANDSHAKE_DONE,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';
@@ -537,12 +547,12 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
-    memset(&exfr, 0, sizeof(exfr));
-
-    fr->type = NGTCP2_FRAME_DATAGRAM;
-    fr->datagram.datacnt = 1;
-    fr->datagram.data = fr->datagram.rdata;
-    fr->datagram.rdata[0].len = 1301458;
+    fr->datagram = (ngtcp2_datagram){
+      .type = NGTCP2_FRAME_DATAGRAM,
+      .datacnt = 1,
+      .data = fr->datagram.rdata,
+      .rdata[0].len = 1301458,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, fr);
     *qlog.buf.last = '\0';

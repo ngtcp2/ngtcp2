@@ -345,11 +345,10 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ngtcp2_acktr_add_ack(&acktr, 998, 4497);
   ngtcp2_acktr_add_ack(&acktr, 999, 4499);
 
-  ackfr->type = NGTCP2_FRAME_ACK;
-  ackfr->largest_ack = 998;
-  ackfr->ack_delay = 0;
-  ackfr->first_ack_range = 0;
-  ackfr->rangecnt = 0;
+  *ackfr = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = 998,
+  };
 
   ngtcp2_acktr_recv_ack(&acktr, ackfr);
 
@@ -362,11 +361,10 @@ void test_ngtcp2_acktr_recv_ack(void) {
   assert_int64(4500, ==, ent->pkt_num);
   assert_size(2, ==, ent->len);
 
-  ackfr->type = NGTCP2_FRAME_ACK;
-  ackfr->largest_ack = 999;
-  ackfr->ack_delay = 0;
-  ackfr->first_ack_range = 0;
-  ackfr->rangecnt = 0;
+  *ackfr = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = 999,
+  };
 
   ngtcp2_acktr_recv_ack(&acktr, ackfr);
 
@@ -393,20 +391,21 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ngtcp2_acktr_add_ack(&acktr, 1004, 8);
   ngtcp2_acktr_add_ack(&acktr, 1006, 8);
 
-  ackfr->type = NGTCP2_FRAME_ACK;
-  ackfr->largest_ack = 1005;
-  ackfr->ack_delay = 0;
-  ackfr->first_ack_range = 0;
-  ackfr->rangecnt = 3;
+  *ackfr = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = 1005,
+    .rangecnt = 3,
+  };
   /* [1003] */
-  ackfr->ranges[0].gap = 0;
-  ackfr->ranges[0].len = 0;
   /* [1000, 999] */
-  ackfr->ranges[1].gap = 1;
-  ackfr->ranges[1].len = 1;
+  ackfr->ranges[1] = (ngtcp2_ack_range){
+    .gap = 1,
+    .len = 1,
+  };
   /* [995] */
-  ackfr->ranges[2].gap = 2;
-  ackfr->ranges[2].len = 0;
+  ackfr->ranges[2] = (ngtcp2_ack_range){
+    .gap = 2,
+  };
 
   ngtcp2_acktr_recv_ack(&acktr, &mfr.fr.ack);
 
@@ -449,11 +448,10 @@ void test_ngtcp2_acktr_create_ack_frame(void) {
   ngtcp2_acktr_add(&acktr, 0, 1, 0);
   ngtcp2_acktr_add_ack(&acktr, 1000, 0);
 
-  mfr.fr.ack.type = NGTCP2_FRAME_ACK;
-  mfr.fr.ack.ack_delay = 0;
-  mfr.fr.ack.largest_ack = 1000;
-  mfr.fr.ack.first_ack_range = 0;
-  mfr.fr.ack.rangecnt = 0;
+  mfr.fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = 1000,
+  };
 
   ngtcp2_acktr_recv_ack(&acktr, &mfr.fr.ack);
 
