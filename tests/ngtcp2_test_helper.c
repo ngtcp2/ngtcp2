@@ -360,11 +360,11 @@ ngtcp2_ssize pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 }
 
 static void addr_init(ngtcp2_sockaddr_in *dest, uint32_t addr, uint16_t port) {
-  memset(dest, 0, sizeof(*dest));
-
-  dest->sin_family = NGTCP2_AF_INET;
-  dest->sin_port = ngtcp2_htons(port);
-  dest->sin_addr.s_addr = ngtcp2_htonl(addr);
+  *dest = (ngtcp2_sockaddr_in){
+    .sin_family = NGTCP2_AF_INET,
+    .sin_port = ngtcp2_htons(port),
+    .sin_addr.s_addr = ngtcp2_htonl(addr),
+  };
 }
 
 void path_init(ngtcp2_path_storage *path, uint32_t local_addr,
@@ -381,18 +381,17 @@ void path_init(ngtcp2_path_storage *path, uint32_t local_addr,
 
 void ngtcp2_tpe_init(ngtcp2_tpe *tpe, const ngtcp2_cid *dcid,
                      const ngtcp2_cid *scid, uint32_t version) {
-  memset(tpe, 0, sizeof(*tpe));
-
-  tpe->dcid = *dcid;
+  *tpe = (ngtcp2_tpe){
+    .dcid = *dcid,
+    .version = version,
+    .initial.last_pkt_num = -1,
+    .handshake.last_pkt_num = -1,
+    .app.last_pkt_num = -1,
+  };
 
   if (scid) {
     tpe->scid = *scid;
   }
-
-  tpe->version = version;
-  tpe->initial.last_pkt_num = -1;
-  tpe->handshake.last_pkt_num = -1;
-  tpe->app.last_pkt_num = -1;
 }
 
 void ngtcp2_tpe_init_conn(ngtcp2_tpe *tpe, ngtcp2_conn *conn) {

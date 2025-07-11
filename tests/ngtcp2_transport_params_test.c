@@ -52,7 +52,7 @@ static size_t varint_paramlen(ngtcp2_transport_param_id id, uint64_t value) {
 }
 
 void test_ngtcp2_transport_params_encode(void) {
-  ngtcp2_transport_params params = {0}, nparams = {0};
+  ngtcp2_transport_params params, nparams = {0};
   uint8_t buf[512];
   ngtcp2_ssize nwrite;
   int rv;
@@ -69,44 +69,54 @@ void test_ngtcp2_transport_params_encode(void) {
     ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xff000000u + i));
   }
 
-  params.initial_max_stream_data_bidi_local = 1000000007;
-  params.initial_max_stream_data_bidi_remote = 961748941;
-  params.initial_max_stream_data_uni = 982451653;
-  params.initial_max_data = 1000000009;
-  params.initial_max_streams_bidi = 908;
-  params.initial_max_streams_uni = 16383;
-  params.max_idle_timeout = 16363 * NGTCP2_MILLISECONDS;
-  params.max_udp_payload_size = 1200;
-  params.stateless_reset_token_present = 1;
+  params = (ngtcp2_transport_params){
+    .initial_max_stream_data_bidi_local = 1000000007,
+    .initial_max_stream_data_bidi_remote = 961748941,
+    .initial_max_stream_data_uni = 982451653,
+    .initial_max_data = 1000000009,
+    .initial_max_streams_bidi = 908,
+    .initial_max_streams_uni = 16383,
+    .max_idle_timeout = 16363 * NGTCP2_MILLISECONDS,
+    .max_udp_payload_size = 1200,
+    .stateless_reset_token_present = 1,
+    .ack_delay_exponent = 20,
+    .preferred_addr_present = 1,
+    .preferred_addr =
+      {
+        .ipv6 =
+          {
+            .sin6_family = NGTCP2_AF_INET6,
+            .sin6_port = ngtcp2_htons(63111),
+          },
+        .ipv6_present = 1,
+      },
+    .disable_active_migration = 1,
+    .max_ack_delay = 63 * NGTCP2_MILLISECONDS,
+    .retry_scid_present = 1,
+    .retry_scid = rcid,
+    .original_dcid = dcid,
+    .original_dcid_present = 1,
+    .initial_scid = scid,
+    .initial_scid_present = 1,
+    .active_connection_id_limit = 1073741824,
+    .max_datagram_frame_size = 63,
+    .grease_quic_bit = 1,
+    .version_info =
+      {
+        .chosen_version = NGTCP2_PROTO_VER_V1,
+        .available_versions = available_versions,
+        .available_versionslen = ngtcp2_arraylen(available_versions),
+      },
+    .version_info_present = 1,
+  };
+
   memset(params.stateless_reset_token, 0xf1,
          sizeof(params.stateless_reset_token));
-  params.ack_delay_exponent = 20;
-  params.preferred_addr_present = 1;
-  params.preferred_addr.ipv4_present = 0;
   sa_in6 = &params.preferred_addr.ipv6;
-  sa_in6->sin6_family = NGTCP2_AF_INET6;
   memset(&sa_in6->sin6_addr, 0xe1, sizeof(sa_in6->sin6_addr));
-  sa_in6->sin6_port = ngtcp2_htons(63111);
-  params.preferred_addr.ipv6_present = 1;
   scid_init(&params.preferred_addr.cid);
   memset(params.preferred_addr.stateless_reset_token, 0xd1,
          sizeof(params.preferred_addr.stateless_reset_token));
-  params.disable_active_migration = 1;
-  params.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
-  params.retry_scid_present = 1;
-  params.retry_scid = rcid;
-  params.original_dcid = dcid;
-  params.original_dcid_present = 1;
-  params.initial_scid = scid;
-  params.initial_scid_present = 1;
-  params.active_connection_id_limit = 1073741824;
-  params.max_datagram_frame_size = 63;
-  params.grease_quic_bit = 1;
-  params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
-  params.version_info.available_versions = available_versions;
-  params.version_info.available_versionslen =
-    ngtcp2_arraylen(available_versions);
-  params.version_info_present = 1;
 
   len =
     varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,
@@ -277,7 +287,7 @@ void test_ngtcp2_transport_params_decode(void) {
 }
 
 void test_ngtcp2_transport_params_decode_new(void) {
-  ngtcp2_transport_params params = {0}, *nparams;
+  ngtcp2_transport_params params, *nparams;
   uint8_t buf[512];
   ngtcp2_ssize nwrite;
   int rv;
@@ -294,44 +304,54 @@ void test_ngtcp2_transport_params_decode_new(void) {
     ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xff000000u + i));
   }
 
-  params.initial_max_stream_data_bidi_local = 1000000007;
-  params.initial_max_stream_data_bidi_remote = 961748941;
-  params.initial_max_stream_data_uni = 982451653;
-  params.initial_max_data = 1000000009;
-  params.initial_max_streams_bidi = 908;
-  params.initial_max_streams_uni = 16383;
-  params.max_idle_timeout = 16363 * NGTCP2_MILLISECONDS;
-  params.max_udp_payload_size = 1200;
-  params.stateless_reset_token_present = 1;
+  params = (ngtcp2_transport_params){
+    .initial_max_stream_data_bidi_local = 1000000007,
+    .initial_max_stream_data_bidi_remote = 961748941,
+    .initial_max_stream_data_uni = 982451653,
+    .initial_max_data = 1000000009,
+    .initial_max_streams_bidi = 908,
+    .initial_max_streams_uni = 16383,
+    .max_idle_timeout = 16363 * NGTCP2_MILLISECONDS,
+    .max_udp_payload_size = 1200,
+    .stateless_reset_token_present = 1,
+    .ack_delay_exponent = 20,
+    .preferred_addr_present = 1,
+    .preferred_addr =
+      {
+        .ipv4 =
+          {
+            .sin_family = NGTCP2_AF_INET,
+            .sin_port = ngtcp2_htons(11732),
+          },
+        .ipv4_present = 1,
+      },
+    .disable_active_migration = 1,
+    .max_ack_delay = 63 * NGTCP2_MILLISECONDS,
+    .retry_scid_present = 1,
+    .retry_scid = rcid,
+    .original_dcid = dcid,
+    .original_dcid_present = 1,
+    .initial_scid = scid,
+    .initial_scid_present = 1,
+    .active_connection_id_limit = 1073741824,
+    .max_datagram_frame_size = 63,
+    .grease_quic_bit = 1,
+    .version_info =
+      {
+        .chosen_version = NGTCP2_PROTO_VER_V1,
+        .available_versions = available_versions,
+        .available_versionslen = ngtcp2_arraylen(available_versions),
+      },
+    .version_info_present = 1,
+  };
+
   memset(params.stateless_reset_token, 0xf1,
          sizeof(params.stateless_reset_token));
-  params.ack_delay_exponent = 20;
-  params.preferred_addr_present = 1;
   sa_in = &params.preferred_addr.ipv4;
-  sa_in->sin_family = NGTCP2_AF_INET;
   memset(&sa_in->sin_addr, 0xf1, sizeof(sa_in->sin_addr));
-  sa_in->sin_port = ngtcp2_htons(11732);
-  params.preferred_addr.ipv4_present = 1;
-  params.preferred_addr.ipv6_present = 0;
   scid_init(&params.preferred_addr.cid);
   memset(params.preferred_addr.stateless_reset_token, 0xd1,
          sizeof(params.preferred_addr.stateless_reset_token));
-  params.disable_active_migration = 1;
-  params.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
-  params.retry_scid_present = 1;
-  params.retry_scid = rcid;
-  params.original_dcid = dcid;
-  params.original_dcid_present = 1;
-  params.initial_scid = scid;
-  params.initial_scid_present = 1;
-  params.active_connection_id_limit = 1073741824;
-  params.max_datagram_frame_size = 63;
-  params.grease_quic_bit = 1;
-  params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
-  params.version_info.available_versions = available_versions;
-  params.version_info.available_versionslen =
-    ngtcp2_arraylen(available_versions);
-  params.version_info_present = 1;
 
   len =
     varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,
