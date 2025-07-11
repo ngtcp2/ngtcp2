@@ -13505,7 +13505,7 @@ ngtcp2_ssize ngtcp2_pkt_write_connection_close(
   ngtcp2_crypto_km ckm;
   ngtcp2_crypto_cc cc;
   ngtcp2_ppe ppe;
-  ngtcp2_frame fr = {0};
+  ngtcp2_frame fr;
   int rv;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_INITIAL, dcid,
@@ -13536,11 +13536,12 @@ ngtcp2_ssize ngtcp2_pkt_write_connection_close(
     return NGTCP2_ERR_NOBUF;
   }
 
-  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
-  fr.connection_close.error_code = error_code;
-  fr.connection_close.frame_type = 0;
-  fr.connection_close.reasonlen = reasonlen;
-  fr.connection_close.reason = (uint8_t *)reason;
+  fr.connection_close = (ngtcp2_connection_close){
+    .type = NGTCP2_FRAME_CONNECTION_CLOSE,
+    .error_code = error_code,
+    .reasonlen = reasonlen,
+    .reason = (uint8_t *)reason,
+  };
 
   rv = ngtcp2_ppe_encode_frame(&ppe, &fr);
   if (rv != 0) {
