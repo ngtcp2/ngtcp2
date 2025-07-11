@@ -696,13 +696,13 @@ static int conn_call_recv_tx_key(ngtcp2_conn *conn,
   return 0;
 }
 
+// pktns_init initializes |pktns|.  It assumes that the object pointed
+// by |pktns| is zero-cleared.
 static void pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
                        ngtcp2_rst *rst, ngtcp2_cc *cc, int64_t initial_pkt_num,
                        ngtcp2_log *log, ngtcp2_qlog *qlog,
                        ngtcp2_objalloc *rtb_entry_objalloc,
                        ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem) {
-  memset(pktns, 0, sizeof(*pktns));
-
   ngtcp2_gaptr_init(&pktns->rx.pngap, mem);
 
   pktns->tx.last_pkt_num = initial_pkt_num - 1;
@@ -724,7 +724,7 @@ static int pktns_new(ngtcp2_pktns **ppktns, ngtcp2_pktns_id pktns_id,
                      ngtcp2_log *log, ngtcp2_qlog *qlog,
                      ngtcp2_objalloc *rtb_entry_objalloc,
                      ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem) {
-  *ppktns = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_pktns));
+  *ppktns = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_pktns));
   if (*ppktns == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
