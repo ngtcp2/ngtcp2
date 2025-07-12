@@ -48,6 +48,7 @@ public:
 
   bool get_early_data_accepted() const;
   bool get_ech_accepted() const { return false; }
+  int write_ech_config_list(const char *path) const { return 0; }
 };
 
 #endif // !defined(TLS_CLIENT_SESSION_WOLFSSL_H)

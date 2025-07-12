@@ -824,8 +824,15 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
     if (!last_error_.error_code) {
       if (rv == NGTCP2_ERR_CRYPTO) {
-        ngtcp2_ccerr_set_tls_alert(
-          &last_error_, ngtcp2_conn_get_tls_alert(conn_), nullptr, 0);
+        auto alert = ngtcp2_conn_get_tls_alert(conn_);
+        ngtcp2_ccerr_set_tls_alert(&last_error_, alert, nullptr, 0);
+
+        if (alert == TLS_ALERT_ECH_REQUIRED && config.ech_config_list_file &&
+            tls_session_.write_ech_config_list(config.ech_config_list_file) !=
+              0) {
+          std::cerr << "Could not write ECH retry configs in "
+                    << config.ech_config_list_file << std::endl;
+        }
       } else {
         ngtcp2_ccerr_set_liberr(&last_error_, rv, nullptr, 0);
       }
@@ -2208,8 +2215,11 @@ Options:
               Specify UDP datagram payload sizes  to probe in Path MTU
               Discovery.  <SIZE> must be strictly larger than 1200.
   --ech-config-list-file=<PATH>
-              Read ECHConfigList  from <PATH>.  ECH is  only attempted
-              if an underlying TLS stack supports it.
+              Read/write  ECHConfigList from/to  <PATH>.  ECH  is only
+              attempted if  an underlying  TLS stack supports  it.  If
+              the handshake  fails with ech_required alert,  ECH retry
+              configs,  if  provided by  server,  will  be written  to
+              <PATH>.
   -h, --help  Display this help and exit.
 
 ---
@@ -2234,7 +2244,6 @@ int main(int argc, char **argv) {
   char *data_path = nullptr;
   const char *private_key_file = nullptr;
   const char *cert_file = nullptr;
-  const char *ech_config_list_file = nullptr;
 
   if (argc) {
     prog = basename(argv[0]);
@@ -2731,7 +2740,7 @@ int main(int argc, char **argv) {
       }
       case 44:
         // --ech-config-list-file
-        ech_config_list_file = optarg;
+        config.ech_config_list_file = optarg;
         break;
       }
       break;
@@ -2789,15 +2798,14 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (ech_config_list_file) {
-    auto ech_config = util::read_file(ech_config_list_file);
+  if (config.ech_config_list_file) {
+    auto ech_config = util::read_file(config.ech_config_list_file);
     if (!ech_config) {
       std::cerr << "ech-config-list-file: Could not read ECHConfigList"
                 << std::endl;
-      exit(EXIT_FAILURE);
+    } else {
+      config.ech_config_list = std::move(*ech_config);
     }
-
-    config.ech_config_list = std::move(*ech_config);
   }
 
   auto addr = argv[optind++];
