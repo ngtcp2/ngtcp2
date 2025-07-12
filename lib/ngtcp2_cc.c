@@ -59,14 +59,16 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 static void reno_cc_reset(ngtcp2_cc_reno *reno) { reno->pending_add = 0; }
 
 void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log) {
-  memset(reno, 0, sizeof(*reno));
-
-  reno->cc.log = log;
-  reno->cc.on_pkt_acked = ngtcp2_cc_reno_cc_on_pkt_acked;
-  reno->cc.congestion_event = ngtcp2_cc_reno_cc_congestion_event;
-  reno->cc.on_persistent_congestion =
-    ngtcp2_cc_reno_cc_on_persistent_congestion;
-  reno->cc.reset = ngtcp2_cc_reno_cc_reset;
+  *reno = (ngtcp2_cc_reno){
+    .cc =
+      {
+        .log = log,
+        .on_pkt_acked = ngtcp2_cc_reno_cc_on_pkt_acked,
+        .congestion_event = ngtcp2_cc_reno_cc_congestion_event,
+        .on_persistent_congestion = ngtcp2_cc_reno_cc_on_persistent_congestion,
+        .reset = ngtcp2_cc_reno_cc_reset,
+      },
+  };
 
   reno_cc_reset(reno);
 }
@@ -176,17 +178,18 @@ static void cubic_cc_reset(ngtcp2_cc_cubic *cubic) {
 
 void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log,
                           ngtcp2_rst *rst) {
-  memset(cubic, 0, sizeof(*cubic));
-
-  cubic->cc.log = log;
-  cubic->cc.on_ack_recv = ngtcp2_cc_cubic_cc_on_ack_recv;
-  cubic->cc.congestion_event = ngtcp2_cc_cubic_cc_congestion_event;
-  cubic->cc.on_spurious_congestion = ngtcp2_cc_cubic_cc_on_spurious_congestion;
-  cubic->cc.on_persistent_congestion =
-    ngtcp2_cc_cubic_cc_on_persistent_congestion;
-  cubic->cc.reset = ngtcp2_cc_cubic_cc_reset;
-
-  cubic->rst = rst;
+  *cubic = (ngtcp2_cc_cubic){
+    .cc =
+      {
+        .log = log,
+        .on_ack_recv = ngtcp2_cc_cubic_cc_on_ack_recv,
+        .congestion_event = ngtcp2_cc_cubic_cc_congestion_event,
+        .on_spurious_congestion = ngtcp2_cc_cubic_cc_on_spurious_congestion,
+        .on_persistent_congestion = ngtcp2_cc_cubic_cc_on_persistent_congestion,
+        .reset = ngtcp2_cc_cubic_cc_reset,
+      },
+    .rst = rst,
+  };
 
   cubic_cc_reset(cubic);
 }

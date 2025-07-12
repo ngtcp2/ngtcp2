@@ -1390,21 +1390,23 @@ void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *bbr, ngtcp2_log *log,
                         ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
                         ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
                         const ngtcp2_rand_ctx *rand_ctx) {
-  memset(bbr, 0, sizeof(*bbr));
-
-  bbr->cc.log = log;
-  bbr->cc.on_pkt_lost = bbr_cc_on_pkt_lost;
-  bbr->cc.congestion_event = bbr_cc_congestion_event;
-  bbr->cc.on_spurious_congestion = bbr_cc_on_spurious_congestion;
-  bbr->cc.on_persistent_congestion = bbr_cc_on_persistent_congestion;
-  bbr->cc.on_ack_recv = bbr_cc_on_ack_recv;
-  bbr->cc.on_pkt_sent = bbr_cc_on_pkt_sent;
-  bbr->cc.reset = bbr_cc_reset;
-
-  bbr->rst = rst;
-  bbr->rand = rand;
-  bbr->rand_ctx = *rand_ctx;
-  bbr->initial_cwnd = cstat->cwnd;
+  *bbr = (ngtcp2_cc_bbr){
+    .cc =
+      {
+        .log = log,
+        .on_pkt_lost = bbr_cc_on_pkt_lost,
+        .congestion_event = bbr_cc_congestion_event,
+        .on_spurious_congestion = bbr_cc_on_spurious_congestion,
+        .on_persistent_congestion = bbr_cc_on_persistent_congestion,
+        .on_ack_recv = bbr_cc_on_ack_recv,
+        .on_pkt_sent = bbr_cc_on_pkt_sent,
+        .reset = bbr_cc_reset,
+      },
+    .rst = rst,
+    .rand = rand,
+    .rand_ctx = *rand_ctx,
+    .initial_cwnd = cstat->cwnd,
+  };
 
   bbr_on_init(bbr, cstat, initial_ts);
 }

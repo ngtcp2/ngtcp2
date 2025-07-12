@@ -43,16 +43,19 @@ ngtcp2_objalloc_def(rtb_entry, ngtcp2_rtb_entry, oplent)
 static void rtb_entry_init(ngtcp2_rtb_entry *ent, const ngtcp2_pkt_hd *hd,
                            ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
                            size_t pktlen, uint16_t flags) {
-  memset(ent, 0, sizeof(*ent));
-
-  ent->hd.pkt_num = hd->pkt_num;
-  ent->hd.type = hd->type;
-  ent->hd.flags = hd->flags;
-  ent->frc = frc;
-  ent->ts = ts;
-  ent->lost_ts = UINT64_MAX;
-  ent->pktlen = pktlen;
-  ent->flags = flags;
+  *ent = (ngtcp2_rtb_entry){
+    .hd =
+      {
+        .pkt_num = hd->pkt_num,
+        .type = hd->type,
+        .flags = hd->flags,
+      },
+    .frc = frc,
+    .ts = ts,
+    .lost_ts = UINT64_MAX,
+    .pktlen = pktlen,
+    .flags = flags,
+  };
 }
 
 int ngtcp2_rtb_entry_objalloc_new(ngtcp2_rtb_entry **pent,

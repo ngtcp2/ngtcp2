@@ -296,9 +296,9 @@ void print_http_settings(const nghttp3_settings *settings) {
           settings->h3_datagram);
 }
 
-void print_http_origin(const nghttp3_cvec *origin) {
-  fprintf(outfile, "http: origin [%.*s]\n", static_cast<int>(origin->len),
-          origin->base);
+void print_http_origin(const uint8_t *origin, size_t originlen) {
+  fprintf(outfile, "http: origin [%.*s]\n", static_cast<int>(originlen),
+          origin);
 }
 
 void print_http_end_origin() { fprintf(outfile, "http: origin ended\n"); }
