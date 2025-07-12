@@ -1278,7 +1278,7 @@ int Handler::setup_httpconn() {
   settings.qpack_max_dtable_capacity = 4096;
   settings.qpack_blocked_streams = 100;
 
-  nghttp3_cvec origin_list;
+  nghttp3_vec origin_list;
 
   if (config.origin_list) {
     origin_list.base = config.origin_list->data();

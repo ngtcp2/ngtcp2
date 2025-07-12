@@ -2216,10 +2216,10 @@ int http_recv_settings(nghttp3_conn *conn, const nghttp3_settings *settings,
 } // namespace
 
 namespace {
-int http_recv_origin(nghttp3_conn *conn, const nghttp3_cvec *origin,
-                     void *conn_user_data) {
+int http_recv_origin(nghttp3_conn *conn, const uint8_t *origin,
+                     size_t originlen, void *conn_user_data) {
   if (!config.quiet) {
-    debug::print_http_origin(origin);
+    debug::print_http_origin(origin, originlen);
   }
 
   return 0;
