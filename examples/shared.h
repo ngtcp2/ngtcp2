@@ -59,6 +59,8 @@ constexpr uint8_t RAW_H3_ALPN[] = "\x2h3";
 constexpr auto H3_ALPN = as_uint8_span(RAW_H3_ALPN);
 constexpr auto H3_ALPN_V1 = as_uint8_span(RAW_H3_ALPN);
 
+constexpr uint32_t TLS_ALERT_ECH_REQUIRED = 121;
+
 // msghdr_get_ecn gets ECN bits from |msg|.  |family| is the address
 // family from which packet is received.
 uint8_t msghdr_get_ecn(msghdr *msg, int family);
