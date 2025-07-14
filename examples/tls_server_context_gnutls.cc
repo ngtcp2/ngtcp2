@@ -49,7 +49,10 @@ TLSServerContext::TLSServerContext() : cred_{nullptr}, session_ticket_key_{} {
 
 TLSServerContext::~TLSServerContext() {
   gnutls_anti_replay_deinit(anti_replay_);
-  gnutls_free(session_ticket_key_.data);
+  if (session_ticket_key_.data) {
+    gnutls_memset(session_ticket_key_.data, 0, session_ticket_key_.size);
+    gnutls_free(session_ticket_key_.data);
+  }
   gnutls_certificate_free_credentials(cred_);
 }
 
