@@ -1,0 +1,106 @@
+name: quic-interop-runner
+
+on:
+  schedule:
+  - cron: '0 17 * * *'
+  workflow_dispatch:
+
+jobs:
+  config:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: tatsuhiro-t/quic-interop-runner
+        ref: ngtcp2
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.8
+    - name: Determine servers and clients
+      id: set-matrix
+      run: |
+        SERVERS=$(jq -c '[to_entries[] | select(.value.role == "server" or .value.role == "both") | {"server": .key, "client": "ngtcp2"}] | sort' implementations.json)
+        echo $SERVERS
+
+        CLIENTS=$(jq -c '[to_entries[] | select(.value.role == "client" or .value.role == "both") | {"server": "ngtcp2", "client": .key}] | sort' implementations.json)
+        echo $CLIENTS
+
+        MATRIX=$(echo "[$SERVERS, $CLIENTS]" | jq -c '{"include": flatten | sort | unique}')
+
+        echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+  tests:
+    needs: [config]
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.config.outputs.matrix) }}
+    name: (${{ matrix.server }} - ${{ matrix.client }})
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: tatsuhiro-t/quic-interop-runner
+        ref: ngtcp2
+      # Remove this when GitHub runner gets docker engine >= v28.1.0.
+    - uses: docker/setup-docker-action@v4
+      with:
+        version: version=v28.3.0
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.8
+    - name: Enable IPv6 support
+      run: sudo modprobe ip6table_filter
+    - name: Install Wireshark
+      run: |
+        sudo add-apt-repository ppa:wireshark-dev/nightly
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends tshark
+    - name: Install Python packages
+      run: |
+        pip install -U pip
+        pip install -r requirements.txt
+    - name: Run tests
+      run: |
+        (python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs --json results.json -t onlyTests || true) | tee output.txt
+        mkdir -p logs/${{ matrix.server }}_${{ matrix.client }}
+        mv output.txt logs/${{ matrix.server }}_${{ matrix.client }}/
+    - name: Run measurements
+      run: |
+        python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs_measurement --json measurements.json -t onlyMeasurements || true
+        if [ ! -d "logs_measurement" ]; then exit 0; fi
+        find logs_measurement -depth -name "sim" -type d -exec rm -r "{}" \;
+        find logs_measurement -depth -name "client" -type d -exec rm -r "{}" \;
+        find logs_measurement -depth -name "server" -type d -exec rm -r "{}" \;
+        mv logs_measurement/${{ matrix.server }}_${{ matrix.client }}/* logs/${{ matrix.server }}_${{ matrix.client }}/
+    - name: Reduce logs
+      run: |
+        find logs/${{ matrix.server }}_${{ matrix.client }} -name '*.pcap' -type f -exec rm -f "{}" \;
+
+        # Remove logs other than ngtcp2 because they may be large and
+        # we are not interested in them.
+        rm -f logs/*_ngtcp2/*/server/log.txt
+        rm -f logs/ngtcp2_*/*/client/log.txt
+    - name: Show result
+      run: |
+        echo "# RESULTS"
+        jq -c '.results | flatten | .[]' results.json
+
+        echo "# MEASUREMENTS"
+        jq -c '.measurements | flatten | .[]' measurements.json
+    - name: Verdict
+      id: verdict
+      run: |
+        failures=$(jq -c '.results | flatten | .[] | select(.result == "failed")' results.json)
+        [ -z "$failures" ] || exit 1
+
+        failures=$(jq -c '.measurements | flatten | .[] | select(.result == "failed")' measurements.json)
+        [ -z "$failures" ] || exit 1
+    - name: Upload logs on failure
+      uses: actions/upload-artifact@v4
+      if: failure() && steps.verdict.conclusion == 'failure'
+      with:
+        name: logs-${{ matrix.server }}-${{ matrix.client }}
+        path: logs/
