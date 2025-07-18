@@ -4,12 +4,55 @@ on:
   schedule:
   - cron: '0 17 * * *'
   workflow_dispatch:
+    inputs:
+      server:
+        description: 'Server'
+        required: true
+        default: 'ngtcp2'
+      client:
+        description: 'Client'
+        required: true
+        default: 'ngtcp2'
+      tests:
+        description: 'Tests to run'
+        required: true
+        default: 'onlyTests'
+        type: choice
+        options:
+        - amplificationlimit
+        - blackhole
+        - chacha20
+        - connectionmigration
+        - ecn
+        - handshake
+        - handshakecorruption
+        - handshakeloss
+        - http3
+        - ipv6
+        - keyupdate
+        - longrtt
+        - multiplexing
+        - onlyTests
+        - rebind-addr
+        - rebind-port
+        - resumption
+        - retry
+        - transfer
+        - transfercorruption
+        - transferloss
+        - v2
+        - zerortt
+      run_measurements:
+        description: 'Run measurements'
+        default: false
+        type: boolean
 
 jobs:
   config:
     runs-on: ubuntu-24.04
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      matrix: ${{ steps.config.outputs.matrix }}
+      run_measurements: ${{ steps.config.outputs.run_measurements }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -18,9 +61,23 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: 3.8
-    - name: Determine servers and clients
-      id: set-matrix
+    - name: Configure
+      id: config
       run: |
+        if [ -z "${{ inputs.run_measurements }}" ] || [ "${{ inputs.run_measurements }}" == "true" ]; then
+          echo "run_measurements=true" >> $GITHUB_OUTPUT
+        else
+          echo "run_measurements=false" >> $GITHUB_OUTPUT
+        fi
+
+        if [ -n "${{ inputs.server }}" ] && [ -n "${{ inputs.client }}" ]; then
+          MATRIX='{"include": [{"server": "${{ inputs.server }}", "client": "${{ inputs.client }}"}]}'
+
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+          exit 0
+        fi
+
         SERVERS=$(jq -c '[to_entries[] | select(.value.role == "server" or .value.role == "both") | {"server": .key, "client": "ngtcp2"}] | sort' implementations.json)
         echo $SERVERS
 
@@ -64,10 +121,16 @@ jobs:
         pip install -r requirements.txt
     - name: Run tests
       run: |
-        (python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs --json results.json -t onlyTests || true) | tee output.txt
+        tests="${{ inputs.tests }}"
+        if [ -z "$tests" ]; then
+          tests="onlyTests"
+        fi
+
+        (python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs --json results.json -t "$tests" || true) | tee output.txt
         mkdir -p logs/${{ matrix.server }}_${{ matrix.client }}
         mv output.txt logs/${{ matrix.server }}_${{ matrix.client }}/
     - name: Run measurements
+      if: needs.config.outputs.run_measurements == 'true'
       run: |
         python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs_measurement --json measurements.json -t onlyMeasurements || true
         if [ ! -d "logs_measurement" ]; then exit 0; fi
@@ -91,6 +154,8 @@ jobs:
         echo "# RESULTS"
         jq -c '.results | flatten | .[]' results.json
 
+        [ -f measurements.json ] || exit 0
+
         echo "# MEASUREMENTS"
         jq -c '.measurements | flatten | .[]' measurements.json
     - name: Verdict
@@ -98,6 +163,8 @@ jobs:
       run: |
         failures=$(jq -c '.results | flatten | .[] | select(.result == "failed")' results.json)
         [ -z "$failures" ] || exit 1
+
+        [ -f measurements.json ] || exit 0
 
         failures=$(jq -c '.measurements | flatten | .[] | select(.result == "failed")' measurements.json)
         [ -z "$failures" ] || exit 1
