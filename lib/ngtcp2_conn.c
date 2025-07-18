@@ -1329,6 +1329,10 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                        &settings->rand_ctx);
 
     break;
+  case NGTCP2_CC_ALGO_WAVE:
+    ngtcp2_cc_wave_init(&(*pconn)->wave, &(*pconn)->log, &(*pconn)->cstat);
+
+    break;
   default:
     ngtcp2_unreachable();
   }
