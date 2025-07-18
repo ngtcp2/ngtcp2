@@ -77,12 +77,15 @@ jobs:
         mv logs_measurement/${{ matrix.server }}_${{ matrix.client }}/* logs/${{ matrix.server }}_${{ matrix.client }}/
     - name: Reduce logs
       run: |
-        find logs/${{ matrix.server }}_${{ matrix.client }} -name '*.pcap' -type f -exec rm -f "{}" \;
+        find logs/${{ matrix.server }}_${{ matrix.client }} -name '*.pcap' -type f -exec rm -f "{}" \; || true
 
         # Remove logs other than ngtcp2 because they may be large and
         # we are not interested in them.
-        rm -f logs/*_ngtcp2/*/server/log.txt
-        rm -f logs/ngtcp2_*/*/client/log.txt
+        if [ "${{ matrix.server }}" != "ngtcp2" ]; then
+          find logs/${{ matrix.server }}_ngtcp2/*/server -maxdepth 1 -type f -exec rm -f "{}" \; || true
+        elif [ "${{ matrix.client }}" != "ngtcp2" ]; then
+          find logs/ngtcp2_${{ matrix.client }}/*/client -maxdepth 1 -type f -exec rm -f "{}" \; || true
+        fi
     - name: Show result
       run: |
         echo "# RESULTS"
