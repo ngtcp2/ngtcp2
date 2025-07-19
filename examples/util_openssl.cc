@@ -157,11 +157,6 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
 
     return {{data, data + datalen}};
   }
-
-  std::cerr << name << " file " << filename << " does not contain " << type
-            << std::endl;
-
-  return {};
 }
 
 int write_pem(const std::string_view &filename, const std::string_view &name,
