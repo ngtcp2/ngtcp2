@@ -131,7 +131,13 @@ const char *crypto_default_ciphers() {
          "SHA256:TLS_AES_128_CCM_SHA256";
 }
 
-const char *crypto_default_groups() { return "X25519:P-256:P-384:P-521"; }
+const char *crypto_default_groups() {
+  return "X25519:P-256:P-384:P-521"
+#ifdef WOLFSSL_HAVE_MLKEM
+         ":X25519_ML_KEM_768"
+#endif // WOLFSSL_HAVE_MLKEM
+    ;
+}
 
 } // namespace util
 

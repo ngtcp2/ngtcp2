@@ -88,7 +88,7 @@ Build with wolfSSL
    $ # For wolfSSL < v5.6.6, append --enable-quic.
    $ ./configure --prefix=$PWD/build \
        --enable-all --enable-aesni --enable-harden --enable-keylog-export \
-       --disable-ech
+       --disable-ech --enable-mlkem
    $ make -j$(nproc)
    $ make install
    $ cd ..
