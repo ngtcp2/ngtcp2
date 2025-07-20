@@ -70,8 +70,13 @@ ptls_key_exchange_algorithm_t *key_exchanges[] = {
 #if PTLS_OPENSSL_HAVE_X25519
   &ptls_openssl_x25519,
 #endif // PTLS_OPENSSL_X25519
-  &ptls_openssl_secp256r1, &ptls_openssl_secp384r1,
-  &ptls_openssl_secp521r1, nullptr,
+  &ptls_openssl_secp256r1,
+  &ptls_openssl_secp384r1,
+  &ptls_openssl_secp521r1,
+#if PTLS_OPENSSL_HAVE_X25519MLKEM768
+  &ptls_openssl_x25519mlkem768,
+#endif // PTLS_OPENSSL_HAVE_X25519MLKEM768
+  nullptr,
 };
 } // namespace
 

@@ -16,7 +16,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then export WSSLFLAGS="--enable-ae
     cd wolfssl && autoreconf -i && \
     ./configure --disable-dependency-tracking --enable-static --enable-all \
         --enable-harden --enable-keylog-export --disable-ech \
-        --enable-ticket-nonce-malloc $WSSLFLAGS \
+        --enable-ticket-nonce-malloc --enable-mlkem $WSSLFLAGS \
         CC=clang-18 \
         CXX=clang++-18 && \
     make -j$(nproc) && make install && cd .. && rm -rf wolfssl
