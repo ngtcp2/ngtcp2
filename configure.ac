@@ -49,6 +49,10 @@ AC_SUBST(CRYPTO_QUICTLS_LT_CURRENT, 5)
 AC_SUBST(CRYPTO_QUICTLS_LT_REVISION, 0)
 AC_SUBST(CRYPTO_QUICTLS_LT_AGE, 3)
 
+AC_SUBST(CRYPTO_LIBRESSL_LT_CURRENT, 0)
+AC_SUBST(CRYPTO_LIBRESSL_LT_REVISION, 0)
+AC_SUBST(CRYPTO_LIBRESSL_LT_AGE, 0)
+
 AC_SUBST(CRYPTO_GNUTLS_LT_CURRENT, 10)
 AC_SUBST(CRYPTO_GNUTLS_LT_REVISION, 0)
 AC_SUBST(CRYPTO_GNUTLS_LT_AGE, 2)
@@ -123,7 +127,7 @@ AC_ARG_WITH([libev],
 
 AC_ARG_WITH([openssl],
     [AS_HELP_STRING([--with-openssl],
-                    [Use quictls or openssl [default=check]])],
+                    [Use quictls, libressl or openssl [default=check]])],
     [request_openssl=$withval], [request_openssl=check])
 
 AC_ARG_WITH([gnutls],
@@ -199,11 +203,12 @@ esac
 
 AM_CONDITIONAL([ENABLE_SHARED], [ test "x${enable_shared}" = "xyes" ])
 
-# OpenSSL (required for libngtcp2_crypto_quictls,
+# OpenSSL (required for libngtcp2_crypto_quictls, libngtcp2_crypto_libressl
 # libngtcp2_crypto_picotls, libngtcp2_crypto_ossl and examples)
 have_openssl=no
 have_vanilla_openssl=no
 have_quictls=no
+have_libressl=no
 have_ossl=no
 if test "x${request_openssl}" != "xno"; then
   PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
@@ -265,6 +270,27 @@ if test "x${request_openssl}" != "xno"; then
         OPENSSL_LIBS=
         OPENSSL_CFLAGS=
       fi
+    else
+      save_CFLAGS="$CFLAGS"
+      save_LIBS="$LIBS"
+      CFLAGS="$OPENSSL_CFLAGS $CFLAGS"
+      LIBS="$OPENSSL_LIBS $LIBS"
+
+      AC_MSG_CHECKING([for LIBRESSL_VERSION_NUMBER])
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+        #include <openssl/opensslv.h>
+      ]], [[
+        int dummy = LIBRESSL_VERSION_NUMBER;
+        (void)dummy;
+      ]])],
+      [AC_MSG_RESULT([yes]); have_libressl=yes],
+      [AC_MSG_RESULT([no]); have_libressl=no])
+      if test "x${have_libressl}" = "xyes"; then
+        have_quictls=no
+      fi
+
+      CFLAGS="$save_CFLAGS"
+      LIBS="$save_LIBS"
     fi
   fi
 fi
@@ -276,6 +302,7 @@ fi
 
 AM_CONDITIONAL([HAVE_OPENSSL], [ test "x${have_openssl}" = "xyes" ])
 AM_CONDITIONAL([HAVE_QUICTLS], [ test "x${have_quictls}" = "xyes" ])
+AM_CONDITIONAL([HAVE_LIBRESSL], [ test "x${have_libressl}" = "xyes" ])
 AM_CONDITIONAL([HAVE_OSSL], [ test "x${have_ossl}" = "xyes" ])
 
 # GnuTLS (required for libngtcp2_crypto_gnutls)
@@ -403,6 +430,7 @@ AM_CONDITIONAL([HAVE_WOLFSSL], [ test "x${have_wolfssl}" = "xyes" ])
 
 have_crypto=no
 if test "x${have_quictls}" = "xyes" ||
+   test "x${have_libressl}" = "xyes" ||
    test "x${have_gnutls}" = "xyes" ||
    test "x${have_boringssl}" = "xyes" ||
    test "x${have_picotls}" = "xyes" ||
@@ -512,7 +540,8 @@ if test "x${lib_only}" = "xno" &&
 fi
 
 AM_CONDITIONAL([ENABLE_EXAMPLES], [ test "x${enable_examples}" = "xyes" ])
-AM_CONDITIONAL([ENABLE_EXAMPLE_QUICTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_quictls}" = "xyes" ])
+AM_CONDITIONAL([ENABLE_EXAMPLE_QUICTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_quictls}" = "xyes" -o "x${have_libressl}" = "xyes" ])
+AM_CONDITIONAL([ENABLE_EXAMPLE_LIBRESSL], [ test "x${enable_examples}" = "xyes" && test "x${have_libressl}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_GNUTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_gnutls}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_BORINGSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_boringssl}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_PICOTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_picotls}" = "xyes" ])
@@ -521,6 +550,7 @@ AM_CONDITIONAL([ENABLE_EXAMPLE_OSSL], [ test "x${enable_examples}" = "xyes" && t
 
 AC_SUBST([EXAMPLES_ENABLED], "${enable_examples}")
 AC_SUBST([EXAMPLES_QUICTLS], "${have_quictls}")
+AC_SUBST([EXAMPLES_LIBRESSL], "${have_libressl}")
 AC_SUBST([EXAMPLES_GNUTLS], "${have_gnutls}")
 AC_SUBST([EXAMPLES_BORINGSSL], "${have_boringssl}")
 AC_SUBST([EXAMPLES_PICOTLS], "${have_picotls}")
@@ -744,6 +774,7 @@ AC_CONFIG_FILES([
   tests/Makefile
   crypto/Makefile
   crypto/quictls/Makefile
+  crypto/quictls/libngtcp2_crypto_libressl.pc
   crypto/quictls/libngtcp2_crypto_quictls.pc
   crypto/includes/Makefile
   crypto/gnutls/Makefile
@@ -792,6 +823,7 @@ AC_MSG_NOTICE([summary of build options:
       LIBTOOL_LDFLAGS: ${LIBTOOL_LDFLAGS}
     Crypto helper libraries:
       libngtcp2_crypto_quictls:   ${have_quictls}
+      libngtcp2_crypto_libressl:  ${have_libressl}
       libngtcp2_crypto_gnutls:    ${have_gnutls}
       libngtcp2_crypto_boringssl: ${have_boringssl}
       libngtcp2_crypto_picotls:   ${have_picotls}

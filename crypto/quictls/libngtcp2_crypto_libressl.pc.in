@@ -20,38 +20,14 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-SUBDIRS =
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
 
-if HAVE_CRYPTO
-SUBDIRS += includes
-endif
-
-if HAVE_QUICTLS
-SUBDIRS += quictls
-endif
-
-if HAVE_LIBRESSL
-SUBDIRS += quictls
-endif
-
-if HAVE_GNUTLS
-SUBDIRS += gnutls
-endif
-
-if HAVE_BORINGSSL
-SUBDIRS += boringssl
-endif
-
-if HAVE_PICOTLS
-SUBDIRS += picotls
-endif
-
-if HAVE_WOLFSSL
-SUBDIRS += wolfssl
-endif
-
-if HAVE_OSSL
-SUBDIRS += ossl
-endif
-
-EXTRA_DIST = CMakeLists.txt
+Name: libngtcp2_crypto_libressl
+Description: ngtcp2 LibreSSL crypto library
+URL: https://github.com/ngtcp2/ngtcp2
+Version: @VERSION@
+Libs: -L${libdir} -lngtcp2_crypto_libressl
+Cflags: -I${includedir}
