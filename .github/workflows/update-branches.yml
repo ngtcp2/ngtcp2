@@ -39,6 +39,7 @@ jobs:
           echo "Upstream default branch is: $DEFAULT_BRANCH_UPSTREAM"
 
       - name: Update all local branches from upstream default
+        continue-on-error: true
         env:
           UPSTREAM_DEFAULT_BRANCH: ${{ steps.upstream_default_branch.outputs.UPSTREAM_DEFAULT_BRANCH }}
         run: |
