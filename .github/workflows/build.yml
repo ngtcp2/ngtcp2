@@ -294,6 +294,8 @@ jobs:
           tls: group-c
         - os: macos-14
           tls: group-a
+        - os: macos-14
+          buildtool: cmake
         - os: macos-15
           compiler: gcc
         - os: macos-15
