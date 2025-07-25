@@ -540,7 +540,7 @@ if test "x${lib_only}" = "xno" &&
 fi
 
 AM_CONDITIONAL([ENABLE_EXAMPLES], [ test "x${enable_examples}" = "xyes" ])
-AM_CONDITIONAL([ENABLE_EXAMPLE_QUICTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_quictls}" = "xyes" -o "x${have_libressl}" = "xyes" ])
+AM_CONDITIONAL([ENABLE_EXAMPLE_QUICTLS], [ test "x${enable_examples}" = "xyes" && (test "x${have_quictls}" = "xyes" || test "x${have_libressl}" = "xyes") ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_LIBRESSL], [ test "x${enable_examples}" = "xyes" && test "x${have_libressl}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_GNUTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_gnutls}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_BORINGSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_boringssl}" = "xyes" ])
