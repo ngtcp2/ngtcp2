@@ -416,7 +416,7 @@ AM_CONDITIONAL([HAVE_CRYPTO], [ test "x${have_crypto}" = "xyes" ])
 # libnghttp3 (required for examples)
 have_libnghttp3=no
 if test "x${request_libnghttp3}" != "xno"; then
-  PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 1.0.0],
+  PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 1.11.0],
                     [have_libnghttp3=yes], [have_libnghttp3=no])
   if test "${have_libnghttp3}" = "xno"; then
     AC_MSG_NOTICE($LIBNGHTTP3_PKG_ERRORS)
