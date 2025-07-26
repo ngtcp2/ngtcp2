@@ -31,9 +31,18 @@ AM_CPPFLAGS = -I$(top_srcdir)/lib/includes -I$(top_builddir)/lib/includes \
 AM_LDFLAGS = ${LIBTOOL_LDFLAGS}
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = libngtcp2_crypto_quictls.pc
-DISTCLEANFILES = $(pkgconfig_DATA)
 
+if HAVE_LIBRESSL
+pkgconfig_DATA = libngtcp2_crypto_libressl.pc
+lib_LTLIBRARIES = libngtcp2_crypto_libressl.la
+
+libngtcp2_crypto_libressl_la_SOURCES = quictls.c ../shared.c ../shared.h
+libngtcp2_crypto_libressl_la_LDFLAGS = -no-undefined \
+	-version-info $(CRYPTO_LIBRESSL_LT_CURRENT):$(CRYPTO_LIBRESSL_LT_REVISION):$(CRYPTO_LIBRESSL_LT_AGE)
+libngtcp2_crypto_libressl_la_LIBADD = $(top_builddir)/lib/libngtcp2.la \
+	@OPENSSL_LIBS@
+else
+pkgconfig_DATA = libngtcp2_crypto_quictls.pc
 lib_LTLIBRARIES = libngtcp2_crypto_quictls.la
 
 libngtcp2_crypto_quictls_la_SOURCES = quictls.c ../shared.c ../shared.h
@@ -41,3 +50,6 @@ libngtcp2_crypto_quictls_la_LDFLAGS = -no-undefined \
 	-version-info $(CRYPTO_QUICTLS_LT_CURRENT):$(CRYPTO_QUICTLS_LT_REVISION):$(CRYPTO_QUICTLS_LT_AGE)
 libngtcp2_crypto_quictls_la_LIBADD = $(top_builddir)/lib/libngtcp2.la \
 	@OPENSSL_LIBS@
+endif
+
+DISTCLEANFILES = $(pkgconfig_DATA)
