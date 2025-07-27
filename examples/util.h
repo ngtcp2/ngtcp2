@@ -469,6 +469,15 @@ constexpr bool is_hex_digit(char c) noexcept {
   return is_hex_digit_tbl[static_cast<uint8_t>(c)];
 }
 
+// is_hex_string returns true if the length of |s| is even, and |s|
+// does not contain a character other than [0-9A-Fa-f].  It returns
+// false otherwise.
+template <std::ranges::input_range R>
+requires(!std::is_array_v<std::remove_cvref_t<R>>)
+constexpr bool is_hex_string(R &&r) {
+  return !(std::ranges::size(r) & 1) && std::ranges::all_of(r, is_hex_digit);
+}
+
 constinit const auto hex_to_uint_tbl = []() {
   std::array<uint32_t, 256> tbl;
 

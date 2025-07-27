@@ -2075,9 +2075,9 @@ Options:
               send 0-RTT data, the  transport parameters received from
               the previous session must be supplied with this option.
   --dcid=<DCID>
-              Specify  initial  DCID.   <DCID> is  hex  string.   When
+              Specify  initial DCID.   <DCID>  is  hex string.   After
               decoded as binary, it should be  at least 8 bytes and at
-              most 18 bytes long.
+              most 20 bytes long.
   --change-local-addr=<DURATION>
               Client  changes  local  address when  <DURATION>  elapse
               after handshake completes.
@@ -2402,12 +2402,19 @@ int main(int argc, char **argv) {
         break;
       case 6: {
         // --dcid
-        auto dcidlen2 = strlen(optarg);
-        if (dcidlen2 % 2 || dcidlen2 / 2 < 8 || dcidlen2 / 2 > 18) {
+        auto hexcid = std::string_view{optarg};
+        if (hexcid.size() < NGTCP2_MIN_INITIAL_DCIDLEN * 2 ||
+            hexcid.size() > NGTCP2_MAX_CIDLEN * 2) {
           std::cerr << "dcid: wrong length" << std::endl;
           exit(EXIT_FAILURE);
         }
-        auto dcid = util::decode_hex(optarg);
+
+        if (!util::is_hex_string(hexcid)) {
+          std::cerr << "dcid: not hex string" << std::endl;
+          exit(EXIT_FAILURE);
+        }
+
+        auto dcid = util::decode_hex(hexcid);
         ngtcp2_cid_init(&config.dcid,
                         reinterpret_cast<const uint8_t *>(dcid.c_str()),
                         dcid.size());

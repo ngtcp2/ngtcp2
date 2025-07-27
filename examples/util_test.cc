@@ -45,6 +45,8 @@ const MunitTest tests[]{
   munit_void_test(test_util_normalize_path),
   munit_void_test(test_util_hexdump),
   munit_void_test(test_util_format_hex),
+  munit_void_test(test_util_decode_hex),
+  munit_void_test(test_util_is_hex_string),
   munit_test_end(),
 };
 } // namespace
@@ -417,6 +419,24 @@ void test_util_format_hex() {
   assert_stdstring_equal("deadbeef"s, util::format_hex(a));
   assert_stdstring_equal("deadbeef"s, util::format_hex(0xdeadbeef));
   assert_stdstring_equal("beef"s, util::format_hex(a.data() + 2, 2));
+}
+
+void test_util_decode_hex() {
+  assert_stdstring_equal("\xde\xad\xbe\xef"s, util::decode_hex("deadbeef"sv));
+  assert_stdstring_equal(""s, util::decode_hex(""sv));
+}
+
+void test_util_is_hex_string() {
+  assert_true(util::is_hex_string(""sv));
+  assert_true(util::is_hex_string("0123456789abcdef"sv));
+  assert_true(util::is_hex_string("0123456789ABCDEF"sv));
+  assert_false(util::is_hex_string("0123456789ABCDEF9"sv));
+  assert_false(util::is_hex_string("aaa"sv));
+  assert_true(util::is_hex_string("aa"sv));
+  assert_false(util::is_hex_string("a"sv));
+  assert_false(util::is_hex_string("zzz"sv));
+  assert_false(util::is_hex_string("zz"sv));
+  assert_false(util::is_hex_string("z"sv));
 }
 
 } // namespace ngtcp2
