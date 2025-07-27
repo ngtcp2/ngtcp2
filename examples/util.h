@@ -43,6 +43,8 @@
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
 
+#include <urlparse.h>
+
 #include "network.h"
 #include "siphash.h"
 #include "template.h"
@@ -553,6 +555,17 @@ std::optional<ECHServerConfig>
 read_ech_server_config(const std::string_view &path);
 
 std::span<uint64_t, 2> generate_siphash_key();
+
+// get_string returns a URL component specified by |f| of |uri|.  This
+// function assumes that u.field_set & (1 << f) is nonzero.
+constexpr std::string_view get_string(const std::string_view &uri,
+                                      const urlparse_url &u,
+                                      urlparse_url_fields f) {
+  assert(u.field_set & (1 << f));
+
+  auto p = &u.field_data[f];
+  return {uri.data() + p->off, p->len};
+}
 
 } // namespace util
 

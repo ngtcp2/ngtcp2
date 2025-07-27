@@ -2393,18 +2393,11 @@ int run(Client &c, const char *addr, const char *port,
 } // namespace
 
 namespace {
-std::string_view get_string(const char *uri, const urlparse_url &u,
-                            urlparse_url_fields f) {
-  auto p = &u.field_data[f];
-  return {uri + p->off, p->len};
-}
-} // namespace
-
-namespace {
-int parse_uri(Request &req, const char *uri) {
+int parse_uri(Request &req, const std::string_view &uri) {
   urlparse_url u;
 
-  if (urlparse_parse_url(uri, strlen(uri), /* is_connect = */ 0, &u) != 0) {
+  if (urlparse_parse_url(uri.data(), uri.size(), /* is_connect = */ 0, &u) !=
+      0) {
     return -1;
   }
 
@@ -2413,9 +2406,9 @@ int parse_uri(Request &req, const char *uri) {
     return -1;
   }
 
-  req.scheme = get_string(uri, u, URLPARSE_SCHEMA);
+  req.scheme = util::get_string(uri, u, URLPARSE_SCHEMA);
 
-  auto host = std::string(get_string(uri, u, URLPARSE_HOST));
+  auto host = std::string(util::get_string(uri, u, URLPARSE_HOST));
   if (util::numeric_host(host.c_str(), AF_INET6)) {
     req.authority = '[';
     req.authority += host;
@@ -2426,18 +2419,18 @@ int parse_uri(Request &req, const char *uri) {
 
   if (u.field_set & (1 << URLPARSE_PORT)) {
     req.authority += ':';
-    req.authority += get_string(uri, u, URLPARSE_PORT);
+    req.authority += util::get_string(uri, u, URLPARSE_PORT);
   }
 
   if (u.field_set & (1 << URLPARSE_PATH)) {
-    req.path = get_string(uri, u, URLPARSE_PATH);
+    req.path = util::get_string(uri, u, URLPARSE_PATH);
   } else {
     req.path = "/";
   }
 
   if (u.field_set & (1 << URLPARSE_QUERY)) {
     req.path += '?';
-    req.path += get_string(uri, u, URLPARSE_QUERY);
+    req.path += util::get_string(uri, u, URLPARSE_QUERY);
   }
 
   return 0;
@@ -2447,7 +2440,7 @@ int parse_uri(Request &req, const char *uri) {
 namespace {
 int parse_requests(char **argv, size_t argvlen) {
   for (size_t i = 0; i < argvlen; ++i) {
-    auto uri = argv[i];
+    auto uri = std::string_view{argv[i]};
     Request req;
     if (parse_uri(req, uri) != 0) {
       std::cerr << "Could not parse URI: " << uri << std::endl;
