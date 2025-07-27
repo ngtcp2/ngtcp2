@@ -3000,9 +3000,8 @@ typedef int (*ngtcp2_begin_path_validation)(ngtcp2_conn *conn, uint32_t flags,
  * an application the outcome of path validation.  |flags| is zero or
  * more of :macro:`NGTCP2_PATH_VALIDATION_FLAG_*
  * <NGTCP2_PATH_VALIDATION_FLAG_NONE>`.  |path| is the path that was
- * validated.  |old_path| is the path that is previously used before a
- * local endpoint has migrated to |path| if |old_path| is not NULL.
- * If |res| is
+ * validated.  |fallback_path|, if not NULL, is the path that is used
+ * if the path validation failed.  If |res| is
  * :enum:`ngtcp2_path_validation_result.NGTCP2_PATH_VALIDATION_RESULT_SUCCESS`,
  * the path validation succeeded.  If |res| is
  * :enum:`ngtcp2_path_validation_result.NGTCP2_PATH_VALIDATION_RESULT_FAILURE`,
@@ -3014,7 +3013,7 @@ typedef int (*ngtcp2_begin_path_validation)(ngtcp2_conn *conn, uint32_t flags,
  */
 typedef int (*ngtcp2_path_validation)(ngtcp2_conn *conn, uint32_t flags,
                                       const ngtcp2_path *path,
-                                      const ngtcp2_path *old_path,
+                                      const ngtcp2_path *fallback_path,
                                       ngtcp2_path_validation_result res,
                                       void *user_data);
 

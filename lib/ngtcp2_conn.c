@@ -288,7 +288,7 @@ static int conn_call_begin_path_validation(ngtcp2_conn *conn,
                                            const ngtcp2_pv *pv) {
   int rv;
   uint32_t flags = NGTCP2_PATH_VALIDATION_FLAG_NONE;
-  const ngtcp2_path *old_path = NULL;
+  const ngtcp2_path *fallback_path = NULL;
 
   if (!pv || !conn->callbacks.begin_path_validation) {
     return 0;
@@ -299,11 +299,11 @@ static int conn_call_begin_path_validation(ngtcp2_conn *conn,
   }
 
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
-    old_path = &pv->fallback_dcid.ps.path;
+    fallback_path = &pv->fallback_dcid.ps.path;
   }
 
   rv = conn->callbacks.begin_path_validation(conn, flags, &pv->dcid.ps.path,
-                                             old_path, conn->user_data);
+                                             fallback_path, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -315,7 +315,7 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_pv *pv,
                                      ngtcp2_path_validation_result res) {
   int rv;
   uint32_t flags = NGTCP2_PATH_VALIDATION_FLAG_NONE;
-  const ngtcp2_path *old_path = NULL;
+  const ngtcp2_path *fallback_path = NULL;
 
   if (!conn->callbacks.path_validation) {
     return 0;
@@ -326,17 +326,17 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_pv *pv,
   }
 
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
-    old_path = &pv->fallback_dcid.ps.path;
+    fallback_path = &pv->fallback_dcid.ps.path;
   }
 
-  if (conn->server && old_path &&
-      (ngtcp2_addr_cmp(&pv->dcid.ps.path.remote, &old_path->remote) &
+  if (conn->server && fallback_path &&
+      (ngtcp2_addr_cmp(&pv->dcid.ps.path.remote, &fallback_path->remote) &
        (NGTCP2_ADDR_CMP_FLAG_ADDR | NGTCP2_ADDR_CMP_FLAG_FAMILY))) {
     flags |= NGTCP2_PATH_VALIDATION_FLAG_NEW_TOKEN;
   }
 
-  rv = conn->callbacks.path_validation(conn, flags, &pv->dcid.ps.path, old_path,
-                                       res, conn->user_data);
+  rv = conn->callbacks.path_validation(conn, flags, &pv->dcid.ps.path,
+                                       fallback_path, res, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
