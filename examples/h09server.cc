@@ -127,8 +127,7 @@ Request request_path(const std::string_view &uri) {
   }
 
   if (u.field_set & (1 << URLPARSE_PATH)) {
-    req.path = std::string(uri.data() + u.field_data[URLPARSE_PATH].off,
-                           u.field_data[URLPARSE_PATH].len);
+    req.path = util::get_string(uri, u, URLPARSE_PATH);
     if (req.path.find('%') != std::string::npos) {
       req.path = util::percent_decode(req.path);
     }

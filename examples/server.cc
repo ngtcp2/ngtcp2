@@ -137,8 +137,7 @@ Request request_path(const std::string_view &uri, bool is_connect) {
   }
 
   if (u.field_set & (1 << URLPARSE_PATH)) {
-    req.path = std::string(uri.data() + u.field_data[URLPARSE_PATH].off,
-                           u.field_data[URLPARSE_PATH].len);
+    req.path = util::get_string(uri, u, URLPARSE_PATH);
     if (req.path.find('%') != std::string::npos) {
       req.path = util::percent_decode(req.path);
     }
@@ -157,8 +156,7 @@ Request request_path(const std::string_view &uri, bool is_connect) {
   if (u.field_set & (1 << URLPARSE_QUERY)) {
     static constexpr auto urgency_prefix = "u="sv;
     static constexpr auto inc_prefix = "i="sv;
-    auto q = std::string(uri.data() + u.field_data[URLPARSE_QUERY].off,
-                         u.field_data[URLPARSE_QUERY].len);
+    auto q = util::get_string(uri, u, URLPARSE_QUERY);
     for (auto p = std::ranges::begin(q); p != std::ranges::end(q);) {
       if (util::istarts_with(std::string_view{p, std::ranges::end(q)},
                              urgency_prefix)) {
