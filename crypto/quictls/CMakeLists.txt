@@ -39,25 +39,31 @@ set(ngtcp2_crypto_quictls_INCLUDE_DIRS
   "${OPENSSL_INCLUDE_DIRS}"
 )
 
-foreach(name libngtcp2_crypto_quictls.pc)
+if(HAVE_LIBRESSL)
+  set(ngtcp2_crypto_lib "ngtcp2_crypto_libressl")
+else()
+  set(ngtcp2_crypto_lib "ngtcp2_crypto_quictls")
+endif()
+
+foreach(name lib${ngtcp2_crypto_lib}.pc)
   configure_file("${name}.in" "${name}" @ONLY)
 endforeach()
 
 # Public shared library
 if(ENABLE_SHARED_LIB)
-  add_library(ngtcp2_crypto_quictls SHARED ${ngtcp2_crypto_quictls_SOURCES})
-  set_target_properties(ngtcp2_crypto_quictls PROPERTIES
+  add_library(${ngtcp2_crypto_lib} SHARED ${ngtcp2_crypto_quictls_SOURCES})
+  set_target_properties(${ngtcp2_crypto_lib} PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
     VERSION ${CRYPTO_QUICTLS_LT_VERSION}
     SOVERSION ${CRYPTO_QUICTLS_LT_SOVERSION}
     C_VISIBILITY_PRESET hidden
     POSITION_INDEPENDENT_CODE ON
   )
-  target_include_directories(ngtcp2_crypto_quictls PUBLIC
+  target_include_directories(${ngtcp2_crypto_lib} PUBLIC
     ${ngtcp2_crypto_quictls_INCLUDE_DIRS})
-  target_link_libraries(ngtcp2_crypto_quictls ngtcp2 ${OPENSSL_LIBRARIES})
+  target_link_libraries(${ngtcp2_crypto_lib} ngtcp2 ${OPENSSL_LIBRARIES})
 
-  install(TARGETS ngtcp2_crypto_quictls
+  install(TARGETS ${ngtcp2_crypto_lib}
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
@@ -65,22 +71,22 @@ endif()
 
 if(ENABLE_STATIC_LIB)
   # Public static library
-  add_library(ngtcp2_crypto_quictls_static STATIC ${ngtcp2_crypto_quictls_SOURCES})
-  set_target_properties(ngtcp2_crypto_quictls_static PROPERTIES
+  add_library(${ngtcp2_crypto_lib}_static STATIC ${ngtcp2_crypto_quictls_SOURCES})
+  set_target_properties(${ngtcp2_crypto_lib}_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
     VERSION ${CRYPTO_QUICTLS_LT_VERSION}
     SOVERSION ${CRYPTO_QUICTLS_LT_SOVERSION}
-    ARCHIVE_OUTPUT_NAME ngtcp2_crypto_quictls${STATIC_LIB_SUFFIX}
+    ARCHIVE_OUTPUT_NAME ${ngtcp2_crypto_lib}${STATIC_LIB_SUFFIX}
     C_VISIBILITY_PRESET hidden
   )
-  target_compile_definitions(ngtcp2_crypto_quictls_static PUBLIC
+  target_compile_definitions(${ngtcp2_crypto_lib}_static PUBLIC
     "-DNGTCP2_STATICLIB")
-  target_include_directories(ngtcp2_crypto_quictls_static PUBLIC
+  target_include_directories(${ngtcp2_crypto_lib}_static PUBLIC
     ${ngtcp2_crypto_quictls_INCLUDE_DIRS})
 
-  install(TARGETS ngtcp2_crypto_quictls_static
+  install(TARGETS ${ngtcp2_crypto_lib}_static
     DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif()
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libngtcp2_crypto_quictls.pc"
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib${ngtcp2_crypto_lib}.pc"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")

@@ -69,13 +69,19 @@ CLIENT_SRCS = \
 noinst_PROGRAMS =
 
 if ENABLE_EXAMPLE_QUICTLS
+if ENABLE_EXAMPLE_LIBRESSL
+crypto_lib = $(top_builddir)/crypto/quictls/libngtcp2_crypto_libressl.la
+else
+crypto_lib = $(top_builddir)/crypto/quictls/libngtcp2_crypto_quictls.la
+endif
+
 noinst_PROGRAMS += qtlsclient qtlsserver \
 	qtlssimpleclient
 
 qtlssimpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
 	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@
 qtlssimpleclient_LDADD = ${LDADD} \
-	$(top_builddir)/crypto/quictls/libngtcp2_crypto_quictls.la \
+	$(crypto_lib) \
 	@OPENSSL_LIBS@ \
 	@JEMALLOC_LIBS@
 qtlssimpleclient_SOURCES = simpleclient.c
@@ -83,7 +89,7 @@ qtlssimpleclient_SOURCES = simpleclient.c
 qtlsclient_CPPFLAGS = ${AM_CPPFLAGS} \
 	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@ -DWITH_EXAMPLE_QUICTLS
 qtlsclient_LDADD = ${LDADD} \
-	$(top_builddir)/crypto/quictls/libngtcp2_crypto_quictls.la \
+	$(crypto_lib) \
 	@OPENSSL_LIBS@ \
 	@JEMALLOC_LIBS@
 qtlsclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \

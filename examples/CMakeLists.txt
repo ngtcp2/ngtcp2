@@ -21,7 +21,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if(LIBEV_FOUND AND HAVE_QUICTLS AND LIBNGHTTP3_FOUND)
+if(LIBEV_FOUND AND (HAVE_QUICTLS OR HAVE_LIBRESSL) AND LIBNGHTTP3_FOUND)
   set(qtlsclient_SOURCES
     client.cc
     client_base.cc
@@ -61,8 +61,13 @@ if(LIBEV_FOUND AND HAVE_QUICTLS AND LIBNGHTTP3_FOUND)
     ${LIBNGHTTP3_INCLUDE_DIRS}
   )
 
-  set(qtls_LIBS
-    ngtcp2_crypto_quictls
+  set(qtls_LIBS "")
+  if(HAVE_QUICTLS)
+    list(APPEND qtls_LIBS ngtcp2_crypto_quictls)
+  else()
+    list(APPEND qtls_LIBS ngtcp2_crypto_libressl)
+  endif()
+  list(APPEND qtls_LIBS
     ngtcp2
     ${JEMALLOC_LIBRARIES}
     ${OPENSSL_LIBRARIES}
