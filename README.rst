@@ -272,7 +272,8 @@ The header file exists under crypto/includes/ngtcp2 directory.
 Each library file is built for a particular TLS backend.  The
 available crypto helper libraries are:
 
-- libngtcp2_crypto_quictls: Use quictls and libressl as TLS backend
+- libngtcp2_crypto_quictls: Use quictls as TLS backend
+- libngtcp2_crypto_libressl: Use libressl as TLS backend
 - libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
 - libngtcp2_crypto_boringssl: Use BoringSSL and aws-lc as TLS backend
 - libngtcp2_crypto_picotls: Use Picotls as TLS backend
@@ -299,8 +300,12 @@ OpenSSL backend, your application must make sure that:
 If you cannot make sure neither of them, it is a good time to migrate
 your application to the other alternative (e.g., wolfSSL, aws-lc).
 
-libngtcp2_crypto_quictls and libngtcp2_crypto_ossl cannot be built at
-the same time.
+libngtcp2_crypto_quictls, libngtcp2_crypto_libressl and
+libngtcp2_crypto_ossl cannot be built at the same time.
+
+Although libressl has its own library libngtcp2_crypto_libressl, an
+application should include `ngtcp2/ngtcp2_crypto_quictls.h`.  There is
+no `ngtcp2/ngtcp2_crypto_libressl.h`.
 
 The examples directory contains client and server that are linked to
 those crypto helper libraries and TLS backends.  They are only built
