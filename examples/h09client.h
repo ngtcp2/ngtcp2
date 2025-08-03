@@ -144,6 +144,8 @@ public:
                        std::span<const uint8_t> data, size_t gso_size);
   void start_wev_endpoint(const Endpoint &ep);
   int send_blocked_packet();
+  ngtcp2_ssize write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
+                         size_t destlen, ngtcp2_tstamp ts);
 
   const std::vector<uint32_t> &get_offered_versions() const;
 
@@ -185,8 +187,6 @@ private:
 
   struct {
     bool send_blocked;
-    size_t num_blocked;
-    size_t num_blocked_sent;
     // blocked field is effective only when send_blocked is true.
     struct {
       const Endpoint *endpoint;
@@ -194,7 +194,7 @@ private:
       unsigned int ecn;
       std::span<const uint8_t> data;
       size_t gso_size;
-    } blocked[2];
+    } blocked;
     std::array<uint8_t, 64_k> data;
   } tx_;
 };
