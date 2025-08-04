@@ -124,6 +124,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_ack_padding),
   munit_void_test(test_ngtcp2_conn_super_small_rtt),
   munit_void_test(test_ngtcp2_conn_recv_ack),
+  munit_void_test(test_ngtcp2_conn_aggregate_pkts),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
   munit_void_test(test_ngtcp2_conn_post_handshake_failmalloc),
   munit_void_test(test_ngtcp2_accept),
@@ -296,6 +297,10 @@ typedef struct {
     ngtcp2_path_storage path;
     ngtcp2_path_storage fallback_path;
   } begin_path_validation;
+  struct {
+    int64_t stream_id;
+    size_t num_write_left;
+  } write_pkt;
 } my_user_data;
 
 static int client_initial(ngtcp2_conn *conn, void *user_data) {
@@ -16368,6 +16373,152 @@ void test_ngtcp2_conn_recv_ack(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(NGTCP2_ERR_PROTO, ==, rv);
+
+  ngtcp2_conn_del(conn);
+}
+
+static ngtcp2_ssize write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
+                              ngtcp2_pkt_info *pi, uint8_t *buf, size_t buflen,
+                              ngtcp2_tstamp ts, void *user_data) {
+  my_user_data *ud = user_data;
+  ngtcp2_ssize nwrite;
+  ngtcp2_ssize datalen;
+
+  if (ud->write_pkt.num_write_left == 0) {
+    return 0;
+  }
+
+  nwrite = ngtcp2_conn_write_stream(
+    conn, path, pi, buf, buflen, &datalen, NGTCP2_WRITE_STREAM_FLAG_PADDING,
+    ud->write_pkt.stream_id, null_data, buflen, ts);
+
+  if (nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED) {
+    return 0;
+  }
+
+  if (nwrite) {
+    --ud->write_pkt.num_write_left;
+  }
+
+  return nwrite;
+}
+
+void test_ngtcp2_conn_aggregate_pkts(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[65536];
+  ngtcp2_ssize spktlen;
+  ngtcp2_path_storage ps;
+  ngtcp2_pkt_info pi;
+  ngtcp2_tstamp t = 0;
+  int64_t stream_id;
+  my_user_data ud;
+  conn_options opt;
+  size_t gsolen;
+  ngtcp2_frame frs[2];
+  int rv;
+  size_t pktlen;
+  ngtcp2_tpe tpe;
+
+  opt = (conn_options){
+    .user_data = &ud,
+  };
+
+  setup_default_client_with_options(&conn, opt);
+  ngtcp2_path_storage_zero(&ps);
+  memset(&pi, 0, sizeof(pi));
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  ud.write_pkt.stream_id = stream_id;
+  ud.write_pkt.num_write_left = 10;
+
+  spktlen =
+    ngtcp2_conn_aggregate_pkts(conn, &ps.path, &pi, buf, sizeof(buf), &gsolen,
+                               /* max_num_pkts = */ 0, write_pkt, t);
+
+  /* Due to CWND, only 8 packets are written. */
+  assert_ptrdiff(
+    (ngtcp2_ssize)ngtcp2_conn_get_path_max_tx_udp_payload_size(conn) * 8, ==,
+    spktlen);
+  assert_ptrdiff(sizeof(buf), >=, spktlen);
+  assert_size(ngtcp2_conn_get_path_max_tx_udp_payload_size(conn), ==, gsolen);
+  assert_true(ngtcp2_path_eq(&null_path.path, &ps.path));
+  assert_uint8(NGTCP2_ECN_ECT_0, ==, pi.ecn);
+  assert_size(2, ==, ud.write_pkt.num_write_left);
+
+  ngtcp2_conn_del(conn);
+
+  /* PATH_RESPONSE stops aggregation. */
+  opt = (conn_options){
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opt);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  ngtcp2_path_storage_zero(&ps);
+  memset(&pi, 0, sizeof(pi));
+
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = {0x11},
+  };
+  frs[1].new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid =
+      {
+        .data = {0xfe},
+        .datalen = 11,
+      },
+    .stateless_reset_token = {0xab},
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+
+  open_stream(conn, 0);
+
+  ud.write_pkt.stream_id = 0;
+  ud.write_pkt.num_write_left = 2;
+
+  spktlen =
+    ngtcp2_conn_aggregate_pkts(conn, &ps.path, &pi, buf, sizeof(buf), &gsolen,
+                               /* max_num_pkts = */ 0, write_pkt, ++t);
+
+  /* We have not validated new path, and server is subject to
+     anti-amplification limit. */
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(
+    (ngtcp2_ssize)ngtcp2_conn_get_path_max_tx_udp_payload_size(conn), >,
+    spktlen);
+  assert_size((size_t)spktlen, ==, gsolen);
+  assert_true(ngtcp2_path_eq(&new_path.path, &ps.path));
+  assert_uint8(NGTCP2_ECN_NOT_ECT, ==, pi.ecn);
+  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_size(1, ==, ud.write_pkt.num_write_left);
+
+  t += ngtcp2_conn_get_expiry(conn);
+
+  ud.write_pkt.stream_id = 0;
+  ud.write_pkt.num_write_left = 2;
+
+  spktlen =
+    ngtcp2_conn_aggregate_pkts(conn, &ps.path, &pi, buf, sizeof(buf), &gsolen,
+                               /* max_num_pkts = */ 0, write_pkt, t);
+
+  assert_ptrdiff(
+    (ngtcp2_ssize)ngtcp2_conn_get_path_max_tx_udp_payload_size(conn) * 2, ==,
+    spktlen);
+  assert_size(ngtcp2_conn_get_path_max_tx_udp_payload_size(conn), ==, gsolen);
+  assert_true(ngtcp2_path_eq(&null_path.path, &ps.path));
+  assert_uint8(NGTCP2_ECN_ECT_0, ==, pi.ecn);
+  assert_size(0, ==, ud.write_pkt.num_write_left);
 
   ngtcp2_conn_del(conn);
 }

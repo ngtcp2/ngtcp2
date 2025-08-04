@@ -200,6 +200,10 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR is set when the local
    endpoint has initiated key update. */
 #define NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR 0x10000u
+/* NGTCP2_CONN_FLAG_AGGREGATE_PKTS is set when
+   ngtcp2_conn_writev_stream is called inside the callback invoked by
+   ngtcp2_conn_aggregate_pkts. */
+#define NGTCP2_CONN_FLAG_AGGREGATE_PKTS 0x20000u
 
 typedef struct ngtcp2_pktns {
   struct {

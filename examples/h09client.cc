@@ -979,25 +979,20 @@ int Client::on_write() {
   return 0;
 }
 
-int Client::write_streams() {
-  ngtcp2_vec vec;
-  ngtcp2_path_storage ps, prev_ps;
-  uint32_t prev_ecn = 0;
-  auto max_udp_payload_size = ngtcp2_conn_get_max_tx_udp_payload_size(conn_);
-  auto path_max_udp_payload_size =
-    ngtcp2_conn_get_path_max_tx_udp_payload_size(conn_);
-  ngtcp2_pkt_info pi;
-  size_t gso_size = 0;
-  auto ts = util::timestamp();
-  auto txbuf =
-    std::span{tx_.data.data(), std::max(ngtcp2_conn_get_send_quantum(conn_),
-                                        path_max_udp_payload_size)};
-  auto buf = txbuf;
-  auto pkt = std::span<const uint8_t>{};
-  auto extra_pkt = std::span<const uint8_t>{};
+namespace {
+ngtcp2_ssize write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
+                       ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
+                       ngtcp2_tstamp ts, void *user_data) {
+  auto c = static_cast<Client *>(user_data);
 
-  ngtcp2_path_storage_zero(&ps);
-  ngtcp2_path_storage_zero(&prev_ps);
+  return c->write_pkt(path, pi, dest, destlen, ts);
+}
+} // namespace
+
+ngtcp2_ssize Client::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
+                               uint8_t *dest, size_t destlen,
+                               ngtcp2_tstamp ts) {
+  ngtcp2_vec vec;
 
   for (;;) {
     int64_t stream_id = -1;
@@ -1017,13 +1012,9 @@ int Client::write_streams() {
 
     ngtcp2_ssize ndatalen;
 
-    auto buflen = buf.size() >= max_udp_payload_size
-                    ? max_udp_payload_size
-                    : path_max_udp_payload_size;
-
     auto nwrite =
-      ngtcp2_conn_writev_stream(conn_, &ps.path, &pi, buf.data(), buflen,
-                                &ndatalen, flags, stream_id, &vec, vcnt, ts);
+      ngtcp2_conn_writev_stream(conn_, path, pi, dest, destlen, &ndatalen,
+                                flags, stream_id, &vec, vcnt, ts);
     if (nwrite < 0) {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
@@ -1046,57 +1037,44 @@ int Client::write_streams() {
                 << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
       ngtcp2_ccerr_set_liberr(&last_error_, static_cast<int>(nwrite), nullptr,
                               0);
-      disconnect();
-      return -1;
-    } else if (ndatalen >= 0) {
+
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
+
+    if (ndatalen >= 0) {
       stream->reqbuf.pos += ndatalen;
       if (nghttp3_buf_len(&stream->reqbuf) == 0) {
         sendq_.erase(std::ranges::begin(sendq_));
       }
     }
 
-    if (nwrite == 0) {
-      pkt = std::span{std::ranges::begin(txbuf), std::ranges::begin(buf)};
-      if (pkt.empty()) {
-        return 0;
-      }
+    return nwrite;
+  }
+}
 
-      break;
-    }
+int Client::write_streams() {
+  ngtcp2_path_storage ps;
+  ngtcp2_pkt_info pi;
+  size_t gso_size;
+  auto ts = util::timestamp();
+  auto txbuf = std::span{tx_.data};
 
-    auto last_pkt_pos = std::ranges::begin(buf);
+  ngtcp2_path_storage_zero(&ps);
 
-    buf = buf.subspan(as_unsigned(nwrite));
-
-    if (last_pkt_pos == std::ranges::begin(txbuf)) {
-      ngtcp2_path_copy(&prev_ps.path, &ps.path);
-      prev_ecn = pi.ecn;
-      gso_size = as_unsigned(nwrite);
-    } else if (!ngtcp2_path_eq(&prev_ps.path, &ps.path) || prev_ecn != pi.ecn ||
-               static_cast<size_t>(nwrite) > gso_size ||
-               (gso_size > path_max_udp_payload_size &&
-                static_cast<size_t>(nwrite) != gso_size)) {
-      pkt = std::span{std::ranges::begin(txbuf), last_pkt_pos};
-      extra_pkt = std::span{last_pkt_pos, std::ranges::begin(buf)};
-      break;
-    }
-
-    if (buf.size() < path_max_udp_payload_size ||
-        static_cast<size_t>(nwrite) < gso_size) {
-      pkt = std::span{std::ranges::begin(txbuf), std::ranges::begin(buf)};
-      break;
-    }
+  auto nwrite = ngtcp2_conn_aggregate_pkts(
+    conn_, &ps.path, &pi, txbuf.data(), txbuf.size(), &gso_size,
+    /* max_num_pkt = */ 0, ::write_pkt, ts);
+  if (nwrite < 0) {
+    disconnect();
+    return -1;
   }
 
-  if (send_packet_or_blocked(prev_ps.path, prev_ecn, pkt, gso_size) != 0) {
-    if (!extra_pkt.empty()) {
-      on_send_blocked(ps.path, pi.ecn, extra_pkt, extra_pkt.size());
-    }
-  } else if (!extra_pkt.empty()) {
-    send_packet_or_blocked(ps.path, pi.ecn, extra_pkt, extra_pkt.size());
+  if (nwrite == 0) {
+    return 0;
   }
 
-  ngtcp2_conn_update_pkt_tx_time(conn_, ts);
+  send_packet_or_blocked(ps.path, pi.ecn,
+                         txbuf.first(static_cast<size_t>(nwrite)), gso_size);
 
   return 0;
 }
@@ -1606,13 +1584,12 @@ Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
 
 void Client::on_send_blocked(const ngtcp2_path &path, unsigned int ecn,
                              std::span<const uint8_t> data, size_t gso_size) {
-  assert(tx_.num_blocked || !tx_.send_blocked);
-  assert(tx_.num_blocked < 2);
+  assert(!tx_.send_blocked);
   assert(gso_size);
 
   tx_.send_blocked = true;
 
-  auto &p = tx_.blocked[tx_.num_blocked++];
+  auto &p = tx_.blocked;
 
   memcpy(&p.remote_addr.su, path.remote.addr, path.remote.addrlen);
 
@@ -1644,30 +1621,26 @@ void Client::start_wev_endpoint(const Endpoint &ep) {
 int Client::send_blocked_packet() {
   assert(tx_.send_blocked);
 
-  for (; tx_.num_blocked_sent < tx_.num_blocked; ++tx_.num_blocked_sent) {
-    auto &p = tx_.blocked[tx_.num_blocked_sent];
+  auto &p = tx_.blocked;
 
-    ngtcp2_addr remote_addr{
-      .addr = &p.remote_addr.su.sa,
-      .addrlen = p.remote_addr.len,
-    };
+  ngtcp2_addr remote_addr{
+    .addr = &p.remote_addr.su.sa,
+    .addrlen = p.remote_addr.len,
+  };
 
-    auto [rest, rv] =
-      send_packet(*p.endpoint, remote_addr, p.ecn, p.data, p.gso_size);
-    if (rv != 0) {
-      assert(NETWORK_ERR_SEND_BLOCKED == rv);
+  auto [rest, rv] =
+    send_packet(*p.endpoint, remote_addr, p.ecn, p.data, p.gso_size);
+  if (rv != 0) {
+    assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
-      p.data = rest;
+    p.data = rest;
 
-      start_wev_endpoint(*p.endpoint);
+    start_wev_endpoint(*p.endpoint);
 
-      return 0;
-    }
+    return 0;
   }
 
   tx_.send_blocked = false;
-  tx_.num_blocked = 0;
-  tx_.num_blocked_sent = 0;
 
   return 0;
 }

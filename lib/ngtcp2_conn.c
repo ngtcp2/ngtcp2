@@ -11463,7 +11463,11 @@ conn_write_vmsg_wrapper(ngtcp2_conn *conn, ngtcp2_path *path,
   } else if ((cstat->cwnd >= cstat->ssthresh ||
               cstat->bytes_in_flight * 2 < cstat->cwnd) &&
              nwrite == 0 && conn_pacing_pkt_tx_allowed(conn, ts) &&
-             (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+             (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) &&
+             /* Because NGTCP2_CONN_FLAG_AGGREGATE_PKTS is set after a
+                packet is produced, if it is set, we are sure that we
+                are not app-limited. */
+             !(conn->flags & NGTCP2_CONN_FLAG_AGGREGATE_PKTS)) {
     conn->rst.app_limited = conn->rst.delivered + cstat->bytes_in_flight;
 
     if (conn->rst.app_limited == 0) {
@@ -11811,7 +11815,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
       destlen = 0;
     } else {
-      if (res == 0) {
+      if (res == 0 && !(conn->flags & NGTCP2_CONN_FLAG_AGGREGATE_PKTS)) {
         nwrite =
           conn_write_path_response(conn, path, pi, dest, origdestlen, ts);
         if (nwrite) {
@@ -13460,6 +13464,93 @@ void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
   ngtcp2_path_storage_init2(&ent->ps, &dcid->ps.path);
   ent->max_udp_payload_size = dcid->max_udp_payload_size;
   ent->ts = ts;
+}
+
+ngtcp2_ssize ngtcp2_conn_aggregate_pkts_versioned(
+  ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
+  ngtcp2_pkt_info *pi, uint8_t *buf, size_t buflen, size_t *pgsolen,
+  size_t max_num_pkts, ngtcp2_write_pkt write_pkt, ngtcp2_tstamp ts) {
+  size_t max_udp_payloadlen = ngtcp2_conn_get_max_tx_udp_payload_size(conn);
+  size_t path_max_udp_payloadlen =
+    ngtcp2_conn_get_path_max_tx_udp_payload_size(conn);
+  ngtcp2_ssize nwrite;
+  uint8_t *wbuf = buf;
+  size_t wbuflen;
+  ngtcp2_ecn_state ecn_state;
+  int first_pkt;
+  ngtcp2_pkt_info pi_discard;
+  ngtcp2_path_storage path_discard;
+  (void)pkt_info_version;
+
+  assert(buflen >= path_max_udp_payloadlen);
+
+  buflen =
+    ngtcp2_min_size(buflen, ngtcp2_max_size(ngtcp2_conn_get_send_quantum(conn),
+                                            path_max_udp_payloadlen));
+
+  for (;;) {
+    ecn_state = conn->tx.ecn.state;
+
+    wbuflen = buflen >= max_udp_payloadlen ? max_udp_payloadlen
+                                           : path_max_udp_payloadlen;
+
+    nwrite = write_pkt(conn, path, pi, wbuf, wbuflen, ts, conn->user_data);
+    if (nwrite < 0) {
+      break;
+    }
+
+    if (nwrite == 0) {
+      nwrite = wbuf - buf;
+      break;
+    }
+
+    first_pkt = buf == wbuf;
+    wbuf += nwrite;
+    buflen -= (size_t)nwrite;
+
+    --max_num_pkts;
+
+    if (first_pkt) {
+      assert(!(conn->flags & NGTCP2_CONN_FLAG_AGGREGATE_PKTS));
+
+      *pgsolen = (size_t)nwrite;
+
+      if ((size_t)nwrite != path_max_udp_payloadlen ||
+          ecn_state != conn->tx.ecn.state || max_num_pkts == 0) {
+        nwrite = wbuf - buf;
+        break;
+      }
+
+      /* All aggregated packets should share the same path and pi.
+         Pass the placeholder values to the callback because they
+         might be overwritten by later calls, especially pi is set to
+         empty when no packet is produced. */
+      if (path) {
+        ngtcp2_path_storage_zero(&path_discard);
+        path = &path_discard.path;
+      }
+
+      if (pi) {
+        pi = &pi_discard;
+      }
+
+      conn->flags |= NGTCP2_CONN_FLAG_AGGREGATE_PKTS;
+
+      continue;
+    }
+
+    if (buflen < path_max_udp_payloadlen || (size_t)nwrite < *pgsolen ||
+        ecn_state != conn->tx.ecn.state || max_num_pkts == 0) {
+      nwrite = wbuf - buf;
+      break;
+    }
+  }
+
+  conn->flags &= ~NGTCP2_CONN_FLAG_AGGREGATE_PKTS;
+
+  ngtcp2_conn_update_pkt_tx_time(conn, ts);
+
+  return nwrite;
 }
 
 const ngtcp2_path_history_entry *
