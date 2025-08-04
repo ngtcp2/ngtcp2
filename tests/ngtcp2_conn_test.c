@@ -125,6 +125,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_super_small_rtt),
   munit_void_test(test_ngtcp2_conn_recv_ack),
   munit_void_test(test_ngtcp2_conn_aggregate_pkts),
+  munit_void_test(test_ngtcp2_conn_crumble_initial_pkt),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
   munit_void_test(test_ngtcp2_conn_post_handshake_failmalloc),
   munit_void_test(test_ngtcp2_accept),
@@ -308,6 +309,13 @@ static int client_initial(ngtcp2_conn *conn, void *user_data) {
 
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
                                  null_data, 217);
+
+  return 0;
+}
+
+static int client_initial_null(ngtcp2_conn *conn, void *user_data) {
+  (void)conn;
+  (void)user_data;
 
   return 0;
 }
@@ -1141,6 +1149,7 @@ static void conn_client_new(ngtcp2_conn **pconn, conn_options opts) {
                          opts.settings, opts.params, opts.mem, opts.user_data);
 
   (*pconn)->pktns.tx.skip_pkt.next_pkt_num = INT64_MAX;
+  (*pconn)->flags &= ~NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO;
 }
 
 static void setup_default_client_with_options(ngtcp2_conn **pconn,
@@ -16519,6 +16528,273 @@ void test_ngtcp2_conn_aggregate_pkts(void) {
   assert_true(ngtcp2_path_eq(&null_path.path, &ps.path));
   assert_uint8(NGTCP2_ECN_ECT_0, ==, pi.ecn);
   assert_size(0, ==, ud.write_pkt.num_write_left);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_crumble_initial_pkt(void) {
+  ngtcp2_conn *conn;
+  uint8_t tls_rawbuf[4096] = {0};
+  ngtcp2_buf tls_buf;
+  int rv;
+  ngtcp2_tstamp t = 0;
+  uint8_t buf[1200];
+  ngtcp2_ssize spktlen;
+  ngtcp2_ssize slen;
+  ngtcp2_pkt_hd hd;
+  ngtcp2_frame fr;
+  uint64_t offset;
+  uint8_t *p;
+  size_t len;
+  ngtcp2_frame_chain *frc;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
+
+  ngtcp2_buf_init(&tls_buf, tls_rawbuf, sizeof(tls_rawbuf));
+
+  /* msg_type */
+  *tls_buf.last++ = 1;
+  /* length */
+  tls_buf.last = ngtcp2_put_uint24be(tls_buf.last, 1000);
+  /* legacy_version */
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 0x0303);
+  /* random */
+  tls_buf.last += 32;
+  /* legacy_session_id */
+  *tls_buf.last++ = 23;
+  tls_buf.last += 23;
+  /* cipher_suites */
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 125);
+  tls_buf.last += 125;
+  /* legacy_compression_methods */
+  *tls_buf.last++ = 7;
+  tls_buf.last += 7;
+  /* extensions */
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 400);
+  /* extension 1 */
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 999);
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 120);
+  tls_buf.last += 120;
+  /* extension 2 */
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 65530);
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 0);
+  /* server_name extension */
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 0);
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 15);
+  /* server_name_list */
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 13);
+  /* name_type */
+  *tls_buf.last++ = 0;
+  /* name */
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 10);
+  tls_buf.last += 10;
+
+  /* Crumble client Initial CRYPTO frame */
+  client_default_callbacks(&callbacks);
+  callbacks.client_initial = client_initial_null;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+  conn->flags |= NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO;
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      tls_buf.pos, ngtcp2_buf_len(&tls_buf));
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ssize(0, <, spktlen);
+
+  slen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
+
+  assert_ptrdiff(0, <, slen);
+  assert_uint8(NGTCP2_PKT_INITIAL, ==, hd.type);
+
+  slen = ngtcp2_pkt_decode_frame(&fr, buf + slen, (size_t)(spktlen - slen));
+
+  assert_ptrdiff(0, <, slen);
+  /* If PADDING is seen at the top, it means CRYPTO was crumbled. */
+  assert_uint64(NGTCP2_FRAME_PADDING, ==, fr.type);
+  assert_uint64(1, ==, fr.padding.len);
+
+  ngtcp2_conn_del(conn);
+
+  /* We have CRYPTO data worth of more than 1 packet.  The part of SNI
+     should be in the second packet. */
+  client_default_callbacks(&callbacks);
+  callbacks.client_initial = client_initial_null;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+  conn->flags |= NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO;
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      tls_buf.pos, ngtcp2_buf_len(&tls_buf));
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, sizeof(null_data));
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ssize(0, <, spktlen);
+  assert_size(2, ==, ngtcp2_ksl_len(conn->in_pktns->crypto.strm.tx.streamfrq));
+
+  slen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
+
+  assert_ptrdiff(0, <, slen);
+  assert_uint8(NGTCP2_PKT_INITIAL, ==, hd.type);
+
+  offset = 0;
+  p = buf + slen;
+  len = hd.len - NGTCP2_FAKE_AEAD_OVERHEAD;
+
+  for (;;) {
+    slen = ngtcp2_pkt_decode_frame(&fr, p, len);
+
+    assert_ptrdiff(0, <, slen);
+
+    if (fr.type == NGTCP2_FRAME_CRYPTO) {
+      offset = ngtcp2_max_uint64(offset, fr.stream.offset);
+    }
+
+    p += slen;
+    len -= (size_t)slen;
+
+    if (len == 0) {
+      break;
+    }
+  }
+
+  assert_uint64(0, <, offset);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ssize(0, <, spktlen);
+
+  slen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
+
+  assert_ptrdiff(0, <, slen);
+  assert_uint8(NGTCP2_PKT_INITIAL, ==, hd.type);
+
+  p = buf + slen;
+  len = hd.len - NGTCP2_FAKE_AEAD_OVERHEAD;
+
+  /* The 2nd packet should have CRYPTO whose offset is less than
+     offset. */
+  for (;;) {
+    slen = ngtcp2_pkt_decode_frame(&fr, p, len);
+
+    assert_ptrdiff(0, <, slen);
+
+    if (fr.type == NGTCP2_FRAME_CRYPTO) {
+      if (fr.stream.offset < offset) {
+        offset = 0;
+        break;
+      }
+    }
+
+    p += slen;
+    len -= (size_t)slen;
+
+    if (len == 0) {
+      break;
+    }
+  }
+
+  assert_uint64(0, ==, offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Check the case that datacnt does not change. */
+  client_default_callbacks(&callbacks);
+  callbacks.client_initial = client_initial_null;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+  conn->flags |= NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO;
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      tls_buf.pos, ngtcp2_buf_len(&tls_buf));
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_frame_chain_stream_datacnt_objalloc_new(
+    &frc, 1, &conn->frc_objalloc, conn->mem);
+
+  assert_int(0, ==, rv);
+
+  frc->fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .offset = 1200,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .base = null_data,
+        .len = 100,
+      },
+  };
+
+  rv = ngtcp2_strm_streamfrq_push(&conn->in_pktns->crypto.strm, frc);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ssize(0, <, spktlen);
+  assert_size(0, ==, ngtcp2_ksl_len(conn->in_pktns->crypto.strm.tx.streamfrq));
+
+  it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.type);
+  assert_uint64(0, ==, frc->fr.stream.offset);
+  assert_size(1, ==, frc->fr.stream.datacnt);
+  assert_size(ngtcp2_buf_len(&tls_buf) - 1, ==, frc->fr.stream.data[0].len);
+  assert_not_null(frc->next);
+
+  frc = frc->next;
+
+  /* This is the data after the removed data. */
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.type);
+  assert_uint64(ngtcp2_buf_len(&tls_buf) - 1, ==, frc->fr.stream.offset);
+  assert_size(1, ==, frc->fr.stream.datacnt);
+  assert_size(1, ==, frc->fr.stream.data[0].len);
+  assert_not_null(frc->next);
+
+  frc = frc->next;
+
+  /* This is the portion of removed data. */
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.type);
+  assert_uint64(341, ==, frc->fr.stream.offset);
+  assert_size(1, ==, frc->fr.stream.datacnt);
+  assert_size(4, ==, frc->fr.stream.data[0].len);
+  assert_not_null(frc->next);
+
+  frc = frc->next;
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.type);
+  assert_uint64(1200, ==, frc->fr.stream.offset);
+  assert_size(1, ==, frc->fr.stream.datacnt);
+  assert_size(100, ==, frc->fr.stream.data[0].len);
+  assert_null(frc->next);
 
   ngtcp2_conn_del(conn);
 }

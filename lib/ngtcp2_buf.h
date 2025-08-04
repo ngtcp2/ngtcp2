@@ -81,6 +81,13 @@ static inline size_t ngtcp2_buf_len(const ngtcp2_buf *buf) {
 size_t ngtcp2_buf_cap(const ngtcp2_buf *buf);
 
 /*
+ * ngtcp2_buf_trunc truncates the number of bytes to read to at most
+ * |len|.  In other words, it sets buf->last = buf->pos + len if
+ * ngtcp2_buf_len(buf) > len.
+ */
+void ngtcp2_buf_trunc(ngtcp2_buf *buf, size_t len);
+
+/*
  * ngtcp2_buf_chain is a linked list of ngtcp2_buf.
  */
 typedef struct ngtcp2_buf_chain ngtcp2_buf_chain;

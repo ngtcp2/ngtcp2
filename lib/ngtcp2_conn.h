@@ -205,6 +205,10 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    ngtcp2_conn_writev_stream is called inside the callback invoked by
    ngtcp2_conn_aggregate_pkts. */
 #define NGTCP2_CONN_FLAG_AGGREGATE_PKTS 0x20000u
+/* NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO, if set, crumbles an
+   Initial CRYPTO frame into pieces as a countermeasure against Deep
+   Packet Inspection. */
+#define NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO 0x40000u
 
 typedef struct ngtcp2_pktns {
   struct {

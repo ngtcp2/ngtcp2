@@ -69,6 +69,12 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_pkt_write_retry),
   munit_void_test(test_ngtcp2_pkt_write_version_negotiation),
   munit_void_test(test_ngtcp2_pkt_stream_max_datalen),
+  munit_void_test(test_ngtcp2_pkt_split_vec_rand),
+  munit_void_test(test_ngtcp2_pkt_split_vec_at),
+  munit_void_test(test_ngtcp2_pkt_find_server_name),
+  munit_void_test(test_ngtcp2_pkt_append_ping_and_padding),
+  munit_void_test(test_ngtcp2_pkt_permutate_vec),
+  munit_void_test(test_ngtcp2_pkt_remove_vec_partial),
   munit_test_end(),
 };
 
@@ -76,6 +82,8 @@ const MunitSuite pkt_suite = {
   .prefix = "/pkt",
   .tests = tests,
 };
+
+static uint8_t null_data[4096];
 
 static int null_retry_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                               const ngtcp2_crypto_aead_ctx *aead_ctx,
@@ -2087,4 +2095,350 @@ void test_ngtcp2_pkt_stream_max_datalen(void) {
   len = ngtcp2_pkt_stream_max_datalen(63, 0, 16383, 16387);
 
   assert_size(16383, ==, len);
+}
+
+void test_ngtcp2_pkt_split_vec_rand(void) {
+  ngtcp2_pcg32 pcg;
+  ngtcp2_vec data[NGTCP2_MAX_STREAM_DATACNT];
+  uint64_t offsets[NGTCP2_MAX_STREAM_DATACNT];
+  size_t datacnt;
+
+  ngtcp2_pcg32_init(&pcg, 0);
+
+  data[0] = (ngtcp2_vec){
+    .base = null_data,
+    .len = 4096,
+  };
+  offsets[0] = 1000000007;
+
+  datacnt = ngtcp2_pkt_split_vec_rand(data, 1, offsets, &pcg, 3);
+
+  assert_size(4, ==, datacnt);
+
+  assert_size(1024, ==, data[0].len);
+  assert_ptr_equal(null_data, data[0].base);
+
+  assert_size(1024, ==, data[1].len);
+  assert_ptr_equal(null_data + 2048, data[1].base);
+
+  assert_size(1024, ==, data[2].len);
+  assert_ptr_equal(null_data + 1024, data[2].base);
+
+  assert_size(1024, ==, data[3].len);
+  assert_ptr_equal(null_data + 3072, data[3].base);
+
+  assert_uint64(1000000007, ==, offsets[0]);
+  assert_uint64(1000000007 + 2048, ==, offsets[1]);
+  assert_uint64(1000000007 + 1024, ==, offsets[2]);
+  assert_uint64(1000000007 + 3072, ==, offsets[3]);
+
+  ngtcp2_pcg32_init(&pcg, 1);
+
+  data[0] = (ngtcp2_vec){
+    .base = null_data,
+    .len = 4096,
+  };
+  offsets[0] = 1000000007;
+
+  datacnt = ngtcp2_pkt_split_vec_rand(data, 1, offsets, &pcg, 3);
+
+  assert_size(4, ==, datacnt);
+
+  assert_size(512, ==, data[0].len);
+  assert_ptr_equal(null_data, data[0].base);
+
+  assert_size(2048, ==, data[1].len);
+  assert_ptr_equal(null_data + 2048, data[1].base);
+
+  assert_size(1024, ==, data[2].len);
+  assert_ptr_equal(null_data + 1024, data[2].base);
+
+  assert_size(512, ==, data[3].len);
+  assert_ptr_equal(null_data + 512, data[3].base);
+
+  assert_uint64(1000000007, ==, offsets[0]);
+  assert_uint64(1000000007 + 2048, ==, offsets[1]);
+  assert_uint64(1000000007 + 1024, ==, offsets[2]);
+  assert_uint64(1000000007 + 512, ==, offsets[3]);
+}
+
+void test_ngtcp2_pkt_split_vec_at(void) {
+  ngtcp2_vec data[2] = {
+    {
+      .base = null_data,
+      .len = 4096,
+    },
+  };
+  uint64_t offsets[2] = {
+    1000000007,
+  };
+  size_t datacnt;
+
+  datacnt = ngtcp2_pkt_split_vec_at(data, 1, offsets, 111);
+
+  assert_size(2, ==, datacnt);
+
+  assert_size(111, ==, data[0].len);
+  assert_ptr_equal(null_data, data[0].base);
+
+  assert_size(4096 - 111, ==, data[1].len);
+  assert_ptr_equal(null_data + 111, data[1].base);
+
+  assert_uint64(1000000007, ==, offsets[0]);
+  assert_uint64(1000000007 + 111, ==, offsets[1]);
+}
+
+void test_ngtcp2_pkt_find_server_name(void) {
+  uint8_t rawbuf[4096] = {0};
+  ngtcp2_buf buf;
+  int rv;
+  ngtcp2_vec data;
+  ngtcp2_vec server_name;
+  size_t i;
+  uint8_t *p;
+
+  ngtcp2_buf_init(&buf, rawbuf, sizeof(rawbuf));
+
+  /* msg_type */
+  *buf.last++ = 1;
+  /* length */
+  buf.last = ngtcp2_put_uint24be(buf.last, 1000);
+  /* legacy_version */
+  buf.last = ngtcp2_put_uint16be(buf.last, 0x0303);
+  /* random */
+  buf.last += 32;
+  /* legacy_session_id */
+  *buf.last++ = 23;
+  buf.last += 23;
+  /* cipher_suites */
+  buf.last = ngtcp2_put_uint16be(buf.last, 125);
+  buf.last += 125;
+  /* legacy_compression_methods */
+  *buf.last++ = 7;
+  buf.last += 7;
+  /* extensions */
+  buf.last = ngtcp2_put_uint16be(buf.last, 400);
+  /* extension 1 */
+  buf.last = ngtcp2_put_uint16be(buf.last, 999);
+  buf.last = ngtcp2_put_uint16be(buf.last, 120);
+  buf.last += 120;
+  /* extension 2 */
+  buf.last = ngtcp2_put_uint16be(buf.last, 65530);
+  buf.last = ngtcp2_put_uint16be(buf.last, 0);
+  /* server_name extension */
+  buf.last = ngtcp2_put_uint16be(buf.last, 0);
+  buf.last = ngtcp2_put_uint16be(buf.last, 262);
+  /* server_name_list */
+  buf.last = ngtcp2_put_uint16be(buf.last, 260);
+  /* name_type */
+  *buf.last++ = 0;
+  /* name */
+  buf.last = ngtcp2_put_uint16be(buf.last, 257);
+  buf.last += 257;
+
+  data = (ngtcp2_vec){
+    .base = buf.pos,
+    .len = 1200,
+  };
+
+  rv = ngtcp2_pkt_find_server_name(&server_name, &data);
+
+  assert_int(1, ==, rv);
+  assert_size(257, ==, server_name.len);
+  assert_ptr_equal(buf.pos + 1 + 3 + 2 + 32 + 1 + 23 + 2 + 125 + 1 + 7 + 2 + 2 +
+                     2 + 120 + 2 + 2 + 2 + 2 + 2 + 1 + 2,
+                   server_name.base);
+
+  for (i = 1; i < ngtcp2_buf_len(&buf) + 1; ++i) {
+    p = malloc(i);
+
+    memcpy(p, buf.pos, i);
+
+    data = (ngtcp2_vec){
+      .base = p,
+      .len = i,
+    };
+
+    rv = ngtcp2_pkt_find_server_name(&server_name, &data);
+
+    free(p);
+
+    if (i == ngtcp2_buf_len(&buf)) {
+      assert_true(rv);
+      assert_size(257, ==, server_name.len);
+    } else {
+      assert_false(rv);
+    }
+  }
+}
+
+void test_ngtcp2_pkt_append_ping_and_padding(void) {
+  ngtcp2_pcg32 pcg;
+  ngtcp2_vec data[NGTCP2_MAX_STREAM_DATACNT];
+  size_t datacnt;
+
+  ngtcp2_pcg32_init(&pcg, 1000000009);
+
+  data[0] = (ngtcp2_vec){
+    .base = null_data,
+    .len = 999,
+  };
+
+  datacnt = ngtcp2_pkt_append_ping_and_padding(data, 1, &pcg, 19);
+
+  assert_size(7, ==, datacnt);
+  assert_ptr_equal(null_data, data[0].base);
+  assert_size(999, ==, data[0].len);
+  /* PADDING len = 2 */
+  assert_size(2, ==, data[1].len);
+  assert_null(data[1].base);
+  /* PADDING len = 5 */
+  assert_size(5, ==, data[2].len);
+  assert_null(data[2].base);
+  /* PADDING len = 1 */
+  assert_size(1, ==, data[3].len);
+  assert_null(data[3].base);
+  /* PADDING len = 6 */
+  assert_size(6, ==, data[4].len);
+  assert_null(data[4].base);
+  /* PADDING len = 2 */
+  assert_size(2, ==, data[5].len);
+  assert_null(data[5].base);
+  /* PADDING len = 3 */
+  assert_size(3, ==, data[6].len);
+  assert_null(data[6].base);
+
+  /* Stop adding frames because the array gets full. */
+  ngtcp2_pcg32_init(&pcg, 1000000009);
+
+  datacnt = ngtcp2_pkt_append_ping_and_padding(
+    data, NGTCP2_MAX_STREAM_DATACNT - 1, &pcg, 19);
+
+  assert_size(NGTCP2_MAX_STREAM_DATACNT, ==, datacnt);
+  /* PADDING len = 2 */
+  assert_size(2, ==, data[NGTCP2_MAX_STREAM_DATACNT - 1].len);
+  assert_null(data[NGTCP2_MAX_STREAM_DATACNT - 1].base);
+
+  /* The array is already full. */
+  ngtcp2_pcg32_init(&pcg, 1000000009);
+
+  datacnt = ngtcp2_pkt_append_ping_and_padding(data, NGTCP2_MAX_STREAM_DATACNT,
+                                               &pcg, 19);
+
+  assert_size(NGTCP2_MAX_STREAM_DATACNT, ==, datacnt);
+}
+
+void test_ngtcp2_pkt_permutate_vec(void) {
+  ngtcp2_pcg32 pcg;
+  ngtcp2_vec data[] = {
+    {
+      .base = null_data,
+      .len = 1,
+    },
+    {
+      .base = null_data + 1,
+      .len = 2,
+    },
+    {
+      .base = null_data + 1 + 2,
+      .len = 3,
+    },
+    {
+      .base = null_data + 1 + 2 + 3,
+      .len = 4,
+    },
+  };
+  uint64_t offsets[] = {
+    0,
+    1,
+    3,
+    6,
+  };
+
+  ngtcp2_pcg32_init(&pcg, 231);
+
+  ngtcp2_pkt_permutate_vec(data, ngtcp2_arraylen(data), offsets, &pcg);
+
+  assert_size(4, ==, data[0].len);
+  assert_ptr_equal(null_data + 6, data[0].base);
+
+  assert_size(1, ==, data[1].len);
+  assert_ptr_equal(null_data, data[1].base);
+
+  assert_size(2, ==, data[2].len);
+  assert_ptr_equal(null_data + 1, data[2].base);
+
+  assert_size(3, ==, data[3].len);
+  assert_ptr_equal(null_data + 3, data[3].base);
+
+  assert_uint64(6, ==, offsets[0]);
+  assert_uint64(0, ==, offsets[1]);
+  assert_uint64(1, ==, offsets[2]);
+  assert_uint64(3, ==, offsets[3]);
+}
+
+void test_ngtcp2_pkt_remove_vec_partial(void) {
+  ngtcp2_pcg32 pcg;
+  ngtcp2_vec data[2];
+  uint64_t offsets[2];
+  ngtcp2_vec removed;
+  ngtcp2_vec partial;
+  size_t datacnt;
+
+  ngtcp2_pcg32_init(&pcg, 0);
+
+  data[0] = (ngtcp2_vec){
+    .base = null_data,
+    .len = 1777,
+  };
+  offsets[0] = 551;
+
+  partial = (ngtcp2_vec){
+    .base = null_data + 111,
+    .len = 50,
+  };
+
+  datacnt =
+    ngtcp2_pkt_remove_vec_partial(&removed, data, 1, offsets, &pcg, &partial);
+
+  assert_size(datacnt, ==, 2);
+
+  assert_size(136, ==, data[0].len);
+  assert_ptr_equal(null_data, data[0].base);
+
+  assert_size(28, ==, removed.len);
+  assert_ptr_equal(null_data + 136, removed.base);
+
+  assert_size(1613, ==, data[1].len);
+  assert_ptr_equal(null_data + 164, data[1].base);
+
+  assert_uint64(offsets[0], ==, 551);
+  assert_uint64(offsets[1], ==, 551 + 164);
+
+  /* No ngtcp2_vec appended */
+  ngtcp2_pcg32_init(&pcg, 0);
+
+  data[0] = (ngtcp2_vec){
+    .base = null_data,
+    .len = 1777,
+  };
+  offsets[0] = 88;
+
+  partial = (ngtcp2_vec){
+    .base = null_data + 1775,
+    .len = 2,
+  };
+
+  datacnt =
+    ngtcp2_pkt_remove_vec_partial(&removed, data, 1, offsets, &pcg, &partial);
+
+  assert_size(datacnt, ==, 1);
+
+  assert_size(1776, ==, data[0].len);
+  assert_ptr_equal(null_data, data[0].base);
+
+  assert_size(1, ==, removed.len);
+  assert_ptr_equal(null_data + 1776, removed.base);
+
+  assert_uint64(offsets[0], ==, 88);
 }
