@@ -1138,7 +1138,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   ngtcp2_settings settingsbuf;
   ngtcp2_transport_params paramsbuf;
   ngtcp2_callbacks callbacksbuf;
-  uint64_t map_seed;
+  uint64_t seed;
   (void)settings_version;
 
   settings =
@@ -1248,8 +1248,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_pq_init(&(*pconn)->scid.used, retired_ts_less, mem);
 
-  callbacks->rand((uint8_t *)&map_seed, sizeof(map_seed), &settings->rand_ctx);
-  ngtcp2_map_init(&(*pconn)->strms, map_seed, mem);
+  callbacks->rand((uint8_t *)&seed, sizeof(seed), &settings->rand_ctx);
+  ngtcp2_map_init(&(*pconn)->strms, seed, mem);
+
+  callbacks->rand((uint8_t *)&seed, sizeof(seed), &settings->rand_ctx);
+  ngtcp2_pcg32_init(&(*pconn)->pcg, seed);
 
   ngtcp2_pq_init(&(*pconn)->tx.strmq, cycle_less, mem);
 
@@ -1325,8 +1328,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     break;
   case NGTCP2_CC_ALGO_BBR:
     ngtcp2_cc_bbr_init(&(*pconn)->bbr, &(*pconn)->log, &(*pconn)->cstat,
-                       &(*pconn)->rst, settings->initial_ts, callbacks->rand,
-                       &settings->rand_ctx);
+                       &(*pconn)->rst, settings->initial_ts, &(*pconn)->pcg);
 
     break;
   default:
