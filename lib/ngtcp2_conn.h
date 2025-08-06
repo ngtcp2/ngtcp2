@@ -52,6 +52,7 @@
 #include "ngtcp2_rst.h"
 #include "ngtcp2_conn_stat.h"
 #include "ngtcp2_dcidtr.h"
+#include "ngtcp2_pcg.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -651,6 +652,7 @@ struct ngtcp2_conn {
   /* handshake_confirmed_ts is the time instant when handshake is
      confirmed.  For server, it is confirmed when completed. */
   ngtcp2_tstamp handshake_confirmed_ts;
+  ngtcp2_pcg32 pcg;
   void *user_data;
   uint32_t client_chosen_version;
   uint32_t negotiated_version;

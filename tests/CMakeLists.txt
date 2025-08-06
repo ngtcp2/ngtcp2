@@ -58,6 +58,7 @@ set(main_SOURCES
   ngtcp2_ppe_test.c
   ngtcp2_dcidtr_test.c
   ngtcp2_addr_test.c
+  ngtcp2_pcg_test.c
   ngtcp2_test_helper.c
   munit/munit.c
 )
