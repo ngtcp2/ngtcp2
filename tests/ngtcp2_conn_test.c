@@ -124,7 +124,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_ack_padding),
   munit_void_test(test_ngtcp2_conn_super_small_rtt),
   munit_void_test(test_ngtcp2_conn_recv_ack),
-  munit_void_test(test_ngtcp2_conn_aggregate_pkts),
+  munit_void_test(test_ngtcp2_conn_write_aggregate_pkt),
   munit_void_test(test_ngtcp2_conn_crumble_initial_pkt),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
   munit_void_test(test_ngtcp2_conn_post_handshake_failmalloc),
@@ -16412,7 +16412,7 @@ static ngtcp2_ssize write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
   return nwrite;
 }
 
-void test_ngtcp2_conn_aggregate_pkts(void) {
+void test_ngtcp2_conn_write_aggregate_pkt(void) {
   ngtcp2_conn *conn;
   uint8_t buf[65536];
   ngtcp2_ssize spktlen;
@@ -16443,9 +16443,9 @@ void test_ngtcp2_conn_aggregate_pkts(void) {
   ud.write_pkt.stream_id = stream_id;
   ud.write_pkt.num_write_left = 10;
 
-  spktlen =
-    ngtcp2_conn_aggregate_pkts(conn, &ps.path, &pi, buf, sizeof(buf), &gsolen,
-                               /* max_num_pkts = */ 0, write_pkt, t);
+  spktlen = ngtcp2_conn_write_aggregate_pkt(
+    conn, &ps.path, &pi, buf, sizeof(buf), &gsolen,
+    /* max_num_pkts = */ 0, write_pkt, t);
 
   /* Due to CWND, only 8 packets are written. */
   assert_ptrdiff(
@@ -16496,9 +16496,9 @@ void test_ngtcp2_conn_aggregate_pkts(void) {
   ud.write_pkt.stream_id = 0;
   ud.write_pkt.num_write_left = 2;
 
-  spktlen =
-    ngtcp2_conn_aggregate_pkts(conn, &ps.path, &pi, buf, sizeof(buf), &gsolen,
-                               /* max_num_pkts = */ 0, write_pkt, ++t);
+  spktlen = ngtcp2_conn_write_aggregate_pkt(
+    conn, &ps.path, &pi, buf, sizeof(buf), &gsolen,
+    /* max_num_pkts = */ 0, write_pkt, ++t);
 
   /* We have not validated new path, and server is subject to
      anti-amplification limit. */
@@ -16517,9 +16517,9 @@ void test_ngtcp2_conn_aggregate_pkts(void) {
   ud.write_pkt.stream_id = 0;
   ud.write_pkt.num_write_left = 2;
 
-  spktlen =
-    ngtcp2_conn_aggregate_pkts(conn, &ps.path, &pi, buf, sizeof(buf), &gsolen,
-                               /* max_num_pkts = */ 0, write_pkt, t);
+  spktlen = ngtcp2_conn_write_aggregate_pkt(
+    conn, &ps.path, &pi, buf, sizeof(buf), &gsolen,
+    /* max_num_pkts = */ 0, write_pkt, t);
 
   assert_ptrdiff(
     (ngtcp2_ssize)ngtcp2_conn_get_path_max_tx_udp_payload_size(conn) * 2, ==,

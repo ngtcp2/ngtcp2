@@ -203,7 +203,7 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 #define NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR 0x10000u
 /* NGTCP2_CONN_FLAG_AGGREGATE_PKTS is set when
    ngtcp2_conn_writev_stream is called inside the callback invoked by
-   ngtcp2_conn_aggregate_pkts. */
+   ngtcp2_conn_write_aggregate_pkt. */
 #define NGTCP2_CONN_FLAG_AGGREGATE_PKTS 0x20000u
 /* NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO, if set, crumbles an
    Initial CRYPTO frame into pieces as a countermeasure against Deep
