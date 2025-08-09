@@ -1034,9 +1034,9 @@ int Handler::write_streams() {
 
   ngtcp2_path_storage_zero(&ps);
 
-  auto nwrite = ngtcp2_conn_write_aggregate_pkt(
-    conn_, &ps.path, &pi, txbuf.data(), txbuf.size(), &gso_size,
-    /* max_num_pkt = */ 0, ::write_pkt, ts);
+  auto nwrite =
+    ngtcp2_conn_write_aggregate_pkt(conn_, &ps.path, &pi, txbuf.data(),
+                                    txbuf.size(), &gso_size, ::write_pkt, ts);
   if (nwrite < 0) {
     return handle_error();
   }
