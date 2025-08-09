@@ -13748,7 +13748,7 @@ void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
   ent->ts = ts;
 }
 
-ngtcp2_ssize ngtcp2_conn_aggregate_pkts_versioned(
+ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
   ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
   ngtcp2_pkt_info *pi, uint8_t *buf, size_t buflen, size_t *pgsolen,
   size_t max_num_pkts, ngtcp2_write_pkt write_pkt, ngtcp2_tstamp ts) {

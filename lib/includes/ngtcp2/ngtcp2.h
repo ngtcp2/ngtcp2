@@ -5635,11 +5635,12 @@ typedef ngtcp2_ssize (*ngtcp2_write_pkt)(ngtcp2_conn *conn, ngtcp2_path *path,
 /**
  * @function
  *
- * `ngtcp2_conn_aggregate_pkts` is a helper function to write multiple
- * packets in the provided buffer, which is suitable to be sent at
- * once in GSO.  This function returns the number of bytes written to
- * the buffer pointed by |buf| of length |buflen|.  |buflen| must be
- * at least `ngtcp2_conn_get_path_max_tx_udp_payload_size(conn)
+ * `ngtcp2_conn_write_aggregate_pkt` is a helper function to write
+ * multiple packets in the provided buffer, which is suitable to be
+ * sent at once in GSO.  This function returns the number of bytes
+ * written to the buffer pointed by |buf| of length |buflen|.
+ * |buflen| must be at least
+ * `ngtcp2_conn_get_path_max_tx_udp_payload_size(conn)
  * <ngtcp2_conn_get_path_max_tx_udp_payload_size>` bytes long.
  * Because this function is intended to build packets for GSO, an
  * application typically provides the buffer of length 65536 bytes.
@@ -5658,7 +5659,7 @@ typedef ngtcp2_ssize (*ngtcp2_write_pkt)(ngtcp2_conn *conn, ngtcp2_path *path,
  *
  * This function has been available since v1.15.0.
  */
-NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_aggregate_pkts_versioned(
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
   ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
   ngtcp2_pkt_info *pi, uint8_t *buf, size_t buflen, size_t *pgsolen,
   size_t max_num_pkts, ngtcp2_write_pkt write_pkt, ngtcp2_tstamp ts);
@@ -6046,13 +6047,13 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
   ngtcp2_conn_get_conn_info_versioned((CONN), NGTCP2_CONN_INFO_VERSION, (CINFO))
 
 /*
- * `ngtcp2_conn_aggregate_pkts` is a wrapper around
- * `ngtcp2_conn_aggregate_pkts_versioned` to set the correct struct
- * version.
+ * `ngtcp2_conn_write_aggregate_pkt` is a wrapper around
+ * `ngtcp2_conn_write_aggregate_pkt_versioned` to set the correct
+ * struct version.
  */
-#define ngtcp2_conn_aggregate_pkts(CONN, PATH, PI, BUF, BUFLEN, PGSOLEN,       \
-                                   MAX_NUM_PKTS, WRITE_PKT, TS)                \
-  ngtcp2_conn_aggregate_pkts_versioned(                                        \
+#define ngtcp2_conn_write_aggregate_pkt(CONN, PATH, PI, BUF, BUFLEN, PGSOLEN,  \
+                                        MAX_NUM_PKTS, WRITE_PKT, TS)           \
+  ngtcp2_conn_write_aggregate_pkt_versioned(                                   \
     (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (BUF), (BUFLEN), (PGSOLEN), \
     (MAX_NUM_PKTS), (WRITE_PKT), (TS))
 
