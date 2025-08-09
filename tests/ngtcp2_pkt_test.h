@@ -71,5 +71,11 @@ munit_void_test_decl(test_ngtcp2_pkt_write_stateless_reset)
 munit_void_test_decl(test_ngtcp2_pkt_write_retry)
 munit_void_test_decl(test_ngtcp2_pkt_write_version_negotiation)
 munit_void_test_decl(test_ngtcp2_pkt_stream_max_datalen)
+munit_void_test_decl(test_ngtcp2_pkt_split_vec_rand)
+munit_void_test_decl(test_ngtcp2_pkt_split_vec_at)
+munit_void_test_decl(test_ngtcp2_pkt_find_server_name)
+munit_void_test_decl(test_ngtcp2_pkt_append_ping_and_padding)
+munit_void_test_decl(test_ngtcp2_pkt_permutate_vec)
+munit_void_test_decl(test_ngtcp2_pkt_remove_vec_partial)
 
 #endif /* !defined(NGTCP2_PKT_TEST_H) */
