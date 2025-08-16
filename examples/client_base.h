@@ -193,6 +193,9 @@ struct Config {
   std::vector<uint16_t> pmtud_probes;
   // ech_config_list contains ECHConfigList.
   std::vector<uint8_t> ech_config_list;
+  // ech_config_list_file is a path to a file to read and write
+  // ECHConfigList.
+  const char *ech_config_list_file;
   std::string client_ip;
 };
 
