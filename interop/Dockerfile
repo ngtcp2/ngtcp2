@@ -12,11 +12,11 @@ RUN apt-get update && \
 
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then export WSSLFLAGS="--enable-aesni"; fi && \
     if [ "$TARGETPLATFORM" = "linux/arm64" ]; then export WSSLFLAGS="--enable-armasm"; fi && \
-    git clone --depth 1 -b v5.8.0-stable https://github.com/wolfSSL/wolfssl && \
+    git clone --depth 1 -b v5.8.2-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
     ./configure --disable-dependency-tracking --enable-static --enable-all \
         --enable-harden --enable-keylog-export --disable-ech \
-        --enable-ticket-nonce-malloc $WSSLFLAGS \
+        --enable-ticket-nonce-malloc --enable-mlkem $WSSLFLAGS \
         CC=clang-18 \
         CXX=clang++-18 && \
     make -j$(nproc) && make install && cd .. && rm -rf wolfssl

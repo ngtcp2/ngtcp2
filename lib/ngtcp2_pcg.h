@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,33 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_SESSION_WOLFSSL_H
-#define TLS_CLIENT_SESSION_WOLFSSL_H
+#ifndef NGTCP2_PCG_H
+#define NGTCP2_PCG_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // defined(HAVE_CONFIG_H)
+#endif /* defined(HAVE_CONFIG_H) */
 
-#include "tls_session_base_wolfssl.h"
-#include "shared.h"
+#include <ngtcp2/ngtcp2.h>
 
-using namespace ngtcp2;
+typedef struct ngtcp2_pcg32 {
+  uint64_t state;
+} ngtcp2_pcg32;
 
-class TLSClientContext;
-class ClientBase;
+/*
+ * ngtcp2_pcg32_init initializes |pcg| with |seed|.
+ */
+void ngtcp2_pcg32_init(ngtcp2_pcg32 *pcg, uint64_t seed);
 
-class TLSClientSession : public TLSSessionBase {
-public:
-  TLSClientSession();
-  ~TLSClientSession();
+/*
+ * ngtcp2_pcg32_rand returns a random value in [0, UINT32_MAX].
+ */
+uint32_t ngtcp2_pcg32_rand(ngtcp2_pcg32 *pcg);
 
-  int init(bool &early_data_enabled, const TLSClientContext &tls_ctx,
-           const char *remote_addr, ClientBase *client, uint32_t quic_version,
-           AppProtocol app_proto);
+/*
+ * ngtcp2_pcg32_rand_n returns a random value in [0, n).  |n| must not
+ * be zero.
+ */
+uint32_t ngtcp2_pcg32_rand_n(ngtcp2_pcg32 *pcg, uint32_t n);
 
-  bool get_early_data_accepted() const;
-  bool get_ech_accepted() const { return false; }
-  int write_ech_config_list(const char *path) const { return 0; }
-};
-
-#endif // !defined(TLS_CLIENT_SESSION_WOLFSSL_H)
+#endif /* !defined(NGTCP2_PCG_H) */

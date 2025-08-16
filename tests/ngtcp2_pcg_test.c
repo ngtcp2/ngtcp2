@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,33 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_SESSION_WOLFSSL_H
-#define TLS_CLIENT_SESSION_WOLFSSL_H
+#include "ngtcp2_pcg_test.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // defined(HAVE_CONFIG_H)
+#include <stdio.h>
 
-#include "tls_session_base_wolfssl.h"
-#include "shared.h"
+#include "ngtcp2_pcg.h"
+#include "ngtcp2_test_helper.h"
 
-using namespace ngtcp2;
-
-class TLSClientContext;
-class ClientBase;
-
-class TLSClientSession : public TLSSessionBase {
-public:
-  TLSClientSession();
-  ~TLSClientSession();
-
-  int init(bool &early_data_enabled, const TLSClientContext &tls_ctx,
-           const char *remote_addr, ClientBase *client, uint32_t quic_version,
-           AppProtocol app_proto);
-
-  bool get_early_data_accepted() const;
-  bool get_ech_accepted() const { return false; }
-  int write_ech_config_list(const char *path) const { return 0; }
+static const MunitTest tests[] = {
+  munit_void_test(test_ngtcp2_pcg32),
+  munit_test_end(),
 };
 
-#endif // !defined(TLS_CLIENT_SESSION_WOLFSSL_H)
+const MunitSuite pcg_suite = {
+  .prefix = "/pcg",
+  .tests = tests,
+};
+
+void test_ngtcp2_pcg32(void) {
+  ngtcp2_pcg32 pcg;
+
+  ngtcp2_pcg32_init(&pcg, 0xdeadbeef);
+
+  assert_uint32(3283094731, ==, ngtcp2_pcg32_rand(&pcg));
+  assert_uint32(3888927911, ==, ngtcp2_pcg32_rand(&pcg));
+
+  assert_uint32(12, ==, ngtcp2_pcg32_rand_n(&pcg, 100));
+  assert_uint32(58, ==, ngtcp2_pcg32_rand_n(&pcg, 100));
+  assert_uint32(1, ==, ngtcp2_pcg32_rand_n(&pcg, 2));
+  assert_uint32(0, ==, ngtcp2_pcg32_rand_n(&pcg, 1));
+}

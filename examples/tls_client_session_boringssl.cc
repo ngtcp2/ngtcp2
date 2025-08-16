@@ -26,6 +26,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <fstream>
 
 #include "tls_client_context_boringssl.h"
 #include "client_base.h"
@@ -116,4 +117,31 @@ bool TLSClientSession::get_early_data_accepted() const {
 
 bool TLSClientSession::get_ech_accepted() const {
   return SSL_ech_accepted(ssl_);
+}
+
+int TLSClientSession::write_ech_config_list(const char *path) const {
+  const uint8_t *retry_configs;
+  size_t retry_configslen;
+
+  SSL_get0_ech_retry_configs(ssl_, &retry_configs, &retry_configslen);
+  if (retry_configslen == 0) {
+    std::cerr << "No ECH retry configs found" << std::endl;
+    return -1;
+  }
+
+  auto f = std::ofstream(path);
+
+  if (!f) {
+    return -1;
+  }
+
+  f.write(reinterpret_cast<const char *>(retry_configs),
+          static_cast<std::streamsize>(retry_configslen));
+  f.close();
+
+  if (!f) {
+    return -1;
+  }
+
+  return 0;
 }

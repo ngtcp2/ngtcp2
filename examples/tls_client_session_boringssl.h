@@ -48,6 +48,7 @@ public:
 
   bool get_early_data_accepted() const;
   bool get_ech_accepted() const;
+  int write_ech_config_list(const char *path) const;
 };
 
 #endif // !defined(TLS_CLIENT_SESSION_BORINGSSL_H)

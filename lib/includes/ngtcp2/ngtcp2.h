@@ -3000,9 +3000,8 @@ typedef int (*ngtcp2_begin_path_validation)(ngtcp2_conn *conn, uint32_t flags,
  * an application the outcome of path validation.  |flags| is zero or
  * more of :macro:`NGTCP2_PATH_VALIDATION_FLAG_*
  * <NGTCP2_PATH_VALIDATION_FLAG_NONE>`.  |path| is the path that was
- * validated.  |old_path| is the path that is previously used before a
- * local endpoint has migrated to |path| if |old_path| is not NULL.
- * If |res| is
+ * validated.  |fallback_path|, if not NULL, is the path that is used
+ * if the path validation failed.  If |res| is
  * :enum:`ngtcp2_path_validation_result.NGTCP2_PATH_VALIDATION_RESULT_SUCCESS`,
  * the path validation succeeded.  If |res| is
  * :enum:`ngtcp2_path_validation_result.NGTCP2_PATH_VALIDATION_RESULT_FAILURE`,
@@ -3014,7 +3013,7 @@ typedef int (*ngtcp2_begin_path_validation)(ngtcp2_conn *conn, uint32_t flags,
  */
 typedef int (*ngtcp2_path_validation)(ngtcp2_conn *conn, uint32_t flags,
                                       const ngtcp2_path *path,
-                                      const ngtcp2_path *old_path,
+                                      const ngtcp2_path *fallback_path,
                                       ngtcp2_path_validation_result res,
                                       void *user_data);
 
@@ -5599,6 +5598,77 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_stream_loss_count(ngtcp2_conn *conn,
                                                        int64_t stream_id);
 
 /**
+ * @functypedef
+ *
+ * :type:`ngtcp2_write_pkt` is a callback function to write a single
+ * packet in the buffer pointed by |dest| of length |destlen|.  The
+ * implementation should use `ngtcp2_conn_write_pkt`,
+ * `ngtcp2_conn_writev_stream`, `ngtcp2_conn_writev_datagram`, or
+ * their variants to write the packet.  |path| and |pi| should be
+ * directly passed to those functions.  If the callback succeeds, it
+ * should return the number of bytes written to the buffer.  In
+ * general, this callback function should return the value that the
+ * above mentioned functions returned except for the following error
+ * codes:
+ *
+ * - :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED`
+ * - :macro:`NGTCP2_ERR_STREAM_SHUT_WR`
+ * - :macro:`NGTCP2_ERR_STREAM_NOT_FOUND`
+ *
+ * Those error codes should be handled by an application.  If any
+ * error occurred outside those functions, return
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.  If no packet is produced,
+ * return 0.
+ *
+ * Because GSO requires that the aggregated packets have the same
+ * length, :macro:`NGTCP2_WRITE_STREAM_FLAG_PADDING` (or
+ * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_PADDING` if
+ * `ngtcp2_conn_writev_datagram` is used) is recommended.
+ *
+ * This callback function has been available since v1.15.0.
+ */
+typedef ngtcp2_ssize (*ngtcp2_write_pkt)(ngtcp2_conn *conn, ngtcp2_path *path,
+                                         ngtcp2_pkt_info *pi, uint8_t *dest,
+                                         size_t destlen, ngtcp2_tstamp ts,
+                                         void *user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_write_aggregate_pkt` is a helper function to write
+ * multiple packets in the provided buffer, which is suitable to be
+ * sent at once in GSO.  This function returns the number of bytes
+ * written to the buffer pointed by |buf| of length |buflen|.
+ * |buflen| must be at least
+ * `ngtcp2_conn_get_path_max_tx_udp_payload_size(conn)
+ * <ngtcp2_conn_get_path_max_tx_udp_payload_size>` bytes long.  It is
+ * recommended to pass the buffer at least
+ * `ngtcp2_conn_get_max_tx_udp_payload_size(conn)
+ * <ngtcp2_conn_get_max_tx_udp_payload_size>` bytes in order to send a
+ * PMTUD packet.  This function only writes multiple packets if the
+ * first packet is `ngtcp2_conn_get_path_max_tx_udp_payload_size(conn)
+ * <ngtcp2_conn_get_path_max_tx_udp_payload_size>` bytes long.  The
+ * application can adjust the length of the buffer to limit the number
+ * of packets to aggregate.  If this function returns positive
+ * integer, all packets share the same :type:`ngtcp2_path` and
+ * :type:`ngtcp2_pkt_info` values, and they are assigned to the
+ * objects pointed by |path| and |pi| respectively.  The length of all
+ * packets other than the last packet is assigned to |*pgsolen|.  The
+ * length of last packet is equal to or less than |*pgsolen|.
+ * |write_pkt| must write a single packet.  After all packets are
+ * written, this function calls `ngtcp2_conn_update_pkt_tx_time`.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * a negative error code returned by |write_pkt|.
+ *
+ * This function has been available since v1.15.0.
+ */
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
+  ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
+  ngtcp2_pkt_info *pi, uint8_t *buf, size_t buflen, size_t *pgsolen,
+  ngtcp2_write_pkt write_pkt, ngtcp2_tstamp ts);
+
+/**
  * @function
  *
  * `ngtcp2_strerror` returns the text representation of |liberr|.
@@ -5979,6 +6049,17 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_conn_get_conn_info(CONN, CINFO)                                 \
   ngtcp2_conn_get_conn_info_versioned((CONN), NGTCP2_CONN_INFO_VERSION, (CINFO))
+
+/*
+ * `ngtcp2_conn_write_aggregate_pkt` is a wrapper around
+ * `ngtcp2_conn_write_aggregate_pkt_versioned` to set the correct
+ * struct version.
+ */
+#define ngtcp2_conn_write_aggregate_pkt(CONN, PATH, PI, BUF, BUFLEN, PGSOLEN,  \
+                                        WRITE_PKT, TS)                         \
+  ngtcp2_conn_write_aggregate_pkt_versioned(                                   \
+    (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (BUF), (BUFLEN), (PGSOLEN), \
+    (WRITE_PKT), (TS))
 
 /*
  * `ngtcp2_settings_default` is a wrapper around

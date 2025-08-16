@@ -52,6 +52,7 @@
 #include "ngtcp2_rst.h"
 #include "ngtcp2_conn_stat.h"
 #include "ngtcp2_dcidtr.h"
+#include "ngtcp2_pcg.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -200,6 +201,14 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR is set when the local
    endpoint has initiated key update. */
 #define NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR 0x10000u
+/* NGTCP2_CONN_FLAG_AGGREGATE_PKTS is set when
+   ngtcp2_conn_writev_stream is called inside the callback invoked by
+   ngtcp2_conn_write_aggregate_pkt. */
+#define NGTCP2_CONN_FLAG_AGGREGATE_PKTS 0x20000u
+/* NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO, if set, crumbles an
+   Initial CRYPTO frame into pieces as a countermeasure against Deep
+   Packet Inspection. */
+#define NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO 0x40000u
 
 typedef struct ngtcp2_pktns {
   struct {
@@ -647,6 +656,7 @@ struct ngtcp2_conn {
   /* handshake_confirmed_ts is the time instant when handshake is
      confirmed.  For server, it is confirmed when completed. */
   ngtcp2_tstamp handshake_confirmed_ts;
+  ngtcp2_pcg32 pcg;
   void *user_data;
   uint32_t client_chosen_version;
   uint32_t negotiated_version;

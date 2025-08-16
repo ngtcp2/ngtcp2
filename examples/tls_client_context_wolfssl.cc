@@ -132,9 +132,9 @@ int TLSClientContext::init(const char *private_key_file,
     return -1;
   }
 
-  if (wolfSSL_CTX_set1_curves_list(
+  if (wolfSSL_CTX_set1_groups_list(
         ssl_ctx_, const_cast<char *>(config.groups)) != WOLFSSL_SUCCESS) {
-    std::cerr << "wolfSSL_CTX_set1_curves_list(" << config.groups << ") failed"
+    std::cerr << "wolfSSL_CTX_set1_groups_list(" << config.groups << ") failed"
               << std::endl;
     return -1;
   }

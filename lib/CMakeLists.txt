@@ -69,6 +69,7 @@ set(ngtcp2_SOURCES
   ngtcp2_settings.c
   ngtcp2_callbacks.c
   ngtcp2_dcidtr.c
+  ngtcp2_pcg.c
 )
 
 set(ngtcp2_INCLUDE_DIRS

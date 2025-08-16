@@ -7,10 +7,11 @@ RUN apt-get update && \
         git g++ clang-15 make binutils autoconf automake autotools-dev libtool \
         pkg-config libev-dev libjemalloc-dev \
         ca-certificates mime-support && \
-    git clone --depth 1 -b v5.8.0-stable https://github.com/wolfSSL/wolfssl && \
+    git clone --depth 1 -b v5.8.2-stable https://github.com/wolfSSL/wolfssl && \
     cd wolfssl && autoreconf -i && \
     ./configure --disable-dependency-tracking --enable-static --enable-all \
-        --enable-aesni --enable-harden --enable-keylog-export --disable-ech && \
+        --enable-aesni --enable-harden --enable-keylog-export --disable-ech \
+        --enable-mlkem && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf wolfssl && \
     git clone --recursive --shallow-submodules --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && \

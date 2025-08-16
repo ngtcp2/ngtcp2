@@ -7,11 +7,11 @@ permissions: read-all
 env:
   OPENSSL1_VERSION: 1_1_1w+quic
   OPENSSL3_VERSION: 3.1.7+quic
-  OSSL_VERSION: 3.5.0
-  BORINGSSL_VERSION: 9295969e1dad2c31d0d99481734c1c68dcbc6403
-  AWSLC_VERSION: v1.52.0
-  PICOTLS_VERSION: bbcdbe6dc31ec5d4b72a7beece4daf58098bad42
-  WOLFSSL_VERSION: v5.8.0-stable
+  OSSL_VERSION: 3.5.1
+  BORINGSSL_VERSION: 0697c880516634fb1430868d99b4028b5e407465
+  AWSLC_VERSION: v1.56.0
+  PICOTLS_VERSION: f350eab60742138ac62b42ee444adf04c7898b0d
+  WOLFSSL_VERSION: v5.8.2-stable
   LIBRESSL_VERSION: v4.1.0
   NGHTTP3_VERSION: head
 
@@ -294,12 +294,16 @@ jobs:
           tls: group-c
         - os: macos-14
           tls: group-a
+        - os: macos-14
+          buildtool: cmake
         - os: macos-15
           compiler: gcc
         - os: macos-15
           tls: group-c
         - os: macos-15
           tls: group-a
+        - os: macos-15
+          buildtool: cmake
         - os: macos-14
           tls: group-d
 

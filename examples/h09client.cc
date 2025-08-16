@@ -824,8 +824,15 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
     if (!last_error_.error_code) {
       if (rv == NGTCP2_ERR_CRYPTO) {
-        ngtcp2_ccerr_set_tls_alert(
-          &last_error_, ngtcp2_conn_get_tls_alert(conn_), nullptr, 0);
+        auto alert = ngtcp2_conn_get_tls_alert(conn_);
+        ngtcp2_ccerr_set_tls_alert(&last_error_, alert, nullptr, 0);
+
+        if (alert == TLS_ALERT_ECH_REQUIRED && config.ech_config_list_file &&
+            tls_session_.write_ech_config_list(config.ech_config_list_file) !=
+              0) {
+          std::cerr << "Could not write ECH retry configs in "
+                    << config.ech_config_list_file << std::endl;
+        }
       } else {
         ngtcp2_ccerr_set_liberr(&last_error_, rv, nullptr, 0);
       }
@@ -972,25 +979,20 @@ int Client::on_write() {
   return 0;
 }
 
-int Client::write_streams() {
-  ngtcp2_vec vec;
-  ngtcp2_path_storage ps, prev_ps;
-  uint32_t prev_ecn = 0;
-  auto max_udp_payload_size = ngtcp2_conn_get_max_tx_udp_payload_size(conn_);
-  auto path_max_udp_payload_size =
-    ngtcp2_conn_get_path_max_tx_udp_payload_size(conn_);
-  ngtcp2_pkt_info pi;
-  size_t gso_size = 0;
-  auto ts = util::timestamp();
-  auto txbuf =
-    std::span{tx_.data.data(), std::max(ngtcp2_conn_get_send_quantum(conn_),
-                                        path_max_udp_payload_size)};
-  auto buf = txbuf;
-  auto pkt = std::span<const uint8_t>{};
-  auto extra_pkt = std::span<const uint8_t>{};
+namespace {
+ngtcp2_ssize write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
+                       ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
+                       ngtcp2_tstamp ts, void *user_data) {
+  auto c = static_cast<Client *>(user_data);
 
-  ngtcp2_path_storage_zero(&ps);
-  ngtcp2_path_storage_zero(&prev_ps);
+  return c->write_pkt(path, pi, dest, destlen, ts);
+}
+} // namespace
+
+ngtcp2_ssize Client::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
+                               uint8_t *dest, size_t destlen,
+                               ngtcp2_tstamp ts) {
+  ngtcp2_vec vec;
 
   for (;;) {
     int64_t stream_id = -1;
@@ -1010,13 +1012,9 @@ int Client::write_streams() {
 
     ngtcp2_ssize ndatalen;
 
-    auto buflen = buf.size() >= max_udp_payload_size
-                    ? max_udp_payload_size
-                    : path_max_udp_payload_size;
-
     auto nwrite =
-      ngtcp2_conn_writev_stream(conn_, &ps.path, &pi, buf.data(), buflen,
-                                &ndatalen, flags, stream_id, &vec, vcnt, ts);
+      ngtcp2_conn_writev_stream(conn_, path, pi, dest, destlen, &ndatalen,
+                                flags, stream_id, &vec, vcnt, ts);
     if (nwrite < 0) {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
@@ -1039,57 +1037,44 @@ int Client::write_streams() {
                 << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
       ngtcp2_ccerr_set_liberr(&last_error_, static_cast<int>(nwrite), nullptr,
                               0);
-      disconnect();
-      return -1;
-    } else if (ndatalen >= 0) {
+
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
+
+    if (ndatalen >= 0) {
       stream->reqbuf.pos += ndatalen;
       if (nghttp3_buf_len(&stream->reqbuf) == 0) {
         sendq_.erase(std::ranges::begin(sendq_));
       }
     }
 
-    if (nwrite == 0) {
-      pkt = std::span{std::ranges::begin(txbuf), std::ranges::begin(buf)};
-      if (pkt.empty()) {
-        return 0;
-      }
+    return nwrite;
+  }
+}
 
-      break;
-    }
+int Client::write_streams() {
+  ngtcp2_path_storage ps;
+  ngtcp2_pkt_info pi;
+  size_t gso_size;
+  auto ts = util::timestamp();
+  auto txbuf = std::span{tx_.data};
 
-    auto last_pkt_pos = std::ranges::begin(buf);
+  ngtcp2_path_storage_zero(&ps);
 
-    buf = buf.subspan(as_unsigned(nwrite));
-
-    if (last_pkt_pos == std::ranges::begin(txbuf)) {
-      ngtcp2_path_copy(&prev_ps.path, &ps.path);
-      prev_ecn = pi.ecn;
-      gso_size = as_unsigned(nwrite);
-    } else if (!ngtcp2_path_eq(&prev_ps.path, &ps.path) || prev_ecn != pi.ecn ||
-               static_cast<size_t>(nwrite) > gso_size ||
-               (gso_size > path_max_udp_payload_size &&
-                static_cast<size_t>(nwrite) != gso_size)) {
-      pkt = std::span{std::ranges::begin(txbuf), last_pkt_pos};
-      extra_pkt = std::span{last_pkt_pos, std::ranges::begin(buf)};
-      break;
-    }
-
-    if (buf.size() < path_max_udp_payload_size ||
-        static_cast<size_t>(nwrite) < gso_size) {
-      pkt = std::span{std::ranges::begin(txbuf), std::ranges::begin(buf)};
-      break;
-    }
+  auto nwrite =
+    ngtcp2_conn_write_aggregate_pkt(conn_, &ps.path, &pi, txbuf.data(),
+                                    txbuf.size(), &gso_size, ::write_pkt, ts);
+  if (nwrite < 0) {
+    disconnect();
+    return -1;
   }
 
-  if (send_packet_or_blocked(prev_ps.path, prev_ecn, pkt, gso_size) != 0) {
-    if (!extra_pkt.empty()) {
-      on_send_blocked(ps.path, pi.ecn, extra_pkt, extra_pkt.size());
-    }
-  } else if (!extra_pkt.empty()) {
-    send_packet_or_blocked(ps.path, pi.ecn, extra_pkt, extra_pkt.size());
+  if (nwrite == 0) {
+    return 0;
   }
 
-  ngtcp2_conn_update_pkt_tx_time(conn_, ts);
+  send_packet_or_blocked(ps.path, pi.ecn,
+                         txbuf.first(static_cast<size_t>(nwrite)), gso_size);
 
   return 0;
 }
@@ -1599,13 +1584,12 @@ Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
 
 void Client::on_send_blocked(const ngtcp2_path &path, unsigned int ecn,
                              std::span<const uint8_t> data, size_t gso_size) {
-  assert(tx_.num_blocked || !tx_.send_blocked);
-  assert(tx_.num_blocked < 2);
+  assert(!tx_.send_blocked);
   assert(gso_size);
 
   tx_.send_blocked = true;
 
-  auto &p = tx_.blocked[tx_.num_blocked++];
+  auto &p = tx_.blocked;
 
   memcpy(&p.remote_addr.su, path.remote.addr, path.remote.addrlen);
 
@@ -1637,30 +1621,26 @@ void Client::start_wev_endpoint(const Endpoint &ep) {
 int Client::send_blocked_packet() {
   assert(tx_.send_blocked);
 
-  for (; tx_.num_blocked_sent < tx_.num_blocked; ++tx_.num_blocked_sent) {
-    auto &p = tx_.blocked[tx_.num_blocked_sent];
+  auto &p = tx_.blocked;
 
-    ngtcp2_addr remote_addr{
-      .addr = &p.remote_addr.su.sa,
-      .addrlen = p.remote_addr.len,
-    };
+  ngtcp2_addr remote_addr{
+    .addr = &p.remote_addr.su.sa,
+    .addrlen = p.remote_addr.len,
+  };
 
-    auto [rest, rv] =
-      send_packet(*p.endpoint, remote_addr, p.ecn, p.data, p.gso_size);
-    if (rv != 0) {
-      assert(NETWORK_ERR_SEND_BLOCKED == rv);
+  auto [rest, rv] =
+    send_packet(*p.endpoint, remote_addr, p.ecn, p.data, p.gso_size);
+  if (rv != 0) {
+    assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
-      p.data = rest;
+    p.data = rest;
 
-      start_wev_endpoint(*p.endpoint);
+    start_wev_endpoint(*p.endpoint);
 
-      return 0;
-    }
+    return 0;
   }
 
   tx_.send_blocked = false;
-  tx_.num_blocked = 0;
-  tx_.num_blocked_sent = 0;
 
   return 0;
 }
@@ -1902,18 +1882,11 @@ int run(Client &c, const char *addr, const char *port,
 } // namespace
 
 namespace {
-std::string_view get_string(const char *uri, const urlparse_url &u,
-                            urlparse_url_fields f) {
-  auto p = &u.field_data[f];
-  return {uri + p->off, p->len};
-}
-} // namespace
-
-namespace {
-int parse_uri(Request &req, const char *uri) {
+int parse_uri(Request &req, const std::string_view &uri) {
   urlparse_url u;
 
-  if (urlparse_parse_url(uri, strlen(uri), /* is_connect = */ 0, &u) != 0) {
+  if (urlparse_parse_url(uri.data(), uri.size(), /* is_connect = */ 0, &u) !=
+      0) {
     return -1;
   }
 
@@ -1922,26 +1895,26 @@ int parse_uri(Request &req, const char *uri) {
     return -1;
   }
 
-  req.scheme = get_string(uri, u, URLPARSE_SCHEMA);
+  req.scheme = util::get_string(uri, u, URLPARSE_SCHEMA);
 
-  req.authority = get_string(uri, u, URLPARSE_HOST);
+  req.authority = util::get_string(uri, u, URLPARSE_HOST);
   if (util::numeric_host(req.authority.c_str(), AF_INET6)) {
     req.authority = '[' + req.authority + ']';
   }
   if (u.field_set & (1 << URLPARSE_PORT)) {
     req.authority += ':';
-    req.authority += get_string(uri, u, URLPARSE_PORT);
+    req.authority += util::get_string(uri, u, URLPARSE_PORT);
   }
 
   if (u.field_set & (1 << URLPARSE_PATH)) {
-    req.path = get_string(uri, u, URLPARSE_PATH);
+    req.path = util::get_string(uri, u, URLPARSE_PATH);
   } else {
     req.path = "/";
   }
 
   if (u.field_set & (1 << URLPARSE_QUERY)) {
     req.path += '?';
-    req.path += get_string(uri, u, URLPARSE_QUERY);
+    req.path += util::get_string(uri, u, URLPARSE_QUERY);
   }
 
   return 0;
@@ -1951,7 +1924,7 @@ int parse_uri(Request &req, const char *uri) {
 namespace {
 int parse_requests(char **argv, size_t argvlen) {
   for (size_t i = 0; i < argvlen; ++i) {
-    auto uri = argv[i];
+    auto uri = std::string_view{argv[i]};
     Request req;
     if (parse_uri(req, uri) != 0) {
       std::cerr << "Could not parse URI: " << uri << std::endl;
@@ -2075,9 +2048,9 @@ Options:
               send 0-RTT data, the  transport parameters received from
               the previous session must be supplied with this option.
   --dcid=<DCID>
-              Specify  initial  DCID.   <DCID> is  hex  string.   When
+              Specify  initial DCID.   <DCID>  is  hex string.   After
               decoded as binary, it should be  at least 8 bytes and at
-              most 18 bytes long.
+              most 20 bytes long.
   --change-local-addr=<DURATION>
               Client  changes  local  address when  <DURATION>  elapse
               after handshake completes.
@@ -2208,8 +2181,11 @@ Options:
               Specify UDP datagram payload sizes  to probe in Path MTU
               Discovery.  <SIZE> must be strictly larger than 1200.
   --ech-config-list-file=<PATH>
-              Read ECHConfigList  from <PATH>.  ECH is  only attempted
-              if an underlying TLS stack supports it.
+              Read/write  ECHConfigList from/to  <PATH>.  ECH  is only
+              attempted if  an underlying  TLS stack supports  it.  If
+              the handshake  fails with ech_required alert,  ECH retry
+              configs,  if  provided by  server,  will  be written  to
+              <PATH>.
   -h, --help  Display this help and exit.
 
 ---
@@ -2234,7 +2210,6 @@ int main(int argc, char **argv) {
   char *data_path = nullptr;
   const char *private_key_file = nullptr;
   const char *cert_file = nullptr;
-  const char *ech_config_list_file = nullptr;
 
   if (argc) {
     prog = basename(argv[0]);
@@ -2400,12 +2375,19 @@ int main(int argc, char **argv) {
         break;
       case 6: {
         // --dcid
-        auto dcidlen2 = strlen(optarg);
-        if (dcidlen2 % 2 || dcidlen2 / 2 < 8 || dcidlen2 / 2 > 18) {
+        auto hexcid = std::string_view{optarg};
+        if (hexcid.size() < NGTCP2_MIN_INITIAL_DCIDLEN * 2 ||
+            hexcid.size() > NGTCP2_MAX_CIDLEN * 2) {
           std::cerr << "dcid: wrong length" << std::endl;
           exit(EXIT_FAILURE);
         }
-        auto dcid = util::decode_hex(optarg);
+
+        if (!util::is_hex_string(hexcid)) {
+          std::cerr << "dcid: not hex string" << std::endl;
+          exit(EXIT_FAILURE);
+        }
+
+        auto dcid = util::decode_hex(hexcid);
         ngtcp2_cid_init(&config.dcid,
                         reinterpret_cast<const uint8_t *>(dcid.c_str()),
                         dcid.size());
@@ -2731,7 +2713,7 @@ int main(int argc, char **argv) {
       }
       case 44:
         // --ech-config-list-file
-        ech_config_list_file = optarg;
+        config.ech_config_list_file = optarg;
         break;
       }
       break;
@@ -2789,15 +2771,14 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (ech_config_list_file) {
-    auto ech_config = util::read_file(ech_config_list_file);
+  if (config.ech_config_list_file) {
+    auto ech_config = util::read_file(config.ech_config_list_file);
     if (!ech_config) {
       std::cerr << "ech-config-list-file: Could not read ECHConfigList"
                 << std::endl;
-      exit(EXIT_FAILURE);
+    } else {
+      config.ech_config_list = std::move(*ech_config);
     }
-
-    config.ech_config_list = std::move(*ech_config);
   }
 
   auto addr = argv[optind++];
