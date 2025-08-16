@@ -1234,12 +1234,14 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
   char *node;
   std::array<char, NI_MAXHOST> nodebuf;
 
-  if (iau) {
+  if (!config.client_ip.empty()) { // Check if client_ip is provided
+    node = const_cast<char*>(config.client_ip.c_str());
+    hints.ai_flags = 0; // If specific IP, not passive
+  } else if (iau) {
     if (inet_ntop(family, iau, nodebuf.data(), nodebuf.size()) == nullptr) {
       std::cerr << "inet_ntop: " << strerror(errno) << std::endl;
       return -1;
     }
-
     node = nodebuf.data();
   } else {
     node = nullptr;
@@ -1259,7 +1261,8 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
   }
 
   if (!rp) {
-    std::cerr << "Could not bind" << std::endl;
+    // Updated error message to be more informative
+    std::cerr << "Could not bind to address " << (node ? node : "auto-selected") << ": " << strerror(errno) << std::endl;
     return -1;
   }
 
@@ -1279,6 +1282,35 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
 #ifndef HAVE_LINUX_RTNETLINK_H
 namespace {
 int connect_sock(Address &local_addr, int fd, const Address &remote_addr) {
+  if (!config.client_ip.empty()) {
+    addrinfo hints_bind{
+      .ai_family = remote_addr.su.sa.sa_family, // Match family of remote
+      .ai_socktype = SOCK_DGRAM,
+    };
+    addrinfo *res_bind, *rp_bind;
+
+    if (auto rv = getaddrinfo(config.client_ip.c_str(), "0", &hints_bind, &res_bind); rv != 0) {
+      std::cerr << "getaddrinfo for client_ip bind failed: " << gai_strerror(rv) << std::endl;
+      return -1;
+    }
+
+    auto res_bind_d = defer(freeaddrinfo, res_bind);
+
+    for (rp_bind = res_bind; rp_bind; rp_bind = rp_bind->ai_next) {
+      if (bind(fd, rp_bind->ai_addr, rp_bind->ai_addrlen) != -1) {
+        break; // Successful bind
+      }
+    }
+
+    if (!rp_bind) { // Bind failed
+      std::cerr << "Could not bind to client_ip " << config.client_ip << ": " << strerror(errno) << std::endl;
+      return -1;
+    }
+    if (!config.quiet) {
+        std::cerr << "Successfully bound to client_ip: " << config.client_ip << std::endl;
+    }
+  }
+
   if (connect(fd, &remote_addr.su.sa, remote_addr.len) != 0) {
     std::cerr << "connect: " << strerror(errno) << std::endl;
     return -1;
@@ -2456,6 +2488,7 @@ void config_set_default(Config &config) {
     .handshake_timeout = UINT64_MAX,
     .ack_thresh = 2,
     .initial_pkt_num = UINT32_MAX,
+    .client_ip = "",
   };
 }
 } // namespace
@@ -2677,6 +2710,8 @@ Options:
               the handshake  fails with ech_required alert,  ECH retry
               configs,  if  provided by  server,  will  be written  to
               <PATH>.
+  --client-ip=<IP>
+              Specify the client IP address to use.
   -h, --help  Display this help and exit.
 
 ---
@@ -2762,6 +2797,7 @@ int main(int argc, char **argv) {
       {"initial-pkt-num", required_argument, &flag, 42},
       {"pmtud-probes", required_argument, &flag, 43},
       {"ech-config-list-file", required_argument, &flag, 44},
+      {"client-ip", required_argument, &flag, 45}, // Add this line for client-ip
       {},
     };
 
@@ -3226,6 +3262,10 @@ int main(int argc, char **argv) {
       case 44:
         // --ech-config-list-file
         config.ech_config_list_file = optarg;
+        break;
+      case 45: // Add this case for client-ip
+        // --client-ip
+        config.client_ip = optarg;
         break;
       }
       break;
