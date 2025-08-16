@@ -196,6 +196,7 @@ struct Config {
   // ech_config_list_file is a path to a file to read and write
   // ECHConfigList.
   const char *ech_config_list_file;
+  std::string client_ip;
 };
 
 class ClientBase {
