@@ -1337,6 +1337,10 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_static_ringbuf_path_history_init(&(*pconn)->path_history);
 
+  ngtcp2_ratelim_init(&(*pconn)->glitch_rlim,
+                      NGTCP2_DEFAULT_GLITCH_RATELIM_BURST,
+                      NGTCP2_DEFAULT_GLITCH_RATELIM_RATE, settings->initial_ts);
+
   (*pconn)->callbacks = *callbacks;
 
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
@@ -6258,7 +6262,8 @@ static int conn_verify_fixed_bit(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd) {
 
 static int conn_recv_crypto(ngtcp2_conn *conn,
                             ngtcp2_encryption_level encryption_level,
-                            ngtcp2_strm *strm, const ngtcp2_stream *fr);
+                            ngtcp2_strm *strm, const ngtcp2_stream *fr,
+                            ngtcp2_tstamp ts);
 
 static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                   const ngtcp2_pkt_info *pi, const uint8_t *pkt,
@@ -6297,6 +6302,8 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
  *     TLS stack reported error.
  * NGTCP2_ERR_PROTO
  *     Generic QUIC protocol error.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  *
  * In addition to the above error codes, error codes returned from
  * conn_recv_pkt are also returned.
@@ -6807,7 +6814,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                         conn->negotiated_version);
       }
 
-      rv = conn_recv_crypto(conn, encryption_level, crypto, &fr->stream);
+      rv = conn_recv_crypto(conn, encryption_level, crypto, &fr->stream, ts);
       if (rv != 0) {
         return rv;
       }
@@ -7096,15 +7103,24 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     The end offset exceeds the maximum value.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  */
 static int conn_recv_crypto(ngtcp2_conn *conn,
                             ngtcp2_encryption_level encryption_level,
-                            ngtcp2_strm *crypto, const ngtcp2_stream *fr) {
+                            ngtcp2_strm *crypto, const ngtcp2_stream *fr,
+                            ngtcp2_tstamp ts) {
   uint64_t fr_end_offset;
   uint64_t rx_offset;
   int rv;
+  ngtcp2_ssize nwrite;
 
   if (fr->datacnt == 0) {
+    if (encryption_level != NGTCP2_ENCRYPTION_LEVEL_INITIAL &&
+        ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+      return NGTCP2_ERR_INTERNAL;
+    }
+
     return 0;
   }
 
@@ -7117,6 +7133,11 @@ static int conn_recv_crypto(ngtcp2_conn *conn,
   rx_offset = ngtcp2_strm_rx_offset(crypto);
 
   if (fr_end_offset <= rx_offset) {
+    if (encryption_level != NGTCP2_ENCRYPTION_LEVEL_INITIAL &&
+        ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+      return NGTCP2_ERR_INTERNAL;
+    }
+
     if (conn->server &&
         !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT) &&
         encryption_level == NGTCP2_ENCRYPTION_LEVEL_INITIAL) {
@@ -7174,8 +7195,18 @@ static int conn_recv_crypto(ngtcp2_conn *conn,
     return NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED;
   }
 
-  return ngtcp2_strm_recv_reordering(crypto, fr->data[0].base, fr->data[0].len,
-                                     fr->offset);
+  nwrite = ngtcp2_strm_recv_reordering(crypto, fr->data[0].base,
+                                       fr->data[0].len, fr->offset);
+  if (nwrite < 0) {
+    return (int)nwrite;
+  }
+
+  if (encryption_level != NGTCP2_ENCRYPTION_LEVEL_INITIAL && nwrite == 0 &&
+      ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+    return NGTCP2_ERR_INTERNAL;
+  }
+
+  return 0;
 }
 
 /*
@@ -7209,8 +7240,11 @@ static int conn_max_data_violated(ngtcp2_conn *conn, uint64_t datalen) {
  * NGTCP2_ERR_FINAL_SIZE
  *     STREAM frame has strictly larger end offset than it is
  *     permitted.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  */
-static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
+static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
+                            ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_strm *strm;
   ngtcp2_idtr *idtr;
@@ -7219,6 +7253,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   int bidi;
   uint64_t datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
   uint32_t sdflags = NGTCP2_STREAM_DATA_FLAG_NONE;
+  ngtcp2_ssize nwrite;
+  int new_strm = 0;
 
   local_stream = conn_local_stream(conn, fr->stream_id);
   bidi = bidi_stream(fr->stream_id);
@@ -7252,8 +7288,11 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
     if (local_stream) {
-      /* TODO The stream has been closed.  This should be responded
-         with RESET_STREAM, or simply ignored. */
+      /* The stream has been closed. */
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
 
@@ -7263,8 +7302,11 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         return rv;
       }
       assert(rv == NGTCP2_ERR_STREAM_IN_USE);
-      /* TODO The stream has been closed.  This should be responded
-         with RESET_STREAM, or simply ignored. */
+      /* The stream has been closed. */
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
 
@@ -7278,6 +7320,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
       return rv;
     }
+
+    new_strm = 1;
 
     if (!bidi) {
       ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
@@ -7319,10 +7363,18 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       }
 
       if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
+        if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+          return NGTCP2_ERR_INTERNAL;
+        }
+
         return 0;
       }
 
       if (rx_offset == fr_end_offset) {
+        if (!new_strm && ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+          return NGTCP2_ERR_INTERNAL;
+        }
+
         return 0;
       }
     } else if (strm->rx.last_offset > fr_end_offset) {
@@ -7342,10 +7394,18 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       ngtcp2_max_uint64(strm->rx.last_offset, fr_end_offset);
 
     if (fr_end_offset <= rx_offset) {
+      if (!new_strm && ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
 
     if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
   }
@@ -7393,10 +7453,14 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return rv;
     }
   } else if (fr->datacnt && !(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING)) {
-    rv = ngtcp2_strm_recv_reordering(strm, fr->data[0].base, fr->data[0].len,
-                                     fr->offset);
-    if (rv != 0) {
-      return rv;
+    nwrite = ngtcp2_strm_recv_reordering(strm, fr->data[0].base,
+                                         fr->data[0].len, fr->offset);
+    if (nwrite < 0) {
+      return (int)nwrite;
+    }
+
+    if (nwrite == 0 && ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+      return NGTCP2_ERR_INTERNAL;
     }
   }
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
@@ -8953,6 +9017,8 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
  *     Flow control limit is violated.
  * NGTCP2_ERR_FINAL_SIZE
  *     Frame has strictly larger end offset than it is permitted.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  */
 static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                   const ngtcp2_pkt_info *pi, const uint8_t *pkt,
@@ -9356,7 +9422,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       ++num_ack_processed;
       break;
     case NGTCP2_FRAME_STREAM:
-      rv = conn_recv_stream(conn, &fr->stream);
+      rv = conn_recv_stream(conn, &fr->stream, ts);
       if (rv != 0) {
         return rv;
       }
@@ -9364,7 +9430,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       break;
     case NGTCP2_FRAME_CRYPTO:
       rv = conn_recv_crypto(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT,
-                            &pktns->crypto.strm, &fr->stream);
+                            &pktns->crypto.strm, &fr->stream, ts);
       if (rv != 0) {
         return rv;
       }

@@ -70,6 +70,7 @@ set(ngtcp2_SOURCES
   ngtcp2_callbacks.c
   ngtcp2_dcidtr.c
   ngtcp2_pcg.c
+  ngtcp2_ratelim.c
 )
 
 set(ngtcp2_INCLUDE_DIRS

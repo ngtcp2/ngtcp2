@@ -46,7 +46,7 @@ const MunitSuite rob_suite = {
 void test_ngtcp2_rob_push(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_rob rob;
-  int rv;
+  ngtcp2_ssize nwrite;
   uint8_t data[256];
   ngtcp2_rob_gap *g;
   ngtcp2_ksl_it it;
@@ -54,9 +54,9 @@ void test_ngtcp2_rob_push(void) {
   /* Check range overlapping */
   ngtcp2_rob_init(&rob, 64, mem);
 
-  rv = ngtcp2_rob_push(&rob, 34567, data, 145);
+  nwrite = ngtcp2_rob_push(&rob, 34567, data, 145);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(145, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
   g = ngtcp2_ksl_it_get(&it);
@@ -74,9 +74,9 @@ void test_ngtcp2_rob_push(void) {
 
   assert_true(ngtcp2_ksl_it_end(&it));
 
-  rv = ngtcp2_rob_push(&rob, 34565, data, 1);
+  nwrite = ngtcp2_rob_push(&rob, 34565, data, 1);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(1, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
   g = ngtcp2_ksl_it_get(&it);
@@ -90,9 +90,9 @@ void test_ngtcp2_rob_push(void) {
   assert_uint64(34566, ==, g->range.begin);
   assert_uint64(34567, ==, g->range.end);
 
-  rv = ngtcp2_rob_push(&rob, 34563, data, 1);
+  nwrite = ngtcp2_rob_push(&rob, 34563, data, 1);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(1, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
   g = ngtcp2_ksl_it_get(&it);
@@ -106,9 +106,9 @@ void test_ngtcp2_rob_push(void) {
   assert_uint64(34564, ==, g->range.begin);
   assert_uint64(34565, ==, g->range.end);
 
-  rv = ngtcp2_rob_push(&rob, 34561, data, 151);
+  nwrite = ngtcp2_rob_push(&rob, 34561, data, 151);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(4, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
   g = ngtcp2_ksl_it_get(&it);
@@ -131,9 +131,9 @@ void test_ngtcp2_rob_push(void) {
   /* Check removing prefix */
   ngtcp2_rob_init(&rob, 64, mem);
 
-  rv = ngtcp2_rob_push(&rob, 0, data, 123);
+  nwrite = ngtcp2_rob_push(&rob, 0, data, 123);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(123, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
   g = ngtcp2_ksl_it_get(&it);
@@ -150,9 +150,9 @@ void test_ngtcp2_rob_push(void) {
   /* Check removing suffix */
   ngtcp2_rob_init(&rob, 64, mem);
 
-  rv = ngtcp2_rob_push(&rob, UINT64_MAX - 123, data, 123);
+  nwrite = ngtcp2_rob_push(&rob, UINT64_MAX - 123, data, 123);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(123, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
   g = ngtcp2_ksl_it_get(&it);
@@ -272,16 +272,16 @@ static ngtcp2_range randkeys[] = {
 void test_ngtcp2_rob_push_random(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_rob rob;
-  int rv;
+  ngtcp2_ssize nwrite;
   uint8_t data[512];
   size_t i;
 
   ngtcp2_rob_init(&rob, 1024 * 1024, mem);
   for (i = 0; i < ngtcp2_arraylen(randkeys); ++i) {
-    rv = ngtcp2_rob_push(&rob, randkeys[i].begin, &data[0],
-                         (size_t)ngtcp2_range_len(&randkeys[i]));
+    nwrite = ngtcp2_rob_push(&rob, randkeys[i].begin, &data[0],
+                             (size_t)ngtcp2_range_len(&randkeys[i]));
 
-    assert_int(0, ==, rv);
+    assert_ptrdiff(0, <=, nwrite);
   }
 
   assert_uint64(51401, ==, ngtcp2_rob_first_gap_offset(&rob));
@@ -292,7 +292,7 @@ void test_ngtcp2_rob_push_random(void) {
 void test_ngtcp2_rob_data_at(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_rob rob;
-  int rv;
+  ngtcp2_ssize nwrite;
   uint8_t data[256];
   size_t i;
   const uint8_t *p;
@@ -307,17 +307,17 @@ void test_ngtcp2_rob_data_at(void) {
 
   ngtcp2_rob_init(&rob, 16, mem);
 
-  rv = ngtcp2_rob_push(&rob, 3, &data[3], 13);
+  nwrite = ngtcp2_rob_push(&rob, 3, &data[3], 13);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(13, ==, nwrite);
 
   len = ngtcp2_rob_data_at(&rob, &p, 0);
 
   assert_size(0, ==, len);
 
-  rv = ngtcp2_rob_push(&rob, 0, &data[0], 3);
+  nwrite = ngtcp2_rob_push(&rob, 0, &data[0], 3);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(3, ==, nwrite);
 
   len = ngtcp2_rob_data_at(&rob, &p, 0);
 
@@ -329,9 +329,9 @@ void test_ngtcp2_rob_data_at(void) {
 
   ngtcp2_rob_pop(&rob, 0, len);
 
-  rv = ngtcp2_rob_push(&rob, 16, &data[16], 5);
+  nwrite = ngtcp2_rob_push(&rob, 16, &data[16], 5);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(5, ==, nwrite);
 
   len = ngtcp2_rob_data_at(&rob, &p, 16);
 
@@ -346,9 +346,9 @@ void test_ngtcp2_rob_data_at(void) {
   /* Verify the case where data spans over multiple chunks */
   ngtcp2_rob_init(&rob, 16, mem);
 
-  rv = ngtcp2_rob_push(&rob, 0, &data[0], 47);
+  nwrite = ngtcp2_rob_push(&rob, 0, &data[0], 47);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(47, ==, nwrite);
 
   len = ngtcp2_rob_data_at(&rob, &p, 0);
 
@@ -371,17 +371,17 @@ void test_ngtcp2_rob_data_at(void) {
      chunk */
   ngtcp2_rob_init(&rob, 16, mem);
 
-  rv = ngtcp2_rob_push(&rob, 17, &data[17], 2);
+  nwrite = ngtcp2_rob_push(&rob, 17, &data[17], 2);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(2, ==, nwrite);
 
   len = ngtcp2_rob_data_at(&rob, &p, 0);
 
   assert_size(0, ==, len);
 
-  rv = ngtcp2_rob_push(&rob, 0, &data[0], 3);
+  nwrite = ngtcp2_rob_push(&rob, 0, &data[0], 3);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(3, ==, nwrite);
 
   len = ngtcp2_rob_data_at(&rob, &p, 0);
 
@@ -399,13 +399,13 @@ void test_ngtcp2_rob_data_at(void) {
      chunk */
   ngtcp2_rob_init(&rob, 16, mem);
 
-  rv = ngtcp2_rob_push(&rob, 0, &data[0], 3);
+  nwrite = ngtcp2_rob_push(&rob, 0, &data[0], 3);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(3, ==, nwrite);
 
-  rv = ngtcp2_rob_push(&rob, 16, &data[16], 32);
+  nwrite = ngtcp2_rob_push(&rob, 16, &data[16], 32);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(32, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.dataksl);
   ngtcp2_ksl_it_next(&it);
@@ -428,15 +428,15 @@ void test_ngtcp2_rob_data_at(void) {
   ngtcp2_rob_init(&rob, 16, mem);
 
   for (i = 0; i < sizeof(data); i += 2) {
-    rv = ngtcp2_rob_push(&rob, i, &data[i], 1);
+    nwrite = ngtcp2_rob_push(&rob, i, &data[i], 1);
 
-    assert_int(0, ==, rv);
+    assert_ptrdiff(1, ==, nwrite);
   }
 
   for (i = 1; i < sizeof(data); i += 2) {
-    rv = ngtcp2_rob_push(&rob, i, &data[i], 1);
+    nwrite = ngtcp2_rob_push(&rob, i, &data[i], 1);
 
-    assert_int(0, ==, rv);
+    assert_ptrdiff(1, ==, nwrite);
   }
 
   for (i = 0; i < sizeof(data) / 16; ++i) {
@@ -461,9 +461,9 @@ void test_ngtcp2_rob_data_at(void) {
   /* Verify the case where chunk is reused if it is not fully used */
   ngtcp2_rob_init(&rob, 16, mem);
 
-  rv = ngtcp2_rob_push(&rob, 0, &data[0], 5);
+  nwrite = ngtcp2_rob_push(&rob, 0, &data[0], 5);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(5, ==, nwrite);
 
   len = ngtcp2_rob_data_at(&rob, &p, 0);
 
@@ -471,9 +471,9 @@ void test_ngtcp2_rob_data_at(void) {
 
   ngtcp2_rob_pop(&rob, 0, len);
 
-  rv = ngtcp2_rob_push(&rob, 2, &data[2], 8);
+  nwrite = ngtcp2_rob_push(&rob, 2, &data[2], 8);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(5, ==, nwrite);
 
   len = ngtcp2_rob_data_at(&rob, &p, 5);
 
@@ -486,9 +486,9 @@ void test_ngtcp2_rob_data_at(void) {
   /* Verify the case where 2nd push covers already processed region */
   ngtcp2_rob_init(&rob, 16, mem);
 
-  rv = ngtcp2_rob_push(&rob, 0, &data[0], 16);
+  nwrite = ngtcp2_rob_push(&rob, 0, &data[0], 16);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(16, ==, nwrite);
 
   len = ngtcp2_rob_data_at(&rob, &p, 0);
 
@@ -496,9 +496,9 @@ void test_ngtcp2_rob_data_at(void) {
 
   ngtcp2_rob_pop(&rob, 0, len);
 
-  rv = ngtcp2_rob_push(&rob, 0, &data[0], 32);
+  nwrite = ngtcp2_rob_push(&rob, 0, &data[0], 32);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(16, ==, nwrite);
 
   len = ngtcp2_rob_data_at(&rob, &p, 16);
 
@@ -516,14 +516,14 @@ void test_ngtcp2_rob_remove_prefix(void) {
   ngtcp2_rob_data *d;
   ngtcp2_ksl_it it;
   uint8_t data[256];
-  int rv;
+  ngtcp2_ssize nwrite;
 
   /* Removing data which spans multiple chunks */
   ngtcp2_rob_init(&rob, 16, mem);
 
-  rv = ngtcp2_rob_push(&rob, 1, &data[1], 32);
+  nwrite = ngtcp2_rob_push(&rob, 1, &data[1], 32);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(32, ==, nwrite);
 
   ngtcp2_rob_remove_prefix(&rob, 33);
 
@@ -542,13 +542,13 @@ void test_ngtcp2_rob_remove_prefix(void) {
   /* Remove an entire gap */
   ngtcp2_rob_init(&rob, 16, mem);
 
-  rv = ngtcp2_rob_push(&rob, 1, &data[1], 3);
+  nwrite = ngtcp2_rob_push(&rob, 1, &data[1], 3);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(3, ==, nwrite);
 
-  rv = ngtcp2_rob_push(&rob, 5, &data[5], 2);
+  nwrite = ngtcp2_rob_push(&rob, 5, &data[5], 2);
 
-  assert_int(0, ==, rv);
+  assert_ptrdiff(2, ==, nwrite);
 
   ngtcp2_rob_remove_prefix(&rob, 16);
 
