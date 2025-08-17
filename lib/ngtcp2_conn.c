@@ -6262,7 +6262,8 @@ static int conn_verify_fixed_bit(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd) {
 
 static int conn_recv_crypto(ngtcp2_conn *conn,
                             ngtcp2_encryption_level encryption_level,
-                            ngtcp2_strm *strm, const ngtcp2_stream *fr);
+                            ngtcp2_strm *strm, const ngtcp2_stream *fr,
+                            ngtcp2_tstamp ts);
 
 static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                   const ngtcp2_pkt_info *pi, const uint8_t *pkt,
@@ -6301,6 +6302,8 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
  *     TLS stack reported error.
  * NGTCP2_ERR_PROTO
  *     Generic QUIC protocol error.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  *
  * In addition to the above error codes, error codes returned from
  * conn_recv_pkt are also returned.
@@ -6811,7 +6814,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                         conn->negotiated_version);
       }
 
-      rv = conn_recv_crypto(conn, encryption_level, crypto, &fr->stream);
+      rv = conn_recv_crypto(conn, encryption_level, crypto, &fr->stream, ts);
       if (rv != 0) {
         return rv;
       }
@@ -7100,16 +7103,24 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     The end offset exceeds the maximum value.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  */
 static int conn_recv_crypto(ngtcp2_conn *conn,
                             ngtcp2_encryption_level encryption_level,
-                            ngtcp2_strm *crypto, const ngtcp2_stream *fr) {
+                            ngtcp2_strm *crypto, const ngtcp2_stream *fr,
+                            ngtcp2_tstamp ts) {
   uint64_t fr_end_offset;
   uint64_t rx_offset;
   int rv;
   ngtcp2_ssize nwrite;
 
   if (fr->datacnt == 0) {
+    if (encryption_level != NGTCP2_ENCRYPTION_LEVEL_INITIAL &&
+        ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+      return NGTCP2_ERR_INTERNAL;
+    }
+
     return 0;
   }
 
@@ -7122,6 +7133,11 @@ static int conn_recv_crypto(ngtcp2_conn *conn,
   rx_offset = ngtcp2_strm_rx_offset(crypto);
 
   if (fr_end_offset <= rx_offset) {
+    if (encryption_level != NGTCP2_ENCRYPTION_LEVEL_INITIAL &&
+        ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+      return NGTCP2_ERR_INTERNAL;
+    }
+
     if (conn->server &&
         !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT) &&
         encryption_level == NGTCP2_ENCRYPTION_LEVEL_INITIAL) {
@@ -7183,6 +7199,11 @@ static int conn_recv_crypto(ngtcp2_conn *conn,
                                        fr->data[0].len, fr->offset);
   if (nwrite < 0) {
     return (int)nwrite;
+  }
+
+  if (encryption_level != NGTCP2_ENCRYPTION_LEVEL_INITIAL && nwrite == 0 &&
+      ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+    return NGTCP2_ERR_INTERNAL;
   }
 
   return 0;
@@ -9409,7 +9430,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       break;
     case NGTCP2_FRAME_CRYPTO:
       rv = conn_recv_crypto(conn, NGTCP2_ENCRYPTION_LEVEL_1RTT,
-                            &pktns->crypto.strm, &fr->stream);
+                            &pktns->crypto.strm, &fr->stream, ts);
       if (rv != 0) {
         return rv;
       }
