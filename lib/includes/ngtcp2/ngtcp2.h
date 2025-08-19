@@ -1704,7 +1704,8 @@ typedef enum ngtcp2_token_type {
 
 #define NGTCP2_SETTINGS_V1 1
 #define NGTCP2_SETTINGS_V2 2
-#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V2
+#define NGTCP2_SETTINGS_V3 3
+#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V3
 
 /**
  * @struct
@@ -1917,6 +1918,23 @@ typedef struct ngtcp2_settings {
    * field has been available since v1.4.0.
    */
   size_t pmtud_probeslen;
+  /* The following fields have been added since NGTCP2_SETTINGS_V3. */
+  /**
+   * :member:`glitch_ratelim_burst` is the maximum number of tokens
+   * available to "glitch" rate limiter.  "glitch" is a suspicious
+   * activity from a remote endpoint.  If detected, certain amount of
+   * tokens are consumed.  If no tokens are available to consume, the
+   * connection is closed.  The rate of token generation is specified
+   * by :member:`glitch_ratelim_rate`.  This field has been available
+   * since v1.15.0.
+   */
+  uint64_t glitch_ratelim_burst;
+  /**
+   * :member:`glitch_ratelim_rate` is the number of tokens generated
+   * per second.  See :member:`glitch_ratelim_burst` for "glitch" rate
+   * limiter.  This field has been available since v1.15.0.
+   */
+  uint64_t glitch_ratelim_rate;
 } ngtcp2_settings;
 
 /**
@@ -5759,6 +5777,10 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  *   <ngtcp2_settings.max_tx_udp_payload_size>` = 1452
  * * :type:`handshake_timeout <ngtcp2_settings.handshake_timeout>` =
  *   ``UINT64_MAX``
+ * * :member:`glitch_ratelim_burst
+ *   <ngtcp2_settings.glitch_ratelim_burst>` = 1000
+ * * :member:`glitch_ratelim_rate
+ *   <ngtcp2_settings.glitch_ratelim_rate>` = 33
  */
 NGTCP2_EXTERN void ngtcp2_settings_default_versioned(int settings_version,
                                                      ngtcp2_settings *settings);

@@ -40,6 +40,7 @@
 #include "ngtcp2_tstamp.h"
 #include "ngtcp2_transport_params.h"
 #include "ngtcp2_frame_chain.h"
+#include "ngtcp2_settings.h"
 
 static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_stream_open_close),
