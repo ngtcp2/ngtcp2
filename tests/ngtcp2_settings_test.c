@@ -61,11 +61,12 @@ static uint32_t available_versions[] = {534114833, 797700084, 96134021,
 static uint16_t pmtud_probes[] = {65466, 47820, 27776};
 
 void test_ngtcp2_settings_convert_to_latest(void) {
+  const int srcver = NGTCP2_SETTINGS_V2;
   ngtcp2_settings *src, srcbuf, settingsbuf;
   const ngtcp2_settings *dest;
-  size_t v1len;
+  size_t srclen;
 
-  ngtcp2_settings_default_versioned(NGTCP2_SETTINGS_V1, &srcbuf);
+  ngtcp2_settings_default_versioned(srcver, &srcbuf);
 
   srcbuf.qlog_write = qlog_write;
   srcbuf.cc_algo = NGTCP2_CC_ALGO_CUBIC;
@@ -89,15 +90,16 @@ void test_ngtcp2_settings_convert_to_latest(void) {
   srcbuf.original_version = 767521389;
   srcbuf.no_pmtud = 1;
   srcbuf.initial_pkt_num = 918608434;
+  srcbuf.pmtud_probes = pmtud_probes;
+  srcbuf.pmtud_probeslen = ngtcp2_arraylen(pmtud_probes);
 
-  v1len = ngtcp2_settingslen_version(NGTCP2_SETTINGS_V1);
+  srclen = ngtcp2_settingslen_version(srcver);
 
-  src = malloc(v1len);
+  src = malloc(srclen);
 
-  memcpy(src, &srcbuf, v1len);
+  memcpy(src, &srcbuf, srclen);
 
-  dest =
-    ngtcp2_settings_convert_to_latest(&settingsbuf, NGTCP2_SETTINGS_V1, src);
+  dest = ngtcp2_settings_convert_to_latest(&settingsbuf, srcver, src);
 
   free(src);
 
@@ -126,17 +128,22 @@ void test_ngtcp2_settings_convert_to_latest(void) {
   assert_uint32(srcbuf.original_version, ==, dest->original_version);
   assert_uint8(srcbuf.no_pmtud, ==, dest->no_pmtud);
   assert_uint32(srcbuf.initial_pkt_num, ==, dest->initial_pkt_num);
-  assert_null(dest->pmtud_probes);
-  assert_size(0, ==, dest->pmtud_probeslen);
+  assert_ptr_equal(srcbuf.pmtud_probes, dest->pmtud_probes);
+  assert_size(srcbuf.pmtud_probeslen, ==, dest->pmtud_probeslen);
+  assert_uint64(NGTCP2_DEFAULT_GLITCH_RATELIM_BURST, ==,
+                dest->glitch_ratelim_burst);
+  assert_uint64(NGTCP2_DEFAULT_GLITCH_RATELIM_RATE, ==,
+                dest->glitch_ratelim_rate);
 }
 
 void test_ngtcp2_settings_convert_to_old(void) {
+  const int destver = NGTCP2_SETTINGS_V2;
   ngtcp2_settings src, *dest, destbuf;
-  size_t v1len;
+  size_t destlen;
 
-  v1len = ngtcp2_settingslen_version(NGTCP2_SETTINGS_V1);
+  destlen = ngtcp2_settingslen_version(destver);
 
-  dest = malloc(v1len);
+  dest = malloc(destlen);
 
   ngtcp2_settings_default(&src);
   src.qlog_write = qlog_write;
@@ -163,11 +170,13 @@ void test_ngtcp2_settings_convert_to_old(void) {
   src.initial_pkt_num = 918608434;
   src.pmtud_probes = pmtud_probes;
   src.pmtud_probeslen = ngtcp2_arraylen(pmtud_probes);
+  src.glitch_ratelim_burst = 1999;
+  src.glitch_ratelim_rate = 78;
 
-  ngtcp2_settings_convert_to_old(NGTCP2_SETTINGS_V1, dest, &src);
+  ngtcp2_settings_convert_to_old(destver, dest, &src);
 
   memset(&destbuf, 0, sizeof(destbuf));
-  memcpy(&destbuf, dest, v1len);
+  memcpy(&destbuf, dest, destlen);
 
   free(dest);
 
@@ -194,6 +203,8 @@ void test_ngtcp2_settings_convert_to_old(void) {
   assert_uint32(src.original_version, ==, destbuf.original_version);
   assert_uint8(src.no_pmtud, ==, destbuf.no_pmtud);
   assert_uint32(src.initial_pkt_num, ==, destbuf.initial_pkt_num);
-  assert_null(destbuf.pmtud_probes);
-  assert_size(0, ==, destbuf.pmtud_probeslen);
+  assert_ptr_equal(src.pmtud_probes, destbuf.pmtud_probes);
+  assert_size(src.pmtud_probeslen, ==, destbuf.pmtud_probeslen);
+  assert_uint64(0, ==, destbuf.glitch_ratelim_burst);
+  assert_uint64(0, ==, destbuf.glitch_ratelim_rate);
 }
