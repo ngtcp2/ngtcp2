@@ -5556,9 +5556,12 @@ static void assign_recved_ack_delay_unscaled(ngtcp2_ack *fr,
  *     Stream ID exceeds allowed limit.
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  */
 static int conn_recv_max_stream_data(ngtcp2_conn *conn,
-                                     const ngtcp2_max_stream_data *fr) {
+                                     const ngtcp2_max_stream_data *fr,
+                                     ngtcp2_tstamp ts) {
   ngtcp2_strm *strm;
   ngtcp2_idtr *idtr;
   int local_stream = conn_local_stream(conn, fr->stream_id);
@@ -5588,6 +5591,10 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
   if (strm == NULL) {
     if (local_stream) {
       /* Stream has been closed. */
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
 
@@ -5598,6 +5605,10 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
       }
       assert(rv == NGTCP2_ERR_STREAM_IN_USE);
       /* Stream has been closed. */
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
 
@@ -5617,19 +5628,29 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
     }
   }
 
-  if (strm->tx.max_offset < fr->max_stream_data) {
-    strm->tx.max_offset = fr->max_stream_data;
-
-    /* Don't call callback if stream is half-closed local */
-    if (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) {
-      return 0;
+  if (strm->tx.max_offset >= fr->max_stream_data) {
+    if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+      return NGTCP2_ERR_INTERNAL;
     }
 
-    rv = conn_call_extend_max_stream_data(conn, strm, fr->stream_id,
-                                          fr->max_stream_data);
-    if (rv != 0) {
-      return rv;
+    return 0;
+  }
+
+  strm->tx.max_offset = fr->max_stream_data;
+
+  /* Don't call callback if stream is half-closed local */
+  if (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) {
+    if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+      return NGTCP2_ERR_INTERNAL;
     }
+
+    return 0;
+  }
+
+  rv = conn_call_extend_max_stream_data(conn, strm, fr->stream_id,
+                                        fr->max_stream_data);
+  if (rv != 0) {
+    return rv;
   }
 
   return 0;
@@ -7557,9 +7578,12 @@ handle_max_remote_streams_extension(uint64_t *punsent_max_remote_streams,
  *     NGTCP2_MAX_VARINT.
  * NGTCP2_ERR_FINAL_SIZE
  *     The final offset is strictly larger than it is permitted.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  */
 static int conn_recv_reset_stream(ngtcp2_conn *conn,
-                                  const ngtcp2_reset_stream *fr) {
+                                  const ngtcp2_reset_stream *fr,
+                                  ngtcp2_tstamp ts) {
   ngtcp2_strm *strm;
   int local_stream = conn_local_stream(conn, fr->stream_id);
   int bidi = bidi_stream(fr->stream_id);
@@ -7597,6 +7621,10 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
     if (local_stream) {
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
 
@@ -7606,6 +7634,11 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
         return rv;
       }
       assert(rv == NGTCP2_ERR_STREAM_IN_USE);
+
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
 
@@ -7640,6 +7673,10 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   }
 
   if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
+    if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+      return NGTCP2_ERR_INTERNAL;
+    }
+
     return 0;
   }
 
@@ -7695,9 +7732,12 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
  *     Out of memory.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
+ * NGTCP2_ERR_INTERNAL
+ *     Suspicious remote endpoint activity exceeded threshold.
  */
 static int conn_recv_stop_sending(ngtcp2_conn *conn,
-                                  const ngtcp2_stop_sending *fr) {
+                                  const ngtcp2_stop_sending *fr,
+                                  ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_strm *strm;
   ngtcp2_idtr *idtr;
@@ -7726,6 +7766,10 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
     if (local_stream) {
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
     rv = ngtcp2_idtr_open(idtr, fr->stream_id);
@@ -7734,6 +7778,11 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
         return rv;
       }
       assert(rv == NGTCP2_ERR_STREAM_IN_USE);
+
+      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+        return NGTCP2_ERR_INTERNAL;
+      }
+
       return 0;
     }
 
@@ -7756,6 +7805,10 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   }
 
   if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING_RECVED) {
+    if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+      return NGTCP2_ERR_INTERNAL;
+    }
+
     return 0;
   }
 
@@ -9437,21 +9490,21 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_RESET_STREAM:
-      rv = conn_recv_reset_stream(conn, &fr->reset_stream);
+      rv = conn_recv_reset_stream(conn, &fr->reset_stream, ts);
       if (rv != 0) {
         return rv;
       }
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_STOP_SENDING:
-      rv = conn_recv_stop_sending(conn, &fr->stop_sending);
+      rv = conn_recv_stop_sending(conn, &fr->stop_sending, ts);
       if (rv != 0) {
         return rv;
       }
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_MAX_STREAM_DATA:
-      rv = conn_recv_max_stream_data(conn, &fr->max_stream_data);
+      rv = conn_recv_max_stream_data(conn, &fr->max_stream_data, ts);
       if (rv != 0) {
         return rv;
       }
