@@ -1061,13 +1061,28 @@ conn_set_local_transport_params(ngtcp2_conn *conn,
 }
 
 static void conn_update_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
-  uint8_t gap;
+  const int64_t min_gap = 3;
+  uint8_t r;
+  int64_t gap;
 
-  conn->callbacks.rand(&gap, 1, &conn->local.settings.rand_ctx);
+  assert(INT64_MAX != pktns->tx.skip_pkt.next_pkt_num);
 
-  pktns->tx.skip_pkt.next_pkt_num =
-    pktns->tx.last_pkt_num + 3 +
-    (int64_t)gap * (1ll << pktns->tx.skip_pkt.exponent++);
+  conn->callbacks.rand(&r, 1, &conn->local.settings.rand_ctx);
+
+  if (1ll << pktns->tx.skip_pkt.exponent >
+      (NGTCP2_MAX_PKT_NUM - min_gap) / ((int64_t)r + 1)) {
+    pktns->tx.skip_pkt.next_pkt_num = INT64_MAX;
+    return;
+  }
+
+  gap = ((int64_t)r + 1) * (1ll << pktns->tx.skip_pkt.exponent++) + min_gap;
+
+  if (pktns->tx.last_pkt_num > NGTCP2_MAX_PKT_NUM - gap) {
+    pktns->tx.skip_pkt.next_pkt_num = INT64_MAX;
+    return;
+  }
+
+  pktns->tx.skip_pkt.next_pkt_num = pktns->tx.last_pkt_num + gap;
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "next skip pkn=%" PRId64,
                   pktns->tx.skip_pkt.next_pkt_num);

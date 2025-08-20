@@ -127,6 +127,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_recv_ack),
   munit_void_test(test_ngtcp2_conn_write_aggregate_pkt),
   munit_void_test(test_ngtcp2_conn_crumble_initial_pkt),
+  munit_void_test(test_ngtcp2_conn_skip_pkt_num),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
   munit_void_test(test_ngtcp2_conn_post_handshake_failmalloc),
   munit_void_test(test_ngtcp2_accept),
@@ -1003,6 +1004,7 @@ typedef struct conn_options {
   const ngtcp2_mem *mem;
   uint32_t client_chosen_version;
   void *user_data;
+  int skip_pkt_num;
 } conn_options;
 
 static void conn_server_new(ngtcp2_conn **pconn, conn_options opts) {
@@ -1048,7 +1050,9 @@ static void conn_server_new(ngtcp2_conn **pconn, conn_options opts) {
                          opts.client_chosen_version, opts.callbacks,
                          opts.settings, opts.params, opts.mem, opts.user_data);
 
-  (*pconn)->pktns.tx.skip_pkt.next_pkt_num = INT64_MAX;
+  if (!opts.skip_pkt_num) {
+    (*pconn)->pktns.tx.skip_pkt.next_pkt_num = INT64_MAX;
+  }
 }
 
 static void setup_default_server_with_options(ngtcp2_conn **pconn,
@@ -1149,7 +1153,10 @@ static void conn_client_new(ngtcp2_conn **pconn, conn_options opts) {
                          opts.client_chosen_version, opts.callbacks,
                          opts.settings, opts.params, opts.mem, opts.user_data);
 
-  (*pconn)->pktns.tx.skip_pkt.next_pkt_num = INT64_MAX;
+  if (!opts.skip_pkt_num) {
+    (*pconn)->pktns.tx.skip_pkt.next_pkt_num = INT64_MAX;
+  }
+
   (*pconn)->flags &= ~NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO;
 }
 
@@ -17123,6 +17130,123 @@ void test_ngtcp2_conn_crumble_initial_pkt(void) {
   assert_size(1, ==, frc->fr.stream.datacnt);
   assert_size(100, ==, frc->fr.stream.data[0].len);
   assert_null(frc->next);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_skip_pkt_num(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[1200];
+  ngtcp2_ssize spktlen;
+  int64_t stream_id;
+  int rv;
+  size_t i;
+  ngtcp2_tstamp t = 0;
+  conn_options opts;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_ksl_it it;
+
+  /* Skip packet number */
+  opts = (conn_options){
+    .skip_pkt_num = 1,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+
+  assert_int64(3, ==, conn->pktns.tx.skip_pkt.next_pkt_num);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  for (i = 0; i < 4; ++i) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                       NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                       null_data, 1, ++t);
+
+    assert_ptrdiff(0, <, spktlen);
+  }
+
+  assert_int64(4, ==, conn->pktns.tx.last_pkt_num);
+  assert_int64(8, ==, conn->pktns.tx.skip_pkt.next_pkt_num);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ngtcp2_ksl_it_next(&it);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_int64(3, ==, ent->hd.pkt_num);
+  assert_true(ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP);
+
+  for (i = 0; i < 4; ++i) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                       NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                       null_data, 1, ++t);
+
+    assert_ptrdiff(0, <, spktlen);
+  }
+
+  assert_int64(9, ==, conn->pktns.tx.last_pkt_num);
+  assert_int64(15, ==, conn->pktns.tx.skip_pkt.next_pkt_num);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ngtcp2_ksl_it_next(&it);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_int64(8, ==, ent->hd.pkt_num);
+  assert_true(ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP);
+
+  ngtcp2_conn_del(conn);
+
+  /* gap overflow */
+  opts = (conn_options){
+    .skip_pkt_num = 1,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+
+  conn->pktns.tx.skip_pkt.exponent = 62;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  for (i = 0; i < 4; ++i) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                       NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                       null_data, 1, ++t);
+
+    assert_ptrdiff(0, <, spktlen);
+  }
+
+  assert_int64(4, ==, conn->pktns.tx.last_pkt_num);
+  assert_int64(INT64_MAX, ==, conn->pktns.tx.skip_pkt.next_pkt_num);
+
+  ngtcp2_conn_del(conn);
+
+  /* adding packet number and gap causes overflow */
+  opts = (conn_options){
+    .skip_pkt_num = 1,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+
+  conn->pktns.tx.skip_pkt.next_pkt_num = NGTCP2_MAX_PKT_NUM - 4;
+  conn->pktns.tx.last_pkt_num = NGTCP2_MAX_PKT_NUM - 8;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  for (i = 0; i < 4; ++i) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                       NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                       null_data, 1, ++t);
+
+    assert_ptrdiff(0, <, spktlen);
+  }
+
+  assert_int64(NGTCP2_MAX_PKT_NUM - 3, ==, conn->pktns.tx.last_pkt_num);
+  assert_int64(INT64_MAX, ==, conn->pktns.tx.skip_pkt.next_pkt_num);
 
   ngtcp2_conn_del(conn);
 }
