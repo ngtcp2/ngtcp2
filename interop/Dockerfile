@@ -5,7 +5,7 @@ ARG TARGETPLATFORM
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
         apt-get install -y --no-install-recommends \
-        git clang-18 libclang-rt-18-dev \
+        git clang-19 libclang-rt-19-dev \
         make autoconf automake autotools-dev libtool \
         pkg-config ca-certificates \
         libev-dev libjemalloc-dev
@@ -17,16 +17,16 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then export WSSLFLAGS="--enable-ae
     ./configure --disable-dependency-tracking --enable-static --enable-all \
         --enable-harden --enable-keylog-export --disable-ech \
         --enable-ticket-nonce-malloc --enable-mlkem $WSSLFLAGS \
-        CC=clang-18 \
-        CXX=clang++-18 && \
+        CC=clang-19 \
+        CXX=clang++-19 && \
     make -j$(nproc) && make install && cd .. && rm -rf wolfssl
 
 RUN git clone --recursive --shallow-submodules --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && \
     autoreconf -i && \
     ./configure --disable-dependency-tracking --enable-lib-only \
-        CC=clang-18 \
-        CXX=clang++-18 \
+        CC=clang-19 \
+        CXX=clang++-19 \
         LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
         CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" && \
     make -j$(nproc) && make install && cd .. && rm -rf nghttp3
@@ -37,8 +37,8 @@ RUN git clone --recursive --shallow-submodules --depth 1 -b $NGTCP2_BRANCH https
     cd ngtcp2 && \
     autoreconf -i && \
     ./configure \
-        CC=clang-18 \
-        CXX=clang++-18 \
+        CC=clang-19 \
+        CXX=clang++-19 \
         LIBTOOL_LDFLAGS="-static-libtool-libs" \
         LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
         CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" \
