@@ -2234,6 +2234,7 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
   /* We cannot change (*pfrc)->fr.stream.datacnt.  If it changes,
      create new ngtcp2_frame_chain. */
   if ((*pfrc)->fr.stream.datacnt == 1) {
+    (*pfrc)->fr.stream.data[0].len = offset;
     (*pfrc)->next = right_frc;
     return 0;
   }
