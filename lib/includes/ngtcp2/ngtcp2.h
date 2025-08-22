@@ -5622,12 +5622,12 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_stream_loss_count(ngtcp2_conn *conn,
  * packet in the buffer pointed by |dest| of length |destlen|.  The
  * implementation should use `ngtcp2_conn_write_pkt`,
  * `ngtcp2_conn_writev_stream`, `ngtcp2_conn_writev_datagram`, or
- * their variants to write the packet.  |path| and |pi| should be
- * directly passed to those functions.  If the callback succeeds, it
- * should return the number of bytes written to the buffer.  In
- * general, this callback function should return the value that the
- * above mentioned functions returned except for the following error
- * codes:
+ * their variants to write the packet.  |path|, |pi|, |dest|,
+ * |destlen|, and |ts| should be directly passed to those functions.
+ * If the callback succeeds, it should return the number of bytes
+ * written to the buffer.  In general, this callback function should
+ * return the value that the above mentioned functions returned except
+ * for the following error codes:
  *
  * - :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED`
  * - :macro:`NGTCP2_ERR_STREAM_SHUT_WR`
