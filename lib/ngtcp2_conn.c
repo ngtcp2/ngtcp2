@@ -13930,7 +13930,7 @@ ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
       *pgsolen = (size_t)nwrite;
 
       if ((size_t)nwrite != path_max_udp_payloadlen ||
-          ecn_state != conn->tx.ecn.state) {
+          buflen < path_max_udp_payloadlen || ecn_state != conn->tx.ecn.state) {
         nwrite = wbuf - buf;
         break;
       }
