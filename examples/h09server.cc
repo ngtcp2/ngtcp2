@@ -177,7 +177,7 @@ std::pair<FileEntry, int> Stream::open_file(const std::string &path) {
     return {{}, -1};
   }
 
-  struct stat st {};
+  struct stat st{};
   if (fstat(fd, &st) != 0) {
     close(fd);
     return {{}, -1};
