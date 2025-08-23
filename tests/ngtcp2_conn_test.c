@@ -16865,6 +16865,36 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
   assert_size(0, ==, ud.write_pkt.num_write_left);
 
   ngtcp2_conn_del(conn);
+
+  /* Pass the buffer of the minimum size */
+  opt = (conn_options){
+    .user_data = &ud,
+  };
+
+  setup_default_client_with_options(&conn, opt);
+  ngtcp2_path_storage_zero(&ps);
+  memset(&pi, 0, sizeof(pi));
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  ud.write_pkt.stream_id = stream_id;
+  ud.write_pkt.num_write_left = 10;
+
+  spktlen = ngtcp2_conn_write_aggregate_pkt(
+    conn, &ps.path, &pi, buf,
+    ngtcp2_conn_get_path_max_tx_udp_payload_size(conn), &gsolen, write_pkt, t);
+
+  assert_ptrdiff(
+    (ngtcp2_ssize)ngtcp2_conn_get_path_max_tx_udp_payload_size(conn), ==,
+    spktlen);
+  assert_size(ngtcp2_conn_get_path_max_tx_udp_payload_size(conn), ==, gsolen);
+  assert_true(ngtcp2_path_eq(&null_path.path, &ps.path));
+  assert_uint8(NGTCP2_ECN_ECT_0, ==, pi.ecn);
+  assert_size(9, ==, ud.write_pkt.num_write_left);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_crumble_initial_pkt(void) {
