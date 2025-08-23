@@ -83,11 +83,9 @@ template <typename T, std::size_t N>
 [[nodiscard]] std::span<uint8_t, N == std::dynamic_extent ? std::dynamic_extent
                                                           : N * sizeof(T)>
 as_writable_uint8_span(std::span<T, N> s) noexcept {
-  return std::span < uint8_t,
-         N == std::dynamic_extent
-           ? std::dynamic_extent
-           : N * sizeof(T) >
-               {reinterpret_cast<uint8_t *>(s.data()), s.size_bytes()};
+  return std::span<uint8_t, N == std::dynamic_extent ? std::dynamic_extent
+                                                     : N * sizeof(T)>{
+    reinterpret_cast<uint8_t *>(s.data()), s.size_bytes()};
 }
 
 #endif // !defined(TEMPLATE_H)
