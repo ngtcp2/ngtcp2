@@ -28,6 +28,10 @@ if HAVE_QUICTLS
 nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_quictls.h
 endif
 
+if HAVE_LIBRESSL
+nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_quictls.h
+endif
+
 if HAVE_GNUTLS
 nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_gnutls.h
 endif
