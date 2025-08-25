@@ -261,6 +261,24 @@ the buffer sized up to `ngtcp2_conn_get_send_quantum()` bytes), call
 packet should be sent.  The timer is integrated into
 `ngtcp2_conn_get_expiry()`.
 
+Aggregate packets for GSO
+-------------------------
+
+On some platforms, the overhead of sending UDP datagram is far more
+expensive than sending TCP packets.  To workaround this, some
+platforms offer a function, like GSO in Linux, that accepts multiple
+UDP datagrams in 1 system call, and saves the overhead.
+
+To build such a train of packets, an application needs to make
+multiple calls to `ngtcp2_conn_writev_stream()` or its variants.  To
+make things simpler, ngtcp2 offers
+`ngtcp2_conn_write_aggregate_pkt()`, which conveniently aggregates
+packets suitable for sending in GSO.  It also enforces pacing
+automatically by calling `ngtcp2_conn_update_pkt_tx_time()`
+internally.  Please note that `ngtcp2_conn_write_aggregate_pkt()`
+requires the buffer of at least
+`ngtcp2_conn_get_path_max_tx_udp_payload_size()` bytes long.
+
 Outgoing UDP datagram payload size
 ----------------------------------
 
