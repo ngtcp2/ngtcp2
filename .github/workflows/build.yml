@@ -276,6 +276,8 @@ jobs:
           buildtool: distcheck
         - tls: group-a
           buildtool: distcheck
+        - tls: group-d
+          buildtool: distcheck
         - compiler: gcc
           sockaddr: generic-sockaddr
         - tls: group-c
