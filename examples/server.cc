@@ -655,7 +655,7 @@ Handler::Handler(struct ev_loop *loop, Server *server)
       .next_pkts_recv = 1,
     },
     tx_{
-      .data = std::unique_ptr<uint8_t[]>(new uint8_t[NGTCP2_TX_BUFLEN]),
+      .data = std::make_unique_for_overwrite<uint8_t[]>(NGTCP2_TX_BUFLEN),
     } {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   wev_.data = this;
