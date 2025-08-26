@@ -2735,6 +2735,9 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
 
   conn->tx.pacing.pktlen += (size_t)spktlen;
 
+  ++conn->cstat.pkt_sent;
+  conn->cstat.bytes_sent += (uint64_t)spktlen;
+
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
 
   ++pktns->tx.last_pkt_num;
@@ -4486,6 +4489,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   conn->tx.pacing.pktlen += (size_t)nwrite;
 
+  ++conn->cstat.pkt_sent;
+  conn->cstat.bytes_sent += (uint64_t)nwrite;
+
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
 
   ++pktns->tx.last_pkt_num;
@@ -4692,6 +4698,9 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   } else {
     conn->tx.pacing.pktlen += (size_t)nwrite;
   }
+
+  ++conn->cstat.pkt_sent;
+  conn->cstat.bytes_sent += (uint64_t)nwrite;
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
 
@@ -6992,6 +7001,9 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
     assert(pktlen >= (size_t)nread);
     pkt += nread;
     pktlen -= (size_t)nread;
+
+    ++conn->cstat.pkt_recv;
+    conn->cstat.bytes_recv += (uint64_t)nread;
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "read packet %td left %zu", nread, pktlen);
@@ -9930,6 +9942,9 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     assert(pktlen >= (size_t)nread);
     pkt += nread;
     pktlen -= (size_t)nread;
+
+    ++conn->cstat.pkt_recv;
+    conn->cstat.bytes_recv += (uint64_t)nread;
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "read packet %td left %zu", nread, pktlen);
