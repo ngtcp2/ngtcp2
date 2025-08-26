@@ -54,7 +54,7 @@ jobs:
       matrix: ${{ steps.config.outputs.matrix }}
       run_measurements: ${{ steps.config.outputs.run_measurements }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         repository: tatsuhiro-t/quic-interop-runner
         ref: ngtcp2
@@ -97,7 +97,7 @@ jobs:
       matrix: ${{ fromJson(needs.config.outputs.matrix) }}
     name: (${{ matrix.server }} - ${{ matrix.client }})
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         repository: tatsuhiro-t/quic-interop-runner
         ref: ngtcp2
