@@ -47,6 +47,8 @@ on:
         default: false
         type: boolean
 
+permissions: read-all
+
 jobs:
   config:
     runs-on: ubuntu-24.04
