@@ -1561,7 +1561,8 @@ typedef struct ngtcp2_transport_params {
 } ngtcp2_transport_params;
 
 #define NGTCP2_CONN_INFO_V1 1
-#define NGTCP2_CONN_INFO_VERSION NGTCP2_CONN_INFO_V1
+#define NGTCP2_CONN_INFO_V2 2
+#define NGTCP2_CONN_INFO_VERSION NGTCP2_CONN_INFO_V2
 
 /**
  * @struct
@@ -1600,6 +1601,42 @@ typedef struct ngtcp2_conn_info {
    * packets which have not been acknowledged.
    */
   uint64_t bytes_in_flight;
+  /* The following fields have been added since NGTCP2_CONN_INFO_V2. */
+  /**
+   * :member:`pkt_sent` is the number of QUIC packets sent.  This
+   * field has been available since v1.16.0.
+   */
+  uint64_t pkt_sent;
+  /**
+   * :member:`bytes_sent` is the number of bytes (the sum of QUIC
+   * packet length) sent.  This field has been available since
+   * v1.16.0.
+   */
+  uint64_t bytes_sent;
+  /**
+   * :member:`pkt_recv` is the number of QUIC packets received,
+   * excluding discarded ones.  This field has been available since
+   * v1.16.0.
+   */
+  uint64_t pkt_recv;
+  /**
+   * :member:`bytes_recv` is the number of bytes (the sum of QUIC
+   * packet length) received, excluding discarded ones.  This field
+   * has been available since v1.16.0.
+   */
+  uint64_t bytes_recv;
+  /**
+   * :member:`pkt_lost` is the number of QUIC packets that are
+   * considered lost, excluding PMTUD packets.  This field has been
+   * available since v1.16.0.
+   */
+  uint64_t pkt_lost;
+  /**
+   * :member:`bytes_lost` is the number of bytes (the sum of QUIC
+   * packet length) lost, excluding PMTUD packets.  This field has
+   * been available since v1.16.0.
+   */
+  uint64_t bytes_lost;
 } ngtcp2_conn_info;
 
 /**

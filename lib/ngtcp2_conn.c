@@ -42,6 +42,7 @@
 #include "ngtcp2_callbacks.h"
 #include "ngtcp2_tstamp.h"
 #include "ngtcp2_frame_chain.h"
+#include "ngtcp2_conn_info.h"
 
 /* NGTCP2_FLOW_WINDOW_RTT_FACTOR is the factor of RTT when flow
    control window auto-tuning is triggered. */
@@ -13064,16 +13065,7 @@ int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
 void ngtcp2_conn_get_conn_info_versioned(ngtcp2_conn *conn,
                                          int conn_info_version,
                                          ngtcp2_conn_info *cinfo) {
-  const ngtcp2_conn_stat *cstat = &conn->cstat;
-  (void)conn_info_version;
-
-  cinfo->latest_rtt = cstat->latest_rtt;
-  cinfo->min_rtt = cstat->min_rtt;
-  cinfo->smoothed_rtt = cstat->smoothed_rtt;
-  cinfo->rttvar = cstat->rttvar;
-  cinfo->cwnd = cstat->cwnd;
-  cinfo->ssthresh = cstat->ssthresh;
-  cinfo->bytes_in_flight = cstat->bytes_in_flight;
+  ngtcp2_conn_info_init_versioned(conn_info_version, cinfo, &conn->cstat);
 }
 
 static void conn_get_loss_time_and_pktns(ngtcp2_conn *conn,

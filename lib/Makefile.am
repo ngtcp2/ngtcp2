@@ -78,7 +78,8 @@ OBJECTS = \
 	ngtcp2_callbacks.c \
 	ngtcp2_dcidtr.c \
 	ngtcp2_pcg.c \
-	ngtcp2_ratelim.c
+	ngtcp2_ratelim.c \
+	ngtcp2_conn_info.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -127,6 +128,7 @@ HFILES = \
 	ngtcp2_dcidtr.h \
 	ngtcp2_pcg.h \
 	ngtcp2_ratelim.h \
+	ngtcp2_conn_info.h \
 	ngtcp2_conn_stat.h \
 	ngtcp2_pktns_id.h \
 	ngtcp2_tstamp.h

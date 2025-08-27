@@ -60,6 +60,7 @@ set(main_SOURCES
   ngtcp2_addr_test.c
   ngtcp2_pcg_test.c
   ngtcp2_ratelim_test.c
+  ngtcp2_conn_info_test.c
   ngtcp2_test_helper.c
   munit/munit.c
 )
