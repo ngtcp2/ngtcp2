@@ -454,16 +454,21 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   if (ent->flags &
       (NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE | NGTCP2_RTB_ENTRY_FLAG_SKIP)) {
     ++rtb->num_lost_ignore_pkts;
-  } else if (ent->hd.pkt_num >= rtb->cc_pkt_num) {
-    rtb->rst->lost += ent->pktlen;
+  } else {
+    ++cstat->pkt_lost;
+    cstat->bytes_lost += ent->pktlen;
 
-    if (rtb->cc->on_pkt_lost) {
-      cc->on_pkt_lost(cc, cstat,
-                      ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen,
-                                         pktns->id, ent->ts, ent->rst.lost,
-                                         ent->rst.tx_in_flight,
-                                         ent->rst.is_app_limited),
-                      ts);
+    if (ent->hd.pkt_num >= rtb->cc_pkt_num) {
+      rtb->rst->lost += ent->pktlen;
+
+      if (rtb->cc->on_pkt_lost) {
+        cc->on_pkt_lost(cc, cstat,
+                        ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen,
+                                           pktns->id, ent->ts, ent->rst.lost,
+                                           ent->rst.tx_in_flight,
+                                           ent->rst.is_app_limited),
+                        ts);
+      }
     }
   }
 
