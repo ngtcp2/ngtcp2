@@ -31,6 +31,8 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_pktns_id.h"
+
 /**
  * @struct
  *
