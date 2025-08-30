@@ -6567,7 +6567,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         ngtcp2_log_infof(
           &conn->log, NGTCP2_LOG_EVENT_PKT,
           "Initial packet was ignored because it is included in UDP datagram "
-          "less than %zu bytes: %zu bytes",
+          "less than %d bytes: %zu bytes",
           NGTCP2_MAX_UDP_PAYLOAD_SIZE, dgramlen);
         return NGTCP2_ERR_DISCARD_PKT;
       }
