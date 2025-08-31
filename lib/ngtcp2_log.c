@@ -175,12 +175,10 @@ static const char *strpkttype(const ngtcp2_pkt_hd *hd) {
 }
 
 static const char *strpkttype_type_flags(uint8_t type, uint8_t flags) {
-  ngtcp2_pkt_hd hd = {0};
-
-  hd.type = type;
-  hd.flags = flags;
-
-  return strpkttype(&hd);
+  return strpkttype(&(ngtcp2_pkt_hd){
+    .type = type,
+    .flags = flags,
+  });
 }
 
 static void log_fr_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
