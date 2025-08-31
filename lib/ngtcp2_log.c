@@ -90,8 +90,8 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
  *   Frame type in hex string.
  */
 
-#define NGTCP2_LOG_PKT " %s %" PRId64 " %s"
-#define NGTCP2_LOG_TP " remote transport_parameters"
+#define NGTCP2_LOG_PKT "%s %" PRId64 " %s"
+#define NGTCP2_LOG_TP "remote transport_parameters"
 
 #define NGTCP2_LOG_PKT_HD_FIELDS(DIR) (DIR), hd->pkt_num, strpkttype(hd)
 
