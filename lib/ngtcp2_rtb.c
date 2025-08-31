@@ -798,11 +798,11 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   int ack_eliciting_pkt_acked = 0;
   size_t ecn_acked = 0;
   int verify_ecn = 0;
-  ngtcp2_cc_ack cc_ack = {0};
+  ngtcp2_cc_ack cc_ack = {
+    .prior_bytes_in_flight = cstat->bytes_in_flight,
+    .rtt = UINT64_MAX,
+  };
   size_t num_lost_pkts = rtb->num_lost_pkts - rtb->num_lost_ignore_pkts;
-
-  cc_ack.prior_bytes_in_flight = cstat->bytes_in_flight;
-  cc_ack.rtt = UINT64_MAX;
 
   if (conn && (conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) &&
       (conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR) &&
