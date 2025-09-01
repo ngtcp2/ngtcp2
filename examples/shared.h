@@ -51,15 +51,15 @@ consteval std::span<const uint8_t> as_uint8_span(const uint8_t (&s)[N]) {
   return {s, N - 1};
 }
 
-constexpr uint8_t RAW_HQ_ALPN[] = "\xahq-interop";
-constexpr auto HQ_ALPN = as_uint8_span(RAW_HQ_ALPN);
-constexpr auto HQ_ALPN_V1 = as_uint8_span(RAW_HQ_ALPN);
+inline constexpr uint8_t RAW_HQ_ALPN[] = "\xahq-interop";
+inline constexpr auto HQ_ALPN = as_uint8_span(RAW_HQ_ALPN);
+inline constexpr auto HQ_ALPN_V1 = as_uint8_span(RAW_HQ_ALPN);
 
-constexpr uint8_t RAW_H3_ALPN[] = "\x2h3";
-constexpr auto H3_ALPN = as_uint8_span(RAW_H3_ALPN);
-constexpr auto H3_ALPN_V1 = as_uint8_span(RAW_H3_ALPN);
+inline constexpr uint8_t RAW_H3_ALPN[] = "\x2h3";
+inline constexpr auto H3_ALPN = as_uint8_span(RAW_H3_ALPN);
+inline constexpr auto H3_ALPN_V1 = as_uint8_span(RAW_H3_ALPN);
 
-constexpr uint32_t TLS_ALERT_ECH_REQUIRED = 121;
+inline constexpr uint32_t TLS_ALERT_ECH_REQUIRED = 121;
 
 // msghdr_get_ecn gets ECN bits from |msg|.  |family| is the address
 // family from which packet is received.

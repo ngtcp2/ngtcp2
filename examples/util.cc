@@ -108,7 +108,7 @@ uint64_t round2even(uint64_t n) {
 } // namespace
 
 std::string format_durationf(uint64_t ns) {
-  static constexpr const std::string_view units[] = {"us"sv, "ms"sv, "s"sv};
+  static constexpr std::string_view units[] = {"us"sv, "ms"sv, "s"sv};
   if (ns < 1000) {
     return format_uint(ns) + "ns";
   }
