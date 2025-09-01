@@ -227,13 +227,11 @@ void ngtcp2_qlog_start(ngtcp2_qlog *qlog, const ngtcp2_cid *odcid, int server) {
 }
 
 void ngtcp2_qlog_end(ngtcp2_qlog *qlog) {
-  uint8_t buf[1] = {0};
-
   if (!qlog->write) {
     return;
   }
 
-  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_FIN, &buf, 0);
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_FIN, "", 0);
 }
 
 static ngtcp2_vec vec_pkt_type_initial = ngtcp2_make_vec_lit("initial");
