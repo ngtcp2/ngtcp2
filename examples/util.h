@@ -80,7 +80,7 @@ inline nghttp3_nv make_nv_nn(const std::string_view &name,
                  NGHTTP3_NV_FLAG_NO_COPY_NAME | NGHTTP3_NV_FLAG_NO_COPY_VALUE);
 }
 
-constinit const auto hexdigits = []() {
+inline constexpr auto hexdigits = []() {
   constexpr char LOWER_XDIGITS[] = "0123456789abcdef";
 
   std::array<char, 512> tbl;
@@ -231,7 +231,7 @@ bool numeric_host(const char *hostname, int family);
 // or -1.
 int hexdump(FILE *out, const void *data, size_t datalen);
 
-static constexpr uint8_t lowcase_tbl[] = {
+inline constexpr uint8_t lowcase_tbl[] = {
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
   15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
   30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -293,7 +293,7 @@ std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 std::optional<std::unordered_map<std::string, std::string>>
 read_mime_types(const std::string_view &filename);
 
-constinit const auto count_digit_tbl = []() {
+inline constexpr auto count_digit_tbl = []() {
   std::array<uint64_t, std::numeric_limits<uint64_t>::digits10> tbl;
 
   uint64_t x = 1;
@@ -321,7 +321,7 @@ template <std::unsigned_integral T> constexpr size_t count_digit(T x) {
   return y + 1;
 }
 
-constinit const auto utos_digits = []() {
+inline constexpr auto utos_digits = []() {
   std::array<char, 200> a;
 
   for (size_t i = 0; i < 100; ++i) {
@@ -443,7 +443,7 @@ int generate_secret(std::span<uint8_t> secret);
 std::string normalize_path(const std::string_view &path);
 
 template <std::predicate<size_t> Pred>
-constexpr auto pred_tbl_gen256(Pred pred) {
+consteval auto pred_tbl_gen256(Pred pred) {
   std::array<bool, 256> tbl;
 
   for (size_t i = 0; i < tbl.size(); ++i) {
@@ -453,17 +453,19 @@ constexpr auto pred_tbl_gen256(Pred pred) {
   return tbl;
 }
 
-constexpr auto digit_pred(size_t i) noexcept { return '0' <= i && i <= '9'; }
+consteval auto digit_pred(size_t i) noexcept { return '0' <= i && i <= '9'; }
 
-constinit const auto is_digit_tbl = pred_tbl_gen256(digit_pred);
+inline constexpr auto is_digit_tbl = pred_tbl_gen256(digit_pred);
 
 constexpr bool is_digit(char c) noexcept {
   return is_digit_tbl[static_cast<uint8_t>(c)];
 }
 
-constinit const auto is_hex_digit_tbl = pred_tbl_gen256([](auto i) {
+consteval auto hex_digit_pred(size_t i) noexcept {
   return digit_pred(i) || ('A' <= i && i <= 'F') || ('a' <= i && i <= 'f');
-});
+}
+
+inline constexpr auto is_hex_digit_tbl = pred_tbl_gen256(hex_digit_pred);
 
 constexpr bool is_hex_digit(char c) noexcept {
   return is_hex_digit_tbl[static_cast<uint8_t>(c)];
@@ -478,7 +480,7 @@ constexpr bool is_hex_string(R &&r) {
   return !(std::ranges::size(r) & 1) && std::ranges::all_of(r, is_hex_digit);
 }
 
-constinit const auto hex_to_uint_tbl = []() {
+inline constexpr auto hex_to_uint_tbl = []() {
   std::array<uint32_t, 256> tbl;
 
   std::ranges::fill(tbl, 256);
