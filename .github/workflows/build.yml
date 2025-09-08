@@ -24,7 +24,7 @@ jobs:
 
     steps:
     - id: nghttp3-version
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         result-encoding: string
         script: |
@@ -761,7 +761,7 @@ jobs:
         GPG_KEY: ${{ secrets.GPG_KEY }}
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     - name: Make release
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           const fs = require('fs')
