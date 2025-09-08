@@ -60,7 +60,7 @@ jobs:
       with:
         repository: tatsuhiro-t/quic-interop-runner
         ref: ngtcp2
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: 3.8
     - name: Configure
@@ -107,7 +107,7 @@ jobs:
     - uses: docker/setup-docker-action@v4
       with:
         version: version=v28.3.0
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: 3.8
     - name: Enable IPv6 support
