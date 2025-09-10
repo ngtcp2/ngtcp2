@@ -821,9 +821,9 @@ void Handler::on_stream_open(int64_t stream_id) {
   if (!ngtcp2_is_bidi_stream(stream_id)) {
     return;
   }
-  auto it = streams_.find(stream_id);
-  (void)it;
-  assert(it == std::ranges::end(streams_));
+
+  assert(!streams_.contains(stream_id));
+
   streams_.emplace(stream_id, std::make_unique<Stream>(stream_id, this));
 }
 
