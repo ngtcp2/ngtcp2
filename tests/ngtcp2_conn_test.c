@@ -128,6 +128,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_write_aggregate_pkt),
   munit_void_test(test_ngtcp2_conn_crumble_initial_pkt),
   munit_void_test(test_ngtcp2_conn_skip_pkt_num),
+  munit_void_test(test_ngtcp2_conn_get_timestamp),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
   munit_void_test(test_ngtcp2_conn_post_handshake_failmalloc),
   munit_void_test(test_ngtcp2_accept),
@@ -17329,6 +17330,24 @@ void test_ngtcp2_conn_skip_pkt_num(void) {
 
   assert_int64(NGTCP2_MAX_PKT_NUM - 3, ==, conn->pktns.tx.last_pkt_num);
   assert_int64(INT64_MAX, ==, conn->pktns.tx.skip_pkt.next_pkt_num);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_get_timestamp(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[1200];
+  ngtcp2_ssize spktlen;
+
+  setup_default_client(&conn);
+
+  assert_uint64(0, ==, ngtcp2_conn_get_timestamp(conn));
+
+  spktlen =
+    ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 1000000007);
+
+  assert_ssize(0, <, spktlen);
+  assert_uint64(1000000007, ==, ngtcp2_conn_get_timestamp(conn));
 
   ngtcp2_conn_del(conn);
 }
