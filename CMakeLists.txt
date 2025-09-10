@@ -28,7 +28,7 @@ cmake_minimum_required(VERSION 3.20)
 cmake_policy(SET CMP0063 NEW)
 
 # XXX using 0.1.90 instead of 0.2.0-DEV
-project(ngtcp2 VERSION 1.15.90)
+project(ngtcp2 VERSION 1.15.90 LANGUAGES C)
 
 # See versioning rule:
 #  https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
@@ -104,6 +104,10 @@ foreach(_build_type "Release" "MinSizeRel" "RelWithDebInfo")
   endforeach()
 endforeach()
 
+if(NOT ENABLE_LIB_ONLY OR ENABLE_BORINGSSL)
+  enable_language(CXX)
+endif()
+
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 
@@ -114,7 +118,12 @@ if(NOT CMAKE_C_COMPILER_ID MATCHES "MSVC")
     cmake_push_check_state()
     set(CMAKE_REQUIRED_LIBRARIES "-fsanitize=address")
     check_c_compiler_flag(-fsanitize=address C__fsanitize_address_VALID)
-    check_cxx_compiler_flag(-fsanitize=address CXX__fsanitize_address_VALID)
+    if(NOT ENABLE_LIB_ONLY OR ENABLE_BORINGSSL)
+      # Bypass C++-specific check for lib-only builds where C++ is not enabled.
+      set(CXX__fsanitize_address_VALID TRUE)
+    else()
+      check_cxx_compiler_flag(-fsanitize=address CXX__fsanitize_address_VALID)
+    endif()
     cmake_pop_check_state()
     if(NOT C__fsanitize_address_VALID OR NOT CXX__fsanitize_address_VALID)
       message(WARNING "ENABLE_ASAN was requested, but not supported!")
