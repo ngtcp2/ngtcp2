@@ -13975,6 +13975,10 @@ ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
   return nwrite;
 }
 
+ngtcp2_tstamp ngtcp2_conn_get_timestamp(ngtcp2_conn *conn) {
+  return conn->log.last_ts;
+}
+
 const ngtcp2_path_history_entry *
 ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
                               ngtcp2_tstamp ts) {

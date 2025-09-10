@@ -5726,6 +5726,16 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
 /**
  * @function
  *
+ * `ngtcp2_conn_get_timestamp` returns the latest timestamp that is
+ * known to |conn|.
+ *
+ * This function has been available since v1.16.0.
+ */
+NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_timestamp(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_strerror` returns the text representation of |liberr|.
  * |liberr| must be one of ngtcp2 library error codes (which is
  * defined as :macro:`NGTCP2_ERR_* <NGTCP2_ERR_INVALID_ARGUMENT>`
