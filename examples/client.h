@@ -133,7 +133,7 @@ public:
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   int stop_sending(int64_t stream_id, uint64_t app_error_code);
   int reset_stream(int64_t stream_id, uint64_t app_error_code);
-  int http_stream_close(int64_t stream_id, uint64_t app_error_code);
+  void http_stream_close(int64_t stream_id, uint64_t app_error_code);
 
   void on_send_blocked(const ngtcp2_path &path, unsigned int ecn,
                        std::span<const uint8_t> data, size_t gso_size);

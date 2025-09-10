@@ -1785,6 +1785,7 @@ int Client::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
     auto rv = nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
     switch (rv) {
     case 0:
+      http_stream_close(stream_id, app_error_code);
       break;
     case NGHTTP3_ERR_STREAM_NOT_FOUND:
       // We have to handle the case when stream opened but no data is
@@ -2149,37 +2150,26 @@ int Client::reset_stream(int64_t stream_id, uint64_t app_error_code) {
   return 0;
 }
 
-namespace {
-int http_stream_close(nghttp3_conn *conn, int64_t stream_id,
-                      uint64_t app_error_code, void *conn_user_data,
-                      void *stream_user_data) {
-  auto c = static_cast<Client *>(conn_user_data);
-  if (c->http_stream_close(stream_id, app_error_code) != 0) {
-    return NGHTTP3_ERR_CALLBACK_FAILURE;
-  }
-  return 0;
-}
-} // namespace
-
-int Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
-  if (ngtcp2_is_bidi_stream(stream_id)) {
-    assert(ngtcp2_conn_is_local_stream(conn_, stream_id));
-
-    ++nstreams_closed_;
-  } else {
-    assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
-    ngtcp2_conn_extend_max_streams_uni(conn_, 1);
+void Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
+  if (!ngtcp2_is_bidi_stream(stream_id)) {
+    return;
   }
 
-  if (auto it = streams_.find(stream_id); it != std::ranges::end(streams_)) {
-    if (!config.quiet) {
-      std::cerr << "HTTP stream " << stream_id << " closed with error code "
-                << app_error_code << std::endl;
-    }
-    streams_.erase(it);
+  assert(ngtcp2_conn_is_local_stream(conn_, stream_id));
+
+  ++nstreams_closed_;
+
+  auto it = streams_.find(stream_id);
+  if (it == std::ranges::end(streams_)) {
+    return;
   }
 
-  return 0;
+  if (!config.quiet) {
+    std::cerr << "HTTP stream " << stream_id << " closed with error code "
+              << app_error_code << std::endl;
+  }
+
+  streams_.erase(it);
 }
 
 namespace {
@@ -2226,7 +2216,6 @@ int Client::setup_httpconn() {
   }
 
   nghttp3_callbacks callbacks{
-    .stream_close = ::http_stream_close,
     .recv_data = ::http_recv_data,
     .deferred_consume = ::http_deferred_consume,
     .begin_headers = ::http_begin_headers,

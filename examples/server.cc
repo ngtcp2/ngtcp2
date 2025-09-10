@@ -1164,17 +1164,14 @@ void Handler::http_acked_stream_data(Stream *stream, uint64_t datalen) {
   stream->http_acked_stream_data(datalen);
 }
 
-namespace {
-int http_stream_close(nghttp3_conn *conn, int64_t stream_id,
-                      uint64_t app_error_code, void *conn_user_data,
-                      void *stream_user_data) {
-  auto h = static_cast<Handler *>(conn_user_data);
-  h->http_stream_close(stream_id, app_error_code);
-  return 0;
-}
-} // namespace
-
 void Handler::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
+  if (!ngtcp2_is_bidi_stream(stream_id)) {
+    return;
+  }
+
+  assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
+  ngtcp2_conn_extend_max_streams_bidi(conn_, 1);
+
   auto it = streams_.find(stream_id);
   if (it == std::ranges::end(streams_)) {
     return;
@@ -1186,11 +1183,6 @@ void Handler::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
   }
 
   streams_.erase(it);
-
-  if (ngtcp2_is_bidi_stream(stream_id)) {
-    assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
-    ngtcp2_conn_extend_max_streams_bidi(conn_, 1);
-  }
 }
 
 namespace {
@@ -1263,7 +1255,6 @@ int Handler::setup_httpconn() {
 
   nghttp3_callbacks callbacks{
     .acked_stream_data = ::http_acked_stream_data,
-    .stream_close = ::http_stream_close,
     .recv_data = ::http_recv_data,
     .deferred_consume = ::http_deferred_consume,
     .begin_headers = ::http_begin_request_headers,
@@ -2139,6 +2130,7 @@ int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
     auto rv = nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
     switch (rv) {
     case 0:
+      http_stream_close(stream_id, app_error_code);
       break;
     case NGHTTP3_ERR_STREAM_NOT_FOUND:
       if (ngtcp2_is_bidi_stream(stream_id)) {
