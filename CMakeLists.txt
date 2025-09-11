@@ -118,7 +118,7 @@ if(NOT CMAKE_C_COMPILER_ID MATCHES "MSVC")
     cmake_push_check_state()
     set(CMAKE_REQUIRED_LIBRARIES "-fsanitize=address")
     check_c_compiler_flag(-fsanitize=address C__fsanitize_address_VALID)
-    if(NOT ENABLE_LIB_ONLY)
+    if(ENABLE_LIB_ONLY)
       # Bypass C++-specific check for lib-only builds where C++ is not enabled.
       set(CXX__fsanitize_address_VALID TRUE)
     else()
