@@ -5409,8 +5409,8 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   uint8_t cidbuf[sizeof(retry.odcid.data) * 2 + 1];
   uint8_t *token;
 
-  if (!in_pktns || conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
-    return 0;
+  if (!in_pktns || (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY)) {
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   in_rtb = &in_pktns->rtb;
@@ -6967,6 +6967,8 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
               return nread;
             }
 
+            ++conn->cstat.pkt_discarded;
+
             /* If server discards first Initial, then drop connection
                state.  This is because SCID in packet might be corrupted
                and the current connection state might wrongly discard
@@ -6984,11 +6986,15 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
                unrecoverable, therefore drop connection. */
             return nread;
           }
+
+          ++conn->cstat.pkt_discarded;
+
           return (ngtcp2_ssize)dgramlen;
         }
       }
 
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
+        ++conn->cstat.pkt_discarded;
         return (ngtcp2_ssize)dgramlen;
       }
 
@@ -9760,6 +9766,7 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
     *ppc = next;
     if (nread < 0) {
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
+        ++conn->cstat.pkt_discarded;
         continue;
       }
       return (int)nread;
@@ -9794,6 +9801,7 @@ static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
     *ppc = next;
     if (nread < 0) {
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
+        ++conn->cstat.pkt_discarded;
         continue;
       }
       return (int)nread;
@@ -9939,6 +9947,7 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         }
       }
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
+        ++conn->cstat.pkt_discarded;
         return 0;
       }
       return (int)nread;
@@ -10218,6 +10227,8 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
       !ngtcp2_dcidtr_check_path_retired(&conn->dcid.dtr, path)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "ignore packet from unknown path");
+    ++conn->cstat.pkt_discarded;
+
     return 0;
   }
 

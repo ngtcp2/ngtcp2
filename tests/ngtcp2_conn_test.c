@@ -3930,6 +3930,7 @@ void test_ngtcp2_conn_recv_retry(void) {
     if (i == 1) {
       /* Retry packet was ignored */
       assert_ptrdiff(0, ==, spktlen);
+      assert_uint64(1, ==, conn->cstat.pkt_discarded);
     } else {
       assert_ptrdiff(0, <, spktlen);
       assert_int64(1, ==, conn->in_pktns->tx.last_pkt_num);

@@ -1642,6 +1642,11 @@ typedef struct ngtcp2_conn_info {
    * field has been available since v1.16.0.
    */
   uint64_t ping_recv;
+  /**
+   * :member:`pkt_discarded` is the number of QUIC packets discarded.
+   * This field has been available since v1.16.0.
+   */
+  uint64_t pkt_discarded;
 } ngtcp2_conn_info;
 
 /**
