@@ -9266,6 +9266,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_uint64(1, ==, conn->pv->dcid.seq);
   assert_uint64(0, ==, conn->pv->fallback_dcid.seq);
   assert_size(2, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
+  assert_uint64(1, ==, conn->cstat.ping_recv);
 
   fr.new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,

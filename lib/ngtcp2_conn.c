@@ -6873,6 +6873,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       break;
     case NGTCP2_FRAME_PING:
+      ++conn->cstat.ping_recv;
       require_ack = 1;
       break;
     default:
@@ -9035,8 +9036,10 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
         return rv;
       }
       break;
-    case NGTCP2_FRAME_CRYPTO:
     case NGTCP2_FRAME_PING:
+      ++conn->cstat.ping_recv;
+      /* fall through */
+    case NGTCP2_FRAME_CRYPTO:
       require_ack = 1;
       break;
     default:
@@ -9558,6 +9561,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       break;
     case NGTCP2_FRAME_PING:
+      ++conn->cstat.ping_recv;
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_PATH_CHALLENGE:

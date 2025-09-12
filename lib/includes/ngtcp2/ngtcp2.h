@@ -1637,6 +1637,11 @@ typedef struct ngtcp2_conn_info {
    * been available since v1.16.0.
    */
   uint64_t bytes_lost;
+  /**
+   * :member:`ping_recv` is the number of PING frames received.  This
+   * field has been available since v1.16.0.
+   */
+  uint64_t ping_recv;
 } ngtcp2_conn_info;
 
 /**
