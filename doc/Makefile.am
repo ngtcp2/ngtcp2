@@ -31,6 +31,12 @@ SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = source
 BUILDDIR      = build
 
+EXTRA_DIST = mkapiref.py source/conf.py.in
+EXTRA_DIST += source/apiref.rst source/crypto_apiref.rst \
+	      source/crypto_enums.rst source/crypto_macros.rst \
+	      source/crypto_types.rst source/enums.rst source/index.rst \
+	      source/macros.rst source/programmers-guide.rst source/types.rst
+
 # Put it first so that "make" without argument is like "make help".
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
