@@ -44,5 +44,6 @@ void ngtcp2_conn_info_init_versioned(int conn_info_version,
     cinfo->bytes_recv = cstat->bytes_recv;
     cinfo->pkt_lost = cstat->pkt_lost;
     cinfo->bytes_lost = cstat->bytes_lost;
+    cinfo->ping_recv = cstat->ping_recv;
   }
 }
