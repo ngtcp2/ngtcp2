@@ -346,7 +346,7 @@ Handler::Handler(struct ev_loop *loop, Server *server)
     nkey_update_(0),
     no_gso_{
 #ifdef UDP_SEGMENT
-      false
+      config.no_gso
 #else  // !defined(UDP_SEGMENT)
       true
 #endif // !defined(UDP_SEGMENT)
@@ -2782,6 +2782,7 @@ Options:
               https://datatracker.ietf.org/doc/html/draft-farrell-tls-pemesni.
               ECH configuration  is only applied if  an underlying TLS
               stack supports it.
+  --no-gso    Disables GSO.
   -h, --help  Display this help and exit.
 
 ---
@@ -2854,6 +2855,7 @@ int main(int argc, char **argv) {
       {"initial-pkt-num", required_argument, &flag, 31},
       {"pmtud-probes", required_argument, &flag, 32},
       {"ech-config-file", required_argument, &flag, 33},
+      {"no-gso", no_argument, &flag, 35},
       {},
     };
 
@@ -3206,6 +3208,10 @@ int main(int argc, char **argv) {
       case 33:
         // --ech-config-file
         ech_config_file = optarg;
+        break;
+      case 35:
+        // --no-gso
+        config.no_gso = true;
         break;
       }
       break;

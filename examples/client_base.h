@@ -196,6 +196,8 @@ struct Config {
   // ech_config_list_file is a path to a file to read and write
   // ECHConfigList.
   const char *ech_config_list_file;
+  // no_gso disables GSO.
+  bool no_gso;
 };
 
 class ClientBase {

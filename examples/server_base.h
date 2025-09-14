@@ -160,6 +160,8 @@ struct Config {
   util::ECHServerConfig ech_config;
   // origin_list contains a payload of ORIGIN frame.
   std::optional<std::vector<uint8_t>> origin_list;
+  // no_gso disables GSO.
+  bool no_gso;
 };
 
 struct Buffer {

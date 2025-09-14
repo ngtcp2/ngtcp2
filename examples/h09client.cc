@@ -190,7 +190,7 @@ Client::Client(struct ev_loop *loop, uint32_t client_chosen_version,
     handshake_confirmed_(false),
     no_gso_{
 #ifdef UDP_SEGMENT
-      false
+      config.no_gso
 #else  // !defined(UDP_SEGMENT)
       true
 #endif // !defined(UDP_SEGMENT)
@@ -2186,6 +2186,7 @@ Options:
               the handshake  fails with ech_required alert,  ECH retry
               configs,  if  provided by  server,  will  be written  to
               <PATH>.
+  --no-gso    Disables GSO.
   -h, --help  Display this help and exit.
 
 ---
@@ -2270,6 +2271,7 @@ int main(int argc, char **argv) {
       {"initial-pkt-num", required_argument, &flag, 42},
       {"pmtud-probes", required_argument, &flag, 43},
       {"ech-config-list-file", required_argument, &flag, 44},
+      {"no-gso", no_argument, &flag, 45},
       {},
     };
 
@@ -2714,6 +2716,10 @@ int main(int argc, char **argv) {
       case 44:
         // --ech-config-list-file
         config.ech_config_list_file = optarg;
+        break;
+      case 45:
+        // --no-gso
+        config.no_gso = true;
         break;
       }
       break;
