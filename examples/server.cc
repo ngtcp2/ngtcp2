@@ -646,7 +646,7 @@ Handler::Handler(struct ev_loop *loop, Server *server)
     nkey_update_(0),
     no_gso_{
 #ifdef UDP_SEGMENT
-      false
+      config.no_gso
 #else  // !defined(UDP_SEGMENT)
       true
 #endif // !defined(UDP_SEGMENT)
@@ -3511,6 +3511,7 @@ Options:
   --origin=<ORIGIN>
               Specify the origin to send in ORIGIN frame.  Repeat to
               add multiple origins.
+  --no-gso    Disables GSO.
   -h, --help  Display this help and exit.
 
 ---
@@ -3584,6 +3585,7 @@ int main(int argc, char **argv) {
       {"pmtud-probes", required_argument, &flag, 32},
       {"ech-config-file", required_argument, &flag, 33},
       {"origin", required_argument, &flag, 34},
+      {"no-gso", no_argument, &flag, 35},
       {},
     };
 
@@ -3959,6 +3961,10 @@ int main(int argc, char **argv) {
 
         break;
       }
+      case 35:
+        // --no-gso
+        config.no_gso = true;
+        break;
       }
       break;
     default:
