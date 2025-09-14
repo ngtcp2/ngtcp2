@@ -2783,6 +2783,8 @@ Options:
               ECH configuration  is only applied if  an underlying TLS
               stack supports it.
   --no-gso    Disables GSO.
+  --show-stat Print the connection statistics when the connection is
+              closed.
   -h, --help  Display this help and exit.
 
 ---
@@ -2856,6 +2858,7 @@ int main(int argc, char **argv) {
       {"pmtud-probes", required_argument, &flag, 32},
       {"ech-config-file", required_argument, &flag, 33},
       {"no-gso", no_argument, &flag, 35},
+      {"show-stat", no_argument, &flag, 36},
       {},
     };
 
@@ -3212,6 +3215,10 @@ int main(int argc, char **argv) {
       case 35:
         // --no-gso
         config.no_gso = true;
+        break;
+      case 36:
+        // --show-stat
+        config.show_stat = true;
         break;
       }
       break;

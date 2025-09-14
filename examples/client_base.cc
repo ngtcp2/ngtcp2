@@ -53,6 +53,10 @@ ClientBase::ClientBase()
 
 ClientBase::~ClientBase() {
   if (conn_) {
+    if (config.show_stat) {
+      debug::print_conn_info(conn_);
+    }
+
     ngtcp2_conn_del(conn_);
   }
 

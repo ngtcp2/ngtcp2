@@ -49,6 +49,10 @@ HandlerBase::HandlerBase() : conn_ref_{get_conn, this}, conn_(nullptr) {
 
 HandlerBase::~HandlerBase() {
   if (conn_) {
+    if (config.show_stat) {
+      debug::print_conn_info(conn_);
+    }
+
     ngtcp2_conn_del(conn_);
   }
 }

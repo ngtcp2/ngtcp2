@@ -3512,6 +3512,8 @@ Options:
               Specify the origin to send in ORIGIN frame.  Repeat to
               add multiple origins.
   --no-gso    Disables GSO.
+  --show-stat Print the connection statistics when the connection is
+              closed.
   -h, --help  Display this help and exit.
 
 ---
@@ -3586,6 +3588,7 @@ int main(int argc, char **argv) {
       {"ech-config-file", required_argument, &flag, 33},
       {"origin", required_argument, &flag, 34},
       {"no-gso", no_argument, &flag, 35},
+      {"show-stat", no_argument, &flag, 36},
       {},
     };
 
@@ -3964,6 +3967,10 @@ int main(int argc, char **argv) {
       case 35:
         // --no-gso
         config.no_gso = true;
+        break;
+      case 36:
+        // --show-stat
+        config.show_stat = true;
         break;
       }
       break;
