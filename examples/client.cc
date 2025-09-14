@@ -1925,11 +1925,11 @@ int Client::submit_http_request(const Stream *stream) {
 
 int Client::recv_stream_data(uint32_t flags, int64_t stream_id,
                              std::span<const uint8_t> data) {
-  auto nconsumed =
-    nghttp3_conn_read_stream(httpconn_, stream_id, data.data(), data.size(),
-                             flags & NGTCP2_STREAM_DATA_FLAG_FIN);
+  auto nconsumed = nghttp3_conn_read_stream2(
+    httpconn_, stream_id, data.data(), data.size(),
+    flags & NGTCP2_STREAM_DATA_FLAG_FIN, ngtcp2_conn_get_timestamp(conn_));
   if (nconsumed < 0) {
-    std::cerr << "nghttp3_conn_read_stream: "
+    std::cerr << "nghttp3_conn_read_stream2: "
               << nghttp3_strerror(static_cast<int>(nconsumed)) << std::endl;
     ngtcp2_ccerr_set_application_error(
       &last_error_,
