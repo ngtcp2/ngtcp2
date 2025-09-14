@@ -3502,8 +3502,8 @@ Options:
               Specify UDP datagram payload sizes  to probe in Path MTU
               Discovery.  <SIZE> must be strictly larger than 1200.
   --ech-config-file=<PATH>
-              Read private  key and  ECHConfig from |PATH|.   The file
-              denoted by |PATH| must contain private key and ECHConfig
+              Read private  key and  ECHConfig from <PATH>.   The file
+              denoted by <PATH> must contain private key and ECHConfig
               as                      described                     in
               https://datatracker.ietf.org/doc/html/draft-farrell-tls-pemesni.
               ECH configuration  is only applied if  an underlying TLS
