@@ -162,6 +162,9 @@ struct Config {
   std::optional<std::vector<uint8_t>> origin_list;
   // no_gso disables GSO.
   bool no_gso;
+  // show_stat, if true, displays the connection statistics when the
+  // connection is closed.
+  bool show_stat;
 };
 
 struct Buffer {

@@ -124,6 +124,8 @@ void print_http_end_origin();
 
 std::string_view secret_title(ngtcp2_encryption_level level);
 
+void print_conn_info(ngtcp2_conn *conn);
+
 } // namespace debug
 
 } // namespace ngtcp2

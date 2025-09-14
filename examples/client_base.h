@@ -198,6 +198,9 @@ struct Config {
   const char *ech_config_list_file;
   // no_gso disables GSO.
   bool no_gso;
+  // show_stat, if true, displays the connection statistics when the
+  // connection is closed.
+  bool show_stat;
 };
 
 class ClientBase {

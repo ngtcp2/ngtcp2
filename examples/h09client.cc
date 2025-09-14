@@ -2187,6 +2187,8 @@ Options:
               configs,  if  provided by  server,  will  be written  to
               <PATH>.
   --no-gso    Disables GSO.
+  --show-stat Print the connection statistics when the connection is
+              closed.
   -h, --help  Display this help and exit.
 
 ---
@@ -2272,6 +2274,7 @@ int main(int argc, char **argv) {
       {"pmtud-probes", required_argument, &flag, 43},
       {"ech-config-list-file", required_argument, &flag, 44},
       {"no-gso", no_argument, &flag, 45},
+      {"show-stat", no_argument, &flag, 46},
       {},
     };
 
@@ -2720,6 +2723,10 @@ int main(int argc, char **argv) {
       case 45:
         // --no-gso
         config.no_gso = true;
+        break;
+      case 46:
+        // --show-stat
+        config.show_stat = true;
         break;
       }
       break;
