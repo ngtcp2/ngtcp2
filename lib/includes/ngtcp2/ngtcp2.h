@@ -5741,7 +5741,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
  *
  * This function has been available since v1.16.0.
  */
-NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_timestamp(ngtcp2_conn *conn);
+NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_timestamp(const ngtcp2_conn *conn);
 
 /**
  * @function
