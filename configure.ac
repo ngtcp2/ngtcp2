@@ -210,7 +210,8 @@ have_vanilla_openssl=no
 have_quictls=no
 have_libressl=no
 have_ossl=no
-if test "x${request_openssl}" != "xno"; then
+if test "x${request_openssl}" != "xno" ||
+   test "x${request_picotls}" = "xyes"; then
   PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
                     [have_openssl=yes], [have_openssl=no])
   if test "x${have_openssl}" = "xno"; then
@@ -222,76 +223,79 @@ if test "x${request_openssl}" != "xno"; then
 
     AC_SUBST(VANILLA_OPENSSL_LIBS)
     AC_SUBST(VANILLA_OPENSSL_CFLAGS)
+  fi
+fi
 
-    # Until OpenSSL gains mainline support for QUIC, check for a
-    # patched version.
+if test "x${request_openssl}" != "xno" &&
+   test "x${have_openssl}" = "xyes"; then
+  # Until OpenSSL gains mainline support for QUIC, check for a
+  # patched version.
 
+  save_CFLAGS="$CFLAGS"
+  save_LIBS="$LIBS"
+  CFLAGS="$OPENSSL_CFLAGS $CFLAGS"
+  LIBS="$OPENSSL_LIBS $LIBS"
+
+  AC_MSG_CHECKING([for SSL_provide_quic_data])
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <openssl/ssl.h>
+    #if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
+    #  error This is boringssl.
+    #endif /* OPENSSL_IS_BORINGSSL || OPENSSL_IS_AWSLC */
+  ]], [[
+    SSL_provide_quic_data(NULL, 0, NULL, 0);
+  ]])],
+  [AC_MSG_RESULT([yes]); have_quictls=yes],
+  [AC_MSG_RESULT([no]); have_quictls=no])
+
+  CFLAGS="$save_CFLAGS"
+  LIBS="$save_LIBS"
+
+  if test "x${have_quictls}" = "xno"; then
     save_CFLAGS="$CFLAGS"
     save_LIBS="$LIBS"
     CFLAGS="$OPENSSL_CFLAGS $CFLAGS"
     LIBS="$OPENSSL_LIBS $LIBS"
 
-    AC_MSG_CHECKING([for SSL_provide_quic_data])
+    AC_MSG_CHECKING([for SSL_set_quic_tls_cbs])
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
       #include <openssl/ssl.h>
-      #if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
-      #  error This is boringssl.
-      #endif /* OPENSSL_IS_BORINGSSL || OPENSSL_IS_AWSLC */
     ]], [[
-      SSL_provide_quic_data(NULL, 0, NULL, 0);
+      SSL_set_quic_tls_cbs(NULL, NULL, NULL);
     ]])],
-    [AC_MSG_RESULT([yes]); have_quictls=yes],
-    [AC_MSG_RESULT([no]); have_quictls=no])
+    [AC_MSG_RESULT([yes]); have_ossl=yes],
+    [AC_MSG_RESULT([no]); have_ossl=no])
 
     CFLAGS="$save_CFLAGS"
     LIBS="$save_LIBS"
 
-    if test "x${have_quictls}" = "xno"; then
-      save_CFLAGS="$CFLAGS"
-      save_LIBS="$LIBS"
-      CFLAGS="$OPENSSL_CFLAGS $CFLAGS"
-      LIBS="$OPENSSL_LIBS $LIBS"
-
-      AC_MSG_CHECKING([for SSL_set_quic_tls_cbs])
-      AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-        #include <openssl/ssl.h>
-      ]], [[
-        SSL_set_quic_tls_cbs(NULL, NULL, NULL);
-      ]])],
-      [AC_MSG_RESULT([yes]); have_ossl=yes],
-      [AC_MSG_RESULT([no]); have_ossl=no])
-
-      CFLAGS="$save_CFLAGS"
-      LIBS="$save_LIBS"
-
-      if test "x${have_ossl}" = "xno"; then
-        AC_MSG_NOTICE([openssl does not have QUIC interface, disabling it])
-        have_openssl=no
-        OPENSSL_LIBS=
-        OPENSSL_CFLAGS=
-      fi
-    else
-      save_CFLAGS="$CFLAGS"
-      save_LIBS="$LIBS"
-      CFLAGS="$OPENSSL_CFLAGS $CFLAGS"
-      LIBS="$OPENSSL_LIBS $LIBS"
-
-      AC_MSG_CHECKING([for LIBRESSL_VERSION_NUMBER])
-      AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-        #include <openssl/opensslv.h>
-      ]], [[
-        int dummy = LIBRESSL_VERSION_NUMBER;
-        (void)dummy;
-      ]])],
-      [AC_MSG_RESULT([yes]); have_libressl=yes],
-      [AC_MSG_RESULT([no]); have_libressl=no])
-      if test "x${have_libressl}" = "xyes"; then
-        have_quictls=no
-      fi
-
-      CFLAGS="$save_CFLAGS"
-      LIBS="$save_LIBS"
+    if test "x${have_ossl}" = "xno"; then
+      AC_MSG_NOTICE([openssl does not have QUIC interface, disabling it])
+      have_openssl=no
+      OPENSSL_LIBS=
+      OPENSSL_CFLAGS=
     fi
+  else
+    save_CFLAGS="$CFLAGS"
+    save_LIBS="$LIBS"
+    CFLAGS="$OPENSSL_CFLAGS $CFLAGS"
+    LIBS="$OPENSSL_LIBS $LIBS"
+
+    AC_MSG_CHECKING([for LIBRESSL_VERSION_NUMBER])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+      #include <openssl/opensslv.h>
+    ]], [[
+      int dummy = LIBRESSL_VERSION_NUMBER;
+      (void)dummy;
+    ]])],
+    [AC_MSG_RESULT([yes]); have_libressl=yes],
+    [AC_MSG_RESULT([no]); have_libressl=no])
+    if test "x${have_libressl}" = "xyes"; then
+      have_quictls=no
+    fi
+
+    CFLAGS="$save_CFLAGS"
+    LIBS="$save_LIBS"
   fi
 fi
 
