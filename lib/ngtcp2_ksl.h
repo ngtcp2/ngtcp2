@@ -133,9 +133,9 @@ typedef size_t (*ngtcp2_ksl_search)(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
     size_t i;                                                                  \
     ngtcp2_ksl_node *node;                                                     \
                                                                                \
-    for (i = 0, node = (ngtcp2_ksl_node *)(void *)blk->nodes;                  \
-         i < blk->n && COMPAR((ngtcp2_ksl_key *)node->key, key); ++i,          \
-        node = (ngtcp2_ksl_node *)(void *)((uint8_t *)node + ksl->nodelen))    \
+    for (i = 0, node = (void *)blk->nodes;                                     \
+         i < blk->n && COMPAR((ngtcp2_ksl_key *)node->key, key);               \
+         ++i, node = (void *)((uint8_t *)node + ksl->nodelen))                 \
       ;                                                                        \
                                                                                \
     return i;                                                                  \
@@ -295,7 +295,7 @@ void ngtcp2_ksl_clear(ngtcp2_ksl *ksl);
 static inline ngtcp2_ksl_node *ngtcp2_ksl_nth_node(const ngtcp2_ksl *ksl,
                                                    const ngtcp2_ksl_blk *blk,
                                                    size_t n) {
-  return (ngtcp2_ksl_node *)(void *)(blk->nodes + ksl->nodelen * n);
+  return (void *)(blk->nodes + ksl->nodelen * n);
 }
 
 #ifndef WIN32
