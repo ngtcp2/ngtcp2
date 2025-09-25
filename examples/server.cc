@@ -3959,8 +3959,7 @@ int main(int argc, char **argv) {
 
         config.origin_list->push_back(static_cast<uint8_t>(origin.size() >> 8));
         config.origin_list->push_back(origin.size() & 0xff);
-        config.origin_list->insert(config.origin_list->end(), origin.begin(),
-                                   origin.end());
+        std::ranges::copy(origin, std::back_inserter(*config.origin_list));
 
         break;
       }
