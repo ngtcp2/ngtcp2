@@ -587,7 +587,8 @@ std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);
 namespace std {
 template <> struct hash<ngtcp2_cid> {
   hash() {
-    std::ranges::copy(ngtcp2::util::generate_siphash_key(), key.begin());
+    std::ranges::copy(ngtcp2::util::generate_siphash_key(),
+                      std::ranges::begin(key));
   }
 
   std::size_t operator()(const ngtcp2_cid &cid) const noexcept {
