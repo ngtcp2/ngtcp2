@@ -1786,7 +1786,8 @@ typedef struct ngtcp2_settings {
   ngtcp2_printf log_printf;
   /**
    * :member:`max_tx_udp_payload_size` is the maximum size of UDP
-   * datagram payload that the local endpoint transmits.
+   * datagram payload that the local endpoint transmits.  This must be
+   * larger than or equal to :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`.
    */
   size_t max_tx_udp_payload_size;
   /**
