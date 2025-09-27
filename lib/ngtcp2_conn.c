@@ -12648,7 +12648,7 @@ void ngtcp2_ccerr_set_liberr(ngtcp2_ccerr *ccerr, int liberr,
                reasonlen);
 
     return;
-  };
+  }
 
   ngtcp2_ccerr_set_transport_error(
     ccerr, ngtcp2_err_infer_quic_transport_error_code(liberr), reason,

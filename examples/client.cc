@@ -3233,7 +3233,7 @@ int main(int argc, char **argv) {
       break;
     default:
       break;
-    };
+    }
   }
 
   if (argc - optind < 2) {
