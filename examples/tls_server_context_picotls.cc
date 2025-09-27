@@ -317,7 +317,7 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     ctx_.on_client_hello = &on_client_hello_hq;
 
     break;
-  };
+  }
 
   if (ngtcp2_crypto_picotls_configure_server_context(&ctx_) != 0) {
     std::cerr << "ngtcp2_crypto_picotls_configure_server_context failed"
