@@ -195,7 +195,7 @@ typedef struct ngtcp2_stream {
   uint8_t flags;
   /* CRYPTO frame does not include this field, and must set it to
      0. */
-  uint8_t fin;
+  int fin;
   /* CRYPTO frame does not include this field, and must set it to
      0. */
   int64_t stream_id;

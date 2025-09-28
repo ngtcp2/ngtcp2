@@ -766,7 +766,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
   assert_uint64(fr.type, ==, nfr.type);
   assert_uint8((NGTCP2_STREAM_OFF_BIT | NGTCP2_STREAM_LEN_BIT), ==, nfr.flags);
-  assert_uint8(fr.fin, ==, nfr.fin);
+  assert_int(fr.fin, ==, nfr.fin);
   assert_int64(fr.stream_id, ==, nfr.stream_id);
   assert_uint64(fr.offset, ==, nfr.offset);
   assert_size(1, ==, nfr.datacnt);
@@ -805,7 +805,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
   assert_uint64(fr.type, ==, nfr.type);
   assert_uint8(NGTCP2_STREAM_LEN_BIT, ==, nfr.flags);
-  assert_uint8(fr.fin, ==, nfr.fin);
+  assert_int(fr.fin, ==, nfr.fin);
   assert_int64(fr.stream_id, ==, nfr.stream_id);
   assert_uint64(fr.offset, ==, nfr.offset);
   assert_size(1, ==, nfr.datacnt);
@@ -848,7 +848,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   assert_uint8(
     (NGTCP2_STREAM_FIN_BIT | NGTCP2_STREAM_OFF_BIT | NGTCP2_STREAM_LEN_BIT), ==,
     nfr.flags);
-  assert_uint8(fr.fin, ==, nfr.fin);
+  assert_int(fr.fin, ==, nfr.fin);
   assert_int64(fr.stream_id, ==, nfr.stream_id);
   assert_uint64(fr.offset, ==, nfr.offset);
   assert_size(1, ==, nfr.datacnt);
@@ -1583,7 +1583,7 @@ void test_ngtcp2_pkt_encode_crypto_frame(void) {
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
   assert_uint64(fr.type, ==, nfr.type);
   assert_uint8(fr.flags, ==, nfr.flags);
-  assert_uint8(fr.fin, ==, nfr.fin);
+  assert_int(fr.fin, ==, nfr.fin);
   assert_int64(fr.stream_id, ==, nfr.stream_id);
   assert_uint64(fr.offset, ==, nfr.offset);
   assert_size(fr.datacnt, ==, nfr.datacnt);

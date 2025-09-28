@@ -3459,7 +3459,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint64_t crypto_offset;
   uint64_t stream_offset;
   ngtcp2_ssize num_reclaimed;
-  int fin;
   uint64_t target_max_data;
   ngtcp2_conn_stat *cstat = &conn->cstat;
   uint64_t delta;
@@ -4154,9 +4153,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     nfrc->fr.stream.datacnt = datacnt;
     ngtcp2_vec_copy(nfrc->fr.stream.data, data, datacnt);
 
-    fin = (vmsg->stream.flags & NGTCP2_WRITE_STREAM_FLAG_FIN) &&
-          ndatalen == datalen;
-    nfrc->fr.stream.fin = (uint8_t)fin;
+    nfrc->fr.stream.fin = (vmsg->stream.flags & NGTCP2_WRITE_STREAM_FLAG_FIN) &&
+                          ndatalen == datalen;
 
     rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
     if (rv != 0) {
@@ -4175,7 +4173,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     conn->tx.offset += ndatalen;
     vmsg->stream.strm->flags |= NGTCP2_STRM_FLAG_ANY_SENT;
 
-    if (fin) {
+    if (nfrc->fr.stream.fin) {
       ngtcp2_strm_shutdown(vmsg->stream.strm, NGTCP2_STRM_FLAG_SHUT_WR);
     }
 
