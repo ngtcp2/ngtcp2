@@ -533,7 +533,7 @@ std::vector<std::string_view> split_str(const std::string_view &s,
                                         char delim = ',');
 
 // parse_version parses |s| to get 4 byte QUIC version.  |s| must be a
-// hex string and must start with "0x" (.e.g, 0x00000001).
+// hex string and must start with "0x" (e.g., 0x00000001).
 std::optional<uint32_t> parse_version(const std::string_view &s);
 
 // read_file reads a file denoted by |path| and returns its content.
