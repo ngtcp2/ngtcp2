@@ -254,7 +254,7 @@ typedef struct ngtcp2_cc {
   ngtcp2_cc_on_pkt_lost on_pkt_lost;
   /**
    * :member:`congestion_event` is a callback function which is called
-   * when congestion event happens (.e.g, packet is lost).
+   * when congestion event happens (e.g., packet is lost).
    */
   ngtcp2_cc_congestion_event congestion_event;
   /**
