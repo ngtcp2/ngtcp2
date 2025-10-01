@@ -61,14 +61,16 @@ void ngtcp2_rst_reset(ngtcp2_rst *rst) {
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
                             const ngtcp2_conn_stat *cstat) {
-  if (cstat->bytes_in_flight == 0) {
+  /* cstat->bytes_in_flight includes ent->pktlen.  If they are the
+     same, there is no in-flight packets. */
+  if (cstat->bytes_in_flight == ent->pktlen) {
     rst->first_sent_ts = rst->delivered_ts = ent->ts;
   }
   ent->rst.first_sent_ts = rst->first_sent_ts;
   ent->rst.delivered_ts = rst->delivered_ts;
   ent->rst.delivered = rst->delivered;
   ent->rst.is_app_limited = rst->app_limited != 0;
-  ent->rst.tx_in_flight = cstat->bytes_in_flight + ent->pktlen;
+  ent->rst.tx_in_flight = cstat->bytes_in_flight;
   ent->rst.lost = rst->lost;
   ent->rst.end_seq = ++rst->last_seq;
 }

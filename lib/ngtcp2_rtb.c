@@ -128,13 +128,12 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
 
 static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
                        ngtcp2_conn_stat *cstat) {
-  ngtcp2_rst_on_pkt_sent(rtb->rst, ent, cstat);
-
   assert(rtb->cc_pkt_num <= ent->hd.pkt_num);
 
   cstat->bytes_in_flight += ent->pktlen;
   rtb->cc_bytes_in_flight += ent->pktlen;
 
+  ngtcp2_rst_on_pkt_sent(rtb->rst, ent, cstat);
   ngtcp2_rst_update_app_limited(rtb->rst, cstat);
 
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) {
