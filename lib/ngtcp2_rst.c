@@ -59,6 +59,15 @@ void ngtcp2_rst_reset(ngtcp2_rst *rst) {
   rst->lost = 0;
 }
 
+void ngtcp2_rst_reset_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
+  ngtcp2_rs *rs = &rst->rs;
+
+  rs->interval = UINT64_MAX;
+  rs->prior_ts = UINT64_MAX;
+
+  cstat->delivery_rate_sec = 0;
+}
+
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
                             const ngtcp2_conn_stat *cstat) {
   /* cstat->bytes_in_flight includes ent->pktlen.  If they are the
@@ -91,7 +100,6 @@ void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
   rs->delivered = rst->delivered - rs->prior_delivered;
 
   if (rs->interval < cstat->min_rtt) {
-    rs->interval = UINT64_MAX;
     return;
   }
 

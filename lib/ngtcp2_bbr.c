@@ -568,7 +568,8 @@ static void bbr_update_max_bw(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack) {
   bbr_update_round(bbr, ack);
 
-  if (cstat->delivery_rate_sec >= bbr->max_bw || !bbr->rst->rs.is_app_limited) {
+  if (cstat->delivery_rate_sec && (cstat->delivery_rate_sec >= bbr->max_bw ||
+                                   !bbr->rst->rs.is_app_limited)) {
     ngtcp2_window_filter_update(&bbr->max_bw_filter, cstat->delivery_rate_sec,
                                 bbr->cycle_count);
 
