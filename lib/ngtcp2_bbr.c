@@ -201,9 +201,8 @@ static void bbr_note_loss(ngtcp2_cc_bbr *bbr);
 static void bbr_handle_lost_packet(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
 
-static uint64_t
-bbr_inflight_longterm_from_lost_packet(ngtcp2_cc_bbr *bbr,
-                                       const ngtcp2_cc_pkt *pkt);
+static uint64_t bbr_inflight_at_loss(ngtcp2_cc_bbr *bbr,
+                                     const ngtcp2_cc_pkt *pkt);
 
 static void bbr_update_min_rtt(ngtcp2_cc_bbr *bbr, const ngtcp2_cc_ack *ack,
                                ngtcp2_tstamp ts);
@@ -568,7 +567,8 @@ static void bbr_update_max_bw(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack) {
   bbr_update_round(bbr, ack);
 
-  if (cstat->delivery_rate_sec >= bbr->max_bw || !bbr->rst->rs.is_app_limited) {
+  if (cstat->delivery_rate_sec && (cstat->delivery_rate_sec >= bbr->max_bw ||
+                                   !bbr->rst->rs.is_app_limited)) {
     ngtcp2_window_filter_update(&bbr->max_bw_filter, cstat->delivery_rate_sec,
                                 bbr->cycle_count);
 
@@ -974,15 +974,14 @@ static void bbr_handle_lost_packet(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
   rs->is_app_limited = pkt->is_app_limited;
 
   if (bbr_is_inflight_too_high(bbr)) {
-    rs->tx_in_flight = bbr_inflight_longterm_from_lost_packet(bbr, pkt);
+    rs->tx_in_flight = bbr_inflight_at_loss(bbr, pkt);
 
     bbr_handle_inflight_too_high(bbr, cstat, ts);
   }
 }
 
-static uint64_t
-bbr_inflight_longterm_from_lost_packet(ngtcp2_cc_bbr *bbr,
-                                       const ngtcp2_cc_pkt *pkt) {
+static uint64_t bbr_inflight_at_loss(ngtcp2_cc_bbr *bbr,
+                                     const ngtcp2_cc_pkt *pkt) {
   ngtcp2_rs *rs = &bbr->rst->rs;
   uint64_t inflight_prev, lost_prev, lost_prefix;
   (void)bbr;
