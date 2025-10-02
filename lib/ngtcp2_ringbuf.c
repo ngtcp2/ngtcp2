@@ -32,18 +32,41 @@
 #include "ngtcp2_macro.h"
 
 #ifndef NDEBUG
-static int ispow2(size_t n) {
+/* Provide fastest path when POPCNT is available: we detect once and then
+   call the selected implementation without an extra branch each time. */
 #  if defined(_MSC_VER) && !defined(__clang__) &&                              \
     (defined(_M_ARM) || (defined(_M_ARM64) && _MSC_VER < 1941))
+static int ispow2(size_t n) { /* Simple portable fallback */
   return n && !(n & (n - 1));
-#  elif defined(WIN32)
-  return 1 == __popcnt((unsigned int)n);
-#  else  /* !((defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) || \
-            (defined(_M_ARM64) && _MSC_VER < 1941))) || defined(WIN32)) */
-  return 1 == __builtin_popcount((unsigned int)n);
-#  endif /* !((defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM) || \
-            (defined(_M_ARM64) && _MSC_VER < 1941))) || defined(WIN32)) */
 }
+#  elif defined(WIN32)
+#    if defined(_M_IX86) || defined(_M_X64)
+static int ispow2_popcnt(size_t n) { return 1 == __popcnt((unsigned int)n); }
+#    endif /* x86/x64 */
+static int ispow2_fallback(size_t n) { return n && !(n & (n - 1)); }
+#    if defined(_M_IX86) || defined(_M_X64)
+static int ispow2_runtime(size_t n) {
+  int info[4] = {0};
+  __cpuid(info, 1);
+  /* ECX bit 23 indicates POPCNT support */
+  if (info[2] & (1 << 23)) {
+    /* Publish chosen implementation; benign data race acceptable in debug */
+    extern int (*ngtcp2_ispow2_impl)(size_t); /* forward */
+    ngtcp2_ispow2_impl = ispow2_popcnt;
+  } else {
+    extern int (*ngtcp2_ispow2_impl)(size_t);
+    ngtcp2_ispow2_impl = ispow2_fallback;
+  }
+  return ngtcp2_ispow2_impl(n);
+}
+static int (*ngtcp2_ispow2_impl)(size_t) = ispow2_runtime;
+static int ispow2(size_t n) { return ngtcp2_ispow2_impl(n); }
+#    else  /* non x86/x64 WIN32 (e.g. ARM) */
+static int ispow2(size_t n) { return ispow2_fallback(n); }
+#    endif /* defined(_M_IX86) || defined(_M_X64) */
+#  else  /* other toolchains */
+static int ispow2(size_t n) { return 1 == __builtin_popcount((unsigned int)n); }
+#  endif /* platform selection */
 #endif /* !defined(NDEBUG) */
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
