@@ -156,8 +156,8 @@ static void cubic_vars_reset(ngtcp2_cubic_vars *v) {
 
   v->app_limited_start_ts = UINT64_MAX;
   v->app_limited_duration = 0;
-  v->pending_bytes_delivered = 0;
-  v->pending_est_bytes_delivered = 0;
+  v->pending_bytes_acked = 0;
+  v->pending_est_bytes_acked = 0;
 }
 
 static void cubic_cc_reset(ngtcp2_cc_cubic *cubic) {
@@ -266,6 +266,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
   uint64_t w_cubic, w_cubic_next;
   uint64_t target, m;
+  uint64_t bytes_acked;
   ngtcp2_duration rtt_thresh;
   int round_start;
   int is_app_limited =
@@ -379,23 +380,32 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     target = w_cubic_next;
   }
 
-  m = ack->bytes_delivered * cstat->max_tx_udp_payload_size +
-      cubic->current.pending_est_bytes_delivered;
-  cubic->current.pending_est_bytes_delivered = m % cstat->cwnd;
+  bytes_acked = ack->bytes_delivered * cstat->max_tx_udp_payload_size;
+  m = (bytes_acked + cubic->current.pending_est_bytes_acked) / cstat->cwnd;
+
+  cubic->current.pending_est_bytes_acked += bytes_acked;
+  cubic->current.pending_est_bytes_acked -= m * cstat->cwnd;
+
+  assert(cubic->current.pending_est_bytes_acked < cstat->cwnd);
 
   if (cubic->current.w_est < cubic->current.cwnd_prior) {
-    cubic->current.w_est += m * 9 / 17 / cstat->cwnd;
+    cubic->current.w_est += m * 9 / 17;
   } else {
-    cubic->current.w_est += m / cstat->cwnd;
+    cubic->current.w_est += m;
   }
 
   if (cubic->current.w_est > w_cubic) {
     cstat->cwnd = cubic->current.w_est;
   } else {
-    m = (target - cstat->cwnd) * cstat->max_tx_udp_payload_size +
-        cubic->current.pending_bytes_delivered;
-    cubic->current.pending_bytes_delivered = m % cstat->cwnd;
-    cstat->cwnd += m / cstat->cwnd;
+    bytes_acked = (target - cstat->cwnd) * cstat->max_tx_udp_payload_size;
+    m = (bytes_acked + cubic->current.pending_bytes_acked) / cstat->cwnd;
+
+    cubic->current.pending_bytes_acked += bytes_acked;
+    cubic->current.pending_bytes_acked -= m * cstat->cwnd;
+
+    assert(cubic->current.pending_bytes_acked < cstat->cwnd);
+
+    cstat->cwnd += m;
   }
 
   ngtcp2_log_infof(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
@@ -428,8 +438,8 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   cubic->current.epoch_start = ts;
   cubic->current.app_limited_start_ts = UINT64_MAX;
   cubic->current.app_limited_duration = 0;
-  cubic->current.pending_bytes_delivered = 0;
-  cubic->current.pending_est_bytes_delivered = 0;
+  cubic->current.pending_bytes_acked = 0;
+  cubic->current.pending_est_bytes_acked = 0;
 
   if (cstat->cwnd < cubic->current.w_max) {
     cubic->current.w_max = cstat->cwnd * 17 / 20;

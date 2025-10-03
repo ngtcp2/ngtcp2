@@ -340,8 +340,8 @@ typedef struct ngtcp2_cubic_vars {
   /* app_limited_duration is the cumulative duration where a
      connection is under app limited when ACK is received. */
   ngtcp2_duration app_limited_duration;
-  uint64_t pending_bytes_delivered;
-  uint64_t pending_est_bytes_delivered;
+  uint64_t pending_bytes_acked;
+  uint64_t pending_est_bytes_acked;
 } ngtcp2_cubic_vars;
 
 /* ngtcp2_cc_cubic is CUBIC congestion controller. */
