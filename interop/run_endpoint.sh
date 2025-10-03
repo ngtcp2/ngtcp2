@@ -50,7 +50,7 @@ if [ "$ROLE" == "client" ]; then
             ;;
     esac
     if [ "$TESTCASE" == "resumption" ] || [ "$TESTCASE" == "zerortt" ]; then
-        CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt --wait-for-ticket"
+        CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt --wait-for-ticket -q"
         if [ "$TESTCASE" == "resumption" ]; then
             CLIENT_ARGS="$CLIENT_ARGS --disable-early-data"
         fi
@@ -73,7 +73,7 @@ elif [ "$ROLE" == "server" ]; then
     else
         SERVER_BIN="/usr/local/bin/h09wsslserver"
     fi
-    SERVER_ARGS="/certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR --cc bbr --initial-rtt 100ms --show-stat"
+    SERVER_ARGS="/certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR --cc bbr --initial-rtt 100ms --show-stat -q"
     case "$TESTCASE" in
         "retry")
             SERVER_ARGS="$SERVER_ARGS -V"
