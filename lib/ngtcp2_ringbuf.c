@@ -34,7 +34,7 @@
 #ifndef NDEBUG
 /* Power-of-two test; simple portable bit trick. */
 static int ispow2(size_t n) { return n && !(n & (n - 1)); }
-#endif /* !NDEBUG */
+#endif /* !defined(NDEBUG) */
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         const ngtcp2_mem *mem) {
