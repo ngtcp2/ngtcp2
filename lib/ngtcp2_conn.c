@@ -1203,6 +1203,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   for (i = 0; i < settings->pmtud_probeslen; ++i) {
     assert(settings->pmtud_probes[i] > NGTCP2_MAX_UDP_PAYLOAD_SIZE);
+    assert(settings->pmtud_probes[i] <= NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE);
   }
 
   if (mem == NULL) {

@@ -3798,8 +3798,8 @@ int main(int argc, char **argv) {
         if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-udp-payload-size: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
-        } else if (*n > 64_k) {
-          std::cerr << "max-udp-payload-size: must not exceed 65536"
+        } else if (*n > 65527) {
+          std::cerr << "max-udp-payload-size: must not exceed 65527"
                     << std::endl;
           exit(EXIT_FAILURE);
         } else {
@@ -3930,9 +3930,9 @@ int main(int argc, char **argv) {
           if (auto n = util::parse_uint_iec(s); !n) {
             std::cerr << "pmtud-probes: invalid argument" << std::endl;
             exit(EXIT_FAILURE);
-          } else if (*n <= 1200 || *n >= 64_k) {
+          } else if (*n <= 1200 || *n > 65527) {
             std::cerr
-              << "pmtud-probes: must be in range [1201, 65535], inclusive."
+              << "pmtud-probes: must be in range [1201, 65527], inclusive."
               << std::endl;
             exit(EXIT_FAILURE);
           } else {

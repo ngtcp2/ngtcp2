@@ -105,7 +105,8 @@
 
 /* NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE is the maximum UDP datagram
    payload size that this library can write. */
-#define NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE ((1 << 24) - 1)
+#define NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE                                       \
+  NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE
 
 /* NGTCP2_PKT_LENGTHLEN is the number of bytes that is occupied by
    Length field in Long packet header. */

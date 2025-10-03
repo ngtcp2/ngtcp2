@@ -1787,7 +1787,8 @@ typedef struct ngtcp2_settings {
   /**
    * :member:`max_tx_udp_payload_size` is the maximum size of UDP
    * datagram payload that the local endpoint transmits.  This must be
-   * larger than or equal to :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`.
+   * larger than or equal to :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`, and
+   * less then or equal to 65527.
    */
   size_t max_tx_udp_payload_size;
   /**
@@ -1952,12 +1953,12 @@ typedef struct ngtcp2_settings {
   /**
    * :member:`pmtud_probes` is the array of UDP datagram payload size
    * to probe during Path MTU Discovery.  The discovery is done in the
-   * order appeared in this array.  The size must be strictly larger
-   * than 1200, otherwise the behavior is undefined.  The maximum
-   * value in this array should be set to
-   * :member:`max_tx_udp_payload_size`.  If this field is not set, the
-   * predefined PMTUD probes are made.  This field has been available
-   * since v1.4.0.
+   * order appeared in this array.  The payload size must be strictly
+   * larger than 1200, and less than or equal to 65527.  Otherwise the
+   * behavior is undefined.  The maximum value in this array should be
+   * set to :member:`max_tx_udp_payload_size`.  If this field is not
+   * set, the predefined PMTUD probes are made.  This field has been
+   * available since v1.4.0.
    */
   const uint16_t *pmtud_probes;
   /**
