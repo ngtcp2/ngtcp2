@@ -1294,10 +1294,6 @@ static void bbr_cc_on_pkt_lost(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
   ngtcp2_cc_bbr *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr, cc);
 
-  if(bbr) {
-    return;
-  }
-
   bbr_update_on_loss(bbr, cstat, pkt, ts);
 }
 
