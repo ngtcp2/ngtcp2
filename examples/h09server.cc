@@ -1032,7 +1032,7 @@ int Handler::write_streams() {
   auto ts = util::timestamp();
   auto txbuf = std::span{
     tx_.data.get(),
-    no_gso_ ? ngtcp2_conn_get_max_tx_udp_payload_size(conn_) : NGTCP2_TX_BUFLEN,
+    NGTCP2_TX_BUFLEN,
   };
 
   ngtcp2_path_storage_zero(&ps);
