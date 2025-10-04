@@ -49,6 +49,7 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
         provenance: false
+        build-args: NGTCP2_BRANCH=debug
     - name: Export digest
       run: |
         mkdir -p /tmp/digests
