@@ -1328,7 +1328,7 @@ static void bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     return;
   }
 
-  //  bbr->congestion_recovery_start_ts = ts;
+  bbr->congestion_recovery_start_ts = ts;
 }
 
 static void bbr_cc_on_spurious_congestion(ngtcp2_cc *cc,
