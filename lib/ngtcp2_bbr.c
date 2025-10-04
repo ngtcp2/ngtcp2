@@ -190,11 +190,11 @@ static int bbr_is_reno_coexistence_probe_time(ngtcp2_cc_bbr *bbr,
 static uint64_t bbr_target_inflight(ngtcp2_cc_bbr *bbr,
                                     ngtcp2_conn_stat *cstat);
 
-static int bbr_is_inflight_too_high(ngtcp2_cc_bbr *bbr);
+static int bbr_is_inflight_too_high(ngtcp2_cc_bbr *bbr, const ngtcp2_rs *rs);
 
 static void bbr_handle_inflight_too_high(ngtcp2_cc_bbr *bbr,
                                          ngtcp2_conn_stat *cstat,
-                                         ngtcp2_tstamp ts);
+                                         const ngtcp2_rs *rs, ngtcp2_tstamp ts);
 
 static void bbr_note_loss(ngtcp2_cc_bbr *bbr);
 
@@ -202,7 +202,8 @@ static void bbr_handle_lost_packet(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
 
 static uint64_t bbr_inflight_at_loss(ngtcp2_cc_bbr *bbr,
-                                     const ngtcp2_cc_pkt *pkt);
+                                     const ngtcp2_cc_pkt *pkt,
+                                     const ngtcp2_rs *rs);
 
 static void bbr_update_min_rtt(ngtcp2_cc_bbr *bbr, const ngtcp2_cc_ack *ack,
                                ngtcp2_tstamp ts);
@@ -392,7 +393,7 @@ static void bbr_check_startup_high_loss(ngtcp2_cc_bbr *bbr) {
   if (bbr->full_bw_reached || bbr->loss_events_in_round <= 6 ||
       (bbr->in_loss_recovery &&
        bbr->round_count <= bbr->round_count_at_recovery) ||
-      !bbr_is_inflight_too_high(bbr)) {
+      !bbr_is_inflight_too_high(bbr, &bbr->rst->rs)) {
     return;
   }
 
@@ -880,7 +881,7 @@ static void bbr_adapt_longterm_model(ngtcp2_cc_bbr *bbr,
     }
   }
 
-  if (!bbr_is_inflight_too_high(bbr)) {
+  if (!bbr_is_inflight_too_high(bbr, &bbr->rst->rs)) {
     if (bbr->inflight_longterm == UINT64_MAX) {
       return;
     }
@@ -926,17 +927,16 @@ static uint64_t bbr_target_inflight(ngtcp2_cc_bbr *bbr,
   return ngtcp2_min_uint64(bbr->bdp, cstat->cwnd);
 }
 
-static int bbr_is_inflight_too_high(ngtcp2_cc_bbr *bbr) {
-  const ngtcp2_rs *rs = &bbr->rst->rs;
+static int bbr_is_inflight_too_high(ngtcp2_cc_bbr *bbr, const ngtcp2_rs *rs) {
+  (void)bbr;
   return rs->lost * NGTCP2_BBR_LOSS_THRESH_DENOM >
          rs->tx_in_flight * NGTCP2_BBR_LOSS_THRESH_NUMER;
 }
 
 static void bbr_handle_inflight_too_high(ngtcp2_cc_bbr *bbr,
                                          ngtcp2_conn_stat *cstat,
+                                         const ngtcp2_rs *rs,
                                          ngtcp2_tstamp ts) {
-  const ngtcp2_rs *rs = &bbr->rst->rs;
-
   bbr->bw_probe_samples = 0;
 
   if (!rs->is_app_limited) {
@@ -960,7 +960,7 @@ static void bbr_note_loss(ngtcp2_cc_bbr *bbr) {
 
 static void bbr_handle_lost_packet(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
-  ngtcp2_rs *rs = &bbr->rst->rs;
+  ngtcp2_rs rs = {0};
 
   bbr_note_loss(bbr);
 
@@ -968,21 +968,21 @@ static void bbr_handle_lost_packet(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
     return;
   }
 
-  rs->tx_in_flight = pkt->tx_in_flight;
+  rs.tx_in_flight = pkt->tx_in_flight;
   assert(bbr->rst->lost >= pkt->lost);
-  rs->lost = bbr->rst->lost - pkt->lost;
-  rs->is_app_limited = pkt->is_app_limited;
+  rs.lost = bbr->rst->lost - pkt->lost;
+  rs.is_app_limited = pkt->is_app_limited;
 
-  if (bbr_is_inflight_too_high(bbr)) {
-    rs->tx_in_flight = bbr_inflight_at_loss(bbr, pkt);
+  if (bbr_is_inflight_too_high(bbr, &rs)) {
+    rs.tx_in_flight = bbr_inflight_at_loss(bbr, pkt, &rs);
 
-    bbr_handle_inflight_too_high(bbr, cstat, ts);
+    bbr_handle_inflight_too_high(bbr, cstat, &rs, ts);
   }
 }
 
 static uint64_t bbr_inflight_at_loss(ngtcp2_cc_bbr *bbr,
-                                     const ngtcp2_cc_pkt *pkt) {
-  ngtcp2_rs *rs = &bbr->rst->rs;
+                                     const ngtcp2_cc_pkt *pkt,
+                                     const ngtcp2_rs *rs) {
   uint64_t inflight_prev, lost_prev, lost_prefix;
   (void)bbr;
 
