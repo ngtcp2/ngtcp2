@@ -272,7 +272,8 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   int is_app_limited =
     cubic->rst->rs.is_app_limited && !cubic->rst->is_cwnd_limited;
 
-  if (in_congestion_recovery(cstat, ack->largest_pkt_sent_ts)) {
+  if (ack->bytes_delivered == 0 ||
+      in_congestion_recovery(cstat, ack->largest_pkt_sent_ts)) {
     return;
   }
 

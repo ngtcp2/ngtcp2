@@ -1364,6 +1364,11 @@ static void bbr_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   ngtcp2_cc_bbr *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr, cc);
 
   bbr_handle_recovery(bbr, cstat, ack);
+
+  if (ack->bytes_delivered == 0) {
+    return;
+  }
+
   bbr_update_on_ack(bbr, cstat, ack, ts);
 }
 
