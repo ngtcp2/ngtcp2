@@ -47,7 +47,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
     log->scid[0] = '\0';
   }
   log->log_printf = log_printf;
-  log->events = 0xff;
+  log->events = NGTCP2_LOG_EVENT_CCA;
   log->ts = log->last_ts = ts;
   log->user_data = user_data;
 }

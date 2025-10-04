@@ -1440,7 +1440,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
 
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
-  settings.log_printf = config.quiet ? nullptr : debug::log_printf;
+  settings.log_printf = debug::log_printf;
   settings.initial_ts = util::timestamp();
   settings.token = token.data();
   settings.tokenlen = token.size();
