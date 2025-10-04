@@ -121,6 +121,9 @@ jobs:
       run: |
         pip install -U pip
         pip install -r requirements.txt
+    - name: Pull ngtcp2 image
+      run: |
+        docker pull ghcr.io/ngtcp2/ngtcp2-interop:debug
     - name: Run tests
       run: |
         tests="${{ inputs.tests }}"
