@@ -5716,14 +5716,19 @@ typedef ngtcp2_ssize (*ngtcp2_write_pkt)(ngtcp2_conn *conn, ngtcp2_path *path,
  * first packet is `ngtcp2_conn_get_path_max_tx_udp_payload_size(conn)
  * <ngtcp2_conn_get_path_max_tx_udp_payload_size>` bytes long.  The
  * application can adjust the length of the buffer to limit the number
- * of packets to aggregate.  If this function returns positive
- * integer, all packets share the same :type:`ngtcp2_path` and
- * :type:`ngtcp2_pkt_info` values, and they are assigned to the
- * objects pointed by |path| and |pi| respectively.  The length of all
- * packets other than the last packet is assigned to |*pgsolen|.  The
- * length of last packet is equal to or less than |*pgsolen|.
- * |write_pkt| must write a single packet.  After all packets are
- * written, this function calls `ngtcp2_conn_update_pkt_tx_time`.
+ * of packets to aggregate (or use `ngtcp2_conn_write_aggregate_pkt2`
+ * to control the number of packets to write directly).  If this
+ * function returns positive integer, all packets share the same
+ * :type:`ngtcp2_path` and :type:`ngtcp2_pkt_info` values, and they
+ * are assigned to the objects pointed by |path| and |pi|
+ * respectively.  The length of all packets other than the last packet
+ * is assigned to |*pgsolen|.  The length of last packet is equal to
+ * or less than |*pgsolen|.  |write_pkt| must write a single packet.
+ * After all packets are written, this function calls
+ * `ngtcp2_conn_update_pkt_tx_time`.
+ *
+ * This function is equivalent to call
+ * `ngtcp2_conn_write_aggregate_pkt2` with num_pkts = 0.
  *
  * This function returns the number of bytes written to the buffer, or
  * a negative error code returned by |write_pkt|.
@@ -5734,6 +5739,24 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
   ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
   ngtcp2_pkt_info *pi, uint8_t *buf, size_t buflen, size_t *pgsolen,
   ngtcp2_write_pkt write_pkt, ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_write_aggregate_pkt2` behaves like
+ * `ngtcp2_conn_write_aggregate_pkt`, but it accepts |num_pkts| to
+ * specify the maximum number of packets to write.  If |num_pkts| is
+ * 0, this function writes packets as much as possible.  The actual
+ * number of packets to write is determined by the connection state
+ * (e.g., the congestion controller, data available to send) and the
+ * length of packet produced.
+ *
+ * This function has been available since v1.17.0.
+ */
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt2_versioned(
+  ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
+  ngtcp2_pkt_info *pi, uint8_t *buf, size_t buflen, size_t *pgsolen,
+  ngtcp2_write_pkt write_pkt, size_t num_pkts, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -6141,6 +6164,17 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
   ngtcp2_conn_write_aggregate_pkt_versioned(                                   \
     (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (BUF), (BUFLEN), (PGSOLEN), \
     (WRITE_PKT), (TS))
+
+/*
+ * `ngtcp2_conn_write_aggregate_pkt2` is a wrapper around
+ * `ngtcp2_conn_write_aggregate_pkt2_versioned` to set the correct
+ * struct version.
+ */
+#define ngtcp2_conn_write_aggregate_pkt2(CONN, PATH, PI, BUF, BUFLEN, PGSOLEN, \
+                                         WRITE_PKT, NUM_PKTS, TS)              \
+  ngtcp2_conn_write_aggregate_pkt2_versioned(                                  \
+    (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (BUF), (BUFLEN), (PGSOLEN), \
+    (WRITE_PKT), (NUM_PKTS), (TS))
 
 /*
  * `ngtcp2_settings_default` is a wrapper around
