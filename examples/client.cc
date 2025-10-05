@@ -1157,10 +1157,7 @@ int Client::write_streams() {
   ngtcp2_pkt_info pi;
   size_t gso_size;
   auto ts = util::timestamp();
-  auto txbuf = std::span{
-    tx_.data.data(),
-    no_gso_ ? ngtcp2_conn_get_max_tx_udp_payload_size(conn_) : tx_.data.size(),
-  };
+  auto txbuf = std::span{tx_.data};
 
   ngtcp2_path_storage_zero(&ps);
 
