@@ -89,11 +89,6 @@ typedef struct ngtcp2_cc_pkt {
  */
 typedef struct ngtcp2_cc_ack {
   /**
-   * :member:`prior_bytes_in_flight` is the in-flight bytes before
-   * processing this ACK.
-   */
-  uint64_t prior_bytes_in_flight;
-  /**
    * :member:`bytes_delivered` is the number of bytes acknowledged.
    */
   uint64_t bytes_delivered;

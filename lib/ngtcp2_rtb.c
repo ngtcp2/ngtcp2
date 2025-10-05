@@ -796,7 +796,6 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   size_t ecn_acked = 0;
   int verify_ecn = 0;
   ngtcp2_cc_ack cc_ack = {
-    .prior_bytes_in_flight = cstat->bytes_in_flight,
     .largest_pkt_sent_ts = UINT64_MAX,
     .rtt = UINT64_MAX,
   };
