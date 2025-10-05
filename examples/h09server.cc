@@ -1034,9 +1034,9 @@ int Handler::write_streams() {
 
   ngtcp2_path_storage_zero(&ps);
 
-  auto nwrite =
-    ngtcp2_conn_write_aggregate_pkt(conn_, &ps.path, &pi, txbuf.data(),
-                                    txbuf.size(), &gso_size, ::write_pkt, ts);
+  auto nwrite = ngtcp2_conn_write_aggregate_pkt2(
+    conn_, &ps.path, &pi, txbuf.data(), txbuf.size(), &gso_size, ::write_pkt,
+    config.gso_burst, ts);
   if (nwrite < 0) {
     return handle_error();
   }
@@ -2785,6 +2785,12 @@ Options:
   --no-gso    Disables GSO.
   --show-stat Print the connection statistics when the connection is
               closed.
+  --gso-burst=<N>
+              The maximum number of packets  to aggregate for GSO.  If
+              GSO is disabled,  this is the maximum  number of packets
+              to send  per an event  loop in a single  connection.  It
+              defaults  to 0,  which means  it is  not limited  by the
+              configuration.
   -h, --help  Display this help and exit.
 
 ---
@@ -2859,6 +2865,7 @@ int main(int argc, char **argv) {
       {"ech-config-file", required_argument, &flag, 33},
       {"no-gso", no_argument, &flag, 35},
       {"show-stat", no_argument, &flag, 36},
+      {"gso-burst", required_argument, &flag, 37},
       {},
     };
 
@@ -3220,6 +3227,24 @@ int main(int argc, char **argv) {
         // --show-stat
         config.show_stat = true;
         break;
+      case 37: {
+        // --gso-burst
+        auto n = util::parse_uint(optarg);
+        if (!n) {
+          std::cerr << "gso-burst: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        }
+
+        if (*n > 64) {
+          std::cerr << "gso-burst: must be in range [0, 64], inclusive."
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        }
+
+        config.gso_burst = static_cast<size_t>(*n);
+
+        break;
+      }
       }
       break;
     default:
