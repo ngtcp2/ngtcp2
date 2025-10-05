@@ -334,8 +334,6 @@ static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 
   bbr->max_inflight = 0;
 
-  bbr->congestion_recovery_start_ts = UINT64_MAX;
-
   bbr->bdp = 0;
 }
 
@@ -1279,28 +1277,15 @@ static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
 
 static void bbr_handle_recovery(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                                 const ngtcp2_cc_ack *ack) {
-  if (bbr->in_loss_recovery) {
-    if (ack->largest_pkt_sent_ts != UINT64_MAX &&
-        !in_congestion_recovery(cstat, ack->largest_pkt_sent_ts)) {
-      bbr->in_loss_recovery = 0;
-      bbr->round_count_at_recovery = UINT64_MAX;
-      bbr_restore_cwnd(bbr, cstat);
-    }
-
+  if (!bbr->in_loss_recovery) {
     return;
   }
 
-  if (bbr->congestion_recovery_start_ts != UINT64_MAX) {
-    bbr->in_loss_recovery = 1;
-    bbr->round_count_at_recovery =
-      bbr->round_start ? bbr->round_count : bbr->round_count + 1;
-    bbr_save_cwnd(bbr, cstat);
-    cstat->cwnd =
-      cstat->bytes_in_flight +
-      ngtcp2_max_uint64(ack->bytes_delivered, cstat->max_tx_udp_payload_size);
-
-    cstat->congestion_recovery_start_ts = bbr->congestion_recovery_start_ts;
-    bbr->congestion_recovery_start_ts = UINT64_MAX;
+  if (ack->largest_pkt_sent_ts != UINT64_MAX &&
+      !in_congestion_recovery(cstat, ack->largest_pkt_sent_ts)) {
+    bbr->in_loss_recovery = 0;
+    bbr->round_count_at_recovery = UINT64_MAX;
+    bbr_restore_cwnd(bbr, cstat);
   }
 }
 
@@ -1312,18 +1297,24 @@ static void bbr_cc_on_pkt_lost(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 }
 
 static void bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                    ngtcp2_tstamp sent_ts, uint64_t bytes_lost,
+                                    ngtcp2_tstamp sent_ts,
+                                    const ngtcp2_cc_ack *ack,
                                     ngtcp2_tstamp ts) {
   ngtcp2_cc_bbr *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr, cc);
-  (void)bytes_lost;
 
-  if (bbr->in_loss_recovery ||
-      bbr->congestion_recovery_start_ts != UINT64_MAX ||
-      in_congestion_recovery(cstat, sent_ts)) {
+  if (bbr->in_loss_recovery || in_congestion_recovery(cstat, sent_ts)) {
     return;
   }
 
-  bbr->congestion_recovery_start_ts = ts;
+  bbr->in_loss_recovery = 1;
+  bbr->round_count_at_recovery =
+    bbr->round_start ? bbr->round_count : bbr->round_count + 1;
+  bbr_save_cwnd(bbr, cstat);
+  cstat->cwnd =
+    cstat->bytes_in_flight +
+    ngtcp2_max_uint64(ack->bytes_delivered, cstat->max_tx_udp_payload_size);
+
+  cstat->congestion_recovery_start_ts = ts;
 }
 
 static void bbr_cc_on_spurious_congestion(ngtcp2_cc *cc,
@@ -1332,7 +1323,6 @@ static void bbr_cc_on_spurious_congestion(ngtcp2_cc *cc,
   ngtcp2_cc_bbr *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr, cc);
   (void)ts;
 
-  bbr->congestion_recovery_start_ts = UINT64_MAX;
   cstat->congestion_recovery_start_ts = UINT64_MAX;
 
   if (bbr->in_loss_recovery) {
@@ -1349,7 +1339,6 @@ static void bbr_cc_on_persistent_congestion(ngtcp2_cc *cc,
   (void)ts;
 
   cstat->congestion_recovery_start_ts = UINT64_MAX;
-  bbr->congestion_recovery_start_ts = UINT64_MAX;
   bbr->in_loss_recovery = 0;
   bbr->round_count_at_recovery = UINT64_MAX;
 
