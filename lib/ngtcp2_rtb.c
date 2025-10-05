@@ -826,6 +826,10 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     if (conn && verify_ecn) {
       conn_verify_ecn(conn, pktns, rtb->cc, cstat, fr, ecn_acked,
                       largest_pkt_sent_ts, ts);
+
+      if (cc->on_ack_recv) {
+        cc->on_ack_recv(cc, cstat, &cc_ack, ts);
+      }
     }
 
     return 0;
