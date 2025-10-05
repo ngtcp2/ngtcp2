@@ -106,10 +106,11 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                         ngtcp2_tstamp sent_ts,
-                                        uint64_t bytes_lost, ngtcp2_tstamp ts) {
+                                        const ngtcp2_cc_ack *ack,
+                                        ngtcp2_tstamp ts) {
   ngtcp2_cc_reno *reno = ngtcp2_struct_of(cc, ngtcp2_cc_reno, cc);
   uint64_t min_cwnd;
-  (void)bytes_lost;
+  (void)ack;
 
   if (in_congestion_recovery(cstat, sent_ts)) {
     return;
@@ -418,7 +419,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                          ngtcp2_tstamp sent_ts,
-                                         uint64_t bytes_lost,
+                                         const ngtcp2_cc_ack *ack,
                                          ngtcp2_tstamp ts) {
   ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
   uint64_t flight_size;
@@ -454,7 +455,7 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   cstat->ssthresh = cstat->cwnd * 7 / 10;
 
   if (cubic->rst->rs.delivered * 2 < cstat->cwnd) {
-    flight_size = cstat->bytes_in_flight + bytes_lost;
+    flight_size = cstat->bytes_in_flight + ack->bytes_lost;
     cstat->ssthresh = ngtcp2_min_uint64(
       cstat->ssthresh,
       ngtcp2_max_uint64(cubic->rst->rs.delivered, flight_size));

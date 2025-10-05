@@ -143,13 +143,16 @@ typedef void (*ngtcp2_cc_on_pkt_lost)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
  * @functypedef
  *
  * :type:`ngtcp2_cc_congestion_event` is a callback function which is
- * called when congestion event happens (e.g., when packet is lost).
- * |bytes_lost| is the number of bytes lost in this congestion event.
+ * called when congestion event happens (e.g., when packet is lost or
+ * due to ECN).  |ack| contains information after ACK processing.
+ * This callback may be called from non-ACK processing context.  In
+ * that case, the information only taken from |ack| processing has
+ * default values, like 0 or UINT64_MAX;
  */
 typedef void (*ngtcp2_cc_congestion_event)(ngtcp2_cc *cc,
                                            ngtcp2_conn_stat *cstat,
                                            ngtcp2_tstamp sent_ts,
-                                           uint64_t bytes_lost,
+                                           const ngtcp2_cc_ack *ack,
                                            ngtcp2_tstamp ts);
 
 /**
@@ -317,7 +320,8 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                         ngtcp2_tstamp sent_ts,
-                                        uint64_t bytes_lost, ngtcp2_tstamp ts);
+                                        const ngtcp2_cc_ack *ack,
+                                        ngtcp2_tstamp ts);
 
 void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *cc,
                                                 ngtcp2_conn_stat *cstat,
@@ -378,7 +382,8 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                          ngtcp2_tstamp sent_ts,
-                                         uint64_t bytes_lost, ngtcp2_tstamp ts);
+                                         const ngtcp2_cc_ack *ack,
+                                         ngtcp2_tstamp ts);
 
 void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *ccx,
                                                ngtcp2_conn_stat *cstat,
