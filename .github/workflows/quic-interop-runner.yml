@@ -59,7 +59,7 @@ jobs:
     - uses: actions/checkout@v5
       with:
         repository: tatsuhiro-t/quic-interop-runner
-        ref: ngtcp2
+        ref: ngtcp2-debug
     - uses: actions/setup-python@v6
       with:
         python-version: 3.8
@@ -102,7 +102,7 @@ jobs:
     - uses: actions/checkout@v5
       with:
         repository: tatsuhiro-t/quic-interop-runner
-        ref: ngtcp2
+        ref: ngtcp2-debug
       # Remove this when GitHub runner gets docker engine >= v28.1.0.
     - uses: docker/setup-docker-action@v4
       with:
