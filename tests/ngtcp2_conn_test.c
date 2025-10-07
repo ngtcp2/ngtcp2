@@ -129,6 +129,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_crumble_initial_pkt),
   munit_void_test(test_ngtcp2_conn_skip_pkt_num),
   munit_void_test(test_ngtcp2_conn_get_timestamp),
+  munit_void_test(test_ngtcp2_conn_get_stream_user_data),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
   munit_void_test(test_ngtcp2_conn_post_handshake_failmalloc),
   munit_void_test(test_ngtcp2_accept),
@@ -17422,6 +17423,45 @@ void test_ngtcp2_conn_get_timestamp(void) {
 
   assert_ssize(0, <, spktlen);
   assert_uint64(1000000007, ==, ngtcp2_conn_get_timestamp(conn));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_get_stream_user_data(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  int64_t stream_id;
+
+  /* Getting NULL stream_user_data */
+  setup_default_client(&conn);
+
+  assert_null(ngtcp2_conn_get_stream_user_data(conn, 0));
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+  assert_null(ngtcp2_conn_get_stream_user_data(conn, stream_id));
+
+  ngtcp2_conn_del(conn);
+
+  /* Getting the associated stream_user_data */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, &rv);
+
+  assert_int(0, ==, rv);
+  assert_ptr_equal(&rv, ngtcp2_conn_get_stream_user_data(conn, stream_id));
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, &stream_id);
+
+  assert_int(0, ==, rv);
+  assert_ptr_equal(&stream_id,
+                   ngtcp2_conn_get_stream_user_data(conn, stream_id));
+
+  rv = ngtcp2_conn_set_stream_user_data(conn, stream_id, conn);
+
+  assert_int(0, ==, rv);
+  assert_ptr_equal(conn, ngtcp2_conn_get_stream_user_data(conn, stream_id));
 
   ngtcp2_conn_del(conn);
 }
