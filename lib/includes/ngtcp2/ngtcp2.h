@@ -5634,6 +5634,26 @@ NGTCP2_EXTERN int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * `ngtcp2_conn_get_stream_user_data` returns stream_user_data
+ * associated to the stream identified by |stream_id|.  If the stream
+ * is not found, or no stream data is associated to the stream, this
+ * function returns NULL.
+ *
+ * The stream_user_data can be associated to the stream by one of the
+ * following functions:
+ *
+ * - `ngtcp2_conn_open_bidi_stream`
+ * - `ngtcp2_conn_open_uni_stream`
+ * - `ngtcp2_conn_set_stream_user_data`
+ *
+ * This function has been available since v1.17.0.
+ */
+NGTCP2_EXTERN void *ngtcp2_conn_get_stream_user_data(ngtcp2_conn *conn,
+                                                     int64_t stream_id);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_update_pkt_tx_time` sets the time instant of the next
  * packet transmission to pace packets.  This function must be called
  * after (multiple invocation of) `ngtcp2_conn_writev_stream`.  If
