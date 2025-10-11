@@ -308,7 +308,8 @@ typedef struct ngtcp2_cc_reno {
   uint64_t pending_add;
 } ngtcp2_cc_reno;
 
-void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log);
+void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log,
+                         ngtcp2_conn_stat *cstat);
 
 void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
@@ -370,7 +371,7 @@ typedef struct ngtcp2_cc_cubic {
 } ngtcp2_cc_cubic;
 
 void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cc, ngtcp2_log *log,
-                          ngtcp2_rst *rst);
+                          ngtcp2_conn_stat *cstat, ngtcp2_rst *rst);
 
 void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
