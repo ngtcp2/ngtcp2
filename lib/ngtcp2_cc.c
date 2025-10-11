@@ -41,6 +41,40 @@ uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   return ngtcp2_min_uint64(10 * max_udp_payload_size, n);
 }
 
+/* 1.25 is the under-utilization avoidance factor described in
+   https://datatracker.ietf.org/doc/html/rfc9002#section-7.7 */
+#define NGTCP2_CC_PACING_GAIN_H 125
+
+static void init_pacing_rate(ngtcp2_conn_stat *cstat) {
+  assert(cstat->cwnd);
+
+  cstat->pacing_interval_m = ngtcp2_max_uint64(
+    (NGTCP2_MILLISECONDS << 10) * 100 / NGTCP2_CC_PACING_GAIN_H / cstat->cwnd,
+    1);
+  cstat->send_quantum = 10 * cstat->max_tx_udp_payload_size;
+}
+
+static void set_pacing_rate(ngtcp2_conn_stat *cstat) {
+  size_t send_quantum = 64 * 1024;
+
+  assert(cstat->cwnd);
+
+  cstat->pacing_interval_m =
+    ((cstat->first_rtt_sample_ts == UINT64_MAX ? NGTCP2_MILLISECONDS
+                                               : cstat->smoothed_rtt)
+     << 10) *
+    100 / NGTCP2_CC_PACING_GAIN_H / cstat->cwnd;
+
+  cstat->pacing_interval_m = ngtcp2_max_uint64(cstat->pacing_interval_m, 1);
+
+  send_quantum =
+    ngtcp2_min_size(send_quantum, (size_t)((NGTCP2_MILLISECONDS << 10) /
+                                           cstat->pacing_interval_m));
+
+  cstat->send_quantum =
+    ngtcp2_max_size(send_quantum, 2 * cstat->max_tx_udp_payload_size);
+}
+
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_pktns_id pktns_id,
                                   ngtcp2_tstamp sent_ts, uint64_t lost,
@@ -56,9 +90,14 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
   return pkt;
 }
 
-static void reno_cc_reset(ngtcp2_cc_reno *reno) { reno->pending_add = 0; }
+static void reno_cc_reset(ngtcp2_cc_reno *reno, ngtcp2_conn_stat *cstat) {
+  reno->pending_add = 0;
 
-void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log) {
+  init_pacing_rate(cstat);
+}
+
+void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log,
+                         ngtcp2_conn_stat *cstat) {
   *reno = (ngtcp2_cc_reno){
     .cc =
       {
@@ -70,7 +109,7 @@ void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log) {
       },
   };
 
-  reno_cc_reset(reno);
+  reno_cc_reset(reno, cstat);
 }
 
 static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
@@ -92,6 +131,9 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
   if (cstat->cwnd < cstat->ssthresh) {
     cstat->cwnd += pkt->pktlen;
+
+    set_pacing_rate(cstat);
+
     ngtcp2_log_infof(reno->cc.log, NGTCP2_LOG_EVENT_CCA,
                      "pkn=%" PRId64 " acked, slow start cwnd=%" PRIu64,
                      pkt->pkt_num, cstat->cwnd);
@@ -102,6 +144,8 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   reno->pending_add = m % cstat->cwnd;
 
   cstat->cwnd += m / cstat->cwnd;
+
+  set_pacing_rate(cstat);
 }
 
 void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
@@ -124,6 +168,8 @@ void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
   reno->pending_add = 0;
 
+  set_pacing_rate(cstat);
+
   ngtcp2_log_infof(reno->cc.log, NGTCP2_LOG_EVENT_CCA,
                    "reduce cwnd because of packet loss cwnd=%" PRIu64,
                    cstat->cwnd);
@@ -137,15 +183,16 @@ void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *cc,
 
   cstat->cwnd = 2 * cstat->max_tx_udp_payload_size;
   cstat->congestion_recovery_start_ts = UINT64_MAX;
+
+  set_pacing_rate(cstat);
 }
 
 void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                              ngtcp2_tstamp ts) {
   ngtcp2_cc_reno *reno = ngtcp2_struct_of(cc, ngtcp2_cc_reno, cc);
-  (void)cstat;
   (void)ts;
 
-  reno_cc_reset(reno);
+  reno_cc_reset(reno, cstat);
 }
 
 static void cubic_vars_reset(ngtcp2_cubic_vars *v) {
@@ -161,7 +208,7 @@ static void cubic_vars_reset(ngtcp2_cubic_vars *v) {
   v->pending_est_bytes_acked = 0;
 }
 
-static void cubic_cc_reset(ngtcp2_cc_cubic *cubic) {
+static void cubic_cc_reset(ngtcp2_cc_cubic *cubic, ngtcp2_conn_stat *cstat) {
   cubic_vars_reset(&cubic->current);
   cubic_vars_reset(&cubic->undo.v);
   cubic->undo.cwnd = 0;
@@ -175,10 +222,12 @@ static void cubic_cc_reset(ngtcp2_cc_cubic *cubic) {
   cubic->hs.css_round = 0;
 
   cubic->next_round_delivered = 0;
+
+  init_pacing_rate(cstat);
 }
 
 void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log,
-                          ngtcp2_rst *rst) {
+                          ngtcp2_conn_stat *cstat, ngtcp2_rst *rst) {
   *cubic = (ngtcp2_cc_cubic){
     .cc =
       {
@@ -192,7 +241,7 @@ void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log,
     .rst = rst,
   };
 
-  cubic_cc_reset(cubic);
+  cubic_cc_reset(cubic, cstat);
 }
 
 uint64_t ngtcp2_cbrt(uint64_t n) {
@@ -293,6 +342,8 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
       } else {
         cstat->cwnd += ack->bytes_delivered;
       }
+
+      set_pacing_rate(cstat);
 
       ngtcp2_log_infof(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                        "%" PRIu64 " bytes acked, slow start cwnd=%" PRIu64,
@@ -410,6 +461,8 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     cstat->cwnd += m;
   }
 
+  set_pacing_rate(cstat);
+
   ngtcp2_log_infof(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                    "%" PRIu64 " bytes acked, cubic-ca cwnd=%" PRIu64
                    " k_m=%" PRIu64 " target=%" PRIu64 " w_est=%" PRIu64,
@@ -476,6 +529,8 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   cubic->current.k_m =
     ngtcp2_cbrt((cwnd_delta << 30) * 10 / 4 / cstat->max_tx_udp_payload_size);
 
+  set_pacing_rate(cstat);
+
   ngtcp2_log_infof(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                    "reduce cwnd because of packet loss cwnd=%" PRIu64,
                    cstat->cwnd);
@@ -494,6 +549,8 @@ void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *cc,
     cstat->cwnd = cubic->undo.cwnd;
     cstat->ssthresh = cubic->undo.ssthresh;
 
+    set_pacing_rate(cstat);
+
     ngtcp2_log_infof(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                      "spurious congestion is detected and congestion state is "
                      "restored cwnd=%" PRIu64,
@@ -511,17 +568,18 @@ void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *cc,
   ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
   (void)ts;
 
-  cubic_cc_reset(cubic);
+  cubic_cc_reset(cubic, cstat);
 
   cstat->cwnd = 2 * cstat->max_tx_udp_payload_size;
   cstat->congestion_recovery_start_ts = UINT64_MAX;
+
+  set_pacing_rate(cstat);
 }
 
 void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                               ngtcp2_tstamp ts) {
   ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
-  (void)cstat;
   (void)ts;
 
-  cubic_cc_reset(cubic);
+  cubic_cc_reset(cubic, cstat);
 }
