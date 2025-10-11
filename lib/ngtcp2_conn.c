@@ -1336,11 +1336,12 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   switch (settings->cc_algo) {
   case NGTCP2_CC_ALGO_RENO:
-    ngtcp2_cc_reno_init(&(*pconn)->reno, &(*pconn)->log);
+    ngtcp2_cc_reno_init(&(*pconn)->reno, &(*pconn)->log, &(*pconn)->cstat);
 
     break;
   case NGTCP2_CC_ALGO_CUBIC:
-    ngtcp2_cc_cubic_init(&(*pconn)->cubic, &(*pconn)->log, &(*pconn)->rst);
+    ngtcp2_cc_cubic_init(&(*pconn)->cubic, &(*pconn)->log, &(*pconn)->cstat,
+                         &(*pconn)->rst);
 
     break;
   case NGTCP2_CC_ALGO_BBR:
@@ -13867,7 +13868,6 @@ void *ngtcp2_conn_get_stream_user_data(ngtcp2_conn *conn, int64_t stream_id) {
 }
 
 void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  uint64_t pacing_interval_m;
   ngtcp2_duration wait, d;
 
   conn_update_timestamp(conn, ts);
@@ -13876,20 +13876,9 @@ void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return;
   }
 
-  if (conn->cstat.pacing_interval_m) {
-    pacing_interval_m = conn->cstat.pacing_interval_m;
-  } else {
-    /* 1.25 is the under-utilization avoidance factor described in
-       https://datatracker.ietf.org/doc/html/rfc9002#section-7.7 */
-    pacing_interval_m = ((conn->cstat.first_rtt_sample_ts == UINT64_MAX
-                            ? NGTCP2_MILLISECONDS
-                            : conn->cstat.smoothed_rtt)
-                         << 10) *
-                        100 / 125 / conn->cstat.cwnd;
-    pacing_interval_m = ngtcp2_max_uint64(pacing_interval_m, 1);
-  }
-
-  wait = (ngtcp2_duration)((conn->tx.pacing.pktlen * pacing_interval_m) >> 10);
+  wait = (ngtcp2_duration)((conn->tx.pacing.pktlen *
+                            conn->cstat.pacing_interval_m) >>
+                           10);
 
   d = ngtcp2_min_uint64(wait / 2, conn->tx.pacing.compensation);
   wait -= d;
