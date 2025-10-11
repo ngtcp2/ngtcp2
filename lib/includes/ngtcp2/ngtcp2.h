@@ -313,8 +313,11 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_MAX_PMTUD_UDP_PAYLOAD_SIZE` is the maximum UDP
+ * :macro:`NGTCP2_MAX_PMTUD_UDP_PAYLOAD_SIZE` was the maximum UDP
  * datagram payload size that Path MTU Discovery can discover.
+ *
+ * Deprecated since v1.17.0.  Path MTU Discovery is not capped to this
+ * value anymore.
  */
 #define NGTCP2_MAX_PMTUD_UDP_PAYLOAD_SIZE 1452
 
