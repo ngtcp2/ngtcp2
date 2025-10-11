@@ -401,11 +401,12 @@ static void bbr_check_startup_high_loss(ngtcp2_cc_bbr *bbr) {
 }
 
 static void bbr_init_pacing_rate(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
-  cstat->pacing_interval_m =
+  cstat->pacing_interval_m = ngtcp2_max_uint64(
     ((cstat->first_rtt_sample_ts == UINT64_MAX ? NGTCP2_MILLISECONDS
                                                : cstat->smoothed_rtt)
      << 10) *
-    100 / NGTCP2_BBR_STARTUP_PACING_GAIN_H / bbr->initial_cwnd;
+      100 / NGTCP2_BBR_STARTUP_PACING_GAIN_H / bbr->initial_cwnd,
+    1);
 }
 
 static void bbr_set_pacing_rate_with_gain(ngtcp2_cc_bbr *bbr,
