@@ -73,7 +73,7 @@ elif [ "$ROLE" == "server" ]; then
     else
         SERVER_BIN="/usr/local/bin/h09wsslserver"
     fi
-    SERVER_ARGS="/certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR --cc bbr --initial-rtt 100ms --show-stat -q"
+    SERVER_ARGS="/certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR --cc cubic --initial-rtt 100ms --show-stat -q"
     case "$TESTCASE" in
         "retry")
             SERVER_ARGS="$SERVER_ARGS -V"
