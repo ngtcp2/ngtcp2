@@ -539,6 +539,8 @@ std::optional<uint32_t> parse_version(const std::string_view &s);
 // read_file reads a file denoted by |path| and returns its content.
 std::optional<std::vector<uint8_t>> read_file(const std::string_view &path);
 
+size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst);
+
 enum HPKEPrivateKeyType : uint16_t {
   HPKE_DHKEM_X25519_HKDF_SHA256 = 0x0020,
 };

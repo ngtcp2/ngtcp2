@@ -13916,8 +13916,19 @@ ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
   ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
   ngtcp2_pkt_info *pi, uint8_t *buf, size_t buflen, size_t *pgsolen,
   ngtcp2_write_pkt write_pkt, ngtcp2_tstamp ts) {
-  return ngtcp2_conn_write_aggregate_pkt2_versioned(
+  ngtcp2_ssize nwrite;
+
+  buflen = ngtcp2_min_size(buflen, ngtcp2_conn_get_send_quantum(conn));
+
+  nwrite = ngtcp2_conn_write_aggregate_pkt2_versioned(
     conn, path, pkt_info_version, pi, buf, buflen, pgsolen, write_pkt, 0, ts);
+  if (nwrite < 0) {
+    return nwrite;
+  }
+
+  ngtcp2_conn_update_pkt_tx_time(conn, ts);
+
+  return nwrite;
 }
 
 ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt2_versioned(
@@ -13941,10 +13952,6 @@ ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt2_versioned(
   if (num_pkts == 0) {
     num_pkts = SIZE_MAX;
   }
-
-  buflen =
-    ngtcp2_min_size(buflen, ngtcp2_max_size(ngtcp2_conn_get_send_quantum(conn),
-                                            path_max_udp_payloadlen));
 
   for (;;) {
     ecn_state = conn->tx.ecn.state;
@@ -14006,8 +14013,6 @@ ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt2_versioned(
   }
 
   conn->flags &= ~NGTCP2_CONN_FLAG_AGGREGATE_PKTS;
-
-  ngtcp2_conn_update_pkt_tx_time(conn, ts);
 
   return nwrite;
 }

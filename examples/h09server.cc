@@ -1031,15 +1031,18 @@ int Handler::write_streams() {
   size_t gso_size;
   auto ts = util::timestamp();
   auto txbuf = std::span{tx_.data.get(), NGTCP2_TX_BUFLEN};
+  auto buflen = util::clamp_buffer_size(conn_, txbuf.size(), config.gso_burst);
 
   ngtcp2_path_storage_zero(&ps);
 
   auto nwrite = ngtcp2_conn_write_aggregate_pkt2(
-    conn_, &ps.path, &pi, txbuf.data(), txbuf.size(), &gso_size, ::write_pkt,
+    conn_, &ps.path, &pi, txbuf.data(), buflen, &gso_size, ::write_pkt,
     config.gso_burst, ts);
   if (nwrite < 0) {
     return handle_error();
   }
+
+  ngtcp2_conn_update_pkt_tx_time(conn_, ts);
 
   if (nwrite == 0) {
     return 0;
