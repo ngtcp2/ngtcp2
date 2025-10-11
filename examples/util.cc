@@ -816,6 +816,14 @@ std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
   return {{p, p + size}};
 }
 
+size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst) {
+  return std::min(gso_burst == 0
+                    ? ngtcp2_conn_get_send_quantum(conn)
+                    : ngtcp2_conn_get_path_max_tx_udp_payload_size(conn) *
+                        gso_burst,
+                  buflen);
+}
+
 std::optional<ECHServerConfig>
 read_ech_server_config(const std::string_view &path) {
   auto pkey = read_hpke_private_key_pem(path);

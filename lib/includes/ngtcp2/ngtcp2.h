@@ -5748,7 +5748,11 @@ typedef ngtcp2_ssize (*ngtcp2_write_pkt)(ngtcp2_conn *conn, ngtcp2_path *path,
  * `ngtcp2_conn_update_pkt_tx_time`.
  *
  * This function is equivalent to call
- * `ngtcp2_conn_write_aggregate_pkt2` with num_pkts = 0.
+ * `ngtcp2_conn_write_aggregate_pkt2` with |buflen| = min(|buflen|,
+ * `ngtcp2_conn_get_send_quantum(conn)
+ * <ngtcp2_conn_get_send_quantum>`) and |num_pkts| = 0 followed by
+ * `ngtcp2_conn_update_pkt_tx_time(conn)
+ * <ngtcp2_conn_update_pkt_tx_time>`.
  *
  * This function returns the number of bytes written to the buffer, or
  * a negative error code returned by |write_pkt|.
@@ -5769,7 +5773,12 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
  * 0, this function writes packets as much as possible.  The actual
  * number of packets to write is determined by the connection state
  * (e.g., the congestion controller, data available to send) and the
- * length of packet produced.
+ * length of packet produced.  It also does not clamp |buflen|, and
+ * does not call `ngtcp2_conn_update_pkt_tx_time`.
+ *
+ * This function offers more flexibility and optimization chances to
+ * an application.  It can experiment different GSO buffer size
+ * strategy and number of GSO writes per event loop.
  *
  * This function has been available since v1.17.0.
  */
