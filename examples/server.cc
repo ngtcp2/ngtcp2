@@ -2443,7 +2443,14 @@ int Server::on_read(const Endpoint &ep) {
     .msg_control = msg_ctrl,
   };
 
-  for (; pktcnt < 10;) {
+  auto start = util::timestamp();
+
+  for (; pktcnt < MAX_RECV_PKTS;) {
+    if (util::recv_pkt_time_threshold_exceeded(
+          config.cc_algo == NGTCP2_CC_ALGO_BBR, start, pktcnt)) {
+      return 0;
+    }
+
     msg.msg_namelen = sizeof(su);
     msg.msg_controllen = sizeof(msg_ctrl);
 
