@@ -103,11 +103,6 @@
 /* NGTCP2_RETRY_TAGLEN is the length of Retry packet integrity tag. */
 #define NGTCP2_RETRY_TAGLEN 16
 
-/* NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE is the maximum UDP datagram
-   payload size that this library can write. */
-#define NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE                                       \
-  NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE
-
 /* NGTCP2_PKT_LENGTHLEN is the number of bytes that is occupied by
    Length field in Long packet header. */
 #define NGTCP2_PKT_LENGTHLEN 4

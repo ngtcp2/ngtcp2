@@ -2595,9 +2595,9 @@ int main(int argc, char **argv) {
         if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-udp-payload-size: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
-        } else if (*n > 65527) {
-          std::cerr << "max-udp-payload-size: must not exceed 65527"
-                    << std::endl;
+        } else if (*n > NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE) {
+          std::cerr << "max-udp-payload-size: must not exceed "
+                    << NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE << std::endl;
           exit(EXIT_FAILURE);
         } else if (*n == 0) {
           std::cerr << "max-udp-payload-size: must not be 0" << std::endl;
@@ -2715,10 +2715,12 @@ int main(int argc, char **argv) {
           if (auto n = util::parse_uint_iec(s); !n) {
             std::cerr << "pmtud-probes: invalid argument" << std::endl;
             exit(EXIT_FAILURE);
-          } else if (*n <= 1200 || *n > 65527) {
-            std::cerr
-              << "pmtud-probes: must be in range [1201, 65527], inclusive."
-              << std::endl;
+          } else if (*n <= NGTCP2_MAX_UDP_PAYLOAD_SIZE ||
+                     *n > NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE) {
+            std::cerr << "pmtud-probes: must be in range ["
+                      << NGTCP2_MAX_UDP_PAYLOAD_SIZE + 1 << ", "
+                      << NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE << "], inclusive."
+                      << std::endl;
             exit(EXIT_FAILURE);
           } else {
             config.pmtud_probes.push_back(static_cast<uint16_t>(*n));
