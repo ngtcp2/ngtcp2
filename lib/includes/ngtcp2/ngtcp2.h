@@ -306,7 +306,10 @@ typedef struct ngtcp2_mem {
  * @macro
  *
  * :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE` is the default maximum UDP
- * datagram payload size that the local endpoint transmits.
+ * datagram payload size that the local endpoint transmits without
+ * Path MTU Discovery (PMTUD) or the custom settings (see
+ * :member:`ngtcp2_settings.max_tx_udp_payload_size` and
+ * :member:`ngtcp2_settings.no_tx_udp_payload_size_shaping`).
  */
 #define NGTCP2_MAX_UDP_PAYLOAD_SIZE 1200
 
