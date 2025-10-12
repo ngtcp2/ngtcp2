@@ -541,6 +541,9 @@ std::optional<std::vector<uint8_t>> read_file(const std::string_view &path);
 
 size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst);
 
+bool recv_pkt_time_threshold_exceeded(bool time_sensitive, ngtcp2_tstamp start,
+                                      size_t pktcnt);
+
 enum HPKEPrivateKeyType : uint16_t {
   HPKE_DHKEM_X25519_HKDF_SHA256 = 0x0020,
 };

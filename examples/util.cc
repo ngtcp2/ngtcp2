@@ -824,6 +824,12 @@ size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst) {
                   buflen);
 }
 
+bool recv_pkt_time_threshold_exceeded(bool time_sensitive, ngtcp2_tstamp start,
+                                      size_t pktcnt) {
+  return time_sensitive && pktcnt &&
+         util::timestamp() - start >= NGTCP2_MILLISECONDS;
+}
+
 std::optional<ECHServerConfig>
 read_ech_server_config(const std::string_view &path) {
   auto pkey = read_hpke_private_key_pem(path);

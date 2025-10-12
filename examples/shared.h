@@ -61,6 +61,8 @@ inline constexpr auto H3_ALPN_V1 = as_uint8_span(RAW_H3_ALPN);
 
 inline constexpr uint32_t TLS_ALERT_ECH_REQUIRED = 121;
 
+inline constexpr size_t MAX_RECV_PKTS = 64;
+
 // msghdr_get_ecn gets ECN bits from |msg|.  |family| is the address
 // family from which packet is received.
 uint8_t msghdr_get_ecn(msghdr *msg, int family);
