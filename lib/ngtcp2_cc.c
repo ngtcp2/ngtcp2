@@ -72,7 +72,7 @@ static void set_pacing_rate(ngtcp2_conn_stat *cstat) {
                                            cstat->pacing_interval_m));
 
   cstat->send_quantum =
-    ngtcp2_max_size(send_quantum, 2 * cstat->max_tx_udp_payload_size);
+    ngtcp2_max_size(send_quantum, 10 * cstat->max_tx_udp_payload_size);
 }
 
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
