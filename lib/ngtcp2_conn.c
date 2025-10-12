@@ -1167,7 +1167,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(settings->max_window <= NGTCP2_MAX_VARINT);
   assert(settings->max_stream_window <= NGTCP2_MAX_VARINT);
   assert(settings->max_tx_udp_payload_size >= NGTCP2_MAX_UDP_PAYLOAD_SIZE);
-  assert(settings->max_tx_udp_payload_size <= NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE);
+  assert(settings->max_tx_udp_payload_size <= NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE);
   assert(settings->initial_pkt_num <= INT32_MAX);
   assert(settings->initial_rtt);
   assert(params->active_connection_id_limit >=
@@ -1203,7 +1203,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   for (i = 0; i < settings->pmtud_probeslen; ++i) {
     assert(settings->pmtud_probes[i] > NGTCP2_MAX_UDP_PAYLOAD_SIZE);
-    assert(settings->pmtud_probes[i] <= NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE);
+    assert(settings->pmtud_probes[i] <= NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE);
   }
 
   if (mem == NULL) {
