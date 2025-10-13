@@ -618,10 +618,7 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
     goto fail;
   }
 
-  rv = h->on_write();
-  if (rv != 0) {
-    goto fail;
-  }
+  h->signal_write();
 
   return;
 
