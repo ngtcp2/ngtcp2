@@ -618,10 +618,7 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
     goto fail;
   }
 
-  rv = h->on_write();
-  if (rv != 0) {
-    goto fail;
-  }
+  h->signal_write();
 
   return;
 
@@ -2321,6 +2318,7 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const char *addr,
   ep.addr = dest;
   ep.fd = fd;
   ev_io_init(&ep.rev, sreadcb, 0, EV_READ);
+  ev_set_priority(&ep.rev, EV_MAXPRI);
 
   return 0;
 }
@@ -2378,6 +2376,7 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
   ep.addr = addr;
   ep.fd = fd;
   ev_io_init(&ep.rev, sreadcb, 0, EV_READ);
+  ev_set_priority(&ep.rev, EV_MAXPRI);
 
   return 0;
 }
