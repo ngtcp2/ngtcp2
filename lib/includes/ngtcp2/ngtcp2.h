@@ -4174,7 +4174,8 @@ NGTCP2_EXTERN void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
  *
  * Call `ngtcp2_conn_handle_expiry` and then
  * `ngtcp2_conn_writev_stream` (or `ngtcp2_conn_writev_datagram`) when
- * the expiry time has passed.
+ * the expiry time has passed.  An application may call
+ * `ngtcp2_conn_read_pkt` before calling `ngtcp2_conn_writev_stream`.
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
 
