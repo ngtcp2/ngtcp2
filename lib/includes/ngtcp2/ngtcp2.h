@@ -4172,10 +4172,7 @@ NGTCP2_EXTERN void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
  * `ngtcp2_conn_get_expiry` returns the next expiry time.  It returns
  * ``UINT64_MAX`` if there is no next expiry.
  *
- * Call `ngtcp2_conn_handle_expiry` and then
- * `ngtcp2_conn_writev_stream` (or `ngtcp2_conn_writev_datagram`) when
- * the expiry time has passed.  An application may call
- * `ngtcp2_conn_read_pkt` before calling `ngtcp2_conn_writev_stream`.
+ * Call `ngtcp2_conn_handle_expiry` when the expiry time has passed.
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
 
@@ -4183,6 +4180,20 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_handle_expiry` handles expired timer.
+ *
+ * If it returns :macro:`NGTCP2_ERR_IDLE_CLOSE`, it means that an idle
+ * timer has fired for this particular connection.  In this case, drop
+ * the connection without calling
+ * `ngtcp2_conn_write_connection_close`.  If it returns any of the
+ * other negative error codes, close the connection by sending the
+ * terminal packet produced by `ngtcp2_conn_write_connection_close`.
+ * Otherwise, schedule `ngtcp2_conn_writev_stream` call.  An
+ * application may call any number of additional
+ * `ngtcp2_conn_read_pkt` and `ngtcp2_conn_handle_expiry` before
+ * calling `ngtcp2_conn_writev_stream`.  After calling
+ * `ngtcp2_conn_writev_stream`, new expiry is set.  The application
+ * should call `ngtcp2_conn_get_expiry` to get a new deadline and set
+ * the timer.
  */
 NGTCP2_EXTERN int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn,
                                             ngtcp2_tstamp ts);
