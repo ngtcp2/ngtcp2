@@ -404,12 +404,17 @@ is :type:`ngtcp2_duration` which is also nanosecond resolution.
 When it fires, call `ngtcp2_conn_handle_expiry()`.  If it returns
 :macro:`NGTCP2_ERR_IDLE_CLOSE`, it means that an idle timer has fired
 for this particular connection.  In this case, drop the connection
-without calling `ngtcp2_conn_write_connection_close()`.  Otherwise,
-call `ngtcp2_conn_writev_stream()`.  An application may call
-`ngtcp2_conn_read_pkt()` before calling `ngtcp2_conn_writev_stream()`.
-After calling `ngtcp2_conn_handle_expiry()` and
+without calling `ngtcp2_conn_write_connection_close()`.  If it returns
+any of the other negative error codes, close the connection by sending
+the terminal packet produced by
+`ngtcp2_conn_write_connection_close()`.  Otherwise, schedule
+`ngtcp2_conn_writev_stream()` call.  An application may call any
+number of additional `ngtcp2_conn_read_pkt()` and
+`ngtcp2_conn_handle_expiry()` before calling
+`ngtcp2_conn_writev_stream()`.  After calling
 `ngtcp2_conn_writev_stream()`, new expiry is set.  The application
-should call `ngtcp2_conn_get_expiry()` to get a new deadline.
+should call `ngtcp2_conn_get_expiry()` to get a new deadline and set
+the timer.
 
 Please note that :type:`ngtcp2_tstamp` of value ``UINT64_MAX`` is
 treated as an invalid timestamp.  Do not pass ``UINT64_MAX`` to any
