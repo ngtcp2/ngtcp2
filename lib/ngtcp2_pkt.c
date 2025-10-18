@@ -1053,6 +1053,8 @@ ngtcp2_ssize ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest,
   (void)payload;
   (void)payloadlen;
 
+  assert(payloadlen > 0);
+
   dest->type = NGTCP2_FRAME_PING;
   return 1;
 }
@@ -1428,6 +1430,8 @@ ngtcp2_ssize ngtcp2_pkt_decode_handshake_done_frame(ngtcp2_handshake_done *dest,
   (void)payload;
   (void)payloadlen;
 
+  assert(payloadlen > 0);
+
   dest->type = NGTCP2_FRAME_HANDSHAKE_DONE;
   return 1;
 }
@@ -1442,8 +1446,8 @@ ngtcp2_ssize ngtcp2_pkt_decode_datagram_frame(ngtcp2_datagram *dest,
   size_t n;
   uint64_t vi;
 
-  /* Assume that payloadlen > 0.  This is a convention that is
-     consistently used in frame decoder functions. */
+  assert(payloadlen > 0);
+
   type = payload[0];
 
   p = payload + 1;
