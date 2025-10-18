@@ -1442,10 +1442,8 @@ ngtcp2_ssize ngtcp2_pkt_decode_datagram_frame(ngtcp2_datagram *dest,
   size_t n;
   uint64_t vi;
 
-  if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_ENCODING;
-  }
-
+  /* Assume that payloadlen > 0.  This is a convention that is
+     consistently used in frame decoder functions. */
   type = payload[0];
 
   p = payload + 1;
