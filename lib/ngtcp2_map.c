@@ -34,11 +34,10 @@
 #define NGTCP2_INITIAL_HASHBITS 4
 
 void ngtcp2_map_init(ngtcp2_map *map, uint64_t seed, const ngtcp2_mem *mem) {
-  map->mem = mem;
-  map->hashbits = 0;
-  map->table = NULL;
-  map->seed = seed;
-  map->size = 0;
+  *map = (ngtcp2_map){
+    .mem = mem,
+    .seed = seed,
+  };
 }
 
 void ngtcp2_map_free(ngtcp2_map *map) {
