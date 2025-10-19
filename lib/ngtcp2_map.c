@@ -77,14 +77,18 @@ int ngtcp2_map_each(const ngtcp2_map *map, int (*func)(void *data, void *ptr),
   return 0;
 }
 
+/* Hasher from
+   https://github.com/rust-lang/rustc-hash/blob/dc5c33f1283de2da64d8d7a06401d91aded03ad4/src/lib.rs
+   to maximize the output's sensitivity to all input bits. */
+#define NGTCP2_MAP_HASHER 0xf1357aea2e62a9c5ull
+/* 64-bit Fibonacci hashing constant, Golden Ratio constant, to get
+   the high bits with the good distribution. */
+#define NGTCP2_MAP_FIBO 0x9e3779b97f4a7c15ull
+
 static size_t map_index(const ngtcp2_map *map, ngtcp2_map_key_type key) {
-  /* hasher from
-     https://github.com/rust-lang/rustc-hash/blob/dc5c33f1283de2da64d8d7a06401d91aded03ad4/src/lib.rs
-     We do not perform finalization here because we use top bits
-     anyway. */
   key += map->seed;
-  key *= 0xf1357aea2e62a9c5ull;
-  return (size_t)((key * 11400714819323198485llu) >> (64 - map->hashbits));
+  key *= NGTCP2_MAP_HASHER;
+  return (size_t)((key * NGTCP2_MAP_FIBO) >> (64 - map->hashbits));
 }
 
 static void map_bucket_swap(ngtcp2_map_bucket *a, ngtcp2_map_bucket *b) {
