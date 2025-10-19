@@ -217,12 +217,7 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
     }
   }
 
-  rv = map_insert(map, key, data);
-  if (rv != 0) {
-    return rv;
-  }
-
-  return 0;
+  return map_insert(map, key, data);
 }
 
 void *ngtcp2_map_find(const ngtcp2_map *map, ngtcp2_map_key_type key) {
