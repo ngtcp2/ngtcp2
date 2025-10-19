@@ -34,11 +34,10 @@
 #define NGTCP2_INITIAL_HASHBITS 4
 
 void ngtcp2_map_init(ngtcp2_map *map, uint64_t seed, const ngtcp2_mem *mem) {
-  map->mem = mem;
-  map->hashbits = 0;
-  map->table = NULL;
-  map->seed = seed;
-  map->size = 0;
+  *map = (ngtcp2_map){
+    .mem = mem,
+    .seed = seed,
+  };
 }
 
 void ngtcp2_map_free(ngtcp2_map *map) {
@@ -78,14 +77,18 @@ int ngtcp2_map_each(const ngtcp2_map *map, int (*func)(void *data, void *ptr),
   return 0;
 }
 
-static size_t map_hash(const ngtcp2_map *map, ngtcp2_map_key_type key) {
-  /* hasher from
-     https://github.com/rust-lang/rustc-hash/blob/dc5c33f1283de2da64d8d7a06401d91aded03ad4/src/lib.rs
-     We do not perform finalization here because we use top bits
-     anyway. */
+/* Hasher from
+   https://github.com/rust-lang/rustc-hash/blob/dc5c33f1283de2da64d8d7a06401d91aded03ad4/src/lib.rs
+   to maximize the output's sensitivity to all input bits. */
+#define NGTCP2_MAP_HASHER 0xf1357aea2e62a9c5ull
+/* 64-bit Fibonacci hashing constant, Golden Ratio constant, to get
+   the high bits with the good distribution. */
+#define NGTCP2_MAP_FIBO 0x9e3779b97f4a7c15ull
+
+static size_t map_index(const ngtcp2_map *map, ngtcp2_map_key_type key) {
   key += map->seed;
-  key *= 0xf1357aea2e62a9c5ull;
-  return (size_t)((key * 11400714819323198485llu) >> (64 - map->hashbits));
+  key *= NGTCP2_MAP_HASHER;
+  return (size_t)((key * NGTCP2_MAP_FIBO) >> (64 - map->hashbits));
 }
 
 static void map_bucket_swap(ngtcp2_map_bucket *a, ngtcp2_map_bucket *b) {
@@ -116,15 +119,15 @@ void ngtcp2_map_print_distance(const ngtcp2_map *map) {
       continue;
     }
 
-    idx = map_hash(map, bkt->key);
-    fprintf(stderr, "@%zu hash=%zu key=%" PRIu64 " base=%zu distance=%u\n", i,
-            map_hash(map, bkt->key), bkt->key, idx, bkt->psl);
+    idx = map_index(map, bkt->key);
+    fprintf(stderr, "@%zu key=%" PRIu64 " base=%zu distance=%u\n", i, bkt->key,
+            idx, bkt->psl);
   }
 }
 #endif /* !defined(WIN32) */
 
 static int map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
-  size_t idx = map_hash(map, key);
+  size_t idx = map_index(map, key);
   ngtcp2_map_bucket b = {
     .key = key,
     .data = data,
@@ -201,9 +204,9 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
 
   assert(data);
 
-  /* Load factor is 7/8 */
-  /* Under the very initial condition, that is map->size == 0 and
-     map->hashbits == 0, 8 > 7 still holds nicely. */
+  /* Load factor is 7/8.  Under the very initial condition, that is
+     map->size == 0 and map->hashbits == 0, 8 > 7 still holds
+     nicely. */
   if ((map->size + 1) * 8 > (1u << map->hashbits) * 7) {
     if (map->hashbits) {
       rv = map_resize(map, map->hashbits + 1);
@@ -218,12 +221,7 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
     }
   }
 
-  rv = map_insert(map, key, data);
-  if (rv != 0) {
-    return rv;
-  }
-
-  return 0;
+  return map_insert(map, key, data);
 }
 
 void *ngtcp2_map_find(const ngtcp2_map *map, ngtcp2_map_key_type key) {
@@ -236,7 +234,7 @@ void *ngtcp2_map_find(const ngtcp2_map *map, ngtcp2_map_key_type key) {
     return NULL;
   }
 
-  idx = map_hash(map, key);
+  idx = map_index(map, key);
   mask = (1u << map->hashbits) - 1;
 
   for (;;) {
@@ -265,7 +263,7 @@ int ngtcp2_map_remove(ngtcp2_map *map, ngtcp2_map_key_type key) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  idx = map_hash(map, key);
+  idx = map_index(map, key);
   mask = (1u << map->hashbits) - 1;
 
   for (;;) {
