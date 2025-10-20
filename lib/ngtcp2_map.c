@@ -120,7 +120,7 @@ void ngtcp2_map_print_distance(const ngtcp2_map *map) {
     }
 
     idx = map_index(map, bkt->key);
-    fprintf(stderr, "@%zu key=%" PRIu64 " base=%zu distance=%u\n", i, bkt->key,
+    fprintf(stderr, "@%zu key=%" PRIu64 " base=%zu distance=%zu\n", i, bkt->key,
             idx, bkt->psl);
   }
 }
