@@ -59,7 +59,7 @@ int ngtcp2_map_each(const ngtcp2_map *map, int (*func)(void *data, void *ptr),
     return 0;
   }
 
-  tablelen = 1u << map->hashbits;
+  tablelen = (size_t)1 << map->hashbits;
 
   for (i = 0; i < tablelen; ++i) {
     bkt = &map->table[i];
@@ -109,7 +109,7 @@ void ngtcp2_map_print_distance(const ngtcp2_map *map) {
     return;
   }
 
-  tablelen = 1u << map->hashbits;
+  tablelen = (size_t)1 << map->hashbits;
 
   for (i = 0; i < tablelen; ++i) {
     bkt = &map->table[i];
@@ -133,7 +133,7 @@ static int map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
     .data = data,
   };
   ngtcp2_map_bucket *bkt;
-  size_t mask = (1u << map->hashbits) - 1;
+  size_t mask = ((size_t)1 << map->hashbits) - 1;
 
   for (;;) {
     bkt = &map->table[idx];
@@ -165,7 +165,7 @@ static int map_resize(ngtcp2_map *map, size_t new_hashbits) {
   size_t tablelen;
   int rv;
   ngtcp2_map new_map = {
-    .table = ngtcp2_mem_calloc(map->mem, 1u << new_hashbits,
+    .table = ngtcp2_mem_calloc(map->mem, (size_t)1 << new_hashbits,
                                sizeof(ngtcp2_map_bucket)),
     .mem = map->mem,
     .seed = map->seed,
@@ -178,7 +178,7 @@ static int map_resize(ngtcp2_map *map, size_t new_hashbits) {
   }
 
   if (map->size) {
-    tablelen = 1u << map->hashbits;
+    tablelen = (size_t)1 << map->hashbits;
 
     for (i = 0; i < tablelen; ++i) {
       bkt = &map->table[i];
@@ -199,25 +199,34 @@ static int map_resize(ngtcp2_map *map, size_t new_hashbits) {
   return 0;
 }
 
+/* NGTCP2_MAP_MAX_HASHBITS is the maximum number of bits used for hash
+   table.  The theoretical limit of the maximum number of keys that
+   can be stored is 1 << NGTCP2_MAP_MAX_HASHBITS. */
+#define NGTCP2_MAP_MAX_HASHBITS (sizeof(size_t) * 8 - 1)
+
 int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
   int rv;
+  size_t tablelen;
+  size_t new_hashbits;
 
   assert(data);
 
-  /* Load factor is 7/8.  Under the very initial condition, that is
-     map->size == 0 and map->hashbits == 0, 8 > 7 still holds
-     nicely. */
-  if ((map->size + 1) * 8 > (1u << map->hashbits) * 7) {
-    if (map->hashbits) {
-      rv = map_resize(map, map->hashbits + 1);
-      if (rv != 0) {
-        return rv;
-      }
-    } else {
-      rv = map_resize(map, NGTCP2_INITIAL_HASHBITS);
-      if (rv != 0) {
-        return rv;
-      }
+  /* tablelen is incorrect if map->hashbits == 0 which leads to
+     tablelen = 1, but it is only used to check the load factor, and
+     it works in this special case. */
+  tablelen = (size_t)1 << map->hashbits;
+
+  /* Load factor is 7 / 8.  Because tablelen is power of 2, (tablelen
+     - (tablelen >> 3)) computes tablelen * 7 / 8. */
+  if (map->size + 1 >= (tablelen - (tablelen >> 3))) {
+    new_hashbits = map->hashbits ? map->hashbits + 1 : NGTCP2_INITIAL_HASHBITS;
+    if (new_hashbits > NGTCP2_MAP_MAX_HASHBITS) {
+      return NGTCP2_ERR_NOMEM;
+    }
+
+    rv = map_resize(map, new_hashbits);
+    if (rv != 0) {
+      return rv;
     }
   }
 
@@ -235,7 +244,7 @@ void *ngtcp2_map_find(const ngtcp2_map *map, ngtcp2_map_key_type key) {
   }
 
   idx = map_index(map, key);
-  mask = (1u << map->hashbits) - 1;
+  mask = ((size_t)1 << map->hashbits) - 1;
 
   for (;;) {
     bkt = &map->table[idx];
@@ -264,7 +273,7 @@ int ngtcp2_map_remove(ngtcp2_map *map, ngtcp2_map_key_type key) {
   }
 
   idx = map_index(map, key);
-  mask = (1u << map->hashbits) - 1;
+  mask = ((size_t)1 << map->hashbits) - 1;
 
   for (;;) {
     bkt = &map->table[idx];
@@ -306,7 +315,7 @@ void ngtcp2_map_clear(ngtcp2_map *map) {
     return;
   }
 
-  memset(map->table, 0, sizeof(*map->table) * (1u << map->hashbits));
+  memset(map->table, 0, sizeof(*map->table) * ((size_t)1 << map->hashbits));
   map->size = 0;
 }
 
