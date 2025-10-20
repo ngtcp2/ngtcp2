@@ -39,7 +39,7 @@
 typedef uint64_t ngtcp2_map_key_type;
 
 typedef struct ngtcp2_map_bucket {
-  uint32_t psl;
+  size_t psl;
   ngtcp2_map_key_type key;
   void *data;
 } ngtcp2_map_bucket;
