@@ -264,7 +264,7 @@ void *ngtcp2_map_find(const ngtcp2_map *map, ngtcp2_map_key_type key) {
 
 int ngtcp2_map_remove(ngtcp2_map *map, ngtcp2_map_key_type key) {
   size_t idx;
-  ngtcp2_map_bucket *b, *bkt;
+  ngtcp2_map_bucket *dest, *bkt;
   size_t psl = 0;
   size_t mask;
 
@@ -283,19 +283,19 @@ int ngtcp2_map_remove(ngtcp2_map *map, ngtcp2_map_key_type key) {
     }
 
     if (bkt->key == key) {
-      b = bkt;
+      dest = bkt;
       idx = (idx + 1) & mask;
 
       for (;;) {
         bkt = &map->table[idx];
         if (bkt->data == NULL || bkt->psl == 0) {
-          b->data = NULL;
+          dest->data = NULL;
           break;
         }
 
         --bkt->psl;
-        *b = *bkt;
-        b = bkt;
+        *dest = *bkt;
+        dest = bkt;
 
         idx = (idx + 1) & mask;
       }
