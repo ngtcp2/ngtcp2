@@ -1412,12 +1412,19 @@ int ngtcp2_rtb_reclaim_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
       ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC,
                        "pkn=%" PRId64 " has already been reclaimed on PTO",
                        ent->hd.pkt_num);
+
+      ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
+                                    rtb->frc_objalloc, rtb->mem);
+
       continue;
     }
 
     if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) &&
         (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_DATAGRAM) ||
          !conn->callbacks.lost_datagram)) {
+      ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
+                                    rtb->frc_objalloc, rtb->mem);
+
       continue;
     }
 
