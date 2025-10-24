@@ -52,7 +52,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         auto data = static_cast<DataType *>(ngtcp2_ksl_it_get(&it));
         int rv;
 
-        if (*static_cast<KeyType *>(ngtcp2_ksl_it_key(&it)) == key) {
+        if (*static_cast<const KeyType *>(ngtcp2_ksl_it_key(&it)) == key) {
           rv = ngtcp2_ksl_remove_hint(&ksl, nullptr, &it, &key);
         } else {
           rv = ngtcp2_ksl_remove(&ksl, nullptr, &key);
