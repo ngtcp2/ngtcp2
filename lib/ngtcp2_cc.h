@@ -184,7 +184,8 @@ typedef void (*ngtcp2_cc_on_ack_recv)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
  * @functypedef
  *
  * :type:`ngtcp2_cc_on_pkt_sent` is a callback function which is
- * called when an ack-eliciting packet is sent.
+ * called when an ack-eliciting packet is sent.  The lost,
+ * tx_in_flight, and is_app_limited fields in |pkt| are set to 0.
  */
 typedef void (*ngtcp2_cc_on_pkt_sent)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                       const ngtcp2_cc_pkt *pkt);
