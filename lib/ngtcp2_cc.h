@@ -193,42 +193,11 @@ typedef void (*ngtcp2_cc_on_pkt_sent)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 /**
  * @functypedef
  *
- * :type:`ngtcp2_cc_new_rtt_sample` is a callback function which is
- * called when new RTT sample is obtained.
- */
-typedef void (*ngtcp2_cc_new_rtt_sample)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                         ngtcp2_tstamp ts);
-
-/**
- * @functypedef
- *
  * :type:`ngtcp2_cc_reset` is a callback function which is called when
  * congestion state must be reset.
  */
 typedef void (*ngtcp2_cc_reset)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                 ngtcp2_tstamp ts);
-
-/**
- * @enum
- *
- * :type:`ngtcp2_cc_event_type` defines congestion control events.
- */
-typedef enum ngtcp2_cc_event_type {
-  /**
-   * :enum:`NGTCP2_CC_EVENT_TX_START` occurs when ack-eliciting packet
-   * is sent and no other ack-eliciting packet is present.
-   */
-  NGTCP2_CC_EVENT_TYPE_TX_START
-} ngtcp2_cc_event_type;
-
-/**
- * @functypedef
- *
- * :type:`ngtcp2_cc_event` is a callback function which is called when
- * a specific event happens.
- */
-typedef void (*ngtcp2_cc_event)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
 
 /**
  * @struct
@@ -277,20 +246,10 @@ typedef struct ngtcp2_cc {
    */
   ngtcp2_cc_on_pkt_sent on_pkt_sent;
   /**
-   * :member:`new_rtt_sample` is a callback function which is called
-   * when new RTT sample is obtained.
-   */
-  ngtcp2_cc_new_rtt_sample new_rtt_sample;
-  /**
    * :member:`reset` is a callback function which is called when
    * congestion control state must be reset.
    */
   ngtcp2_cc_reset reset;
-  /**
-   * :member:`event` is a callback function which is called when a
-   * specific event happens.
-   */
-  ngtcp2_cc_event event;
 } ngtcp2_cc;
 
 /*
