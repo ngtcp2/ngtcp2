@@ -591,6 +591,16 @@ jobs:
       if: matrix.buildtool == 'distcheck'
       run: |
         make -j"$NPROC" distcheck DISTCHECK_CONFIGURE_FLAGS="$AUTOTOOLS_OPTS"
+    - name: Build fuzzer
+      if: runner.os == 'Linux' && matrix.buildtool == 'autotools' && matrix.compiler == 'clang'
+      run: |
+        export CXXFLAGS="-fsanitize=address,fuzzer"
+        export LIB_FUZZING_ENGINE=
+        export OUT=fuzz-out
+
+        mkdir $OUT
+
+        .clusterfuzzlite/build_fuzzer.sh
     - name: examples/tests
       if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr' && runner.os == 'Linux'
       run: |
