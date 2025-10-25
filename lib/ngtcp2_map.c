@@ -128,7 +128,16 @@ static void map_set_entry(ngtcp2_map *map, size_t idx, ngtcp2_map_key_type key,
     *(B) = t;                                                                  \
   } while (0)
 
-static int map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
+/*
+ * map_insert inserts |key| and |data| to |map|, and returns the index
+ * where the pair is stored if it succeeds.  Otherwise, it returns one
+ * of the following negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     The another data associated to |key| is already present.
+ */
+static ngtcp2_ssize map_insert(ngtcp2_map *map, ngtcp2_map_key_type key,
+                               void *data) {
   size_t idx = map_index(map, key);
   size_t mask = ((size_t)1 << map->hashbits) - 1;
   size_t psl = 1;
@@ -141,7 +150,7 @@ static int map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
       map_set_entry(map, idx, key, data, psl);
       ++map->size;
 
-      return 0;
+      return (ngtcp2_ssize)idx;
     }
 
     if (psl > kpsl) {
@@ -161,17 +170,26 @@ static int map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
   }
 }
 
+/* NGTCP2_MAP_MAX_HASHBITS is the maximum number of bits used for hash
+   table.  The theoretical limit of the maximum number of keys that
+   can be stored is 1 << NGTCP2_MAP_MAX_HASHBITS. */
+#define NGTCP2_MAP_MAX_HASHBITS (sizeof(size_t) * 8 - 1)
+
 static int map_resize(ngtcp2_map *map, size_t new_hashbits) {
   size_t i;
   size_t tablelen;
-  int rv;
+  ngtcp2_ssize idx;
   ngtcp2_map new_map = {
     .mem = map->mem,
     .seed = map->seed,
     .hashbits = new_hashbits,
   };
   void *buf;
-  (void)rv;
+  (void)idx;
+
+  if (new_hashbits > NGTCP2_MAP_MAX_HASHBITS) {
+    return NGTCP2_ERR_NOMEM;
+  }
 
   tablelen = (size_t)1 << new_hashbits;
 
@@ -195,11 +213,11 @@ static int map_resize(ngtcp2_map *map, size_t new_hashbits) {
         continue;
       }
 
-      rv = map_insert(&new_map, map->keys[i], map->data[i]);
+      idx = map_insert(&new_map, map->keys[i], map->data[i]);
 
       /* map_insert must not fail because all keys are unique during
          resize. */
-      assert(0 == rv);
+      assert(idx >= 0);
     }
   }
 
@@ -212,15 +230,14 @@ static int map_resize(ngtcp2_map *map, size_t new_hashbits) {
   return 0;
 }
 
-/* NGTCP2_MAP_MAX_HASHBITS is the maximum number of bits used for hash
-   table.  The theoretical limit of the maximum number of keys that
-   can be stored is 1 << NGTCP2_MAP_MAX_HASHBITS. */
-#define NGTCP2_MAP_MAX_HASHBITS (sizeof(size_t) * 8 - 1)
+/* NGTCP2_MAX_PSL_RESIZE_THRESH is the maximum psl threshold.  If
+   reached, resize the table. */
+#define NGTCP2_MAX_PSL_RESIZE_THRESH 128
 
 int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
   int rv;
   size_t tablelen;
-  size_t new_hashbits;
+  ngtcp2_ssize idx;
 
   assert(data);
 
@@ -232,18 +249,32 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
   /* Load factor is 7 / 8.  Because tablelen is power of 2, (tablelen
      - (tablelen >> 3)) computes tablelen * 7 / 8. */
   if (map->size + 1 >= (tablelen - (tablelen >> 3))) {
-    new_hashbits = map->hashbits ? map->hashbits + 1 : NGTCP2_INITIAL_HASHBITS;
-    if (new_hashbits > NGTCP2_MAP_MAX_HASHBITS) {
-      return NGTCP2_ERR_NOMEM;
-    }
-
-    rv = map_resize(map, new_hashbits);
+    rv = map_resize(map, map->hashbits ? map->hashbits + 1
+                                       : NGTCP2_INITIAL_HASHBITS);
     if (rv != 0) {
       return rv;
     }
+
+    idx = map_insert(map, key, data);
+    if (idx < 0) {
+      return (int)idx;
+    }
+
+    return 0;
   }
 
-  return map_insert(map, key, data);
+  idx = map_insert(map, key, data);
+  if (idx < 0) {
+    return (int)idx;
+  }
+
+  /* Resize if psl reaches really large value which is almost
+     improbable, but just in case. */
+  if (map->psl[idx] - 1 < NGTCP2_MAX_PSL_RESIZE_THRESH) {
+    return 0;
+  }
+
+  return map_resize(map, map->hashbits + 1);
 }
 
 void *ngtcp2_map_find(const ngtcp2_map *map, ngtcp2_map_key_type key) {
