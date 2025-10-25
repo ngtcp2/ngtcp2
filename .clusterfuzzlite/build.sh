@@ -4,7 +4,7 @@ autoreconf -i
 ./configure --disable-dependency-tracking --enable-lib-only
 make -j$(nproc)
 
-./build_fuzzer.sh
+"$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/build_fuzzer.sh
 
 zip -j $OUT/decode_frame_seed_corpus.zip fuzz/corpus/decode_frame/*
 zip -j $OUT/ksl_seed_corpus.zip fuzz/corpus/ksl/*
