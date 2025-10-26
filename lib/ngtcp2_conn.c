@@ -5435,8 +5435,8 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   }
 
   ngtcp2_log_infof(&conn->log, NGTCP2_LOG_EVENT_PKT, "odcid=0x%s",
-                   (const char *)ngtcp2_encode_hex(cidbuf, retry.odcid.data,
-                                                   retry.odcid.datalen));
+                   (const char *)ngtcp2_encode_hex_cstr(
+                     cidbuf, retry.odcid.data, retry.odcid.datalen));
 
   if (retry.tokenlen == 0) {
     return NGTCP2_ERR_PROTO;
