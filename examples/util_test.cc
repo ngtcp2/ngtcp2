@@ -419,6 +419,35 @@ void test_util_format_hex() {
   assert_stdstring_equal("deadbeef"s, util::format_hex(a));
   assert_stdstring_equal("deadbeef"s, util::format_hex(0xdeadbeef));
   assert_stdstring_equal("beef"s, util::format_hex(a.data() + 2, 2));
+
+  std::array<char, 64> buf;
+
+  assert_stdsv_equal(
+    "00"sv, (std::string_view{std::ranges::begin(buf),
+                              util::format_hex(static_cast<uint8_t>(0u),
+                                               std::ranges::begin(buf))}));
+  assert_stdsv_equal(
+    "ec"sv, (std::string_view{std::ranges::begin(buf),
+                              util::format_hex(static_cast<uint8_t>(0xecu),
+                                               std::ranges::begin(buf))}));
+  assert_stdsv_equal(
+    "00000000"sv,
+    (std::string_view{std::ranges::begin(buf),
+                      util::format_hex(0u, std::ranges::begin(buf))}));
+  assert_stdsv_equal(
+    "0000ab01"sv,
+    (std::string_view{std::ranges::begin(buf),
+                      util::format_hex(0xab01u, std::ranges::begin(buf))}));
+  assert_stdsv_equal(
+    "deadbeefbaadf00d"sv,
+    (std::string_view{
+      std::ranges::begin(buf),
+      util::format_hex(0xdeadbeefbaadf00du, std::ranges::begin(buf))}));
+  assert_stdsv_equal(
+    "ffffffffffffffff"sv,
+    (std::string_view{std::ranges::begin(buf),
+                      util::format_hex(std::numeric_limits<uint64_t>::max(),
+                                       std::ranges::begin(buf))}));
 }
 
 void test_util_decode_hex() {
