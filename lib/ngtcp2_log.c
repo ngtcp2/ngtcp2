@@ -42,7 +42,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
                      ngtcp2_printf log_printf, ngtcp2_tstamp ts,
                      void *user_data) {
   if (scid) {
-    ngtcp2_encode_hex(log->scid, scid->data, scid->datalen);
+    ngtcp2_encode_hex_cstr(log->scid, scid->data, scid->datalen);
   } else {
     log->scid[0] = '\0';
   }
@@ -344,10 +344,10 @@ static void log_fr_new_connection_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                    " cid=0x%s retire_prior_to=%" PRIu64
                    " stateless_reset_token=0x%s",
     NGTCP2_LOG_PKT_HD_FIELDS(dir), fr->type, fr->seq,
-    (const char *)ngtcp2_encode_hex(cid, fr->cid.data, fr->cid.datalen),
+    (const char *)ngtcp2_encode_hex_cstr(cid, fr->cid.data, fr->cid.datalen),
     fr->retire_prior_to,
-    (const char *)ngtcp2_encode_hex(buf, fr->stateless_reset_token,
-                                    sizeof(fr->stateless_reset_token)));
+    (const char *)ngtcp2_encode_hex_cstr(buf, fr->stateless_reset_token,
+                                         sizeof(fr->stateless_reset_token)));
 }
 
 static void log_fr_stop_sending(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -370,7 +370,7 @@ static void log_fr_path_challenge(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     log, NGTCP2_LOG_EVENT_FRM,
     NGTCP2_LOG_PKT " PATH_CHALLENGE(0x%02" PRIx64 ") data=0x%s",
     NGTCP2_LOG_PKT_HD_FIELDS(dir), fr->type,
-    (const char *)ngtcp2_encode_hex(buf, fr->data, sizeof(fr->data)));
+    (const char *)ngtcp2_encode_hex_cstr(buf, fr->data, sizeof(fr->data)));
 }
 
 static void log_fr_path_response(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -382,7 +382,7 @@ static void log_fr_path_response(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     log, NGTCP2_LOG_EVENT_FRM,
     NGTCP2_LOG_PKT " PATH_RESPONSE(0x%02" PRIx64 ") data=0x%s",
     NGTCP2_LOG_PKT_HD_FIELDS(dir), fr->type,
-    (const char *)ngtcp2_encode_hex(buf, fr->data, sizeof(fr->data)));
+    (const char *)ngtcp2_encode_hex_cstr(buf, fr->data, sizeof(fr->data)));
 }
 
 static void log_fr_crypto(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -402,11 +402,11 @@ static void log_fr_new_token(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   uint8_t *p;
 
   if (fr->tokenlen > 64) {
-    p = ngtcp2_encode_hex(buf, fr->token, 64);
+    p = ngtcp2_encode_hex_cstr(buf, fr->token, 64);
     p[128] = '*';
     p[129] = '\0';
   } else {
-    p = ngtcp2_encode_hex(buf, fr->token, fr->tokenlen);
+    p = ngtcp2_encode_hex_cstr(buf, fr->token, fr->tokenlen);
   }
 
   ngtcp2_log_infof_raw(
@@ -565,8 +565,8 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset *sr) {
   ngtcp2_log_infof_raw(
     log, NGTCP2_LOG_EVENT_PKT, NGTCP2_LOG_PKT " token=0x%s randlen=%zu",
     NGTCP2_LOG_PKT_HD_FIELDS("rx"),
-    (const char *)ngtcp2_encode_hex(buf, sr->stateless_reset_token,
-                                    sizeof(sr->stateless_reset_token)),
+    (const char *)ngtcp2_encode_hex_cstr(buf, sr->stateless_reset_token,
+                                         sizeof(sr->stateless_reset_token)),
     sr->randlen);
 }
 
@@ -586,10 +586,11 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
   }
 
   if (params->stateless_reset_token_present) {
-    ngtcp2_log_infof_raw(
-      log, NGTCP2_LOG_EVENT_CRY, NGTCP2_LOG_TP " stateless_reset_token=0x%s",
-      (const char *)ngtcp2_encode_hex(token, params->stateless_reset_token,
-                                      sizeof(params->stateless_reset_token)));
+    ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_CRY,
+                         NGTCP2_LOG_TP " stateless_reset_token=0x%s",
+                         (const char *)ngtcp2_encode_hex_cstr(
+                           token, params->stateless_reset_token,
+                           sizeof(params->stateless_reset_token)));
   }
 
   if (params->preferred_addr_present) {
@@ -619,12 +620,12 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
 
     ngtcp2_log_infof_raw(
       log, NGTCP2_LOG_EVENT_CRY, NGTCP2_LOG_TP " preferred_address.cid=0x%s",
-      (const char *)ngtcp2_encode_hex(cid, params->preferred_addr.cid.data,
-                                      params->preferred_addr.cid.datalen));
+      (const char *)ngtcp2_encode_hex_cstr(cid, params->preferred_addr.cid.data,
+                                           params->preferred_addr.cid.datalen));
     ngtcp2_log_infof_raw(
       log, NGTCP2_LOG_EVENT_CRY,
       NGTCP2_LOG_TP " preferred_address.stateless_reset_token=0x%s",
-      (const char *)ngtcp2_encode_hex(
+      (const char *)ngtcp2_encode_hex_cstr(
         token, params->preferred_addr.stateless_reset_token,
         sizeof(params->preferred_addr.stateless_reset_token)));
   }
@@ -633,24 +634,24 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
     ngtcp2_log_infof_raw(
       log, NGTCP2_LOG_EVENT_CRY,
       NGTCP2_LOG_TP " original_destination_connection_id=0x%s",
-      (const char *)ngtcp2_encode_hex(cid, params->original_dcid.data,
-                                      params->original_dcid.datalen));
+      (const char *)ngtcp2_encode_hex_cstr(cid, params->original_dcid.data,
+                                           params->original_dcid.datalen));
   }
 
   if (params->retry_scid_present) {
     ngtcp2_log_infof_raw(
       log, NGTCP2_LOG_EVENT_CRY,
       NGTCP2_LOG_TP " retry_source_connection_id=0x%s",
-      (const char *)ngtcp2_encode_hex(cid, params->retry_scid.data,
-                                      params->retry_scid.datalen));
+      (const char *)ngtcp2_encode_hex_cstr(cid, params->retry_scid.data,
+                                           params->retry_scid.datalen));
   }
 
   if (params->initial_scid_present) {
     ngtcp2_log_infof_raw(
       log, NGTCP2_LOG_EVENT_CRY,
       NGTCP2_LOG_TP " initial_source_connection_id=0x%s",
-      (const char *)ngtcp2_encode_hex(cid, params->initial_scid.data,
-                                      params->initial_scid.datalen));
+      (const char *)ngtcp2_encode_hex_cstr(cid, params->initial_scid.data,
+                                           params->initial_scid.datalen));
   }
 
   ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_CRY,
@@ -743,16 +744,19 @@ static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     ngtcp2_log_infof(
       log, NGTCP2_LOG_EVENT_PKT, "%s pkn=%" PRId64 " dcid=0x%s type=%s k=%d",
       dir, hd->pkt_num,
-      (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
+      (const char *)ngtcp2_encode_hex_cstr(dcid, hd->dcid.data,
+                                           hd->dcid.datalen),
       strpkttype(hd), (hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE) != 0);
   } else {
-    ngtcp2_log_infof(
-      log, NGTCP2_LOG_EVENT_PKT,
-      "%s pkn=%" PRId64 " dcid=0x%s scid=0x%s version=0x%08x type=%s len=%zu",
-      dir, hd->pkt_num,
-      (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
-      (const char *)ngtcp2_encode_hex(scid, hd->scid.data, hd->scid.datalen),
-      hd->version, strpkttype(hd), hd->len);
+    ngtcp2_log_infof(log, NGTCP2_LOG_EVENT_PKT,
+                     "%s pkn=%" PRId64
+                     " dcid=0x%s scid=0x%s version=0x%08x type=%s len=%zu",
+                     dir, hd->pkt_num,
+                     (const char *)ngtcp2_encode_hex_cstr(dcid, hd->dcid.data,
+                                                          hd->dcid.datalen),
+                     (const char *)ngtcp2_encode_hex_cstr(scid, hd->scid.data,
+                                                          hd->scid.datalen),
+                     hd->version, strpkttype(hd), hd->len);
   }
 }
 
