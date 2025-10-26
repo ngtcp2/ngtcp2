@@ -231,3 +231,124 @@ int ngtcp2_cmemeq(const uint8_t *a, const uint8_t *b, size_t n) {
 
   return rv == 0;
 }
+
+/* countl_zero counts the number of leading zeros in |x|.  It is
+   undefined if |x| is 0. */
+static int countl_zero(uint64_t x) {
+#ifdef __GNUC__
+  return __builtin_clzll(x);
+#else  /* !defined(__GNUC__) */
+  /* This is the same implementation of Go's LeadingZeros64 in
+     math/bits package. */
+  static const uint8_t len8tab[] = {
+    0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
+    5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+  };
+  int n = 0;
+
+  if (x >= 1ull << 32) {
+    x >>= 32;
+    n += 32;
+  }
+
+  if (x >= 1 << 16) {
+    x >>= 16;
+    n += 16;
+  }
+
+  if (x >= 1 << 8) {
+    x >>= 8;
+    n += 8;
+  }
+
+  return 64 - (n + len8tab[x]);
+#endif /* !defined(__GNUC__) */
+}
+
+/*
+ * count_digit returns the minimum number of digits to represent |x|
+ * in base 10.
+ *
+ * credit:
+ * https://lemire.me/blog/2025/01/07/counting-the-digits-of-64-bit-integers/
+ */
+static size_t count_digit(uint64_t x) {
+  static const uint64_t count_digit_tbl[] = {
+    9ull,
+    99ull,
+    999ull,
+    9999ull,
+    99999ull,
+    999999ull,
+    9999999ull,
+    99999999ull,
+    999999999ull,
+    9999999999ull,
+    99999999999ull,
+    999999999999ull,
+    9999999999999ull,
+    99999999999999ull,
+    999999999999999ull,
+    9999999999999999ull,
+    99999999999999999ull,
+    999999999999999999ull,
+    9999999999999999999ull,
+  };
+  size_t y = (size_t)(19 * (63 - countl_zero(x | 1)) >> 6);
+
+  y += x > count_digit_tbl[y];
+
+  return y + 1;
+}
+
+uint8_t *ngtcp2_encode_uint(uint8_t *dest, uint64_t n) {
+  static const uint8_t uint_digits[] =
+    "00010203040506070809101112131415161718192021222324252627282930313233343536"
+    "37383940414243444546474849505152535455565758596061626364656667686970717273"
+    "7475767778798081828384858687888990919293949596979899";
+  uint8_t *p;
+  const uint8_t *tp;
+
+  if (n < 10) {
+    *dest++ = (uint8_t)('0' + n);
+    return dest;
+  }
+
+  if (n < 100) {
+    tp = &uint_digits[n * 2];
+    *dest++ = *tp++;
+    *dest++ = *tp;
+    return dest;
+  }
+
+  dest += count_digit(n);
+  p = dest;
+
+  for (; n >= 100; n /= 100) {
+    p -= 2;
+    tp = &uint_digits[(n % 100) * 2];
+    p[0] = *tp++;
+    p[1] = *tp;
+  }
+
+  if (n < 10) {
+    *--p = (uint8_t)('0' + n);
+    return dest;
+  }
+
+  p -= 2;
+  tp = &uint_digits[n * 2];
+  p[0] = *tp++;
+  p[1] = *tp;
+
+  return dest;
+}

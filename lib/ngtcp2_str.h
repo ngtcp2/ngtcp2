@@ -91,4 +91,12 @@ char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
  */
 int ngtcp2_cmemeq(const uint8_t *a, const uint8_t *b, size_t n);
 
+/*
+ * ngtcp2_encode_uint encodes |n| as a decimal integer to the buffer
+ * pointed by |dest|.  This function assumes that the buffer contains
+ * the sufficient capacity to write the number.  This function returns
+ * the pointer to the buffer past the last byte written.
+ */
+uint8_t *ngtcp2_encode_uint(uint8_t *dest, uint64_t n);
+
 #endif /* !defined(NGTCP2_STR_H) */
