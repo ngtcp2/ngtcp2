@@ -33,6 +33,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_encode_ipv4),
   munit_void_test(test_ngtcp2_encode_ipv6),
   munit_void_test(test_ngtcp2_get_bytes),
+  munit_void_test(test_ngtcp2_encode_uint),
   munit_test_end(),
 };
 
@@ -94,4 +95,80 @@ void test_ngtcp2_get_bytes(void) {
 
   assert_ptr_equal(src + sizeof(src), ngtcp2_get_bytes(dest, src, sizeof(src)));
   assert_memory_equal(sizeof(src), src, dest);
+}
+
+void test_ngtcp2_encode_uint(void) {
+  uint8_t dest[256];
+  const char *nines[] = {
+    "9",
+    "99",
+    "999",
+    "9999",
+    "99999",
+    "999999",
+    "9999999",
+    "99999999",
+    "999999999",
+    "9999999999",
+    "99999999999",
+    "999999999999",
+    "9999999999999",
+    "99999999999999",
+    "999999999999999",
+    "9999999999999999",
+    "99999999999999999",
+    "999999999999999999",
+    "9999999999999999999",
+  };
+  const char *tens[] = {
+    "10",
+    "100",
+    "1000",
+    "10000",
+    "100000",
+    "1000000",
+    "10000000",
+    "100000000",
+    "1000000000",
+    "10000000000",
+    "100000000000",
+    "1000000000000",
+    "10000000000000",
+    "100000000000000",
+    "1000000000000000",
+    "10000000000000000",
+    "100000000000000000",
+    "1000000000000000000",
+    "10000000000000000000",
+  };
+  uint64_t n;
+  size_t i;
+
+  *ngtcp2_encode_uint(dest, 0) = '\0';
+
+  assert_string_equal("0", (const char *)dest);
+
+  *ngtcp2_encode_uint(dest, 1) = '\0';
+
+  assert_string_equal("1", (const char *)dest);
+
+  n = 9;
+
+  for (i = 0; i < ngtcp2_arraylen(nines); ++i, n = n * 10 + 9) {
+    *ngtcp2_encode_uint(dest, n) = '\0';
+
+    assert_string_equal(nines[i], (const char *)dest);
+  }
+
+  n = 10;
+
+  for (i = 0; i < ngtcp2_arraylen(tens); ++i, n *= 10) {
+    *ngtcp2_encode_uint(dest, n) = '\0';
+
+    assert_string_equal(tens[i], (const char *)dest);
+  }
+
+  *ngtcp2_encode_uint(dest, UINT64_MAX) = '\0';
+
+  assert_string_equal("18446744073709551615", (const char *)dest);
 }
