@@ -79,40 +79,15 @@ char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
   return dest;
 }
 
-/*
- * write_uint writes |n| to the buffer pointed by |p| in decimal
- * representation.  It returns |p| plus the number of bytes written.
- * The function assumes that the buffer has enough capacity to contain
- * a string.
- */
-static uint8_t *write_uint(uint8_t *p, uint64_t n) {
-  size_t nlen = 0;
-  uint64_t t;
-  uint8_t *res;
-
-  if (n == 0) {
-    *p++ = '0';
-    return p;
-  }
-  for (t = n; t; t /= 10, ++nlen)
-    ;
-  p += nlen;
-  res = p;
-  for (; n; n /= 10) {
-    *--p = (uint8_t)((n % 10) + '0');
-  }
-  return res;
-}
-
 uint8_t *ngtcp2_encode_ipv4(uint8_t *dest, const uint8_t *addr) {
   size_t i;
   uint8_t *p = dest;
 
-  p = write_uint(p, addr[0]);
+  p = ngtcp2_encode_uint(p, addr[0]);
 
   for (i = 1; i < 4; ++i) {
     *p++ = '.';
-    p = write_uint(p, addr[i]);
+    p = ngtcp2_encode_uint(p, addr[i]);
   }
 
   *p = '\0';
