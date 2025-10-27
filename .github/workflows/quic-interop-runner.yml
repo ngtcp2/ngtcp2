@@ -171,7 +171,7 @@ jobs:
         failures=$(jq -c '.measurements | flatten | .[] | select(.result == "failed")' measurements.json)
         [ -z "$failures" ] || exit 1
     - name: Upload logs on failure
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: failure() && steps.verdict.conclusion == 'failure'
       with:
         name: logs-${{ matrix.server }}-${{ matrix.client }}
