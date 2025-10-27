@@ -448,6 +448,21 @@ void test_util_format_hex() {
     (std::string_view{std::ranges::begin(buf),
                       util::format_hex(std::numeric_limits<uint64_t>::max(),
                                        std::ranges::begin(buf))}));
+
+  std::vector<char> char_vec;
+  util::format_hex(a, std::back_inserter(char_vec));
+
+  assert_stdsv_equal("deadbeef"sv,
+                     (std::string_view{std::ranges::begin(char_vec),
+                                       std::ranges::end(char_vec)}));
+
+  std::vector<uint8_t> uint8_vec;
+  util::format_hex(a, std::back_inserter(uint8_vec));
+
+  assert_stdsv_equal(
+    "deadbeef"sv,
+    (std::string_view{reinterpret_cast<const char *>(uint8_vec.data()),
+                      uint8_vec.size()}));
 }
 
 void test_util_decode_hex() {
