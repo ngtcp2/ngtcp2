@@ -55,15 +55,9 @@ static uint8_t *write_string_impl(uint8_t *p, const uint8_t *data,
 #define write_string(DEST, S)                                                  \
   write_string_impl((DEST), (const uint8_t *)(S), sizeof(S) - 1)
 
-#define NGTCP2_LOWER_XDIGITS "0123456789abcdef"
-
 static uint8_t *write_hex(uint8_t *p, const uint8_t *data, size_t datalen) {
-  const uint8_t *b = data, *end = data + datalen;
   *p++ = '"';
-  for (; b != end; ++b) {
-    *p++ = (uint8_t)NGTCP2_LOWER_XDIGITS[*b >> 4];
-    *p++ = (uint8_t)NGTCP2_LOWER_XDIGITS[*b & 0xf];
-  }
+  p = ngtcp2_encode_hex(p, data, datalen);
   *p++ = '"';
   return p;
 }
