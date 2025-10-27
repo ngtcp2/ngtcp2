@@ -85,10 +85,15 @@ inline constexpr char LOWER_XDIGITS[] = "0123456789abcdef";
 template <std::weakly_incrementable O>
 requires(std::indirectly_writable<O, char>)
 constexpr O format_hex_uint8(uint8_t b, O result) {
-  using result_type = std::iter_value_t<O>;
-
-  *result++ = static_cast<result_type>(LOWER_XDIGITS[b >> 4]);
-  *result++ = static_cast<result_type>(LOWER_XDIGITS[b & 0xf]);
+#ifdef __GNUC__
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wsign-conversion"
+#endif // __GNUC__
+  *result++ = LOWER_XDIGITS[b >> 4];
+  *result++ = LOWER_XDIGITS[b & 0xf];
+#ifdef __GNUC__
+#  pragma GCC diagnostic pop
+#endif // __GNUC__
 
   return result;
 }
