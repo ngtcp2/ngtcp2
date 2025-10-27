@@ -57,9 +57,8 @@ uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
   return p;
 }
 
-uint8_t *ngtcp2_encode_hex_cstr(uint8_t *dest, const uint8_t *data,
-                                size_t len) {
-  uint8_t *p = ngtcp2_encode_hex(dest, data, len);
+char *ngtcp2_encode_hex_cstr(char *dest, const uint8_t *data, size_t len) {
+  uint8_t *p = ngtcp2_encode_hex((uint8_t *)dest, data, len);
 
   *p = '\0';
 
@@ -86,15 +85,15 @@ char *ngtcp2_encode_printable_ascii_cstr(char *dest, const uint8_t *data,
   return dest;
 }
 
-uint8_t *ngtcp2_encode_ipv4_cstr(uint8_t *dest, const uint8_t *addr) {
+char *ngtcp2_encode_ipv4_cstr(char *dest, const uint8_t *addr) {
   size_t i;
-  uint8_t *p = dest;
+  char *p = dest;
 
-  p = ngtcp2_encode_uint(p, addr[0]);
+  p = (char *)ngtcp2_encode_uint((uint8_t *)p, addr[0]);
 
   for (i = 1; i < 4; ++i) {
     *p++ = '.';
-    p = ngtcp2_encode_uint(p, addr[i]);
+    p = (char *)ngtcp2_encode_uint((uint8_t *)p, addr[i]);
   }
 
   *p = '\0';
@@ -107,9 +106,9 @@ uint8_t *ngtcp2_encode_ipv4_cstr(uint8_t *dest, const uint8_t *addr) {
  * length |len| to |dest| in hex string.  Any leading zeros are
  * suppressed.  It returns |dest| plus the number of bytes written.
  */
-static uint8_t *write_hex_zsup(uint8_t *dest, const uint8_t *data, size_t len) {
+static char *write_hex_zsup(char *dest, const uint8_t *data, size_t len) {
   size_t i;
-  uint8_t *p = dest;
+  char *p = dest;
   uint8_t d;
 
   for (i = 0; i < len; ++i) {
@@ -121,7 +120,7 @@ static uint8_t *write_hex_zsup(uint8_t *dest, const uint8_t *data, size_t len) {
     d &= 0xf;
 
     if (d) {
-      *p++ = (uint8_t)LOWER_XDIGITS[d];
+      *p++ = LOWER_XDIGITS[d];
       ++i;
       break;
     }
@@ -134,19 +133,19 @@ static uint8_t *write_hex_zsup(uint8_t *dest, const uint8_t *data, size_t len) {
 
   for (; i < len; ++i) {
     d = data[i];
-    *p++ = (uint8_t)LOWER_XDIGITS[d >> 4];
-    *p++ = (uint8_t)LOWER_XDIGITS[d & 0xf];
+    *p++ = LOWER_XDIGITS[d >> 4];
+    *p++ = LOWER_XDIGITS[d & 0xf];
   }
 
   return p;
 }
 
-uint8_t *ngtcp2_encode_ipv6_cstr(uint8_t *dest, const uint8_t *addr) {
+char *ngtcp2_encode_ipv6_cstr(char *dest, const uint8_t *addr) {
   uint16_t blks[8];
   size_t i;
   size_t zlen, zoff;
   size_t max_zlen = 0, max_zoff = 8;
-  uint8_t *p = dest;
+  char *p = dest;
 
   for (i = 0; i < 16; i += sizeof(uint16_t)) {
     /* Copy in network byte order. */

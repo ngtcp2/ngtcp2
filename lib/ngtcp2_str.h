@@ -58,7 +58,7 @@ uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
  * The buffer pointed by |dest| must have at least |len| * 2 + 1 bytes
  * space.  This function returns |dest|.
  */
-uint8_t *ngtcp2_encode_hex_cstr(uint8_t *dest, const uint8_t *data, size_t len);
+char *ngtcp2_encode_hex_cstr(char *dest, const uint8_t *data, size_t len);
 
 /*
  * ngtcp2_encode_ipv4_cstr encodes binary form IPv4 address stored in
@@ -67,7 +67,7 @@ uint8_t *ngtcp2_encode_hex_cstr(uint8_t *dest, const uint8_t *data, size_t len);
  * plus a terminating NULL byte.  The resulting text form ends with
  * NULL byte.  The function returns |dest|.
  */
-uint8_t *ngtcp2_encode_ipv4_cstr(uint8_t *dest, const uint8_t *addr);
+char *ngtcp2_encode_ipv4_cstr(char *dest, const uint8_t *addr);
 
 /*
  * ngtcp2_encode_ipv6_cstr encodes binary form IPv6 address stored in
@@ -79,7 +79,7 @@ uint8_t *ngtcp2_encode_ipv4_cstr(uint8_t *dest, const uint8_t *addr);
  * https://tools.ietf.org/html/rfc5952#section-4.  The function
  * returns |dest|.
  */
-uint8_t *ngtcp2_encode_ipv6_cstr(uint8_t *dest, const uint8_t *addr);
+char *ngtcp2_encode_ipv6_cstr(char *dest, const uint8_t *addr);
 
 /*
  * ngtcp2_encode_printable_ascii encodes |data| of length |len| in

@@ -5409,7 +5409,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   ngtcp2_pktns *in_pktns = conn->in_pktns;
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
   ngtcp2_rtb *in_rtb;
-  uint8_t cidbuf[sizeof(retry.odcid.data) * 2 + 1];
+  char cidbuf[sizeof(retry.odcid.data) * 2 + 1];
   uint8_t *token;
 
   if (!in_pktns || (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY)) {
@@ -5434,9 +5434,9 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return rv;
   }
 
-  ngtcp2_log_infof(&conn->log, NGTCP2_LOG_EVENT_PKT, "odcid=0x%s",
-                   (const char *)ngtcp2_encode_hex_cstr(
-                     cidbuf, retry.odcid.data, retry.odcid.datalen));
+  ngtcp2_log_infof(
+    &conn->log, NGTCP2_LOG_EVENT_PKT, "odcid=0x%s",
+    ngtcp2_encode_hex_cstr(cidbuf, retry.odcid.data, retry.odcid.datalen));
 
   if (retry.tokenlen == 0) {
     return NGTCP2_ERR_PROTO;
