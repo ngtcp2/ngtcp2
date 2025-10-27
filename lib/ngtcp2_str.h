@@ -46,6 +46,13 @@ uint8_t *ngtcp2_setmem(uint8_t *dest, uint8_t b, size_t n);
 const void *ngtcp2_get_bytes(void *dest, const void *src, size_t n);
 
 /*
+ * ngtcp2_encode_hex encodes |data| of length |len| in hex string.
+ * The buffer pointed by |dest| must have at least |len| * 2 bytes
+ * space.  This function returns |dest| + |len| * 2.
+ */
+uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
+
+/*
  * ngtcp2_encode_hex_cstr encodes |data| of length |len| in hex
  * string.  It writes additional NULL bytes at the end of the buffer.
  * The buffer pointed by |dest| must have at least |len| * 2 + 1 bytes

@@ -34,6 +34,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_encode_ipv6),
   munit_void_test(test_ngtcp2_get_bytes),
   munit_void_test(test_ngtcp2_encode_uint),
+  munit_void_test(test_ngtcp2_encode_hex),
   munit_test_end(),
 };
 
@@ -171,4 +172,22 @@ void test_ngtcp2_encode_uint(void) {
   *ngtcp2_encode_uint(dest, UINT64_MAX) = '\0';
 
   assert_string_equal("18446744073709551615", (const char *)dest);
+}
+
+void test_ngtcp2_encode_hex(void) {
+  uint8_t dest[256];
+
+  {
+    *ngtcp2_encode_hex(dest, NULL, 0) = '\0';
+
+    assert_string_equal("", (const char *)dest);
+  }
+
+  {
+    const uint8_t s[] = "\xde\xad\xbe\xef";
+
+    *ngtcp2_encode_hex(dest, s, sizeof(s) - 1) = '\0';
+
+    assert_string_equal("deadbeef", (const char *)dest);
+  }
 }

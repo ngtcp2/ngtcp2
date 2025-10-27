@@ -45,8 +45,7 @@ const void *ngtcp2_get_bytes(void *dest, const void *src, size_t n) {
 
 #define LOWER_XDIGITS "0123456789abcdef"
 
-uint8_t *ngtcp2_encode_hex_cstr(uint8_t *dest, const uint8_t *data,
-                                size_t len) {
+uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
   size_t i;
   uint8_t *p = dest;
 
@@ -54,6 +53,13 @@ uint8_t *ngtcp2_encode_hex_cstr(uint8_t *dest, const uint8_t *data,
     *p++ = (uint8_t)LOWER_XDIGITS[data[i] >> 4];
     *p++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xf];
   }
+
+  return p;
+}
+
+uint8_t *ngtcp2_encode_hex_cstr(uint8_t *dest, const uint8_t *data,
+                                size_t len) {
+  uint8_t *p = ngtcp2_encode_hex(dest, data, len);
 
   *p = '\0';
 
