@@ -30,8 +30,8 @@
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
-  munit_void_test(test_ngtcp2_encode_ipv4),
-  munit_void_test(test_ngtcp2_encode_ipv6),
+  munit_void_test(test_ngtcp2_encode_ipv4_cstr),
+  munit_void_test(test_ngtcp2_encode_ipv6_cstr),
   munit_void_test(test_ngtcp2_get_bytes),
   munit_void_test(test_ngtcp2_encode_uint),
   munit_void_test(test_ngtcp2_encode_hex),
@@ -43,49 +43,49 @@ const MunitSuite str_suite = {
   .tests = tests,
 };
 
-void test_ngtcp2_encode_ipv4(void) {
+void test_ngtcp2_encode_ipv4_cstr(void) {
   uint8_t buf[16];
 
-  assert_string_equal(
-    "192.168.0.1",
-    (const char *)ngtcp2_encode_ipv4(buf, (const uint8_t *)"\xc0\xa8\x00\x01"));
-  assert_string_equal("127.0.0.1", (const char *)ngtcp2_encode_ipv4(
+  assert_string_equal("192.168.0.1",
+                      (const char *)ngtcp2_encode_ipv4_cstr(
+                        buf, (const uint8_t *)"\xc0\xa8\x00\x01"));
+  assert_string_equal("127.0.0.1", (const char *)ngtcp2_encode_ipv4_cstr(
                                      buf, (const uint8_t *)"\x7f\x00\x00\x01"));
 }
 
-void test_ngtcp2_encode_ipv6(void) {
+void test_ngtcp2_encode_ipv6_cstr(void) {
   uint8_t buf[32 + 7 + 1];
 
   assert_string_equal("2001:db8::2:1",
-                      (const char *)ngtcp2_encode_ipv6(
+                      (const char *)ngtcp2_encode_ipv6_cstr(
                         buf,
                         (const uint8_t *)"\x20\x01\x0d\xb8\x00\x00\x00\x00\x00"
                                          "\x00\x00\x00\x00\x02\x00\x01"));
   assert_string_equal("2001:db8:0:1:1:1:1:1",
-                      (const char *)ngtcp2_encode_ipv6(
+                      (const char *)ngtcp2_encode_ipv6_cstr(
                         buf,
                         (const uint8_t *)"\x20\x01\x0d\xb8\x00\x00\x00\x01\x00"
                                          "\x01\x00\x01\x00\x01\x00\x01"));
   assert_string_equal("2001:db8::1:0:0:1",
-                      (const char *)ngtcp2_encode_ipv6(
+                      (const char *)ngtcp2_encode_ipv6_cstr(
                         buf,
                         (const uint8_t *)"\x20\x01\x0d\xb8\x00\x00\x00\x00\x00"
                                          "\x01\x00\x00\x00\x00\x00\x01"));
   assert_string_equal("2001:db8::8:800:200c:417a",
-                      (const char *)ngtcp2_encode_ipv6(
+                      (const char *)ngtcp2_encode_ipv6_cstr(
                         buf,
                         (const uint8_t *)"\x20\x01\x0d\xb8\x00\x00\x00\x00\x00"
                                          "\x08\x08\x00\x20\x0C\x41\x7a"));
   assert_string_equal(
-    "ff01::101", (const char *)ngtcp2_encode_ipv6(
+    "ff01::101", (const char *)ngtcp2_encode_ipv6_cstr(
                    buf, (const uint8_t *)"\xff\x01\x00\x00\x00\x00\x00\x00\x00"
                                          "\x00\x00\x00\x00\x00\x01\x01"));
   assert_string_equal(
-    "::1", (const char *)ngtcp2_encode_ipv6(
+    "::1", (const char *)ngtcp2_encode_ipv6_cstr(
              buf, (const uint8_t *)"\x00\x00\x00\x00\x00\x00\x00\x00\x00"
                                    "\x00\x00\x00\x00\x00\x00\x01"));
   assert_string_equal(
-    "::", (const char *)ngtcp2_encode_ipv6(
+    "::", (const char *)ngtcp2_encode_ipv6_cstr(
             buf, (const uint8_t *)"\x00\x00\x00\x00\x00\x00\x00\x00\x00"
                                   "\x00\x00\x00\x00\x00\x00\x00"));
 }

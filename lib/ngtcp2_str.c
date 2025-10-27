@@ -66,8 +66,8 @@ uint8_t *ngtcp2_encode_hex_cstr(uint8_t *dest, const uint8_t *data,
   return dest;
 }
 
-char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
-                                    size_t len) {
+char *ngtcp2_encode_printable_ascii_cstr(char *dest, const uint8_t *data,
+                                         size_t len) {
   size_t i;
   char *p = dest;
   uint8_t c;
@@ -86,7 +86,7 @@ char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
   return dest;
 }
 
-uint8_t *ngtcp2_encode_ipv4(uint8_t *dest, const uint8_t *addr) {
+uint8_t *ngtcp2_encode_ipv4_cstr(uint8_t *dest, const uint8_t *addr) {
   size_t i;
   uint8_t *p = dest;
 
@@ -141,7 +141,7 @@ static uint8_t *write_hex_zsup(uint8_t *dest, const uint8_t *data, size_t len) {
   return p;
 }
 
-uint8_t *ngtcp2_encode_ipv6(uint8_t *dest, const uint8_t *addr) {
+uint8_t *ngtcp2_encode_ipv6_cstr(uint8_t *dest, const uint8_t *addr) {
   uint16_t blks[8];
   size_t i;
   size_t zlen, zoff;

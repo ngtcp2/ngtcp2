@@ -35,8 +35,8 @@
 
 extern const MunitSuite str_suite;
 
-munit_void_test_decl(test_ngtcp2_encode_ipv4)
-munit_void_test_decl(test_ngtcp2_encode_ipv6)
+munit_void_test_decl(test_ngtcp2_encode_ipv4_cstr)
+munit_void_test_decl(test_ngtcp2_encode_ipv6_cstr)
 munit_void_test_decl(test_ngtcp2_get_bytes)
 munit_void_test_decl(test_ngtcp2_encode_uint)
 munit_void_test_decl(test_ngtcp2_encode_hex)
