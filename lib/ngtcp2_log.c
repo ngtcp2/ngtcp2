@@ -267,7 +267,7 @@ static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     fr->type == NGTCP2_FRAME_CONNECTION_CLOSE ? strerrorcode(fr->error_code)
                                               : strapperrorcode(fr->error_code),
     fr->error_code, fr->frame_type, fr->reasonlen,
-    ngtcp2_encode_printable_ascii(reason, fr->reason, reasonlen));
+    ngtcp2_encode_printable_ascii_cstr(reason, fr->reason, reasonlen));
 }
 
 static void log_fr_max_data(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -599,7 +599,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
 
       ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_CRY,
                            NGTCP2_LOG_TP " preferred_address.ipv4_addr=%s",
-                           (const char *)ngtcp2_encode_ipv4(
+                           (const char *)ngtcp2_encode_ipv4_cstr(
                              addr, (const uint8_t *)&sa_in->sin_addr));
       ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_CRY,
                            NGTCP2_LOG_TP " preferred_address.ipv4_port=%u",
@@ -611,7 +611,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
 
       ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_CRY,
                            NGTCP2_LOG_TP " preferred_address.ipv6_addr=%s",
-                           (const char *)ngtcp2_encode_ipv6(
+                           (const char *)ngtcp2_encode_ipv6_cstr(
                              addr, (const uint8_t *)&sa_in6->sin6_addr));
       ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_CRY,
                            NGTCP2_LOG_TP " preferred_address.ipv6_port=%u",
