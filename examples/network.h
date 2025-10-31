@@ -50,7 +50,6 @@ namespace ngtcp2 {
 
 enum network_error {
   NETWORK_ERR_OK = 0,
-  NETWORK_ERR_FATAL = -10,
   NETWORK_ERR_SEND_BLOCKED = -11,
   NETWORK_ERR_CLOSE_WAIT = -12,
   NETWORK_ERR_RETRY = -13,
