@@ -3263,6 +3263,8 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
 
     rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
     if (rv != 0) {
+      ngtcp2_ksl_remove(&conn->scid.set, NULL, &scid->cid);
+      ngtcp2_mem_free(conn->mem, scid);
       return rv;
     }
 
