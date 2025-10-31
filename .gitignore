@@ -38,3 +38,4 @@ test-driver
 # idea settings
 .idea
 unused-symbols-report.txt
+*.pc
