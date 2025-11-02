@@ -10834,6 +10834,9 @@ int ngtcp2_conn_install_initial_key(
   rv = ngtcp2_crypto_km_new(&pktns->crypto.tx.ckm, NULL, 0, NULL, tx_iv, ivlen,
                             conn->mem);
   if (rv != 0) {
+    ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, conn->mem);
+    pktns->crypto.rx.ckm = NULL;
+
     return rv;
   }
 
@@ -10884,6 +10887,9 @@ int ngtcp2_conn_install_vneg_initial_key(
   rv = ngtcp2_crypto_km_new(&conn->vneg.tx.ckm, NULL, 0, NULL, tx_iv, ivlen,
                             conn->mem);
   if (rv != 0) {
+    ngtcp2_crypto_km_del(conn->vneg.rx.ckm, conn->mem);
+    conn->vneg.rx.ckm = NULL;
+
     return rv;
   }
 
