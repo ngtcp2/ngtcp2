@@ -10952,21 +10952,27 @@ int ngtcp2_conn_install_tx_handshake_key(
   if (conn->server) {
     rv = ngtcp2_conn_commit_local_transport_params(conn);
     if (rv != 0) {
-      return rv;
+      goto fail;
     }
   }
 
   rv = conn_call_recv_tx_key(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE);
   if (rv != 0) {
-    ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
-    pktns->crypto.tx.ckm = NULL;
-
-    memset(&pktns->crypto.tx.hp_ctx, 0, sizeof(pktns->crypto.tx.hp_ctx));
-
-    return rv;
+    goto fail;
   }
 
   return 0;
+
+fail:
+  /* If this function fails, aead_ctx and hp_ctx are still owned by
+     the caller.  Delete the install key to remove the any reference
+     to them. */
+  ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
+  pktns->crypto.tx.ckm = NULL;
+
+  memset(&pktns->crypto.tx.hp_ctx, 0, sizeof(pktns->crypto.tx.hp_ctx));
+
+  return rv;
 }
 
 int ngtcp2_conn_install_0rtt_key(ngtcp2_conn *conn,
