@@ -777,7 +777,9 @@ static void pktns_free(ngtcp2_pktns *pktns, const ngtcp2_mem *mem) {
                                        mem);
 
   ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, mem);
+  pktns->crypto.rx.ckm = NULL;
   ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, mem);
+  pktns->crypto.tx.ckm = NULL;
 
   ngtcp2_rtb_free(&pktns->rtb);
   ngtcp2_strm_free(&pktns->crypto.strm);
@@ -1629,7 +1631,9 @@ static void conn_vneg_crypto_free(ngtcp2_conn *conn) {
   conn_call_delete_crypto_cipher_ctx(conn, &conn->vneg.tx.hp_ctx);
 
   ngtcp2_crypto_km_del(conn->vneg.rx.ckm, conn->mem);
+  conn->vneg.rx.ckm = NULL;
   ngtcp2_crypto_km_del(conn->vneg.tx.ckm, conn->mem);
+  conn->vneg.tx.ckm = NULL;
 }
 
 void ngtcp2_conn_del(ngtcp2_conn *conn) {
@@ -1708,9 +1712,13 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_mem_free(conn->mem, (uint8_t *)conn->local.settings.token);
 
   ngtcp2_crypto_km_del(conn->crypto.key_update.old_rx_ckm, conn->mem);
+  conn->crypto.key_update.old_rx_ckm = NULL;
   ngtcp2_crypto_km_del(conn->crypto.key_update.new_rx_ckm, conn->mem);
+  conn->crypto.key_update.new_rx_ckm = NULL;
   ngtcp2_crypto_km_del(conn->crypto.key_update.new_tx_ckm, conn->mem);
+  conn->crypto.key_update.new_tx_ckm = NULL;
   ngtcp2_crypto_km_del(conn->early.ckm, conn->mem);
+  conn->early.ckm = NULL;
 
   pktns_free(&conn->pktns, conn->mem);
   pktns_del(conn->hs_pktns, conn->mem);
