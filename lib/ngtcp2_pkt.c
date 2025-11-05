@@ -918,7 +918,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_connection_close_frame(
     return NGTCP2_ERR_FRAME_ENCODING;
   }
 
-  p = ngtcp2_get_uvarint(&vi, p);
+  ngtcp2_get_uvarint(&vi, p);
   if (payloadlen - len < vi) {
     return NGTCP2_ERR_FRAME_ENCODING;
   }
@@ -1323,7 +1323,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_crypto_frame(ngtcp2_stream *dest,
     return NGTCP2_ERR_FRAME_ENCODING;
   }
 
-  p = ngtcp2_get_uvarint(&vi, p);
+  ngtcp2_get_uvarint(&vi, p);
   if (payloadlen - len < vi) {
     return NGTCP2_ERR_FRAME_ENCODING;
   }

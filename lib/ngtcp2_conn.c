@@ -4399,7 +4399,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING;
         }
         pktns->tx.non_ack_pkt_start_ts = UINT64_MAX;
-        pkt_empty = 0;
       }
     } else if (pktns->tx.non_ack_pkt_start_ts == UINT64_MAX) {
       pktns->tx.non_ack_pkt_start_ts = ts;
@@ -8736,7 +8735,6 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_pv *pv = NULL;
   int rv;
   ngtcp2_duration pto;
-  int require_new_cid;
   int local_addr_eq;
   int pref_addr_migration;
   uint32_t remote_addr_cmp;
@@ -8794,17 +8792,12 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
    * continue to use the current connection ID with the new remote
    * address while still sending from the same local address.
    */
-  require_new_cid = conn->dcid.current.cid.datalen &&
-                    ((new_cid_used && remote_addr_cmp) || !local_addr_eq);
-
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "non-probing packet was received from new remote address");
 
   if (ngtcp2_dcidtr_pop_bound_dcid(&conn->dcid.dtr, &dcid, path) == 0) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "Found DCID which has already been bound to the new path");
-
-    require_new_cid = 0;
 
     if (dcid.cid.datalen) {
       rv = conn_call_activate_dcid(conn, &dcid);
@@ -8813,7 +8806,9 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
       }
     }
   } else {
-    if (require_new_cid) {
+    if (conn->dcid.current.cid.datalen &&
+        ((new_cid_used && remote_addr_cmp) || !local_addr_eq)) {
+      /* New DCID is required. */
       if (ngtcp2_dcidtr_unused_empty(&conn->dcid.dtr)) {
         return NGTCP2_ERR_CONN_ID_BLOCKED;
       }
@@ -10586,8 +10581,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       }
 
       res += nwrite;
-      dest += nwrite;
-      destlen -= (size_t)nwrite;
     }
 
     if (res == 0) {
@@ -10597,8 +10590,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       }
 
       res += nwrite;
-      dest += nwrite;
-      origlen -= (size_t)nwrite;
     }
 
     return res;
