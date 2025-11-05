@@ -697,8 +697,10 @@ static int conn_call_recv_tx_key(ngtcp2_conn *conn,
   return 0;
 }
 
-// pktns_init initializes |pktns|.  It assumes that the object pointed
-// by |pktns| is zero-cleared.
+/*
+ * pktns_init initializes |pktns|.  It assumes that the object pointed
+ * by |pktns| is zero-cleared.
+ */
 static void pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
                        ngtcp2_rst *rst, ngtcp2_cc *cc, int64_t initial_pkt_num,
                        ngtcp2_log *log, ngtcp2_qlog *qlog,
