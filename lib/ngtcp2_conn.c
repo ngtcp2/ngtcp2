@@ -2206,12 +2206,15 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
   }
 
   /* ngtcp2_frame_chain for the removed data */
-  removed_frc->fr.stream.type = NGTCP2_FRAME_CRYPTO;
-  removed_frc->fr.stream.offset = (*pfrc)->fr.stream.offset + offset;
-  removed_frc->fr.stream.datacnt = 1;
-  removed_frc->fr.stream.data[0] = (ngtcp2_vec){
-    .base = data->base + offset,
-    .len = removed_data->len,
+  removed_frc->fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .offset = (*pfrc)->fr.stream.offset + offset,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .base = data->base + offset,
+        .len = removed_data->len,
+      },
   };
 
   rv = ngtcp2_strm_streamfrq_push(crypto_strm, removed_frc);
@@ -2261,12 +2264,15 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
     return rv;
   }
 
-  left_frc->fr.stream.type = NGTCP2_FRAME_CRYPTO;
-  left_frc->fr.stream.offset = (*pfrc)->fr.stream.offset;
-  left_frc->fr.stream.datacnt = 1;
-  left_frc->fr.stream.data[0] = (ngtcp2_vec){
-    .base = data[0].base,
-    .len = offset,
+  left_frc->fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .offset = (*pfrc)->fr.stream.offset,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .base = data[0].base,
+        .len = offset,
+      },
   };
   left_frc->next = right_frc;
 
@@ -3584,8 +3590,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
       conn->tx.last_max_data_ts = ts;
 
-      nfrc->fr.type = NGTCP2_FRAME_MAX_DATA;
-      nfrc->fr.max_data.max_data = conn->rx.unsent_max_offset + delta;
+      nfrc->fr.max_data = (ngtcp2_max_data){
+        .type = NGTCP2_FRAME_MAX_DATA,
+        .max_data = conn->rx.unsent_max_offset + delta,
+      };
       nfrc->next = pktns->tx.frq;
       pktns->tx.frq = nfrc;
 
@@ -3828,11 +3836,12 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
             return rv;
           }
 
-          nfrc->fr.type = NGTCP2_FRAME_RESET_STREAM;
-          nfrc->fr.reset_stream.stream_id = strm->stream_id;
-          nfrc->fr.reset_stream.app_error_code =
-            strm->tx.reset_stream_app_error_code;
-          nfrc->fr.reset_stream.final_size = strm->tx.offset;
+          nfrc->fr.reset_stream = (ngtcp2_reset_stream){
+            .type = NGTCP2_FRAME_RESET_STREAM,
+            .stream_id = strm->stream_id,
+            .app_error_code = strm->tx.reset_stream_app_error_code,
+            .final_size = strm->tx.offset,
+          };
           *pfrc = nfrc;
 
           strm->flags &= ~NGTCP2_STRM_FLAG_SEND_RESET_STREAM;
@@ -3871,10 +3880,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
               return rv;
             }
 
-            nfrc->fr.type = NGTCP2_FRAME_STOP_SENDING;
-            nfrc->fr.stop_sending.stream_id = strm->stream_id;
-            nfrc->fr.stop_sending.app_error_code =
-              strm->tx.stop_sending_app_error_code;
+            nfrc->fr.stop_sending = (ngtcp2_stop_sending){
+              .type = NGTCP2_FRAME_STOP_SENDING,
+              .stream_id = strm->stream_id,
+              .app_error_code = strm->tx.stop_sending_app_error_code,
+            };
             *pfrc = nfrc;
 
             strm->flags &= ~NGTCP2_STRM_FLAG_SEND_STOP_SENDING;
@@ -3902,9 +3912,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
             return rv;
           }
 
-          nfrc->fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
-          nfrc->fr.stream_data_blocked.stream_id = strm->stream_id;
-          nfrc->fr.stream_data_blocked.offset = strm->tx.max_offset;
+          nfrc->fr.stream_data_blocked = (ngtcp2_stream_data_blocked){
+            .type = NGTCP2_FRAME_STREAM_DATA_BLOCKED,
+            .stream_id = strm->stream_id,
+            .offset = strm->tx.max_offset,
+          };
           *pfrc = nfrc;
 
           strm->tx.last_blocked_offset = strm->tx.max_offset;
@@ -3956,10 +3968,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
           strm->tx.last_max_stream_data_ts = ts;
 
-          nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
-          nfrc->fr.max_stream_data.stream_id = strm->stream_id;
-          nfrc->fr.max_stream_data.max_stream_data =
-            strm->rx.unsent_max_offset + delta;
+          nfrc->fr.max_stream_data = (ngtcp2_max_stream_data){
+            .type = NGTCP2_FRAME_MAX_STREAM_DATA,
+            .stream_id = strm->stream_id,
+            .max_stream_data = strm->rx.unsent_max_offset + delta,
+          };
           *pfrc = nfrc;
 
           strm->rx.max_offset = strm->rx.unsent_max_offset =
@@ -4055,8 +4068,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         assert(ngtcp2_err_is_fatal(rv));
         return rv;
       }
-      nfrc->fr.type = NGTCP2_FRAME_MAX_STREAMS_BIDI;
-      nfrc->fr.max_streams.max_streams = conn->remote.bidi.unsent_max_streams;
+      nfrc->fr.max_streams = (ngtcp2_max_streams){
+        .type = NGTCP2_FRAME_MAX_STREAMS_BIDI,
+        .max_streams = conn->remote.bidi.unsent_max_streams,
+      };
       *pfrc = nfrc;
 
       conn->remote.bidi.max_streams = conn->remote.bidi.unsent_max_streams;
@@ -4087,8 +4102,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         assert(ngtcp2_err_is_fatal(rv));
         return rv;
       }
-      nfrc->fr.type = NGTCP2_FRAME_MAX_STREAMS_UNI;
-      nfrc->fr.max_streams.max_streams = conn->remote.uni.unsent_max_streams;
+      nfrc->fr.max_streams = (ngtcp2_max_streams){
+        .type = NGTCP2_FRAME_MAX_STREAMS_UNI,
+        .max_streams = conn->remote.uni.unsent_max_streams,
+      };
       *pfrc = nfrc;
 
       conn->remote.uni.max_streams = conn->remote.uni.unsent_max_streams;
@@ -4209,8 +4226,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         return rv;
       }
 
-      nfrc->fr.type = NGTCP2_FRAME_DATA_BLOCKED;
-      nfrc->fr.data_blocked.offset = conn->tx.offset;
+      nfrc->fr.data_blocked = (ngtcp2_data_blocked){
+        .type = NGTCP2_FRAME_DATA_BLOCKED,
+        .offset = conn->tx.offset,
+      };
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
       if (rv != 0) {
@@ -4241,9 +4260,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         return rv;
       }
 
-      nfrc->fr.type = NGTCP2_FRAME_STREAM_DATA_BLOCKED;
-      nfrc->fr.stream_data_blocked.stream_id = strm->stream_id;
-      nfrc->fr.stream_data_blocked.offset = strm->tx.max_offset;
+      nfrc->fr.stream_data_blocked = (ngtcp2_stream_data_blocked){
+        .type = NGTCP2_FRAME_STREAM_DATA_BLOCKED,
+        .stream_id = strm->stream_id,
+        .offset = strm->tx.max_offset,
+      };
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
       if (rv != 0) {
@@ -4773,8 +4794,10 @@ static int conn_enqueue_retire_connection_id(ngtcp2_conn *conn, uint64_t seq) {
     return rv;
   }
 
-  nfrc->fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
-  nfrc->fr.retire_connection_id.seq = seq;
+  nfrc->fr.retire_connection_id = (ngtcp2_retire_connection_id){
+    .type = NGTCP2_FRAME_RETIRE_CONNECTION_ID,
+    .seq = seq,
+  };
   nfrc->next = pktns->tx.frq;
   pktns->tx.frq = nfrc;
 
@@ -12401,11 +12424,12 @@ conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   ngtcp2_frame fr;
   uint8_t flags = NGTCP2_WRITE_PKT_FLAG_NONE;
 
-  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
-  fr.connection_close.error_code = error_code;
-  fr.connection_close.frame_type = 0;
-  fr.connection_close.reasonlen = reasonlen;
-  fr.connection_close.reason = (uint8_t *)reason;
+  fr.connection_close = (ngtcp2_connection_close){
+    .type = NGTCP2_FRAME_CONNECTION_CLOSE,
+    .error_code = error_code,
+    .reasonlen = reasonlen,
+    .reason = (uint8_t *)reason,
+  };
 
   if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
       pkt_type != NGTCP2_PKT_INITIAL) {
@@ -12580,11 +12604,12 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
 
   assert(conn->pktns.crypto.tx.ckm);
 
-  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE_APP;
-  fr.connection_close.error_code = app_error_code;
-  fr.connection_close.frame_type = 0;
-  fr.connection_close.reasonlen = reasonlen;
-  fr.connection_close.reason = (uint8_t *)reason;
+  fr.connection_close = (ngtcp2_connection_close){
+    .type = NGTCP2_FRAME_CONNECTION_CLOSE_APP,
+    .error_code = app_error_code,
+    .reasonlen = reasonlen,
+    .reason = (uint8_t *)reason,
+  };
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
     conn, pi, dest, destlen, NGTCP2_PKT_1RTT, NGTCP2_WRITE_PKT_FLAG_NONE,
@@ -12608,11 +12633,12 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
 static void ccerr_init(ngtcp2_ccerr *ccerr, ngtcp2_ccerr_type type,
                        uint64_t error_code, const uint8_t *reason,
                        size_t reasonlen) {
-  ccerr->type = type;
-  ccerr->error_code = error_code;
-  ccerr->frame_type = 0;
-  ccerr->reason = (uint8_t *)reason;
-  ccerr->reasonlen = reasonlen;
+  *ccerr = (ngtcp2_ccerr){
+    .type = type,
+    .error_code = error_code,
+    .reason = (uint8_t *)reason,
+    .reasonlen = reasonlen,
+  };
 }
 
 void ngtcp2_ccerr_default(ngtcp2_ccerr *ccerr) {
@@ -13311,7 +13337,6 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
                                    const uint8_t *data, const size_t datalen) {
   ngtcp2_pktns *pktns;
   ngtcp2_frame_chain *frc;
-  ngtcp2_stream *fr;
   int rv;
 
   if (datalen == 0) {
@@ -13344,16 +13369,16 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
     return rv;
   }
 
-  fr = &frc->fr.stream;
-
-  fr->type = NGTCP2_FRAME_CRYPTO;
-  fr->flags = 0;
-  fr->fin = 0;
-  fr->stream_id = 0;
-  fr->offset = pktns->crypto.tx.offset;
-  fr->datacnt = 1;
-  fr->data[0].len = datalen;
-  fr->data[0].base = (uint8_t *)data;
+  frc->fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .offset = pktns->crypto.tx.offset,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .base = (uint8_t *)data,
+        .len = datalen,
+      },
+  };
 
   rv = ngtcp2_strm_streamfrq_push(&pktns->crypto.strm, frc);
   if (rv != 0) {

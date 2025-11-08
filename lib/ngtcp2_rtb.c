@@ -1189,12 +1189,12 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_cc_ack *cc_ack,
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                                ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
                                ngtcp2_tstamp ts) {
-  ngtcp2_cc_ack cc_ack = {
-    .largest_pkt_sent_ts = UINT64_MAX,
-    .rtt = UINT64_MAX,
-  };
-
-  return rtb_detect_lost_pkt(rtb, &cc_ack, conn, pktns, cstat, ts);
+  return rtb_detect_lost_pkt(rtb,
+                             &(ngtcp2_cc_ack){
+                               .largest_pkt_sent_ts = UINT64_MAX,
+                               .rtt = UINT64_MAX,
+                             },
+                             conn, pktns, cstat, ts);
 }
 
 void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
