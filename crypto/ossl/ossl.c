@@ -41,7 +41,6 @@
 #include "ngtcp2_macro.h"
 #include "shared.h"
 
-static int crypto_initialized;
 static EVP_CIPHER *crypto_aes_128_gcm;
 static EVP_CIPHER *crypto_aes_256_gcm;
 static EVP_CIPHER *crypto_chacha20_poly1305;
@@ -54,57 +53,19 @@ static EVP_MD *crypto_sha384;
 static EVP_KDF *crypto_hkdf;
 
 int ngtcp2_crypto_ossl_init(void) {
+  /* We do not care whether the pre-fetch succeeds or not.  If it
+     fails, it returns NULL, which is still the default value, and our
+     code should still work with it. */
   crypto_aes_128_gcm = EVP_CIPHER_fetch(NULL, "AES-128-GCM", NULL);
-  if (crypto_aes_128_gcm == NULL) {
-    return -1;
-  }
-
   crypto_aes_256_gcm = EVP_CIPHER_fetch(NULL, "AES-256-GCM", NULL);
-  if (crypto_aes_256_gcm == NULL) {
-    return -1;
-  }
-
   crypto_chacha20_poly1305 = EVP_CIPHER_fetch(NULL, "ChaCha20-Poly1305", NULL);
-  if (crypto_chacha20_poly1305 == NULL) {
-    return -1;
-  }
-
   crypto_aes_128_ccm = EVP_CIPHER_fetch(NULL, "AES-128-CCM", NULL);
-  if (crypto_aes_128_ccm == NULL) {
-    return -1;
-  }
-
   crypto_aes_128_ctr = EVP_CIPHER_fetch(NULL, "AES-128-CTR", NULL);
-  if (crypto_aes_128_ctr == NULL) {
-    return -1;
-  }
-
   crypto_aes_256_ctr = EVP_CIPHER_fetch(NULL, "AES-256-CTR", NULL);
-  if (crypto_aes_256_ctr == NULL) {
-    return -1;
-  }
-
   crypto_chacha20 = EVP_CIPHER_fetch(NULL, "ChaCha20", NULL);
-  if (crypto_chacha20 == NULL) {
-    return -1;
-  }
-
   crypto_sha256 = EVP_MD_fetch(NULL, "sha256", NULL);
-  if (crypto_sha256 == NULL) {
-    return -1;
-  }
-
   crypto_sha384 = EVP_MD_fetch(NULL, "sha384", NULL);
-  if (crypto_sha384 == NULL) {
-    return -1;
-  }
-
   crypto_hkdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
-  if (crypto_hkdf == NULL) {
-    return -1;
-  }
-
-  crypto_initialized = 1;
 
   return 0;
 }
@@ -187,6 +148,12 @@ static EVP_KDF *crypto_kdf_hkdf(void) {
   }
 
   return EVP_KDF_fetch(NULL, "hkdf", NULL);
+}
+
+static void crypto_kdf_hkdf_free(EVP_KDF *kdf) {
+  if (kdf && crypto_hkdf != kdf) {
+    EVP_KDF_free(kdf);
+  }
 }
 
 static size_t crypto_aead_max_overhead(const EVP_CIPHER *aead) {
@@ -697,9 +664,7 @@ int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
   };
   int rv = 0;
 
-  if (!crypto_initialized) {
-    EVP_KDF_free(kdf);
-  }
+  crypto_kdf_hkdf_free(kdf);
 
   if (EVP_KDF_derive(kctx, dest, (size_t)EVP_MD_size(prf), params) <= 0) {
     rv = -1;
@@ -730,9 +695,7 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
   };
   int rv = 0;
 
-  if (!crypto_initialized) {
-    EVP_KDF_free(kdf);
-  }
+  crypto_kdf_hkdf_free(kdf);
 
   if (EVP_KDF_derive(kctx, dest, destlen, params) <= 0) {
     rv = -1;
@@ -763,9 +726,7 @@ int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
   };
   int rv = 0;
 
-  if (!crypto_initialized) {
-    EVP_KDF_free(kdf);
-  }
+  crypto_kdf_hkdf_free(kdf);
 
   if (EVP_KDF_derive(kctx, dest, destlen, params) <= 0) {
     rv = -1;
