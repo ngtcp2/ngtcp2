@@ -87,7 +87,7 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
     return {};
   }
 
-  auto f_d = defer(wolfSSL_BIO_free, f);
+  auto f_d = defer([f]() { wolfSSL_BIO_free(f); });
 
   char *pem_type, *header;
   unsigned char *data;
@@ -98,9 +98,11 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
     return {};
   }
 
-  auto pem_type_d = defer(wolfSSL_OPENSSL_free, pem_type);
-  auto header_d = defer(wolfSSL_OPENSSL_free, header);
-  auto data_d = defer(wolfSSL_OPENSSL_free, data);
+  auto pem_d = defer([pem_type, header, data]() {
+    wolfSSL_OPENSSL_free(pem_type);
+    wolfSSL_OPENSSL_free(header);
+    wolfSSL_OPENSSL_free(data);
+  });
 
   if (type != pem_type) {
     std::cerr << name << " file " << filename << " contains unexpected type"

@@ -68,7 +68,7 @@ int generate_secret(std::span<uint8_t> secret) {
     return -1;
   }
 
-  auto ctx_deleter = defer(EVP_MD_CTX_free, ctx);
+  auto ctx_deleter = defer([ctx]() { EVP_MD_CTX_free(ctx); });
 
   auto mdlen = static_cast<unsigned int>(secret.size());
   if (!EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
@@ -80,10 +80,6 @@ int generate_secret(std::span<uint8_t> secret) {
   return 0;
 }
 
-namespace {
-void openssl_free_wrap(void *ptr) { OPENSSL_free(ptr); }
-} // namespace
-
 std::optional<HPKEPrivateKey>
 read_hpke_private_key_pem(const std::string_view &filename) {
   auto f = BIO_new_file(filename.data(), "r");
@@ -92,7 +88,7 @@ read_hpke_private_key_pem(const std::string_view &filename) {
     return {};
   }
 
-  auto f_d = defer(BIO_free, f);
+  auto f_d = defer([f] { BIO_free(f); });
 
   EVP_PKEY *pkey;
 
@@ -100,7 +96,7 @@ read_hpke_private_key_pem(const std::string_view &filename) {
     return {};
   }
 
-  auto pkey_d = defer(EVP_PKEY_free, pkey);
+  auto pkey_d = defer([pkey] { EVP_PKEY_free(pkey); });
 
   HPKEPrivateKey res;
 
@@ -134,7 +130,7 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
     return {};
   }
 
-  auto f_d = defer(BIO_free, f);
+  auto f_d = defer([f] { BIO_free(f); });
 
   for (;;) {
     char *pem_type, *header;
@@ -147,9 +143,11 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
       return {};
     }
 
-    auto pem_type_d = defer(openssl_free_wrap, pem_type);
-    auto pem_header = defer(openssl_free_wrap, header);
-    auto data_d = defer(openssl_free_wrap, data);
+    auto pem_d = defer([pem_type, header, data]() {
+      OPENSSL_free(pem_type);
+      OPENSSL_free(header);
+      OPENSSL_free(data);
+    });
 
     if (type != pem_type) {
       continue;

@@ -796,7 +796,7 @@ std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
     return {};
   }
 
-  auto fd_d = defer(close, fd);
+  auto fd_d = defer([fd]() { close(fd); });
 
   auto size = lseek(fd, 0, SEEK_END);
   if (size == static_cast<off_t>(-1)) {
@@ -809,7 +809,8 @@ std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
     return {};
   }
 
-  auto addr_d = defer(munmap, addr, static_cast<size_t>(size));
+  auto addr_d =
+    defer([addr, size]() { munmap(addr, static_cast<size_t>(size)); });
 
   auto p = static_cast<uint8_t *>(addr);
 

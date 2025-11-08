@@ -86,7 +86,7 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
     return 0;
   }
 
-  auto f_d = defer(wolfSSL_BIO_free, f);
+  auto f_d = defer([f]() { wolfSSL_BIO_free(f); });
 
   if (!wolfSSL_PEM_write_bio(f, "WOLFSSL SESSION PARAMETERS", "", sbuffer,
                              sz)) {

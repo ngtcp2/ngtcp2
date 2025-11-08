@@ -471,7 +471,7 @@ int get_local_addr(in_addr_union &iau, const Address &remote_addr) {
     return -1;
   }
 
-  auto fd_d = defer(close, fd);
+  auto fd_d = defer([fd] { close(fd); });
 
   if (bind(fd, reinterpret_cast<sockaddr *>(&sa), sizeof(sa)) == -1) {
     std::cerr << "bind: Could not bind netlink socket: " << strerror(errno)
