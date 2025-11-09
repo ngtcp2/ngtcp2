@@ -191,8 +191,8 @@ private:
       std::span<const uint8_t> data;
       size_t gso_size;
     } blocked;
-    std::array<uint8_t, 64_k> data;
   } tx_;
+  std::array<uint8_t, 64_k> txbuf_;
 };
 
 #endif // !defined(CLIENT_H)

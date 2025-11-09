@@ -70,10 +70,6 @@ constexpr size_t NGTCP2_STATELESS_RESET_BURST = 100;
 } // namespace
 
 namespace {
-constexpr size_t NGTCP2_TX_BUFLEN = 64_k;
-} // namespace
-
-namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
@@ -651,9 +647,7 @@ Handler::Handler(struct ev_loop *loop, Server *server)
     close_wait_{
       .next_pkts_recv = 1,
     },
-    tx_{
-      .data = std::make_unique_for_overwrite<uint8_t[]>(NGTCP2_TX_BUFLEN),
-    } {
+    tx_{} {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   wev_.data = this;
   ev_timer_init(&timer_, timeoutcb, 0., 0.);
@@ -1785,7 +1779,7 @@ int Handler::write_streams() {
   ngtcp2_pkt_info pi;
   size_t gso_size;
   auto ts = util::timestamp();
-  auto txbuf = std::span{tx_.data.get(), NGTCP2_TX_BUFLEN};
+  auto txbuf = std::span{txbuf_};
   auto buflen = util::clamp_buffer_size(conn_, txbuf.size(), config.gso_burst);
 
   ngtcp2_path_storage_zero(&ps);
