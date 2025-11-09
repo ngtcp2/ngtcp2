@@ -68,7 +68,7 @@ std::string_view TLSSessionBase::get_negotiated_group() const {
     return ""sv;
   }
 
-  auto key_del = defer([key]() { EVP_PKEY_free(key); });
+  auto key_del = defer([key] { EVP_PKEY_free(key); });
 
   auto nid = EVP_PKEY_id(key);
   if (nid == EVP_PKEY_EC) {

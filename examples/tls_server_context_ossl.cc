@@ -39,7 +39,7 @@
 #include "template.h"
 
 namespace {
-auto _ = []() {
+auto _ = [] {
   if (ngtcp2_crypto_ossl_init() != 0) {
     assert(0);
     abort();

@@ -796,7 +796,7 @@ std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
     return {};
   }
 
-  auto fd_d = defer([fd]() { close(fd); });
+  auto fd_d = defer([fd] { close(fd); });
 
   auto size = lseek(fd, 0, SEEK_END);
   if (size == static_cast<off_t>(-1)) {
@@ -810,7 +810,7 @@ std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
   }
 
   auto addr_d =
-    defer([addr, size]() { munmap(addr, static_cast<size_t>(size)); });
+    defer([addr, size] { munmap(addr, static_cast<size_t>(size)); });
 
   auto p = static_cast<uint8_t *>(addr);
 
@@ -850,7 +850,7 @@ read_ech_server_config(const std::string_view &path) {
 }
 
 std::span<uint64_t, 2> generate_siphash_key() {
-  static auto key = []() {
+  static auto key = [] {
     std::array<uint64_t, 2> key;
 
     auto rv = generate_secure_random(as_writable_uint8_span(std::span{key}));

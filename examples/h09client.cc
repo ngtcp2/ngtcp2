@@ -1156,7 +1156,7 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
     return -1;
   }
 
-  auto res_d = defer([res]() { freeaddrinfo(res); });
+  auto res_d = defer([res] { freeaddrinfo(res); });
 
   for (rp = res; rp; rp = rp->ai_next) {
     if (bind(fd, rp->ai_addr, rp->ai_addrlen) != -1) {
@@ -1232,7 +1232,7 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
     return -1;
   }
 
-  auto res_d = defer([res]() { freeaddrinfo(res); });
+  auto res_d = defer([res] { freeaddrinfo(res); });
 
   int fd = -1;
 
@@ -2861,7 +2861,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  auto ev_loop_d = defer([]() { ev_loop_destroy(EV_DEFAULT); });
+  auto ev_loop_d = defer([] { ev_loop_destroy(EV_DEFAULT); });
 
   auto keylog_filename = getenv("SSLKEYLOGFILE");
   if (keylog_filename) {
