@@ -72,8 +72,7 @@ std::string_view TLSSessionBase::get_negotiated_group() const {
 
   auto nid = EVP_PKEY_id(key);
   if (nid == EVP_PKEY_EC) {
-    auto ec = EVP_PKEY_get1_EC_KEY(key);
-    auto ec_del = defer([ec] { EC_KEY_free(ec); });
+    auto ec = EVP_PKEY_get0_EC_KEY(key);
 
     nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
   }
