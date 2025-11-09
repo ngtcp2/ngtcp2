@@ -42,12 +42,14 @@ template <std::unsigned_integral T>
 }
 
 template <typename F> struct Defer {
-  explicit Defer(F &&f) noexcept : f(std::forward<F>(f)) {}
-  ~Defer() noexcept { f(); }
+  explicit Defer(F &&f) noexcept(std::is_nothrow_constructible_v<F, F &&>)
+    : f(std::forward<F>(f)) {}
+  ~Defer() { f(); }
 
   Defer(Defer &&o) = delete;
   Defer(const Defer &) = delete;
   Defer &operator=(const Defer &) = delete;
+  Defer &operator=(Defer &&) = delete;
 
   F f;
 };
