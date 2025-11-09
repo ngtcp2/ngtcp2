@@ -123,14 +123,14 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
   static const auto static_key_name = get_ticket_key_name();
   static const auto static_key = get_ticket_key();
   static const auto static_hmac_key = get_ticket_hmac_key();
+  static const auto aes_256_cbc = EVP_aes_256_cbc();
 
   if (enc) {
     ptls_openssl_random_bytes(iv, EVP_MAX_IV_LENGTH);
 
     std::ranges::copy(static_key_name, key_name);
 
-    if (!EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(),
-                            iv)) {
+    if (!EVP_EncryptInit_ex(ctx, aes_256_cbc, nullptr, static_key.data(), iv)) {
       return 0;
     }
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -163,8 +163,7 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
     return 0;
   }
 
-  if (!EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(),
-                          iv)) {
+  if (!EVP_DecryptInit_ex(ctx, aes_256_cbc, nullptr, static_key.data(), iv)) {
     return 0;
   }
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L

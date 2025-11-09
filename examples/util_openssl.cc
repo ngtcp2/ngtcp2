@@ -70,8 +70,10 @@ int generate_secret(std::span<uint8_t> secret) {
 
   auto ctx_deleter = defer([ctx] { EVP_MD_CTX_free(ctx); });
 
+  static const auto sha256 = EVP_sha256();
+
   auto mdlen = static_cast<unsigned int>(secret.size());
-  if (!EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
+  if (!EVP_DigestInit_ex(ctx, sha256, nullptr) ||
       !EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
       !EVP_DigestFinal_ex(ctx, secret.data(), &mdlen)) {
     return -1;
