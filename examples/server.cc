@@ -2238,7 +2238,7 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
     return -1;
   }
 
-  auto res_d = defer(freeaddrinfo, res);
+  auto res_d = defer([res]() { freeaddrinfo(res); });
 
   int fd = -1;
 
@@ -4065,7 +4065,7 @@ int main(int argc, char **argv) {
 
   std::cerr << "Using document root " << config.htdocs << std::endl;
 
-  auto ev_loop_d = defer(ev_loop_destroy, EV_DEFAULT);
+  auto ev_loop_d = defer([]() { ev_loop_destroy(EV_DEFAULT); });
 
   auto keylog_filename = getenv("SSLKEYLOGFILE");
   if (keylog_filename) {

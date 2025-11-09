@@ -147,7 +147,7 @@ int TLSClientContext::load_private_key(const char *private_key_file) {
     return -1;
   }
 
-  auto fp_d = defer(fclose, fp);
+  auto fp_d = defer([fp]() { fclose(fp); });
 
   auto pkey = PEM_read_PrivateKey(fp, nullptr, nullptr, nullptr);
   if (pkey == nullptr) {
@@ -156,7 +156,7 @@ int TLSClientContext::load_private_key(const char *private_key_file) {
     return -1;
   }
 
-  auto pkey_d = defer(EVP_PKEY_free, pkey);
+  auto pkey_d = defer([pkey]() { EVP_PKEY_free(pkey); });
 
   if (ptls_openssl_init_sign_certificate(&sign_cert_, pkey) != 0) {
     std::cerr << "ptls_openssl_init_sign_certificate failed" << std::endl;
