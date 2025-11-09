@@ -146,7 +146,7 @@ int TLSClientSession::init(bool &early_data_enabled,
         return -1;
       }
 
-      auto d_d = defer([&d]() { gnutls_free(d.data); });
+      auto d_d = defer([data = d.data]() { gnutls_free(data); });
 
       if (auto rv = gnutls_session_set_data(session_, d.data, d.size);
           rv != 0) {
