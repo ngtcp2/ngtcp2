@@ -70,7 +70,12 @@ int generate_secret(std::span<uint8_t> secret) {
 
   auto ctx_deleter = defer([ctx] { EVP_MD_CTX_free(ctx); });
 
-  static const auto sha256 = EVP_sha256();
+  static const auto sha256 =
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_MD_fetch(nullptr, "sha256", nullptr);
+#else  // OPENSSL_VERSION_NUMBER < 0x30000000L
+    EVP_sha256();
+#endif // OPENSSL_VERSION_NUMBER < 0x30000000L
 
   auto mdlen = static_cast<unsigned int>(secret.size());
   if (!EVP_DigestInit_ex(ctx, sha256, nullptr) ||

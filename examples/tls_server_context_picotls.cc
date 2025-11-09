@@ -90,8 +90,6 @@ ptls_on_client_hello_t on_client_hello_hq = {on_client_hello_hq_cb};
 } // namespace
 
 namespace {
-auto ticket_hmac = EVP_sha256();
-
 std::span<const uint8_t> get_ticket_key_name() {
   static std::array<uint8_t, 16> key_name;
   ptls_openssl_random_bytes(key_name.data(), key_name.size());
@@ -123,7 +121,14 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
   static const auto static_key_name = get_ticket_key_name();
   static const auto static_key = get_ticket_key();
   static const auto static_hmac_key = get_ticket_hmac_key();
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  static const auto ticket_hmac = EVP_MD_fetch(nullptr, "sha256", nullptr);
+  static const auto aes_256_cbc =
+    EVP_CIPHER_fetch(nullptr, "AES-256-CBC", nullptr);
+#else  // OPENSSL_VERSION_NUMBER < 0x30000000L
+  static const auto ticket_hmac = EVP_sha256();
   static const auto aes_256_cbc = EVP_aes_256_cbc();
+#endif // OPENSSL_VERSION_NUMBER < 0x30000000L
 
   if (enc) {
     ptls_openssl_random_bytes(iv, EVP_MAX_IV_LENGTH);
