@@ -1160,7 +1160,7 @@ int Client::write_streams() {
   ngtcp2_pkt_info pi;
   size_t gso_size;
   auto ts = util::timestamp();
-  auto txbuf = std::span{tx_.data};
+  auto txbuf = std::span{txbuf_};
   auto buflen = util::clamp_buffer_size(conn_, txbuf.size(), config.gso_burst);
 
   ngtcp2_path_storage_zero(&ps);
