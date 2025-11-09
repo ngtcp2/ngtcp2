@@ -295,7 +295,7 @@ std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 std::optional<std::unordered_map<std::string, std::string>>
 read_mime_types(const std::string_view &filename);
 
-inline constexpr auto count_digit_tbl = []() {
+inline constexpr auto count_digit_tbl = [] {
   std::array<uint64_t, std::numeric_limits<uint64_t>::digits10> tbl;
 
   uint64_t x = 1;
@@ -323,7 +323,7 @@ template <std::unsigned_integral T> constexpr size_t count_digit(T x) {
   return y + 1;
 }
 
-inline constexpr auto utos_digits = []() {
+inline constexpr auto utos_digits = [] {
   std::array<char, 200> a;
 
   for (size_t i = 0; i < 100; ++i) {
@@ -482,7 +482,7 @@ constexpr bool is_hex_string(R &&r) {
   return !(std::ranges::size(r) & 1) && std::ranges::all_of(r, is_hex_digit);
 }
 
-inline constexpr auto hex_to_uint_tbl = []() {
+inline constexpr auto hex_to_uint_tbl = [] {
   std::array<uint32_t, 256> tbl;
 
   std::ranges::fill(tbl, 256);

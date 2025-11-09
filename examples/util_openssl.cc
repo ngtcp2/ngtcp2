@@ -68,7 +68,7 @@ int generate_secret(std::span<uint8_t> secret) {
     return -1;
   }
 
-  auto ctx_deleter = defer([ctx]() { EVP_MD_CTX_free(ctx); });
+  auto ctx_deleter = defer([ctx] { EVP_MD_CTX_free(ctx); });
 
   auto mdlen = static_cast<unsigned int>(secret.size());
   if (!EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
@@ -143,7 +143,7 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
       return {};
     }
 
-    auto pem_d = defer([pem_type, header, data]() {
+    auto pem_d = defer([pem_type, header, data] {
       OPENSSL_free(pem_type);
       OPENSSL_free(header);
       OPENSSL_free(data);

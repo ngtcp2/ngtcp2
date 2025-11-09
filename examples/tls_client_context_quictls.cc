@@ -38,7 +38,7 @@
 #include "template.h"
 
 namespace {
-auto _ = []() {
+auto _ = [] {
   if (ngtcp2_crypto_quictls_init() != 0) {
     assert(0);
     abort();
