@@ -11946,11 +11946,8 @@ conn_write_vmsg_wrapper(ngtcp2_conn *conn, ngtcp2_path *path,
                 packet is produced, if it is set, we are sure that we
                 are not app-limited. */
              !(conn->flags & NGTCP2_CONN_FLAG_AGGREGATE_PKTS)) {
-    conn->rst.app_limited = conn->rst.delivered + cstat->bytes_in_flight;
-
-    if (conn->rst.app_limited == 0) {
-      conn->rst.app_limited = cstat->max_tx_udp_payload_size;
-    }
+    conn->rst.app_limited =
+      ngtcp2_max_uint64(conn->rst.delivered + cstat->bytes_in_flight, 1);
   }
 
   return nwrite;
