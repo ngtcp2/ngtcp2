@@ -1471,6 +1471,10 @@ static ngtcp2_ssize crypto_verify_regular_token(
     return NGTCP2_CRYPTO_ERR_VERIFY_TOKEN;
   }
 
+  if (max_datalen == 0) {
+    return 0;
+  }
+
   datalen = ciphertextlen - aead.max_overhead - sizeof(gen_ts);
   if (datalen > max_datalen) {
     return 0;
