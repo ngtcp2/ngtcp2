@@ -41,13 +41,20 @@
 #include "ngtcp2_macro.h"
 #include "shared.h"
 
+#if defined(OPENSSL_NO_CHACHA) || defined(OPENSSL_NO_POLY1305)
+#  define NGTCP2_NO_CHACHA_POLY1305
+#endif /* defined(OPENSSL_NO_CHACHA) ||                                        \
+          defined(OPENSSL_NO_POLY1305) */
+
 static EVP_CIPHER *crypto_aes_128_gcm;
 static EVP_CIPHER *crypto_aes_256_gcm;
-static EVP_CIPHER *crypto_chacha20_poly1305;
 static EVP_CIPHER *crypto_aes_128_ccm;
 static EVP_CIPHER *crypto_aes_128_ctr;
 static EVP_CIPHER *crypto_aes_256_ctr;
+#ifndef NGTCP2_NO_CHACHA_POLY1305
+static EVP_CIPHER *crypto_chacha20_poly1305;
 static EVP_CIPHER *crypto_chacha20;
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
 static EVP_MD *crypto_sha256;
 static EVP_MD *crypto_sha384;
 static EVP_KDF *crypto_hkdf;
@@ -58,11 +65,13 @@ int ngtcp2_crypto_ossl_init(void) {
      code should still work with it. */
   crypto_aes_128_gcm = EVP_CIPHER_fetch(NULL, "AES-128-GCM", NULL);
   crypto_aes_256_gcm = EVP_CIPHER_fetch(NULL, "AES-256-GCM", NULL);
-  crypto_chacha20_poly1305 = EVP_CIPHER_fetch(NULL, "ChaCha20-Poly1305", NULL);
   crypto_aes_128_ccm = EVP_CIPHER_fetch(NULL, "AES-128-CCM", NULL);
   crypto_aes_128_ctr = EVP_CIPHER_fetch(NULL, "AES-128-CTR", NULL);
   crypto_aes_256_ctr = EVP_CIPHER_fetch(NULL, "AES-256-CTR", NULL);
+#ifndef NGTCP2_NO_CHACHA_POLY1305
+  crypto_chacha20_poly1305 = EVP_CIPHER_fetch(NULL, "ChaCha20-Poly1305", NULL);
   crypto_chacha20 = EVP_CIPHER_fetch(NULL, "ChaCha20", NULL);
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
   crypto_sha256 = EVP_MD_fetch(NULL, "sha256", NULL);
   crypto_sha384 = EVP_MD_fetch(NULL, "sha384", NULL);
   crypto_hkdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
@@ -86,6 +95,7 @@ static const EVP_CIPHER *crypto_aead_aes_256_gcm(void) {
   return EVP_aes_256_gcm();
 }
 
+#ifndef NGTCP2_NO_CHACHA_POLY1305
 static const EVP_CIPHER *crypto_aead_chacha20_poly1305(void) {
   if (crypto_chacha20_poly1305) {
     return crypto_chacha20_poly1305;
@@ -93,6 +103,7 @@ static const EVP_CIPHER *crypto_aead_chacha20_poly1305(void) {
 
   return EVP_chacha20_poly1305();
 }
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
 
 static const EVP_CIPHER *crypto_aead_aes_128_ccm(void) {
   if (crypto_aes_128_ccm) {
@@ -118,6 +129,7 @@ static const EVP_CIPHER *crypto_cipher_aes_256_ctr(void) {
   return EVP_aes_256_ctr();
 }
 
+#ifndef NGTCP2_NO_CHACHA_POLY1305
 static const EVP_CIPHER *crypto_cipher_chacha20(void) {
   if (crypto_chacha20) {
     return crypto_chacha20;
@@ -125,6 +137,7 @@ static const EVP_CIPHER *crypto_cipher_chacha20(void) {
 
   return EVP_chacha20();
 }
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
 
 static const EVP_MD *crypto_md_sha256(void) {
   if (crypto_sha256) {
@@ -161,8 +174,10 @@ static size_t crypto_aead_max_overhead(const EVP_CIPHER *aead) {
   case NID_aes_128_gcm:
   case NID_aes_256_gcm:
     return EVP_GCM_TLS_TAG_LEN;
+#ifndef NGTCP2_NO_CHACHA_POLY1305
   case NID_chacha20_poly1305:
     return EVP_CHACHAPOLY_TLS_TAG_LEN;
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
   case NID_aes_128_ccm:
     return EVP_CCM_TLS_TAG_LEN;
   default:
@@ -206,8 +221,10 @@ static const EVP_CIPHER *crypto_cipher_id_get_aead(uint32_t cipher_id) {
     return crypto_aead_aes_128_gcm();
   case TLS1_3_CK_AES_256_GCM_SHA384:
     return crypto_aead_aes_256_gcm();
+#ifndef NGTCP2_NO_CHACHA_POLY1305
   case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
     return crypto_aead_chacha20_poly1305();
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
   case TLS1_3_CK_AES_128_CCM_SHA256:
     return crypto_aead_aes_128_ccm();
   default:
@@ -220,8 +237,10 @@ static uint64_t crypto_cipher_id_get_aead_max_encryption(uint32_t cipher_id) {
   case TLS1_3_CK_AES_128_GCM_SHA256:
   case TLS1_3_CK_AES_256_GCM_SHA384:
     return NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM;
+#ifndef NGTCP2_NO_CHACHA_POLY1305
   case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
     return NGTCP2_CRYPTO_MAX_ENCRYPTION_CHACHA20_POLY1305;
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
   case TLS1_3_CK_AES_128_CCM_SHA256:
     return NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_CCM;
   default:
@@ -235,8 +254,10 @@ crypto_cipher_id_get_aead_max_decryption_failure(uint32_t cipher_id) {
   case TLS1_3_CK_AES_128_GCM_SHA256:
   case TLS1_3_CK_AES_256_GCM_SHA384:
     return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_GCM;
+#ifndef NGTCP2_NO_CHACHA_POLY1305
   case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
     return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_CHACHA20_POLY1305;
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
   case TLS1_3_CK_AES_128_CCM_SHA256:
     return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_CCM;
   default:
@@ -251,8 +272,10 @@ static const EVP_CIPHER *crypto_cipher_id_get_hp(uint32_t cipher_id) {
     return crypto_cipher_aes_128_ctr();
   case TLS1_3_CK_AES_256_GCM_SHA384:
     return crypto_cipher_aes_256_ctr();
+#ifndef NGTCP2_NO_CHACHA_POLY1305
   case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
     return crypto_cipher_chacha20();
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
   default:
     return NULL;
   }
@@ -261,7 +284,9 @@ static const EVP_CIPHER *crypto_cipher_id_get_hp(uint32_t cipher_id) {
 static const EVP_MD *crypto_cipher_id_get_md(uint32_t cipher_id) {
   switch (cipher_id) {
   case TLS1_3_CK_AES_128_GCM_SHA256:
+#ifndef NGTCP2_NO_CHACHA_POLY1305
   case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
   case TLS1_3_CK_AES_128_CCM_SHA256:
     return crypto_md_sha256();
   case TLS1_3_CK_AES_256_GCM_SHA384:
@@ -275,7 +300,9 @@ static int supported_cipher_id(uint32_t cipher_id) {
   switch (cipher_id) {
   case TLS1_3_CK_AES_128_GCM_SHA256:
   case TLS1_3_CK_AES_256_GCM_SHA384:
+#ifndef NGTCP2_NO_CHACHA_POLY1305
   case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
+#endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
   case TLS1_3_CK_AES_128_CCM_SHA256:
     return 1;
   default:
