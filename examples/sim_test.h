@@ -1,8 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2018 ngtcp2 contributors
- * Copyright (c) 2013 nghttp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -23,29 +22,24 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#ifndef SIM_TEST_H
+#define SIM_TEST_H
+
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#  include "config.h"
 #endif // defined(HAVE_CONFIG_H)
 
-#include "munit.h"
+#define MUNIT_ENABLE_ASSERT_ALIASES
 
-// include test cases' include files here
-#include "util_test.h"
-#include "siphash_test.h"
-#include "sim_test.h"
+#include "munitxx.h"
 
-int main(int argc, char *argv[]) {
-  const MunitSuite suites[] = {
-    ngtcp2::util_suite,
-    ngtcp2::siphash_suite,
-    ngtcp2::sim_suite,
-    {},
-  };
-  const MunitSuite suite = {
-    .prefix = "",
-    .suites = suites,
-    .iterations = 1,
-  };
+namespace ngtcp2 {
 
-  return munit_suite_main(&suite, nullptr, argc, argv);
-}
+extern const MunitSuite sim_suite;
+
+munit_void_test_decl(test_sim_handshake)
+munit_void_test_decl(test_sim_unistream)
+
+} // namespace ngtcp2
+
+#endif // !defined(SIM_TEST_H)
