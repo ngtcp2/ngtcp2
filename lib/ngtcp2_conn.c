@@ -1527,6 +1527,8 @@ fail_seqgap_push:
 fail_token:
   ngtcp2_mem_free(mem, *pconn);
 
+  *pconn = NULL;
+
   return rv;
 }
 
@@ -1554,6 +1556,8 @@ int ngtcp2_conn_client_new_versioned(
   rv = ngtcp2_conn_commit_local_transport_params(*pconn);
   if (rv != 0) {
     ngtcp2_conn_del(*pconn);
+    *pconn = NULL;
+
     return rv;
   }
 
