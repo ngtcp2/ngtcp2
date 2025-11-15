@@ -2031,6 +2031,12 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
       return 1;
     }
 
+    /* We might send Handshake packet even if exceeding CWND.  In that
+       case, we do not write non-probe 1RTT packet. */
+    if (conn_cwnd_is_zero(conn) && conn->pktns.rtb.probe_pkt_left == 0) {
+      return 1;
+    }
+
     min_payloadlen = NGTCP2_MIN_COALESCED_PAYLOADLEN;
   }
 
@@ -12134,27 +12140,30 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
       conn_client_write_handshake(conn, pi, dest, destlen, wflags, vmsg, ts);
     /* We might be unable to write a packet because of depletion of
        congestion window budget, perhaps due to packet loss that
-       shrinks the window drastically. */
-    if (nwrite <= 0) {
+       shrinks the window drastically.  Then continue if we are in
+       post-handshake.  There, we might be able to write packets
+       exceeding CWND to avoid deadlock. */
+    if (nwrite < 0) {
       return nwrite;
     }
     if (conn->state != NGTCP2_CS_POST_HANDSHAKE) {
       return nwrite;
     }
 
-    assert(nwrite);
-    assert(dest[0] & NGTCP2_HEADER_FORM_BIT);
-    assert(conn->negotiated_version);
+    if (nwrite) {
+      assert(dest[0] & NGTCP2_HEADER_FORM_BIT);
+      assert(conn->negotiated_version);
 
-    if (nwrite < NGTCP2_MAX_UDP_PAYLOAD_SIZE &&
-        ngtcp2_pkt_get_type_long(conn->negotiated_version, dest[0]) ==
-          NGTCP2_PKT_INITIAL) {
-      wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+      if (nwrite < NGTCP2_MAX_UDP_PAYLOAD_SIZE &&
+          ngtcp2_pkt_get_type_long(conn->negotiated_version, dest[0]) ==
+            NGTCP2_PKT_INITIAL) {
+        wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+      }
+
+      res = nwrite;
+      dest += nwrite;
+      destlen -= (size_t)nwrite;
     }
-
-    res = nwrite;
-    dest += nwrite;
-    destlen -= (size_t)nwrite;
     /* Break here so that we can coalesces 1RTT packet. */
     break;
   case NGTCP2_CS_SERVER_INITIAL:
@@ -12356,9 +12365,22 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
         return nwrite;
       }
       if (nwrite > 0) {
+        /* This makes 1RTT packet padded.  If 1RTT packet is not going
+           to be sent, packet is already padded. */
+        if (ngtcp2_pkt_get_type_long(conn->negotiated_version, dest[0]) ==
+            NGTCP2_PKT_INITIAL) {
+          wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+        }
+
         res = nwrite;
         dest += nwrite;
         destlen -= (size_t)nwrite;
+
+        /* We only exceed CWND to avoid deadlock.  Do no write 1RTT
+           packet if CWND is depleted. */
+        if (conn_cwnd_is_zero(conn) && conn->pktns.rtb.probe_pkt_left == 0) {
+          goto fin;
+        }
       } else if (destlen == 0) {
         res = conn_write_handshake_ack_pkts(conn, pi, dest, origlen, ts);
         if (res) {
