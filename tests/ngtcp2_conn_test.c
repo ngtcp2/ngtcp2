@@ -4569,6 +4569,115 @@ void test_ngtcp2_conn_handshake(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* Make sure that client Initial is be padded when we do workaround
+     for deadlock in CWND limited situation. */
+  client_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  tpe.initial.last_pkt_num = pkt_num;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .len = 1200,
+        .base = null_data,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  tpe.handshake.last_pkt_num = pkt_num;
+  tpe.handshake.ckm = conn->hs_pktns->crypto.rx.ckm;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  /* Artificially inflate in-flight.  Make it way higher because we
+     will discard initial packet number space which decreases
+     bytes_in_flight. */
+  conn->cstat.bytes_in_flight = 50000;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Make sure that client Initial is be padded when we do workaround
+     for deadlock in CWND limited situation.  In this time, we have
+     probe packet left in application packet number space. */
+  client_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  tpe.initial.last_pkt_num = pkt_num;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data[0] =
+      {
+        .len = 1200,
+        .base = null_data,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  tpe.handshake.last_pkt_num = pkt_num;
+  tpe.handshake.ckm = conn->hs_pktns->crypto.rx.ckm;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  /* Artificially inflate in-flight.  Make it way higher because we
+     will discard initial packet number space which decreases
+     bytes_in_flight. */
+  conn->cstat.bytes_in_flight = 50000;
+
+  conn->pktns.rtb.probe_pkt_left = 1;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+
+  ngtcp2_conn_del(conn);
+
   /* Make sure padding is done in 1-RTT packet */
   setup_handshake_server(&conn);
   ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
