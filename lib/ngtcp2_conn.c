@@ -3106,21 +3106,16 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
       dest += nwrite;
       destlen -= (size_t)nwrite;
 
-      /* If initial packet size is at least
-         NGTCP2_MAX_UDP_PAYLOAD_SIZE, no extra padding is needed in a
-         subsequent packet. */
-      if (nwrite < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
-        if (conn->server) {
-          it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
-          if (!ngtcp2_ksl_it_end(&it)) {
-            rtbent = ngtcp2_ksl_it_get(&it);
-            if (rtbent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) {
-              wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
-            }
+      if (conn->server) {
+        it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+        if (!ngtcp2_ksl_it_end(&it)) {
+          rtbent = ngtcp2_ksl_it_get(&it);
+          if (rtbent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) {
+            wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
           }
-        } else {
-          wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
         }
+      } else {
+        wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
       }
     }
   }
@@ -12154,9 +12149,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
       assert(dest[0] & NGTCP2_HEADER_FORM_BIT);
       assert(conn->negotiated_version);
 
-      if (nwrite < NGTCP2_MAX_UDP_PAYLOAD_SIZE &&
-          ngtcp2_pkt_get_type_long(conn->negotiated_version, dest[0]) ==
-            NGTCP2_PKT_INITIAL) {
+      if (ngtcp2_pkt_get_type_long(conn->negotiated_version, dest[0]) ==
+          NGTCP2_PKT_INITIAL) {
         wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
       }
 
@@ -12218,7 +12212,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
       dest += nwrite;
       destlen -= (size_t)nwrite;
 
-      if (res < NGTCP2_MAX_UDP_PAYLOAD_SIZE && conn->in_pktns && nwrite > 0) {
+      if (conn->in_pktns && nwrite > 0) {
         it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
         if (!ngtcp2_ksl_it_end(&it)) {
           rtbent = ngtcp2_ksl_it_get(&it);
