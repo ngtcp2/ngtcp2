@@ -268,4 +268,18 @@ examplestest_CPPFLAGS = ${AM_CPPFLAGS} -I$(top_srcdir)/tests/munit \
 	@JEMALLOC_CFLAGS@
 examplestest_LDADD = ${LDADD} @JEMALLOC_LIBS@
 
+if ENABLE_EXAMPLE_WOLFSSL
+examplestest_SOURCES += \
+	sim.cc sim.h \
+	sim_test.cc sim_test.h \
+	debug.cc debug.h
+examplestest_CPPFLAGS += @WOLFSSL_CFLAGS@
+examplestest_LDADD += \
+	$(top_builddir)/crypto/wolfssl/libngtcp2_crypto_wolfssl.la \
+	@WOLFSSL_LIBS@
+endif # ENABLE_EXAMPLE_WOLFSSL
+
 TESTS = examplestest
+
+clean-local:
+	-rm sslkeylog.log
