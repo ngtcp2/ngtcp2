@@ -38,12 +38,12 @@
 
 int main(int argc, char *argv[]) {
   const MunitSuite suites[] = {
-      ngtcp2::util_suite,
-      ngtcp2::siphash_suite,
+    ngtcp2::util_suite,
+    ngtcp2::siphash_suite,
 #if ENABLE_EXAMPLE_WOLFSSL
-      ngtcp2::sim_suite,
+    ngtcp2::sim_suite,
 #endif // ENABLE_EXAMPLE_WOLFSSL
-      {},
+    {},
   };
   const MunitSuite suite = {
     .prefix = "",
