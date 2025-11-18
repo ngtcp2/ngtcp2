@@ -4674,6 +4674,13 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     }
 
     break;
+  case NGTCP2_FRAME_CONNECTION_CLOSE:
+  case NGTCP2_FRAME_CONNECTION_CLOSE_APP:
+    /* Clear padded so that we never store the terminal packet in
+       ngtcp2_rtb. */
+    padded = 0;
+
+    break;
   }
 
   if (((rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) || padded) &&

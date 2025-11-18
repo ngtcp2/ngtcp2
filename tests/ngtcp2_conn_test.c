@@ -12302,6 +12302,9 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
   ngtcp2_ccerr ccerr;
+  ngtcp2_cid dcid, scid;
+  ngtcp2_transport_params remote_params;
+  conn_options opts;
 
   /* Client only Initial key */
   setup_handshake_client(&conn);
@@ -12532,6 +12535,33 @@ void test_ngtcp2_conn_write_connection_close(void) {
   assert_uint8(NGTCP2_PKT_1RTT, ==, hd.type);
 
   ngtcp2_conn_del(conn);
+
+  /* A packet containing CONNECTION_CLOSE must not be stored in
+     ngtcp2_rtb. */
+  ngtcp2_cid_init(&dcid, (const uint8_t *)"01234567", 8);
+  ngtcp2_cid_init(&scid, (const uint8_t *)"012345678", 9);
+
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_scid = dcid;
+  remote_params.original_dcid = dcid;
+
+  opts = (conn_options){
+    .dcid = &dcid,
+    .scid = &scid,
+    .remote_params = &remote_params,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+
+  ngtcp2_ccerr_set_transport_error(&ccerr, NGTCP2_NO_ERROR, NULL, 0);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_rtb_empty(&conn->pktns.rtb));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_write_application_close(void) {
@@ -12545,6 +12575,9 @@ void test_ngtcp2_conn_write_application_close(void) {
   uint64_t app_err_code = 0;
   ngtcp2_crypto_ctx crypto_ctx;
   ngtcp2_ccerr ccerr;
+  ngtcp2_cid dcid, scid;
+  ngtcp2_transport_params remote_params;
+  conn_options opts;
 
   /* Client only Initial key */
   setup_handshake_client(&conn);
@@ -12812,6 +12845,33 @@ void test_ngtcp2_conn_write_application_close(void) {
 
   assert_ptrdiff(0, <, shdlen);
   assert_uint8(NGTCP2_PKT_1RTT, ==, hd.type);
+
+  ngtcp2_conn_del(conn);
+
+  /* A packet containing CONNECTION_CLOSE must not be stored in
+     ngtcp2_rtb. */
+  ngtcp2_cid_init(&dcid, (const uint8_t *)"01234567", 8);
+  ngtcp2_cid_init(&scid, (const uint8_t *)"01234567", 8);
+
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_scid = dcid;
+  remote_params.original_dcid = dcid;
+
+  opts = (conn_options){
+    .dcid = &dcid,
+    .scid = &scid,
+    .remote_params = &remote_params,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+
+  ngtcp2_ccerr_set_application_error(&ccerr, app_err_code, NULL, 0);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_rtb_empty(&conn->pktns.rtb));
 
   ngtcp2_conn_del(conn);
 }
