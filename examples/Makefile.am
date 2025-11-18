@@ -273,7 +273,7 @@ examplestest_SOURCES += \
 	sim.cc sim.h \
 	sim_test.cc sim_test.h \
 	debug.cc debug.h
-examplestest_CPPFLAGS += @WOLFSSL_CFLAGS@
+examplestest_CPPFLAGS += @WOLFSSL_CFLAGS@ -DWITH_EXAMPLE_WOLFSSL
 examplestest_LDADD += \
 	$(top_builddir)/crypto/wolfssl/libngtcp2_crypto_wolfssl.la \
 	@WOLFSSL_LIBS@
