@@ -63,7 +63,7 @@ directory require at least one of the following TLS backends:
 - GnuTLS >= 3.7.5
 - BoringSSL (commit db1a8456167249f95b854a1cd24c6b553d0f1567);
   or aws-lc >= 1.39.0
-- Picotls (commit 4e443c11eb48949e597911b1b772a9d2588b4769)
+- Picotls (commit 34d4d6496cec80bc3b56dbdab45f21bd9fbc17aa)
 - wolfSSL >= 5.5.0
 - LibreSSL >= v3.9.2
 - OpenSSL >= 3.5.0 (experimental)
