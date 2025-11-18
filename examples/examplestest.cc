@@ -32,14 +32,18 @@
 // include test cases' include files here
 #include "util_test.h"
 #include "siphash_test.h"
-#include "sim_test.h"
+#if ENABLE_EXAMPLE_WOLFSSL
+#  include "sim_test.h"
+#endif // ENABLE_EXAMPLE_WOLFSSL
 
 int main(int argc, char *argv[]) {
   const MunitSuite suites[] = {
-    ngtcp2::util_suite,
-    ngtcp2::siphash_suite,
-    ngtcp2::sim_suite,
-    {},
+      ngtcp2::util_suite,
+      ngtcp2::siphash_suite,
+#if ENABLE_EXAMPLE_WOLFSSL
+      ngtcp2::sim_suite,
+#endif // ENABLE_EXAMPLE_WOLFSSL
+      {},
   };
   const MunitSuite suite = {
     .prefix = "",
