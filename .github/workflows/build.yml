@@ -590,7 +590,17 @@ jobs:
       run: |
         [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
         make -j"$NPROC"
-        make -j"$NPROC" check
+        make -j"$NPROC" check TESTS=
+    - name: Run tests
+      if: matrix.buildtool == 'autotools'
+      run: |
+        cd tests
+        ./main
+    - name: Run examples tests
+      if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr'
+      run: |
+        cd examples
+        ./examplestest
     - name: Build ngtcp2 with distcheck
       if: matrix.buildtool == 'distcheck'
       run: |
