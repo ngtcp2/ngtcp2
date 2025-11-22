@@ -1247,8 +1247,9 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb,
     ngtcp2_ksl_it_prev(&it);
     ent = ngtcp2_ksl_it_get(&it);
 
-    if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED) ||
-        ts - ent->lost_ts < timeout) {
+    assert(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED);
+
+    if (ts - ent->lost_ts < timeout) {
       return;
     }
 
