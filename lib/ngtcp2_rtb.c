@@ -531,9 +531,10 @@ static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
   int rv;
   (void)rv;
 
+  rtb_on_remove(rtb, ent, cstat);
+
   rv = ngtcp2_ksl_remove_hint(&rtb->ents, it, it, &ent->hd.pkt_num);
   assert(0 == rv);
-  rtb_on_remove(rtb, ent, cstat);
 
   assert(ent->next == NULL);
 
