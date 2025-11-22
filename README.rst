@@ -82,7 +82,7 @@ Build with wolfSSL
 
 .. code-block:: shell
 
-   $ git clone --depth 1 -b v5.8.2-stable https://github.com/wolfSSL/wolfssl
+   $ git clone --depth 1 -b v5.8.4-stable https://github.com/wolfSSL/wolfssl
    $ cd wolfssl
    $ autoreconf -i
    $ # For wolfSSL < v5.6.6, append --enable-quic.
