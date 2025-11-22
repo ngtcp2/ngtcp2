@@ -136,8 +136,12 @@ const char *crypto_default_ciphers() {
 const char *crypto_default_groups() {
   return "X25519:P-256:P-384:P-521"
 #ifdef WOLFSSL_HAVE_MLKEM
+#  if LIBWOLFSSL_VERSION_HEX < 0x05008004
          ":X25519_ML_KEM_768"
-#endif // WOLFSSL_HAVE_MLKEM
+#  else  // LIBWOLFSSL_VERSION_HEX >= 0x05008004
+         ":X25519MLKEM768"
+#  endif // LIBWOLFSSL_VERSION_HEX >= 0x05008004
+#endif   // WOLFSSL_HAVE_MLKEM
     ;
 }
 
