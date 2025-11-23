@@ -51,7 +51,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, macos-14, macos-15]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-14, macos-15]
 
     runs-on: ${{ matrix.os }}
 
@@ -231,7 +231,7 @@ jobs:
     - name: Build wolfSSL
       if: steps.cache-wolfssl.outputs.cache-hit != 'true'
       run: |
-        if [ "${{ runner.os }}" = "macOS" ]; then
+        if [ "${{ runner.arch }}" = "ARM64" ]; then
           export EXTRA_CONFIGURE_FLAGS="--enable-armasm"
         else
           export EXTRA_CONFIGURE_FLAGS="--enable-aesni"
@@ -260,7 +260,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, macos-14, macos-15]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-14, macos-15]
         compiler: [gcc, clang]
         buildtool: [autotools, distcheck, cmake]
         # group-a ... openssl3, pictols+openssl3, wolfssl, boringssl
@@ -312,6 +312,18 @@ jobs:
           buildtool: cmake
         - os: macos-14
           tls: group-d
+        - os: ubuntu-24.04-arm
+          buildtool: distcheck
+        - os: ubuntu-24.04-arm
+          buildtool: cmake
+        - os: ubuntu-24.04-arm
+          tls: group-a
+        - os: ubuntu-24.04-arm
+          tls: group-b
+        - os: ubuntu-24.04-arm
+          tls: group-c
+        - os: ubuntu-24.04-arm
+          sockaddr: generic-sockaddr
 
     runs-on: ${{ matrix.os }}
 
@@ -623,6 +635,12 @@ jobs:
         # gtlsserver and bsslclient that causes early data test
         # failure; see https://gitlab.com/gnutls/gnutls/-/issues/1403
         EXPR="not (gnutls-boringssl and earlydata)"
+
+        # It looks like wolfSSL on ubuntu-24.04-arm cannot use
+        # TLS_CHACHA20_POLY1305_SHA256
+        if [ "${{ runner.arch }}" = "ARM64" ]; then
+          EXPR="$EXPR and not (wolfssl and TLS_CHACHA20_POLY1305_SHA256)"
+        fi
 
         if [ "${{ matrix.tls }}" = "group-c" ]; then
           # libressl does not support resumption, earlydata,
