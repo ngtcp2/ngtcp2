@@ -255,7 +255,7 @@ inline constexpr uint8_t lowcase_tbl[] = {
 };
 
 constexpr char lowcase(char c) noexcept {
-  return as_signed(lowcase_tbl[static_cast<uint8_t>(c)]);
+  return static_cast<char>(lowcase_tbl[static_cast<uint8_t>(c)]);
 }
 
 struct CaseCmp {
