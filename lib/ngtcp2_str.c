@@ -47,14 +47,13 @@ const void *ngtcp2_get_bytes(void *dest, const void *src, size_t n) {
 
 uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
   size_t i;
-  uint8_t *p = dest;
 
   for (i = 0; i < len; ++i) {
-    *p++ = (uint8_t)LOWER_XDIGITS[data[i] >> 4];
-    *p++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xf];
+    *dest++ = (uint8_t)LOWER_XDIGITS[data[i] >> 4];
+    *dest++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xf];
   }
 
-  return p;
+  return dest;
 }
 
 char *ngtcp2_encode_hex_cstr(char *dest, const uint8_t *data, size_t len) {
