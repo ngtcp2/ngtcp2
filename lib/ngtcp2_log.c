@@ -127,6 +127,10 @@ static const char *strerrorcode(uint64_t error_code) {
     return "CRYPTO_BUFFER_EXCEEDED";
   case NGTCP2_KEY_UPDATE_ERROR:
     return "KEY_UPDATE_ERROR";
+  case NGTCP2_AEAD_LIMIT_REACHED:
+    return "AEAD_LIMIT_REACHED";
+  case NGTCP2_NO_VIABLE_PATH:
+    return "NO_VIABLE_PATH";
   case NGTCP2_VERSION_NEGOTIATION_ERROR:
     return "VERSION_NEGOTIATION_ERROR";
   default:
