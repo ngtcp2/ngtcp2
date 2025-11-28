@@ -260,59 +260,51 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, macos-14, macos-15]
+        os: [ubuntu-24.04]
         compiler: [gcc, clang]
-        buildtool: [autotools, distcheck, cmake]
+        buildtool: [autotools, cmake]
         # group-a ... openssl3, pictols+openssl3, wolfssl, boringssl
         # group-b ... openssl1, picotls+openssl1, wolfssl, aws-lc
         # group-c ... libressl, picotls+libressl, wolfssl, boringssl
         # group-d ... ossl, picotls+ossl, wolfssl, aws-lc
         tls: [group-a, group-b, group-c, group-d]
-        sockaddr: [native-sockaddr, generic-sockaddr]
-        exclude:
-        - os: macos-14
-          buildtool: distcheck
-        - os: macos-15
-          buildtool: distcheck
-        - compiler: gcc
-          buildtool: distcheck
-        - tls: group-c
-          buildtool: distcheck
-        - tls: group-a
-          buildtool: distcheck
-        - tls: group-d
-          buildtool: distcheck
-        - compiler: gcc
-          sockaddr: generic-sockaddr
-        - tls: group-c
-          sockaddr: generic-sockaddr
-        - tls: group-a
-          sockaddr: generic-sockaddr
-        - tls: group-d
-          sockaddr: generic-sockaddr
-        - buildtool: distcheck
-          sockaddr: generic-sockaddr
-        - buildtool: cmake
-          sockaddr: generic-sockaddr
-        - os: macos-14
-          compiler: gcc
-        - os: macos-14
-          tls: group-c
-        - os: macos-14
-          tls: group-a
-        - os: macos-14
-          buildtool: cmake
-        - os: macos-15
-          compiler: gcc
-        - os: macos-15
-          tls: group-c
-        - os: macos-15
-          tls: group-a
-        - os: macos-15
-          buildtool: cmake
-        - os: macos-14
-          tls: group-d
+        sockaddr: [native-sockaddr]
         include:
+        - os: ubuntu-24.04
+          compiler: clang
+          buildtool: distcheck
+          tls: group-b
+          sockaddr: native-sockaddr
+        - os: ubuntu-24.04
+          compiler: clang
+          buildtool: autotools
+          tls: group-b
+          sockaddr: generic-sockaddr
+        - os: macos-14
+          compiler: clang
+          buildtool: autotools
+          tls: group-b
+          sockaddr: native-sockaddr
+        - os: macos-14
+          compiler: clang
+          buildtool: autotools
+          tls: group-b
+          sockaddr: generic-sockaddr
+        - os: macos-15
+          compiler: clang
+          buildtool: autotools
+          tls: group-b
+          sockaddr: native-sockaddr
+        - os: macos-15
+          compiler: clang
+          buildtool: autotools
+          tls: group-d
+          sockaddr: native-sockaddr
+        - os: macos-15
+          compiler: clang
+          buildtool: autotools
+          tls: group-b
+          sockaddr: generic-sockaddr
         - os: ubuntu-24.04-arm
           compiler: gcc
           buildtool: autotools
