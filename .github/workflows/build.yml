@@ -260,7 +260,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-14, macos-15]
+        os: [ubuntu-24.04, macos-14, macos-15]
         compiler: [gcc, clang]
         buildtool: [autotools, distcheck, cmake]
         # group-a ... openssl3, pictols+openssl3, wolfssl, boringssl
@@ -312,18 +312,17 @@ jobs:
           buildtool: cmake
         - os: macos-14
           tls: group-d
+        include:
         - os: ubuntu-24.04-arm
-          buildtool: distcheck
+          compiler: gcc
+          buildtool: autotools
+          tls: group-d
+          sockaddr: native-sockaddr
         - os: ubuntu-24.04-arm
-          buildtool: cmake
-        - os: ubuntu-24.04-arm
-          tls: group-a
-        - os: ubuntu-24.04-arm
-          tls: group-b
-        - os: ubuntu-24.04-arm
-          tls: group-c
-        - os: ubuntu-24.04-arm
-          sockaddr: generic-sockaddr
+          compiler: clang
+          buildtool: autotools
+          tls: group-d
+          sockaddr: native-sockaddr
 
     runs-on: ${{ matrix.os }}
 
