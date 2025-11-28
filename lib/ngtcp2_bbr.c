@@ -1297,6 +1297,7 @@ static void bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_ack *ack,
                                     ngtcp2_tstamp ts) {
   ngtcp2_cc_bbr *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr, cc);
+  (void)ack;
 
   if (bbr->in_loss_recovery || in_congestion_recovery(cstat, sent_ts)) {
     return;
@@ -1306,9 +1307,6 @@ static void bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   bbr->round_count_at_recovery =
     bbr->round_start ? bbr->round_count : bbr->round_count + 1;
   bbr_save_cwnd(bbr, cstat);
-  cstat->cwnd =
-    cstat->bytes_in_flight +
-    ngtcp2_max_uint64(ack->bytes_delivered, cstat->max_tx_udp_payload_size);
 
   cstat->congestion_recovery_start_ts = ts;
 }
