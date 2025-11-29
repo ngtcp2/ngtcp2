@@ -263,57 +263,79 @@ jobs:
         os: [ubuntu-24.04]
         compiler: [gcc, clang]
         buildtool: [autotools, cmake]
-        # group-a ... openssl3, pictols+openssl3, wolfssl, boringssl
-        # group-b ... openssl1, picotls+openssl1, wolfssl, aws-lc
-        # group-c ... libressl, picotls+libressl, wolfssl, boringssl
-        # group-d ... ossl, picotls+ossl, wolfssl, aws-lc
-        tls: [group-a, group-b, group-c, group-d]
+        tls:
+        - openssl: openssl3
+          boringssl: boringssl
+        - openssl: openssl1
+          boringssl: aws-lc
+        - openssl: libressl
+          boringssl: boringssl
+        - openssl: ossl
+          boringssl: aws-lc
         sockaddr: [native-sockaddr]
         include:
         - os: ubuntu-24.04
           compiler: clang
           buildtool: distcheck
-          tls: group-b
+          tls:
+            openssl: ossl
+            boringssl: aws-lc
           sockaddr: native-sockaddr
         - os: ubuntu-24.04
           compiler: clang
           buildtool: autotools
-          tls: group-b
+          tls:
+            openssl: ossl
+            boringssl: aws-lc
           sockaddr: generic-sockaddr
         - os: macos-14
           compiler: clang
           buildtool: autotools
-          tls: group-b
+          tls:
+            openssl: ossl
+            boringssl: aws-lc
           sockaddr: native-sockaddr
         - os: macos-14
           compiler: clang
           buildtool: autotools
-          tls: group-b
+          tls:
+            openssl: ossl
+            boringssl: aws-lc
           sockaddr: generic-sockaddr
         - os: macos-15
           compiler: clang
           buildtool: autotools
-          tls: group-b
+          tls:
+            openssl: openssl1
+            boringssl: aws-lc
           sockaddr: native-sockaddr
         - os: macos-15
           compiler: clang
           buildtool: autotools
-          tls: group-d
+          tls:
+            openssl: ossl
+            boringssl: aws-lc
           sockaddr: native-sockaddr
         - os: macos-15
           compiler: clang
           buildtool: autotools
-          tls: group-b
+          tls:
+            openssl: ossl
+            boringssl: aws-lc
           sockaddr: generic-sockaddr
         - os: ubuntu-24.04-arm
           compiler: gcc
           buildtool: autotools
-          tls: group-d
+          tls:
+            openssl: ossl
+            boringssl: aws-lc
           sockaddr: native-sockaddr
         - os: ubuntu-24.04-arm
           compiler: clang
           buildtool: autotools
-          tls: group-d
+          tls:
+            openssl: ossl
+            boringssl: aws-lc
           sockaddr: native-sockaddr
 
     runs-on: ${{ matrix.os }}
@@ -375,28 +397,28 @@ jobs:
         echo 'CXX=g++-14' >> $GITHUB_ENV
     - name: Restore OpenSSL v1.1.1 cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-b'
+      if: matrix.tls.openssl == 'openssl1'
       with:
         path: openssl1/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL1_VERSION }}
         fail-on-cache-miss: true
     - name: Restore OpenSSL v3.x cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-a'
+      if: matrix.tls.openssl == 'openssl3'
       with:
         path: openssl3/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL3_VERSION }}
         fail-on-cache-miss: true
     - name: Restore OSSL cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-d'
+      if: matrix.tls.openssl == 'ossl'
       with:
         path: ossl/build
         key: ${{ matrix.os }}-ossl-${{ env.OSSL_VERSION }}
         fail-on-cache-miss: true
     - name: Restore BoringSSL cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-a' || matrix.tls == 'group-c'
+      if: matrix.tls.boringssl == 'boringssl'
       with:
         path: |
           boringssl/build/libcrypto.a
@@ -406,7 +428,7 @@ jobs:
         fail-on-cache-miss: true
     - name: Restore aws-lc cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-b' || matrix.tls == 'group-d'
+      if: matrix.tls.boringssl == 'aws-lc'
       with:
         path: |
           aws-lc/build/crypto/libcrypto.a
@@ -416,7 +438,7 @@ jobs:
         fail-on-cache-miss: true
     - name: Restore Picotls + OpenSSL v1.1.1 cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-b'
+      if: matrix.tls.openssl == 'openssl1'
       with:
         path: |
           picotls-openssl1/build/libpicotls-core.a
@@ -426,7 +448,7 @@ jobs:
         fail-on-cache-miss: true
     - name: Restore Picotls + OpenSSL v3.x cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-a'
+      if: matrix.tls.openssl == 'openssl3'
       with:
         path: |
           picotls-openssl3/build/libpicotls-core.a
@@ -436,7 +458,7 @@ jobs:
         fail-on-cache-miss: true
     - name: Restore Picotls + OSSL cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-d'
+      if: matrix.tls.openssl == 'ossl'
       with:
         path: |
           picotls-ossl/build/libpicotls-core.a
@@ -452,7 +474,7 @@ jobs:
         fail-on-cache-miss: true
     - name: Restore libreSSL cache
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-c'
+      if: matrix.tls.openssl == 'libressl'
       with:
         path: |
           libressl/build
@@ -460,7 +482,7 @@ jobs:
         fail-on-cache-miss: true
     - name: Restore Picotls + LibreSSL
       uses: actions/cache/restore@v4
-      if: matrix.tls == 'group-c'
+      if: matrix.tls.openssl == 'libressl'
       with:
         path: |
           picotls-libressl/build/libpicotls-core.a
@@ -479,21 +501,21 @@ jobs:
         PKG_CONFIG_PATH="$PWD/openssl1/build/lib/pkgconfig:$PWD/openssl3/build/lib64/pkgconfig:$PWD/ossl/build/lib/pkgconfig:$PWD/ossl/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig:$PWD/libressl/build/lib/pkgconfig"
         LDFLAGS="-Wl,-rpath,$PWD/openssl1/build/lib -Wl,-rpath,$PWD/openssl3/build/lib64 -Wl,-rpath,$PWD/ossl/build/lib -Wl,-rpath,$PWD/ossl/build/lib64 -Wl,-rpath,$PWD/libressl/build/lib"
 
-        case "${{ matrix.tls }}" in
-          "group-a")
+        case "${{ matrix.tls.openssl }}" in
+          "openssl3")
             PICOTLS_PREFIX="$PWD/picotls-openssl3"
             ;;
-          "group-b")
+          "openssl1")
             PICOTLS_PREFIX="$PWD/picotls-openssl1"
             ;;
-          "group-c")
+          "libressl")
             PICOTLS_PREFIX="$PWD/picotls-libressl"
             ;;
-          "group-d")
+          "ossl")
             PICOTLS_PREFIX="$PWD/picotls-ossl"
             ;;
           *)
-            echo "unsupported tls group: ${{ matrix.tls }}"
+            echo "unsupported openssl: ${{ matrix.tls.openssl }}"
             exit 1
             ;;
         esac
@@ -510,7 +532,7 @@ jobs:
         echo 'PICOTLS_PREFIX='"$PICOTLS_PREFIX" >> $GITHUB_ENV
         echo 'AUTOTOOLS_OPTS='"$AUTOTOOLS_OPTS" >> $GITHUB_ENV
     - name: Setup BoringSSL environment variables
-      if: matrix.tls == 'group-a' || matrix.tls == 'group-c'
+      if: matrix.tls.boringssl == 'boringssl'
       run: |
         BORINGSSL_INCLUDE_DIR="$PWD/boringssl/include/"
         BORINGSSL_CFLAGS="-I$BORINGSSL_INCLUDE_DIR"
@@ -520,7 +542,7 @@ jobs:
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
         echo 'BORINGSSL_INCLUDE_DIR='"$BORINGSSL_INCLUDE_DIR" >> $GITHUB_ENV
     - name: Setup aws-lc environment variables
-      if: matrix.tls == 'group-b' || matrix.tls == 'group-d'
+      if: matrix.tls.boringssl == 'aws-lc'
       run: |
         BORINGSSL_INCLUDE_DIR="$PWD/aws-lc/include/"
         BORINGSSL_CFLAGS="-I$BORINGSSL_INCLUDE_DIR"
@@ -633,7 +655,7 @@ jobs:
           EXPR="$EXPR and not (wolfssl and TLS_CHACHA20_POLY1305_SHA256)"
         fi
 
-        if [ "${{ matrix.tls }}" = "group-c" ]; then
+        if [ "${{ matrix.tls.openssl }}" = "libressl" ]; then
           # libressl does not support resumption, earlydata,
           # TLS_AES_128_CCM_SHA256, and X25519.  Resumption does not
           # work between libressl flavored picotls server and
@@ -649,7 +671,7 @@ jobs:
         [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
         "$NGTCP2_SOURCE_DIR"/ci/gen-certificate.sh
 
-        if [ "${{ matrix.tls }}" = "group-d" ]; then
+        if [ "${{ matrix.tls.openssl }}" = "ossl" ]; then
           CLIENTS="osslclient"
           SERVERS="osslserver"
         else
