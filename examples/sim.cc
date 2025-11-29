@@ -94,11 +94,13 @@ uint64_t LinkConfig::compute_expected_goodput(Timestamp::duration rtt) const {
     return g;
   }
 
+  constexpr double margin = 0.95;
+
   return std::min(g,
                   static_cast<uint64_t>(
                     static_cast<double>(MAX_UDP_PAYLOAD_SIZE * NGTCP2_SECONDS /
                                         static_cast<uint64_t>(rtt.count())) /
-                    sqrt(loss) * 8));
+                    sqrt(loss) * 8 * margin));
 }
 
 namespace {
