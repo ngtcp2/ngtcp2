@@ -36,6 +36,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_vec_copy_at_most),
   munit_void_test(test_ngtcp2_vec_split_at),
   munit_void_test(test_ngtcp2_vec_end),
+  munit_void_test(test_ngtcp2_vec_drop),
   munit_test_end(),
 };
 
@@ -753,4 +754,41 @@ void test_ngtcp2_vec_end(void) {
   };
 
   assert_ptr_equal(nulldata + 111, ngtcp2_vec_end(&v));
+}
+
+void test_ngtcp2_vec_drop(void) {
+  uint8_t nulldata[32] = {0};
+  ngtcp2_vec v;
+
+  v = (ngtcp2_vec){
+    .base = nulldata,
+    .len = sizeof(nulldata),
+  };
+
+  ngtcp2_vec_drop(&v, 11);
+
+  assert_ptr_equal(nulldata + 11, v.base);
+  assert_size(21, ==, v.len);
+
+  /* Drop nothing */
+  v = (ngtcp2_vec){
+    .base = nulldata,
+    .len = sizeof(nulldata),
+  };
+
+  ngtcp2_vec_drop(&v, 0);
+
+  assert_ptr_equal(nulldata, v.base);
+  assert_size(sizeof(nulldata), ==, v.len);
+
+  /* Drop everything */
+  v = (ngtcp2_vec){
+    .base = nulldata,
+    .len = sizeof(nulldata),
+  };
+
+  ngtcp2_vec_drop(&v, sizeof(nulldata));
+
+  assert_ptr_equal(nulldata + sizeof(nulldata), v.base);
+  assert_size(0, ==, v.len);
 }

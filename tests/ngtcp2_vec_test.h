@@ -41,5 +41,6 @@ munit_void_test_decl(test_ngtcp2_vec_len_varint)
 munit_void_test_decl(test_ngtcp2_vec_copy_at_most)
 munit_void_test_decl(test_ngtcp2_vec_split_at)
 munit_void_test_decl(test_ngtcp2_vec_end)
+munit_void_test_decl(test_ngtcp2_vec_drop)
 
 #endif /* !defined(NGTCP2_VEC_TEST_H) */

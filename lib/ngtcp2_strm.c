@@ -305,8 +305,7 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
 
       fr->offset = offset + base_offset;
       fr->datacnt = end_idx - idx;
-      fr->data[0].base += base_offset;
-      fr->data[0].len -= (size_t)base_offset;
+      ngtcp2_vec_drop(&fr->data[0], (size_t)base_offset);
 
       *pfrc = frc;
 
@@ -332,8 +331,7 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
     nfr->stream_id = fr->stream_id;
     nfr->offset = end_offset + end_base_offset;
     nfr->datacnt = fr->datacnt - end_idx;
-    nfr->data[0].base += end_base_offset;
-    nfr->data[0].len -= (size_t)end_base_offset;
+    ngtcp2_vec_drop(&nfr->data[0], (size_t)end_base_offset);
 
     rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &nfr->offset, nfrc);
     if (rv != 0) {
@@ -361,8 +359,7 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
       fr->data[fr->datacnt - 1].len = (size_t)end_base_offset;
     }
 
-    fr->data[0].base += base_offset;
-    fr->data[0].len -= (size_t)base_offset;
+    ngtcp2_vec_drop(&fr->data[0], (size_t)base_offset);
 
     *pfrc = frc;
 
