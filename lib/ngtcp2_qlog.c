@@ -728,7 +728,7 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
     return;
   }
 
-  switch (fr->type) {
+  switch (fr->hd.type) {
   case NGTCP2_FRAME_PADDING:
     if (ngtcp2_buf_left(&qlog->buf) < NGTCP2_QLOG_PADDING_FRAME_OVERHEAD + 1) {
       return;
@@ -745,7 +745,7 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_ACK_ECN:
     if (ngtcp2_buf_left(&qlog->buf) <
         NGTCP2_QLOG_ACK_FRAME_BASE_OVERHEAD +
-          (size_t)(fr->type == NGTCP2_FRAME_ACK_ECN
+          (size_t)(fr->ack.type == NGTCP2_FRAME_ACK_ECN
                      ? NGTCP2_QLOG_ACK_FRAME_ECN_OVERHEAD
                      : 0) +
           NGTCP2_QLOG_ACK_FRAME_RANGE_OVERHEAD * (1 + fr->ack.rangecnt) + 1) {

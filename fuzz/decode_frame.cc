@@ -9,10 +9,12 @@ extern "C" {
 #endif // defined(__cplusplus)
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  for (; size;) {
-    ngtcp2_max_frame mfr{};
+  ngtcp2_frame_decoder frd;
 
-    auto nread = ngtcp2_pkt_decode_frame(&mfr.fr, data, size);
+  for (; size;) {
+    ngtcp2_frame fr;
+
+    auto nread = ngtcp2_frame_decoder_decode(&frd, &fr, data, size);
     if (nread < 0) {
       return 0;
     }
