@@ -11602,8 +11602,8 @@ int ngtcp2_conn_set_remote_transport_params(
 
   ngtcp2_log_remote_tp(&conn->log, params);
 
-  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params, conn->server,
-                                              NGTCP2_QLOG_SIDE_REMOTE);
+  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params,
+                                              NGTCP2_QLOG_INITIATOR_REMOTE);
 
   if ((conn->server && conn->pktns.crypto.tx.ckm) ||
       (!conn->server && conn->pktns.crypto.rx.ckm)) {
@@ -11764,8 +11764,8 @@ int ngtcp2_conn_set_0rtt_remote_transport_params(
 
   conn->tx.max_offset = p->initial_max_data;
 
-  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, p, conn->server,
-                                              NGTCP2_QLOG_SIDE_REMOTE);
+  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, p,
+                                              NGTCP2_QLOG_INITIATOR_REMOTE);
 
   return 0;
 }
@@ -11834,8 +11834,8 @@ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
 
   conn->flags |= NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED;
 
-  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params, conn->server,
-                                              NGTCP2_QLOG_SIDE_LOCAL);
+  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params,
+                                              NGTCP2_QLOG_INITIATOR_LOCAL);
 
   return 0;
 }

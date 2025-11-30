@@ -53,6 +53,13 @@ const void *ngtcp2_get_bytes(void *dest, const void *src, size_t n);
 uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
 
 /*
+ * ngtcp2_encode_hex_byte encodes |byte| in hex string.  The buffer
+ * pointed by |dest| must have at least 2 byte space.  This function
+ * returns |dest| + 2.
+ */
+uint8_t *ngtcp2_encode_hex_byte(uint8_t *dest, uint8_t b);
+
+/*
  * ngtcp2_encode_hex_cstr encodes |data| of length |len| in hex
  * string.  It writes additional NULL bytes at the end of the buffer.
  * The buffer pointed by |dest| must have at least |len| * 2 + 1 bytes
