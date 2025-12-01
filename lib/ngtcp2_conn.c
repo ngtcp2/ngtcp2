@@ -2443,7 +2443,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
   ngtcp2_frame_chain *frq = NULL, **pfrc = &frq;
   ngtcp2_frame_chain *nfrc;
   ngtcp2_ack_range ack_ranges[NGTCP2_MAX_ACK_RANGES];
-  ngtcp2_frame *ackfr = NULL, lfr;
+  ngtcp2_frame lfr;
   ngtcp2_ssize spktlen;
   ngtcp2_crypto_cc cc;
   ngtcp2_rtb_entry *rtbent;
@@ -2519,16 +2519,15 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
   }
 
   lfr.ack.ranges = ack_ranges;
-  ackfr = ngtcp2_acktr_create_ack_frame(&pktns->acktr, &lfr, type, ts,
-                                        /* ack_delay = */ 0,
-                                        NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
-  if (ackfr) {
-    rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, ackfr);
+  if (ngtcp2_acktr_create_ack_frame(&pktns->acktr, &lfr.ack, type, ts,
+                                    /* ack_delay = */ 0,
+                                    NGTCP2_DEFAULT_ACK_DELAY_EXPONENT) == 0) {
+    rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
     if (rv != 0) {
       assert(NGTCP2_ERR_NOBUF == rv);
     } else {
       ngtcp2_acktr_commit_ack(&pktns->acktr);
-      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
+      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, lfr.ack.largest_ack);
       pkt_empty = 0;
     }
   }
@@ -2802,7 +2801,6 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
 static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                                        uint8_t *dest, size_t destlen,
                                        uint8_t type, ngtcp2_tstamp ts) {
-  ngtcp2_frame *ackfr;
   ngtcp2_pktns *pktns;
   ngtcp2_duration ack_delay;
   uint64_t ack_delay_exponent;
@@ -2838,15 +2836,14 @@ static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   }
 
   fr.ack.ranges = ack_ranges;
-  ackfr = ngtcp2_acktr_create_ack_frame(&pktns->acktr, &fr, type, ts, ack_delay,
-                                        ack_delay_exponent);
-  if (!ackfr) {
+  if (ngtcp2_acktr_create_ack_frame(&pktns->acktr, &fr.ack, type, ts, ack_delay,
+                                    ack_delay_exponent) != 0) {
     return 0;
   }
 
   spktlen = ngtcp2_conn_write_single_frame_pkt(
     conn, pi, dest, destlen, type, NGTCP2_WRITE_PKT_FLAG_NONE,
-    &conn->dcid.current.cid, ackfr, NGTCP2_RTB_ENTRY_FLAG_NONE, NULL, ts);
+    &conn->dcid.current.cid, &fr, NGTCP2_RTB_ENTRY_FLAG_NONE, NULL, ts);
 
   if (spktlen <= 0) {
     return spktlen;
@@ -3457,7 +3454,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   ngtcp2_ppe *ppe = &conn->pkt.ppe;
   ngtcp2_pkt_hd *hd = &conn->pkt.hd;
   ngtcp2_ack_range ack_ranges[NGTCP2_MAX_ACK_RANGES];
-  ngtcp2_frame *ackfr = NULL, lfr;
+  ngtcp2_frame lfr;
   ngtcp2_ssize nwrite;
   ngtcp2_frame_chain **pfrc, *nfrc, *frc;
   ngtcp2_rtb_entry *ent;
@@ -3667,20 +3664,18 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     }
 
     lfr.ack.ranges = ack_ranges;
-    ackfr = ngtcp2_acktr_create_ack_frame(
-      &pktns->acktr, &lfr, type, ts, conn_compute_ack_delay(conn),
-      conn->local.transport_params.ack_delay_exponent);
-    if (ackfr) {
-      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, ackfr);
+    if (ngtcp2_acktr_create_ack_frame(
+          &pktns->acktr, &lfr.ack, type, ts, conn_compute_ack_delay(conn),
+          conn->local.transport_params.ack_delay_exponent) == 0) {
+      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
       if (rv != 0) {
         assert(NGTCP2_ERR_NOBUF == rv);
       } else {
         ngtcp2_acktr_commit_ack(&pktns->acktr);
-        ngtcp2_acktr_add_ack(&pktns->acktr, hd->pkt_num,
-                             ackfr->ack.largest_ack);
+        ngtcp2_acktr_add_ack(&pktns->acktr, hd->pkt_num, lfr.ack.largest_ack);
         assert(NGTCP2_PKT_1RTT == type);
-        conn_handle_unconfirmed_key_update_from_remote(
-          conn, ackfr->ack.largest_ack, ts);
+        conn_handle_unconfirmed_key_update_from_remote(conn,
+                                                       lfr.ack.largest_ack, ts);
         pkt_empty = 0;
       }
     }

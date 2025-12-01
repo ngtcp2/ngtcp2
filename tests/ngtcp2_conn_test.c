@@ -15317,9 +15317,10 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   setup_default_server(&conn);
 
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(&conn->pktns.acktr, &fr.ack,
+                                     NGTCP2_PKT_1RTT, 0, 0, 0);
 
-  assert_null(ngtcp2_acktr_create_ack_frame(&conn->pktns.acktr, &fr,
-                                            NGTCP2_PKT_1RTT, 0, 0, 0));
+  assert_int(-1, ==, rv);
 
   ngtcp2_conn_del(conn);
 
@@ -15340,9 +15341,10 @@ void test_ngtcp2_conn_create_ack_frame(void) {
 
   /* PADDING does not elicit ACK */
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(&conn->pktns.acktr, &fr.ack,
+                                     NGTCP2_PKT_1RTT, 0, 0, 0);
 
-  assert_null(ngtcp2_acktr_create_ack_frame(&conn->pktns.acktr, &fr,
-                                            NGTCP2_PKT_1RTT, 0, 0, 0));
+  assert_int(-1, ==, rv);
 
   fr.ping.type = NGTCP2_FRAME_PING;
 
@@ -15354,17 +15356,19 @@ void test_ngtcp2_conn_create_ack_frame(void) {
 
   /* PING elicits ACK, but ACK is not generated due to ack delay. */
   fr.ack.ranges = ack_ranges;
+  rv =
+    ngtcp2_acktr_create_ack_frame(&conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT,
+                                  0, 25 * NGTCP2_MILLISECONDS, 0);
 
-  assert_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 0, 25 * NGTCP2_MILLISECONDS, 0));
+  assert_int(-1, ==, rv);
 
   /* ACK delay passed. */
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(
+    &conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
-  assert_not_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
-    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT));
-
+  assert_int(0, ==, rv);
   assert_int64(1, ==, fr.ack.largest_ack);
   assert_uint64(1, ==, fr.ack.first_ack_range);
   assert_uint64(25 * NGTCP2_MILLISECONDS, ==, fr.ack.ack_delay_unscaled);
@@ -15390,10 +15394,11 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   assert_int(0, ==, rv);
 
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(
+    &conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
-  assert_not_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
-    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT));
+  assert_int(0, ==, rv);
   assert_int64(1, ==, fr.ack.largest_ack);
   assert_uint64(0, ==, fr.ack.first_ack_range);
   assert_uint64(25 * NGTCP2_MILLISECONDS, ==, fr.ack.ack_delay_unscaled);
@@ -15419,10 +15424,11 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   assert_int(0, ==, rv);
 
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(
+    &conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
-  assert_not_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
-    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT));
+  assert_int(0, ==, rv);
   assert_int64(1, ==, fr.ack.largest_ack);
   assert_uint64(1, ==, fr.ack.first_ack_range);
   assert_uint64(25 * NGTCP2_MILLISECONDS, ==, fr.ack.ack_delay_unscaled);
@@ -15448,10 +15454,11 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   assert_int(0, ==, rv);
 
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(
+    &conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
-  assert_not_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
-    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT));
+  assert_int(0, ==, rv);
   assert_int64(10, ==, fr.ack.largest_ack);
   assert_uint64(0, ==, fr.ack.first_ack_range);
   assert_uint64(25 * NGTCP2_MILLISECONDS, ==, fr.ack.ack_delay_unscaled);
@@ -15500,11 +15507,11 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   assert_int(0, ==, rv);
 
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(
+    &conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
-  assert_not_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
-    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT));
-
+  assert_int(0, ==, rv);
   assert_int64(10, ==, fr.ack.largest_ack);
   assert_uint64(1, ==, fr.ack.first_ack_range);
   assert_uint64(25 * NGTCP2_MILLISECONDS, ==, fr.ack.ack_delay_unscaled);
@@ -15538,10 +15545,11 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   assert_int(0, ==, rv);
 
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(
+    &conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
-  assert_not_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
-    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT));
+  assert_int(0, ==, rv);
   assert_int64(10, ==, fr.ack.largest_ack);
   assert_uint64(0, ==, fr.ack.first_ack_range);
   assert_uint64(25 * NGTCP2_MILLISECONDS, ==, fr.ack.ack_delay_unscaled);
@@ -15570,10 +15578,11 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   }
 
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(
+    &conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
-  assert_not_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
-    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT));
+  assert_int(0, ==, rv);
   assert_int64(10, ==, fr.ack.largest_ack);
   assert_uint64(0, ==, fr.ack.first_ack_range);
   assert_uint64(25 * NGTCP2_MILLISECONDS, ==, fr.ack.ack_delay_unscaled);
@@ -15604,10 +15613,11 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   }
 
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(
+    &conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
+    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
-  assert_not_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 25 * NGTCP2_MILLISECONDS,
-    25 * NGTCP2_MILLISECONDS, NGTCP2_DEFAULT_ACK_DELAY_EXPONENT));
+  assert_int(0, ==, rv);
   assert_int64(66, ==, fr.ack.largest_ack);
   assert_uint64(0, ==, fr.ack.first_ack_range);
   assert_uint64(25 * NGTCP2_MILLISECONDS, ==, fr.ack.ack_delay_unscaled);
@@ -15646,10 +15656,11 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   assert_int(0, ==, rv);
 
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(
+    &conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT, 0, 25 * NGTCP2_MILLISECONDS,
+    NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
-  assert_not_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 0, 25 * NGTCP2_MILLISECONDS,
-    NGTCP2_DEFAULT_ACK_DELAY_EXPONENT));
+  assert_int(0, ==, rv);
   assert_int64(1, ==, fr.ack.largest_ack);
   assert_uint64(1, ==, fr.ack.first_ack_range);
   assert_uint64(0, ==, fr.ack.ack_delay_unscaled);
@@ -15686,10 +15697,11 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   assert_int(0, ==, rv);
 
   fr.ack.ranges = ack_ranges;
+  rv = ngtcp2_acktr_create_ack_frame(
+    &conn->pktns.acktr, &fr.ack, NGTCP2_PKT_1RTT, 0, 25 * NGTCP2_MILLISECONDS,
+    NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
-  assert_not_null(ngtcp2_acktr_create_ack_frame(
-    &conn->pktns.acktr, &fr, NGTCP2_PKT_1RTT, 0, 25 * NGTCP2_MILLISECONDS,
-    NGTCP2_DEFAULT_ACK_DELAY_EXPONENT));
+  assert_int(0, ==, rv);
   assert_int64(2, ==, fr.ack.largest_ack);
   assert_uint64(0, ==, fr.ack.first_ack_range);
   assert_uint64(0, ==, fr.ack.ack_delay_unscaled);
