@@ -272,6 +272,7 @@ if ENABLE_EXAMPLE_WOLFSSL
 examplestest_SOURCES += \
 	sim.cc sim.h \
 	sim_test.cc sim_test.h \
+	shared.cc shared.h \
 	debug.cc debug.h
 examplestest_CPPFLAGS += @WOLFSSL_CFLAGS@ -DWITH_EXAMPLE_WOLFSSL
 examplestest_LDADD += \

@@ -59,17 +59,32 @@ enum network_error {
 
 using InAddr = std::variant<std::monostate, in_addr, in6_addr>;
 
-union sockaddr_union {
-  sockaddr_storage storage;
-  sockaddr sa;
-  sockaddr_in6 in6;
-  sockaddr_in in;
-};
+using Sockaddr = std::variant<std::monostate, sockaddr_in, sockaddr_in6>;
 
 struct Address {
-  socklen_t len;
-  union sockaddr_union su;
-  uint32_t ifindex;
+  // as_sockaddr returns the pointer to the stored address casted to
+  // const sockaddr *.
+  const sockaddr *as_sockaddr() const;
+  sockaddr *as_sockaddr();
+  // family returns the address family.
+  int family() const;
+  // port returns the port.
+  uint16_t port() const;
+  // port sets |port| to this address.
+  void port(uint16_t port);
+  // set stores |sa| to this address.  The address family is
+  // determined by |sa|->sa_family, and |sa| must point to the memory
+  // that contains valid object which is either sockaddr_in or
+  // sockaddr_in6.
+  void set(const sockaddr *sa);
+  // size returns the size of the stored address.
+  socklen_t size() const;
+  // empty returns true if this address does not contain any
+  // meaningful address.
+  bool empty() const;
+
+  Sockaddr skaddr;
+  uint32_t ifindex{};
 };
 
 } // namespace ngtcp2

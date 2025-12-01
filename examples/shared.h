@@ -87,14 +87,12 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family);
 // not found, or UDP_GRO is not supported, this function returns 0.
 size_t msghdr_get_udp_gro(msghdr *msg);
 
-void set_port(Address &dst, const Address &src);
-
 // get_local_addr stores preferred local address (interface address)
 // in |ia| for a given destination address |remote_addr|.
 int get_local_addr(InAddr &ia, const Address &remote_addr);
 
-// addreq returns true if |sa| and |ia| contain the same address.
-bool addreq(const sockaddr *sa, const InAddr &ia);
+// addreq returns true if |addr| and |ia| contain the same address.
+bool addreq(const Address &addr, const InAddr &ia);
 
 // in_addr_get_ptr returns the pointer to the stored address in |ia|.
 // It is undefined if |ia| contains std::monostate.
@@ -103,6 +101,33 @@ const void *in_addr_get_ptr(const InAddr &ia);
 // in_addr_empty returns true if |ia| if it does not contain any
 // meaningful address.
 bool in_addr_empty(const InAddr &ia);
+
+// as_sockaddr returns the pointer to the stored address casted to
+// const sockaddr *.
+const sockaddr *as_sockaddr(const Sockaddr &skaddr);
+sockaddr *as_sockaddr(Sockaddr &skaddr);
+
+// sockaddr_family returns the address family.
+int sockaddr_family(const Sockaddr &skaddr);
+
+// sockaddr_port returns the port.
+uint16_t sockaddr_port(const Sockaddr &skaddr);
+
+// sockaddr_port sets |port| to |skaddr|.
+void sockaddr_port(Sockaddr &skaddr, uint16_t port);
+
+// sockaddr_set stores |sa| to |skaddr|.  The address family is
+// determined by |sa|->sa_family, and |sa| must point to the memory
+// that contains valid object which is either sockaddr_in or
+// sockaddr_in6.
+void sockaddr_set(Sockaddr &skaddr, const sockaddr *sa);
+
+// sockaddr_size returns the size of the stored address.
+socklen_t sockaddr_size(const Sockaddr &skaddr);
+
+// sockaddr_empty returns true if |skaddr| does not contain any
+// meaningful address.
+bool sockaddr_empty(const Sockaddr &skaddr);
 
 } // namespace ngtcp2
 

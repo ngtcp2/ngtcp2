@@ -351,15 +351,8 @@ std::string straddr(const sockaddr *sa, socklen_t salen) {
   return res;
 }
 
-uint16_t port(const sockaddr_union *su) {
-  switch (su->sa.sa_family) {
-  case AF_INET:
-    return ntohs(su->in.sin_port);
-  case AF_INET6:
-    return ntohs(su->in6.sin6_port);
-  default:
-    return 0;
-  }
+std::string straddr(const Address &addr) {
+  return straddr(addr.as_sockaddr(), addr.size());
 }
 
 bool prohibited_port(uint16_t port) {

@@ -272,8 +272,8 @@ ngtcp2_cid make_cid_key(std::span<const uint8_t> cid);
 // straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
 std::string straddr(const sockaddr *sa, socklen_t salen);
 
-// port returns port from |su|.
-uint16_t port(const sockaddr_union *su);
+// straddr stringifies |addr| in a format "[IP]:PORT".
+std::string straddr(const Address &addr);
 
 // prohibited_port returns true if |port| is prohibited as a client
 // port.
