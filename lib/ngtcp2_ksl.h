@@ -80,14 +80,11 @@ struct ngtcp2_ksl_blk {
       /* leaf is nonzero if this block contains leaf nodes. */
       uint32_t leaf;
       ngtcp2_ksl_node nodes[NGTCP2_KSL_MAX_NBLK];
-      union {
-        uint64_t align;
-        /* keys is a buffer to include NGTCP2_KSL_MAX_NBLK keys.
-           Because the length of key is unknown until ngtcp2_ksl_init
-           is called, the actual buffer will be allocated after this
-           field. */
-        uint8_t keys[1];
-      };
+      /* keys is a pointer to the buffer to include
+         NGTCP2_KSL_MAX_NBLK keys.  Because the length of key is
+         unknown until ngtcp2_ksl_init is called, the actual buffer
+         will be allocated after this field. */
+      NGTCP2_ALIGN(8) uint8_t *keys;
     };
 
     ngtcp2_opl_entry oplent;
