@@ -43,6 +43,7 @@
 #endif // defined(HAVE_ARPA_INET_H)
 
 #include <array>
+#include <variant>
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -56,10 +57,7 @@ enum network_error {
   NETWORK_ERR_DROP_CONN = -14,
 };
 
-union in_addr_union {
-  in_addr in;
-  in6_addr in6;
-};
+using InAddr = std::variant<std::monostate, in_addr, in6_addr>;
 
 union sockaddr_union {
   sockaddr_storage storage;

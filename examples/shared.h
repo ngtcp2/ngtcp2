@@ -90,11 +90,19 @@ size_t msghdr_get_udp_gro(msghdr *msg);
 void set_port(Address &dst, const Address &src);
 
 // get_local_addr stores preferred local address (interface address)
-// in |iau| for a given destination address |remote_addr|.
-int get_local_addr(in_addr_union &iau, const Address &remote_addr);
+// in |ia| for a given destination address |remote_addr|.
+int get_local_addr(InAddr &ia, const Address &remote_addr);
 
-// addreq returns true if |sa| and |iau| contain the same address.
-bool addreq(const sockaddr *sa, const in_addr_union &iau);
+// addreq returns true if |sa| and |ia| contain the same address.
+bool addreq(const sockaddr *sa, const InAddr &ia);
+
+// in_addr_get_ptr returns the pointer to the stored address in |ia|.
+// It is undefined if |ia| contains std::monostate.
+const void *in_addr_get_ptr(const InAddr &ia);
+
+// in_addr_empty returns true if |ia| if it does not contain any
+// meaningful address.
+bool in_addr_empty(const InAddr &ia);
 
 } // namespace ngtcp2
 
