@@ -447,7 +447,7 @@ static void log_fr_datagram(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                    const ngtcp2_frame *fr, const char *dir) {
-  switch (fr->type) {
+  switch (fr->hd.type) {
   case NGTCP2_FRAME_STREAM:
     log_fr_stream(log, hd, &fr->stream, dir);
     break;

@@ -190,8 +190,8 @@ static int strm_streamfrq_init(ngtcp2_strm *strm) {
 int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm, ngtcp2_frame_chain *frc) {
   int rv;
 
-  assert(frc->fr.type == NGTCP2_FRAME_STREAM ||
-         frc->fr.type == NGTCP2_FRAME_CRYPTO);
+  assert(frc->fr.hd.type == NGTCP2_FRAME_STREAM ||
+         frc->fr.hd.type == NGTCP2_FRAME_CRYPTO);
   assert(frc->next == NULL);
 
   if (strm->tx.streamfrq == NULL) {
@@ -462,8 +462,11 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     }
 
     nfr = &nfrc->fr.stream;
-    *nfr = *fr;
+    nfr->type = fr->type;
+    nfr->flags = fr->flags;
     nfr->fin = 0;
+    nfr->stream_id = fr->stream_id;
+    nfr->offset = fr->offset;
     nfr->datacnt = acnt;
     ngtcp2_vec_copy(nfr->data, a, acnt);
 
@@ -589,7 +592,11 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
   }
 
   nfr = &nfrc->fr.stream;
-  *nfr = *fr;
+  nfr->type = fr->type;
+  nfr->flags = fr->flags;
+  nfr->fin = fr->fin;
+  nfr->stream_id = fr->stream_id;
+  nfr->offset = fr->offset;
   nfr->datacnt = acnt;
   ngtcp2_vec_copy(nfr->data, a, acnt);
 
