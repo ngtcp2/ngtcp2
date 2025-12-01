@@ -38,8 +38,7 @@ static ngtcp2_ksl_blk null_blk;
 ngtcp2_objalloc_def(ksl_blk, ngtcp2_ksl_blk, oplent)
 
 static size_t ksl_blklen(size_t aligned_keylen) {
-  return sizeof(ngtcp2_ksl_blk) + NGTCP2_KSL_MAX_NBLK * aligned_keylen -
-         sizeof(uint64_t);
+  return sizeof(ngtcp2_ksl_blk) + NGTCP2_KSL_MAX_NBLK * aligned_keylen;
 }
 
 /*
@@ -73,8 +72,16 @@ void ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar,
 }
 
 static ngtcp2_ksl_blk *ksl_blk_objalloc_new(ngtcp2_ksl *ksl) {
-  return ngtcp2_objalloc_ksl_blk_len_get(&ksl->blkalloc,
-                                         ksl_blklen(ksl->aligned_keylen));
+  ngtcp2_ksl_blk *blk = ngtcp2_objalloc_ksl_blk_len_get(
+    &ksl->blkalloc, ksl_blklen(ksl->aligned_keylen));
+
+  if (!blk) {
+    return NULL;
+  }
+
+  blk->keys = (uint8_t *)blk + sizeof(*blk);
+
+  return blk;
 }
 
 static void ksl_blk_objalloc_del(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
