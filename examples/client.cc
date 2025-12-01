@@ -1229,8 +1229,7 @@ void Client::update_timer() {
 
 #ifdef HAVE_LINUX_RTNETLINK_H
 namespace {
-int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
-              int family) {
+int bind_addr(Address &local_addr, int fd, const InAddr &ia, int family) {
   addrinfo hints{
     .ai_flags = AI_PASSIVE,
     .ai_family = family,
@@ -1240,15 +1239,16 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
   char *node;
   std::array<char, NI_MAXHOST> nodebuf;
 
-  if (iau) {
-    if (inet_ntop(family, iau, nodebuf.data(), nodebuf.size()) == nullptr) {
+  if (in_addr_empty(ia)) {
+    node = nullptr;
+  } else {
+    if (inet_ntop(family, in_addr_get_ptr(ia), nodebuf.data(),
+                  nodebuf.size()) == nullptr) {
       std::cerr << "inet_ntop: " << strerror(errno) << std::endl;
       return -1;
     }
 
     node = nodebuf.data();
-  } else {
-    node = nullptr;
   }
 
   if (auto rv = getaddrinfo(node, "0", &hints, &res); rv != 0) {
@@ -1360,9 +1360,9 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
 
 std::optional<Endpoint *> Client::endpoint_for(const Address &remote_addr) {
 #ifdef HAVE_LINUX_RTNETLINK_H
-  in_addr_union iau;
+  InAddr ia;
 
-  if (get_local_addr(iau, remote_addr) != 0) {
+  if (get_local_addr(ia, remote_addr) != 0) {
     std::cerr << "Could not get local address for a selected preferred address"
               << std::endl;
     return nullptr;
@@ -1370,7 +1370,7 @@ std::optional<Endpoint *> Client::endpoint_for(const Address &remote_addr) {
 
   auto current_path = ngtcp2_conn_get_path(conn_);
   auto current_ep = static_cast<Endpoint *>(current_path->user_data);
-  if (addreq(&current_ep->addr.su.sa, iau)) {
+  if (addreq(&current_ep->addr.su.sa, ia)) {
     return current_ep;
   }
 #endif // defined(HAVE_LINUX_RTNETLINK_H)
@@ -1383,7 +1383,7 @@ std::optional<Endpoint *> Client::endpoint_for(const Address &remote_addr) {
   Address local_addr;
 
 #ifdef HAVE_LINUX_RTNETLINK_H
-  if (bind_addr(local_addr, fd, &iau, remote_addr.su.sa.sa_family) != 0) {
+  if (bind_addr(local_addr, fd, ia, remote_addr.su.sa.sa_family) != 0) {
     close(fd);
     return nullptr;
   }
@@ -1424,15 +1424,15 @@ int Client::change_local_addr() {
   }
 
 #ifdef HAVE_LINUX_RTNETLINK_H
-  in_addr_union iau;
+  InAddr ia;
 
-  if (get_local_addr(iau, remote_addr_) != 0) {
+  if (get_local_addr(ia, remote_addr_) != 0) {
     std::cerr << "Could not get local address" << std::endl;
     close(nfd);
     return -1;
   }
 
-  if (bind_addr(local_addr, nfd, &iau, remote_addr_.su.sa.sa_family) != 0) {
+  if (bind_addr(local_addr, nfd, ia, remote_addr_.su.sa.sa_family) != 0) {
     close(nfd);
     return -1;
   }
@@ -2324,15 +2324,15 @@ int run(Client &c, const char *addr, const char *port,
   }
 
 #ifdef HAVE_LINUX_RTNETLINK_H
-  in_addr_union iau;
+  InAddr ia;
 
-  if (get_local_addr(iau, remote_addr) != 0) {
+  if (get_local_addr(ia, remote_addr) != 0) {
     std::cerr << "Could not get local address" << std::endl;
     close(fd);
     return -1;
   }
 
-  if (bind_addr(local_addr, fd, &iau, remote_addr.su.sa.sa_family) != 0) {
+  if (bind_addr(local_addr, fd, ia, remote_addr.su.sa.sa_family) != 0) {
     close(fd);
     return -1;
   }
