@@ -36,6 +36,7 @@
 #include "ngtcp2/ngtcp2_crypto_wolfssl.h"
 
 #include "util.h"
+#include "shared.h"
 #include "debug.h"
 
 using namespace std::literals;
@@ -182,8 +183,7 @@ ngtcp2_transport_params default_server_transport_params() {
   return params;
 }
 
-std::tuple<ngtcp2_sockaddr_union, ngtcp2_socklen> getaddrinfo(const char *host,
-                                                              const char *svc) {
+Sockaddr getaddrinfo(const char *host, const char *svc) {
   auto hints = addrinfo{
     .ai_flags = AI_NUMERICHOST | AI_NUMERICSERV,
     .ai_family = AF_UNSPEC,
@@ -194,32 +194,29 @@ std::tuple<ngtcp2_sockaddr_union, ngtcp2_socklen> getaddrinfo(const char *host,
   (void)rv;
   assert(0 == rv);
 
-  ngtcp2_sockaddr_union un;
-
-  memcpy(&un, rp->ai_addr, rp->ai_addrlen);
-
-  auto addrlen = rp->ai_addrlen;
+  Sockaddr skaddr;
+  sockaddr_set(skaddr, rp->ai_addr);
 
   freeaddrinfo(rp);
 
-  return {un, addrlen};
+  return skaddr;
 }
 
 ngtcp2_addr default_client_addr() {
-  static auto [un, addrlen] = getaddrinfo("10.0.1.1", "12345");
+  static auto skaddr = getaddrinfo("10.0.1.1", "12345");
 
   return ngtcp2_addr{
-    .addr = &un.sa,
-    .addrlen = addrlen,
+    .addr = as_sockaddr(skaddr),
+    .addrlen = sockaddr_size(skaddr),
   };
 }
 
 ngtcp2_addr default_server_addr() {
-  static auto [un, addrlen] = getaddrinfo("10.0.2.1", "443");
+  static auto skaddr = getaddrinfo("10.0.2.1", "443");
 
   return ngtcp2_addr{
-    .addr = &un.sa,
-    .addrlen = addrlen,
+    .addr = as_sockaddr(skaddr),
+    .addrlen = sockaddr_size(skaddr),
   };
 }
 
@@ -513,19 +510,10 @@ int Endpoint::on_timeout(const Context &ctx) {
 }
 
 NetworkPath to_network_path(const ngtcp2_path *path) {
-  NetworkPath res{
-    .local =
-      {
-        .len = path->local.addrlen,
-      },
-    .remote =
-      {
-        .len = path->remote.addrlen,
-      },
-  };
+  NetworkPath res;
 
-  memcpy(&res.local.su, path->local.addr, res.local.len);
-  memcpy(&res.remote.su, path->remote.addr, res.remote.len);
+  res.local.set(path->local.addr);
+  res.remote.set(path->remote.addr);
 
   return res;
 }
@@ -534,13 +522,13 @@ ngtcp2_path to_ngtcp2_path(const NetworkPath &path) {
   return {
     .local =
       {
-        .addr = const_cast<ngtcp2_sockaddr *>(&path.local.su.sa),
-        .addrlen = path.local.len,
+        .addr = const_cast<ngtcp2_sockaddr *>(path.local.as_sockaddr()),
+        .addrlen = path.local.size(),
       },
     .remote =
       {
-        .addr = const_cast<ngtcp2_sockaddr *>(&path.remote.su.sa),
-        .addrlen = path.remote.len,
+        .addr = const_cast<ngtcp2_sockaddr *>(path.remote.as_sockaddr()),
+        .addrlen = path.remote.size(),
       },
   };
 }
