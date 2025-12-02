@@ -64,12 +64,12 @@ using Sockaddr = std::variant<std::monostate, sockaddr_in, sockaddr_in6>;
 struct Address {
   // as_sockaddr returns the pointer to the stored address casted to
   // const sockaddr *.
-  const sockaddr *as_sockaddr() const;
-  sockaddr *as_sockaddr();
+  [[nodiscard]] const sockaddr *as_sockaddr() const;
+  [[nodiscard]] sockaddr *as_sockaddr();
   // family returns the address family.
-  int family() const;
+  [[nodiscard]] int family() const;
   // port returns the port.
-  uint16_t port() const;
+  [[nodiscard]] uint16_t port() const;
   // port sets |port| to this address.
   void port(uint16_t port);
   // set stores |sa| to this address.  The address family is
@@ -78,10 +78,10 @@ struct Address {
   // sockaddr_in6.
   void set(const sockaddr *sa);
   // size returns the size of the stored address.
-  socklen_t size() const;
+  [[nodiscard]] socklen_t size() const;
   // empty returns true if this address does not contain any
   // meaningful address.
-  bool empty() const;
+  [[nodiscard]] bool empty() const;
 
   Sockaddr skaddr;
   uint32_t ifindex{};
