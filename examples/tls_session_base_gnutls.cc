@@ -33,8 +33,6 @@
 
 using namespace ngtcp2;
 
-TLSSessionBase::TLSSessionBase() : session_{nullptr} {}
-
 TLSSessionBase::~TLSSessionBase() { gnutls_deinit(session_); }
 
 gnutls_session_t TLSSessionBase::get_native_handle() const { return session_; }

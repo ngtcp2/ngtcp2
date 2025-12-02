@@ -51,8 +51,8 @@ public:
   void enable_keylog() {}
 
 private:
-  gnutls_certificate_credentials_t cred_;
-  gnutls_datum_t session_ticket_key_;
+  gnutls_certificate_credentials_t cred_{};
+  gnutls_datum_t session_ticket_key_{};
   gnutls_anti_replay_t anti_replay_;
 };
 

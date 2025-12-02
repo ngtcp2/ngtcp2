@@ -62,10 +62,10 @@ namespace {
 constexpr size_t max_preferred_versionslen = 4;
 } // namespace
 
-Config config{};
+Config config;
 
 Stream::Stream(const Request &req, int64_t stream_id)
-  : req(req), stream_id(stream_id), fd(-1) {}
+  : req{req}, stream_id{stream_id} {}
 
 Stream::~Stream() {
   if (fd != -1) {
@@ -175,26 +175,16 @@ void siginthandler(struct ev_loop *loop, ev_signal *w, int revents) {
 
 Client::Client(struct ev_loop *loop, uint32_t client_chosen_version,
                uint32_t original_version)
-  : remote_addr_{},
-    loop_(loop),
-    httpconn_(nullptr),
-    addr_(nullptr),
-    port_(nullptr),
-    nstreams_done_(0),
-    nstreams_closed_(0),
-    nkey_update_(0),
-    client_chosen_version_(client_chosen_version),
-    original_version_(original_version),
-    early_data_(false),
-    handshake_confirmed_(false),
+  : loop_{loop},
+    client_chosen_version_{client_chosen_version},
+    original_version_{original_version},
     no_gso_{
 #ifdef UDP_SEGMENT
       config.no_gso
 #else  // !defined(UDP_SEGMENT)
       true
 #endif // !defined(UDP_SEGMENT)
-    },
-    tx_{} {
+    } {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   wev_.data = this;
   ev_timer_init(&timer_, timeoutcb, 0., 0.);
@@ -2411,34 +2401,10 @@ void print_usage() {
 } // namespace
 
 namespace {
-void config_set_default(Config &config) {
-  config = Config{
-    .tx_loss_prob = 0.,
-    .rx_loss_prob = 0.,
-    .fd = -1,
-    .ciphers = util::crypto_default_ciphers(),
-    .groups = util::crypto_default_groups(),
-    .version = NGTCP2_PROTO_VER_V1,
-    .timeout = 30 * NGTCP2_SECONDS,
-    .http_method = "GET"sv,
-    .max_data = 24_m,
-    .max_stream_data_bidi_local = 16_m,
-    .max_stream_data_uni = 16_m,
-    .max_streams_uni = 100,
-    .cc_algo = NGTCP2_CC_ALGO_CUBIC,
-    .initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT,
-    .handshake_timeout = UINT64_MAX,
-    .ack_thresh = 2,
-    .initial_pkt_num = UINT32_MAX,
-  };
-}
-} // namespace
-
-namespace {
 void print_help() {
   print_usage();
 
-  config_set_default(config);
+  Config config;
 
   std::cout << R"(
   <HOST>      Remote server host (DNS name or IP address).  In case of
@@ -2680,7 +2646,6 @@ Options:
 } // namespace
 
 int main(int argc, char **argv) {
-  config_set_default(config);
   char *data_path = nullptr;
   const char *private_key_file = nullptr;
   const char *cert_file = nullptr;

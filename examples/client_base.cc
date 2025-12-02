@@ -43,11 +43,7 @@ static ngtcp2_conn *get_conn(ngtcp2_crypto_conn_ref *conn_ref) {
   return c->conn();
 }
 
-ClientBase::ClientBase()
-  : conn_ref_{get_conn, this},
-    qlog_(nullptr),
-    conn_(nullptr),
-    ticket_received_(false) {
+ClientBase::ClientBase() : conn_ref_{get_conn, this} {
   ngtcp2_ccerr_default(&last_error_);
 }
 

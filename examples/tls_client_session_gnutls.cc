@@ -42,10 +42,6 @@
 
 extern Config config;
 
-TLSClientSession::TLSClientSession() {}
-
-TLSClientSession::~TLSClientSession() {}
-
 namespace {
 int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
               unsigned int incoming, const gnutls_datum_t *msg) {

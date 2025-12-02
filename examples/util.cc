@@ -40,6 +40,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <cstdlib>
 #include <chrono>
 #include <array>
 #include <iostream>
@@ -858,6 +859,18 @@ std::span<uint64_t, 2> generate_siphash_key() {
   ++key[0];
 
   return key;
+}
+
+std::string realpath(const char *path) {
+  auto cpath = ::realpath(path, nullptr);
+  if (!cpath) {
+    assert(0);
+    abort();
+  }
+
+  auto cpath_d = defer([cpath] { free(cpath); });
+
+  return cpath;
 }
 
 } // namespace util

@@ -44,8 +44,6 @@ using namespace std::literals;
 
 extern Config config;
 
-TLSClientSession::TLSClientSession() {}
-
 TLSClientSession::~TLSClientSession() {
   auto &hsprops = cptls_.handshake_properties;
 

@@ -32,8 +32,6 @@
 using namespace ngtcp2;
 using namespace std::literals;
 
-TLSSessionBase::TLSSessionBase() : ssl_{nullptr} {}
-
 TLSSessionBase::~TLSSessionBase() {
   if (ssl_) {
     SSL_free(ssl_);

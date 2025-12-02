@@ -66,23 +66,13 @@ constexpr size_t max_preferred_versionslen = 4;
 } // namespace
 
 namespace {
-constexpr size_t NGTCP2_STATELESS_RESET_BURST = 100;
-} // namespace
-
-namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
-Config config{};
+Config config;
 
 Stream::Stream(int64_t stream_id, Handler *handler)
-  : stream_id(stream_id),
-    handler(handler),
-    data(nullptr),
-    datalen(0),
-    dynresp(false),
-    dyndataleft(0),
-    dynbuflen(0) {}
+  : stream_id{stream_id}, handler{handler} {}
 
 namespace {
 constexpr auto NGTCP2_SERVER = "nghttp3/ngtcp2 server"sv;
@@ -117,7 +107,7 @@ struct Request {
   struct {
     int32_t urgency;
     int inc;
-  } pri;
+  } pri{};
 };
 
 namespace {
@@ -203,10 +193,10 @@ enum FileEntryFlag {
 };
 
 struct FileEntry {
-  uint64_t len;
-  void *map;
-  int fd;
-  uint8_t flags;
+  uint64_t len{};
+  void *map{};
+  int fd{};
+  uint8_t flags{};
 };
 
 namespace {
@@ -230,7 +220,7 @@ std::pair<FileEntry, int> Stream::open_file(const std::string &path) {
     return {{}, -1};
   }
 
-  FileEntry fe{};
+  FileEntry fe;
   if (st.st_mode & S_IFDIR) {
     fe.flags |= FILE_ENTRY_TYPE_DIR;
     fe.fd = -1;
@@ -630,23 +620,15 @@ fail:
 } // namespace
 
 Handler::Handler(struct ev_loop *loop, Server *server)
-  : loop_(loop),
-    server_(server),
-    qlog_(nullptr),
-    scid_{},
-    httpconn_{nullptr},
-    nkey_update_(0),
+  : loop_{loop},
+    server_{server},
     no_gso_{
 #ifdef UDP_SEGMENT
       config.no_gso
 #else  // !defined(UDP_SEGMENT)
       true
 #endif // !defined(UDP_SEGMENT)
-    },
-    close_wait_{
-      .next_pkts_recv = 1,
-    },
-    tx_{} {
+    } {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   wev_.data = this;
   ev_timer_init(&timer_, timeoutcb, 0., 0.);
@@ -2119,9 +2101,7 @@ void siginthandler(struct ev_loop *loop, ev_signal *watcher, int revents) {
 } // namespace
 
 Server::Server(struct ev_loop *loop, TLSServerContext &tls_ctx)
-  : loop_(loop),
-    tls_ctx_(tls_ctx),
-    stateless_reset_bucket_(NGTCP2_STATELESS_RESET_BURST) {
+  : loop_{loop}, tls_ctx_{tls_ctx} {
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 
   ev_timer_init(
@@ -3233,42 +3213,10 @@ void print_usage() {
 } // namespace
 
 namespace {
-void config_set_default(Config &config) {
-  auto path = realpath(".", nullptr);
-  assert(path);
-  auto htdocs = std::string(path);
-  free(path);
-
-  config = Config{
-    .tx_loss_prob = 0.,
-    .rx_loss_prob = 0.,
-    .ciphers = util::crypto_default_ciphers(),
-    .groups = util::crypto_default_groups(),
-    .htdocs = std::move(htdocs),
-    .mime_types_file = "/etc/mime.types"sv,
-    .timeout = 30 * NGTCP2_SECONDS,
-    .max_data = 1_m,
-    .max_stream_data_bidi_remote = 256_k,
-    .max_stream_data_uni = 256_k,
-    .max_streams_bidi = 100,
-    .max_streams_uni = 3,
-    .max_window = 6_m,
-    .max_stream_window = 6_m,
-    .max_dyn_length = 20_m,
-    .cc_algo = NGTCP2_CC_ALGO_CUBIC,
-    .initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT,
-    .handshake_timeout = UINT64_MAX,
-    .ack_thresh = 2,
-    .initial_pkt_num = UINT32_MAX,
-  };
-}
-} // namespace
-
-namespace {
 void print_help() {
   print_usage();
 
-  config_set_default(config);
+  Config config;
 
   std::cout << R"(
   <ADDR>      Address to listen to.  '*' binds to any address.
@@ -3467,8 +3415,6 @@ Options:
 std::ofstream keylog_file;
 
 int main(int argc, char **argv) {
-  config_set_default(config);
-
   if (argc) {
     prog = basename(argv[0]);
   }

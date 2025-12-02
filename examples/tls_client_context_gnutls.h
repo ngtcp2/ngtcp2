@@ -33,7 +33,7 @@
 
 class TLSClientContext {
 public:
-  TLSClientContext();
+  TLSClientContext() = default;
   ~TLSClientContext();
 
   int init(const char *private_key_file, const char *cert_file);
@@ -44,7 +44,7 @@ public:
   void enable_keylog() {}
 
 private:
-  gnutls_certificate_credentials_t cred_;
+  gnutls_certificate_credentials_t cred_{};
 };
 
 #endif // !defined(TLS_CLIENT_CONTEXT_GNUTLS_H)

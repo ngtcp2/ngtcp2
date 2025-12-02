@@ -40,8 +40,6 @@
 
 extern Config config;
 
-TLSServerContext::TLSServerContext() : ssl_ctx_{nullptr} {}
-
 TLSServerContext::~TLSServerContext() {
   if (ssl_ctx_) {
     SSL_CTX_free(ssl_ctx_);

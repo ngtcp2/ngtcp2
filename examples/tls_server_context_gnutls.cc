@@ -41,7 +41,7 @@ int anti_replay_db_add_func(void *dbf, time_t exp_time,
 }
 } // namespace
 
-TLSServerContext::TLSServerContext() : cred_{nullptr}, session_ticket_key_{} {
+TLSServerContext::TLSServerContext() {
   gnutls_anti_replay_init(&anti_replay_);
   gnutls_anti_replay_set_add_function(anti_replay_, anti_replay_db_add_func);
   gnutls_anti_replay_set_ptr(anti_replay_, nullptr);
