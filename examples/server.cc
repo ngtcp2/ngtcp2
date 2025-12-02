@@ -1543,16 +1543,8 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   }
 
   auto path = ngtcp2_path{
-    .local =
-      {
-        .addr = const_cast<sockaddr *>(local_addr.as_sockaddr()),
-        .addrlen = local_addr.size(),
-      },
-    .remote =
-      {
-        .addr = const_cast<sockaddr *>(remote_addr.as_sockaddr()),
-        .addrlen = remote_addr.size(),
-      },
+    .local = as_ngtcp2_addr(local_addr),
+    .remote = as_ngtcp2_addr(remote_addr),
     .user_data = const_cast<Endpoint *>(&ep),
   };
   if (auto rv =
@@ -1580,16 +1572,8 @@ int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
                        const Address &remote_addr, const ngtcp2_pkt_info *pi,
                        std::span<const uint8_t> data) {
   auto path = ngtcp2_path{
-    .local =
-      {
-        .addr = const_cast<sockaddr *>(local_addr.as_sockaddr()),
-        .addrlen = local_addr.size(),
-      },
-    .remote =
-      {
-        .addr = const_cast<sockaddr *>(remote_addr.as_sockaddr()),
-        .addrlen = remote_addr.size(),
-      },
+    .local = as_ngtcp2_addr(local_addr),
+    .remote = as_ngtcp2_addr(remote_addr),
     .user_data = const_cast<Endpoint *>(&ep),
   };
 
@@ -1854,17 +1838,9 @@ int Handler::send_blocked_packet() {
 
   auto &p = tx_.blocked;
 
-  ngtcp2_addr local_addr{
-    .addr = p.local_addr.as_sockaddr(),
-    .addrlen = p.local_addr.size(),
-  };
-  ngtcp2_addr remote_addr{
-    .addr = p.remote_addr.as_sockaddr(),
-    .addrlen = p.remote_addr.size(),
-  };
-
   auto [rest, rv] = server_->send_packet(
-    *p.endpoint, no_gso_, local_addr, remote_addr, p.ecn, p.data, p.gso_size);
+    *p.endpoint, no_gso_, as_ngtcp2_addr(p.local_addr),
+    as_ngtcp2_addr(p.remote_addr), p.ecn, p.data, p.gso_size);
   if (rv != 0) {
     assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
@@ -1990,21 +1966,8 @@ int Handler::send_conn_close(const Endpoint &ep, const Address &local_addr,
     return 0;
   }
 
-  auto path = ngtcp2_path{
-    .local =
-      {
-        .addr = const_cast<sockaddr *>(local_addr.as_sockaddr()),
-        .addrlen = local_addr.size(),
-      },
-    .remote =
-      {
-        .addr = const_cast<sockaddr *>(remote_addr.as_sockaddr()),
-        .addrlen = remote_addr.size(),
-      },
-    .user_data = const_cast<Endpoint *>(&ep),
-  };
-
-  auto rv = server_->send_packet(ep, path.local, path.remote,
+  auto rv = server_->send_packet(ep, as_ngtcp2_addr(local_addr),
+                                 as_ngtcp2_addr(remote_addr),
                                  /* ecn = */ 0, conn_closebuf_->data());
   if (rv != 0) {
     return rv;
@@ -2740,17 +2703,8 @@ int Server::send_version_negotiation(uint32_t version,
 
   buf.push(as_unsigned(nwrite));
 
-  ngtcp2_addr laddr{
-    .addr = const_cast<sockaddr *>(local_addr.as_sockaddr()),
-    .addrlen = local_addr.size(),
-  };
-  ngtcp2_addr raddr{
-    .addr = const_cast<sockaddr *>(remote_addr.as_sockaddr()),
-    .addrlen = remote_addr.size(),
-  };
-
-  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.data()) !=
-      NETWORK_ERR_OK) {
+  if (send_packet(ep, as_ngtcp2_addr(local_addr), as_ngtcp2_addr(remote_addr),
+                  /* ecn = */ 0, buf.data()) != NETWORK_ERR_OK) {
     return -1;
   }
 
@@ -2813,17 +2767,8 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, const Endpoint &ep,
 
   buf.push(as_unsigned(nwrite));
 
-  ngtcp2_addr laddr{
-    .addr = const_cast<sockaddr *>(local_addr.as_sockaddr()),
-    .addrlen = local_addr.size(),
-  };
-  ngtcp2_addr raddr{
-    .addr = const_cast<sockaddr *>(remote_addr.as_sockaddr()),
-    .addrlen = remote_addr.size(),
-  };
-
-  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.data()) !=
-      NETWORK_ERR_OK) {
+  if (send_packet(ep, as_ngtcp2_addr(local_addr), as_ngtcp2_addr(remote_addr),
+                  /* ecn = */ 0, buf.data()) != NETWORK_ERR_OK) {
     return -1;
   }
 
@@ -2846,17 +2791,8 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
 
   buf.push(as_unsigned(nwrite));
 
-  ngtcp2_addr laddr{
-    .addr = const_cast<sockaddr *>(local_addr.as_sockaddr()),
-    .addrlen = local_addr.size(),
-  };
-  ngtcp2_addr raddr{
-    .addr = const_cast<sockaddr *>(remote_addr.as_sockaddr()),
-    .addrlen = remote_addr.size(),
-  };
-
-  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.data()) !=
-      NETWORK_ERR_OK) {
+  if (send_packet(ep, as_ngtcp2_addr(local_addr), as_ngtcp2_addr(remote_addr),
+                  /* ecn = */ 0, buf.data()) != NETWORK_ERR_OK) {
     return -1;
   }
 
@@ -2921,17 +2857,8 @@ int Server::send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
 
   buf.push(as_unsigned(nwrite));
 
-  ngtcp2_addr laddr{
-    .addr = const_cast<sockaddr *>(local_addr.as_sockaddr()),
-    .addrlen = local_addr.size(),
-  };
-  ngtcp2_addr raddr{
-    .addr = const_cast<sockaddr *>(remote_addr.as_sockaddr()),
-    .addrlen = remote_addr.size(),
-  };
-
-  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.data()) !=
-      NETWORK_ERR_OK) {
+  if (send_packet(ep, as_ngtcp2_addr(local_addr), as_ngtcp2_addr(remote_addr),
+                  /* ecn = */ 0, buf.data()) != NETWORK_ERR_OK) {
     return -1;
   }
 

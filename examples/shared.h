@@ -129,6 +129,20 @@ socklen_t sockaddr_size(const Sockaddr &skaddr);
 // meaningful address.
 bool sockaddr_empty(const Sockaddr &skaddr);
 
+inline ngtcp2_addr as_ngtcp2_addr(const Address &addr) {
+  return {
+    .addr = const_cast<sockaddr *>(addr.as_sockaddr()),
+    .addrlen = addr.size(),
+  };
+}
+
+inline ngtcp2_addr as_ngtcp2_addr(Address &addr) {
+  return {
+    .addr = addr.as_sockaddr(),
+    .addrlen = addr.size(),
+  };
+}
+
 } // namespace ngtcp2
 
 #endif // !defined(SHARED_H)
