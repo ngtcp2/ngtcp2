@@ -124,11 +124,10 @@ namespace {
 Request request_path(const std::string_view &uri, bool is_connect) {
   urlparse_url u;
   Request req{
-    .pri =
-      {
-        .urgency = -1,
-        .inc = -1,
-      },
+    .pri{
+      .urgency = -1,
+      .inc = -1,
+    },
   };
 
   if (auto rv = urlparse_parse_url(uri.data(), uri.size(), is_connect, &u);

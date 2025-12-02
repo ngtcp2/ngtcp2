@@ -800,11 +800,10 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                       std::span<const uint8_t> data) {
   auto path = ngtcp2_path{
     .local = as_ngtcp2_addr(ep.addr),
-    .remote =
-      {
-        .addr = const_cast<sockaddr *>(sa),
-        .addrlen = salen,
-      },
+    .remote{
+      .addr = const_cast<sockaddr *>(sa),
+      .addrlen = salen,
+    },
     .user_data = const_cast<Endpoint *>(&ep),
   };
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data.data(), data.size(),
