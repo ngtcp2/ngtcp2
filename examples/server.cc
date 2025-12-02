@@ -711,19 +711,17 @@ int Handler::handshake_completed() {
     token.data(), config.static_secret.data(), config.static_secret.size(),
     path->remote.addr, path->remote.addrlen, t);
   if (tokenlen < 0) {
-    if (!config.quiet) {
-      std::cerr << "Unable to generate token" << std::endl;
-    }
+    std::cerr << "Unable to generate token" << std::endl;
+
     return 0;
   }
 
   if (auto rv = ngtcp2_conn_submit_new_token(conn_, token.data(),
                                              as_unsigned(tokenlen));
       rv != 0) {
-    if (!config.quiet) {
-      std::cerr << "ngtcp2_conn_submit_new_token: " << ngtcp2_strerror(rv)
-                << std::endl;
-    }
+    std::cerr << "ngtcp2_conn_submit_new_token: " << ngtcp2_strerror(rv)
+              << std::endl;
+
     return -1;
   }
 
@@ -969,9 +967,7 @@ int path_validation(ngtcp2_conn *conn, uint32_t flags, const ngtcp2_path *path,
     token.data(), config.static_secret.data(), config.static_secret.size(),
     path->remote.addr, path->remote.addrlen, t);
   if (tokenlen < 0) {
-    if (!config.quiet) {
-      std::cerr << "Unable to generate token" << std::endl;
-    }
+    std::cerr << "Unable to generate token" << std::endl;
 
     return 0;
   }
@@ -979,10 +975,8 @@ int path_validation(ngtcp2_conn *conn, uint32_t flags, const ngtcp2_path *path,
   if (auto rv =
         ngtcp2_conn_submit_new_token(conn, token.data(), as_unsigned(tokenlen));
       rv != 0) {
-    if (!config.quiet) {
-      std::cerr << "ngtcp2_conn_submit_new_token: " << ngtcp2_strerror(rv)
-                << std::endl;
-    }
+    std::cerr << "ngtcp2_conn_submit_new_token: " << ngtcp2_strerror(rv)
+              << std::endl;
 
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -3016,9 +3010,8 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const Address &remote_addr) {
         hd->token, hd->tokenlen, config.static_secret.data(),
         config.static_secret.size(), remote_addr.as_sockaddr(),
         remote_addr.size(), 3600 * NGTCP2_SECONDS, t) != 0) {
-    if (!config.quiet) {
-      std::cerr << "Could not verify token" << std::endl;
-    }
+    std::cerr << "Could not verify token" << std::endl;
+
     return -1;
   }
 
