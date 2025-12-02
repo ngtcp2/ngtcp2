@@ -751,16 +751,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   params.grease_quic_bit = 1;
 
   auto path = ngtcp2_path{
-    .local =
-      {
-        .addr = ep.addr.as_sockaddr(),
-        .addrlen = ep.addr.size(),
-      },
-    .remote =
-      {
-        .addr = const_cast<sockaddr *>(remote_addr.as_sockaddr()),
-        .addrlen = remote_addr.size(),
-      },
+    .local = as_ngtcp2_addr(ep.addr),
+    .remote = as_ngtcp2_addr(remote_addr),
     .user_data = &ep,
   };
   auto rv =
@@ -807,11 +799,7 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                       const ngtcp2_pkt_info *pi,
                       std::span<const uint8_t> data) {
   auto path = ngtcp2_path{
-    .local =
-      {
-        .addr = const_cast<sockaddr *>(ep.addr.as_sockaddr()),
-        .addrlen = ep.addr.size(),
-      },
+    .local = as_ngtcp2_addr(ep.addr),
     .remote =
       {
         .addr = const_cast<sockaddr *>(sa),
@@ -1362,8 +1350,7 @@ int Client::change_local_addr() {
   ev_io_init(&ep.rev, readcb, nfd, EV_READ);
   ep.rev.data = &ep;
 
-  ngtcp2_addr addr;
-  ngtcp2_addr_init(&addr, local_addr.as_sockaddr(), local_addr.size());
+  auto addr = as_ngtcp2_addr(local_addr);
 
   if (config.nat_rebinding) {
     ngtcp2_conn_set_local_addr(conn_, &addr);
@@ -1371,11 +1358,7 @@ int Client::change_local_addr() {
   } else {
     auto path = ngtcp2_path{
       .local = addr,
-      .remote =
-        {
-          .addr = remote_addr_.as_sockaddr(),
-          .addrlen = remote_addr_.size(),
-        },
+      .remote = as_ngtcp2_addr(remote_addr_),
       .user_data = &ep,
     };
     if (auto rv = ngtcp2_conn_initiate_immediate_migration(conn_, &path,
@@ -1633,13 +1616,8 @@ int Client::send_blocked_packet() {
 
   auto &p = tx_.blocked;
 
-  ngtcp2_addr remote_addr{
-    .addr = p.remote_addr.as_sockaddr(),
-    .addrlen = p.remote_addr.size(),
-  };
-
-  auto [rest, rv] =
-    send_packet(*p.endpoint, remote_addr, p.ecn, p.data, p.gso_size);
+  auto [rest, rv] = send_packet(*p.endpoint, as_ngtcp2_addr(p.remote_addr),
+                                p.ecn, p.data, p.gso_size);
   if (rv != 0) {
     assert(NETWORK_ERR_SEND_BLOCKED == rv);
 

@@ -520,16 +520,8 @@ NetworkPath to_network_path(const ngtcp2_path *path) {
 
 ngtcp2_path to_ngtcp2_path(const NetworkPath &path) {
   return {
-    .local =
-      {
-        .addr = const_cast<ngtcp2_sockaddr *>(path.local.as_sockaddr()),
-        .addrlen = path.local.size(),
-      },
-    .remote =
-      {
-        .addr = const_cast<ngtcp2_sockaddr *>(path.remote.as_sockaddr()),
-        .addrlen = path.remote.size(),
-      },
+    .local = as_ngtcp2_addr(path.local),
+    .remote = as_ngtcp2_addr(path.remote),
   };
 }
 
