@@ -104,14 +104,14 @@ bool in_addr_empty(const InAddr &ia);
 
 // as_sockaddr returns the pointer to the stored address casted to
 // const sockaddr *.
-const sockaddr *as_sockaddr(const Sockaddr &skaddr);
-sockaddr *as_sockaddr(Sockaddr &skaddr);
+[[nodiscard]] const sockaddr *as_sockaddr(const Sockaddr &skaddr);
+[[nodiscard]] sockaddr *as_sockaddr(Sockaddr &skaddr);
 
 // sockaddr_family returns the address family.
-int sockaddr_family(const Sockaddr &skaddr);
+[[nodiscard]] int sockaddr_family(const Sockaddr &skaddr);
 
 // sockaddr_port returns the port.
-uint16_t sockaddr_port(const Sockaddr &skaddr);
+[[nodiscard]] uint16_t sockaddr_port(const Sockaddr &skaddr);
 
 // sockaddr_port sets |port| to |skaddr|.
 void sockaddr_port(Sockaddr &skaddr, uint16_t port);
@@ -123,20 +123,20 @@ void sockaddr_port(Sockaddr &skaddr, uint16_t port);
 void sockaddr_set(Sockaddr &skaddr, const sockaddr *sa);
 
 // sockaddr_size returns the size of the stored address.
-socklen_t sockaddr_size(const Sockaddr &skaddr);
+[[nodiscard]] socklen_t sockaddr_size(const Sockaddr &skaddr);
 
 // sockaddr_empty returns true if |skaddr| does not contain any
 // meaningful address.
-bool sockaddr_empty(const Sockaddr &skaddr);
+[[nodiscard]] bool sockaddr_empty(const Sockaddr &skaddr);
 
-inline ngtcp2_addr as_ngtcp2_addr(const Address &addr) {
+[[nodiscard]] inline ngtcp2_addr as_ngtcp2_addr(const Address &addr) {
   return {
     .addr = const_cast<sockaddr *>(addr.as_sockaddr()),
     .addrlen = addr.size(),
   };
 }
 
-inline ngtcp2_addr as_ngtcp2_addr(Address &addr) {
+[[nodiscard]] inline ngtcp2_addr as_ngtcp2_addr(Address &addr) {
   return {
     .addr = addr.as_sockaddr(),
     .addrlen = addr.size(),
