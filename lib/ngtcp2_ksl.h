@@ -84,7 +84,7 @@ struct ngtcp2_ksl_blk {
          NGTCP2_KSL_MAX_NBLK keys.  Because the length of key is
          unknown until ngtcp2_ksl_init is called, the actual buffer
          will be allocated after this field. */
-      NGTCP2_ALIGN(8) uint8_t *keys;
+      uint8_t *keys;
     };
 
     ngtcp2_opl_entry oplent;
