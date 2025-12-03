@@ -52,14 +52,6 @@
 
 using namespace ngtcp2;
 
-struct HTTPHeader {
-  HTTPHeader(const std::string_view &name, const std::string_view &value)
-    : name(name), value(value) {}
-
-  std::string_view name;
-  std::string_view value;
-};
-
 class Handler;
 struct FileEntry;
 
@@ -79,7 +71,7 @@ struct Stream {
   nghttp3_buf respbuf;
   http_parser htp;
   // eos gets true when one HTTP request message is seen.
-  bool eos;
+  bool eos{};
 };
 
 struct StreamIDLess {
@@ -94,8 +86,8 @@ class Server;
 struct Endpoint {
   Address addr;
   ev_io rev;
-  Server *server;
-  int fd;
+  Server *server{};
+  int fd{};
 };
 
 class Handler : public HandlerBase {
@@ -166,8 +158,8 @@ private:
   Server *server_;
   ev_io wev_;
   ev_timer timer_;
-  FILE *qlog_;
-  ngtcp2_cid scid_;
+  FILE *qlog_{};
+  ngtcp2_cid scid_{};
   std::unordered_map<int64_t, std::unique_ptr<Stream>> streams_;
   std::set<Stream *, StreamIDLess> sendq_;
   // conn_closebuf_ contains a packet which contains CONNECTION_CLOSE.
@@ -175,14 +167,14 @@ private:
   // packet in draining period.
   std::unique_ptr<Buffer> conn_closebuf_;
   // nkey_update_ is the number of key update occurred.
-  size_t nkey_update_;
+  size_t nkey_update_{};
   bool no_gso_;
   struct {
     size_t bytes_recv;
     size_t bytes_sent;
     size_t num_pkts_recv;
-    size_t next_pkts_recv;
-  } close_wait_;
+    size_t next_pkts_recv = 1;
+  } close_wait_{};
 
   struct {
     bool send_blocked;
@@ -195,7 +187,7 @@ private:
       std::span<const uint8_t> data;
       size_t gso_size;
     } blocked;
-  } tx_;
+  } tx_{};
   std::array<uint8_t, 64_k> txbuf_;
 };
 
@@ -250,7 +242,7 @@ private:
   TLSServerContext &tls_ctx_;
   ev_signal sigintev_;
   ev_timer stateless_reset_regen_timer_;
-  size_t stateless_reset_bucket_;
+  size_t stateless_reset_bucket_{NGTCP2_STATELESS_RESET_BURST};
 };
 
 #endif // !defined(H09SERVER_H)

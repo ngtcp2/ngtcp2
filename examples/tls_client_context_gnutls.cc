@@ -35,8 +35,6 @@
 
 extern Config config;
 
-TLSClientContext::TLSClientContext() : cred_{nullptr} {}
-
 TLSClientContext::~TLSClientContext() {
   gnutls_certificate_free_credentials(cred_);
 }

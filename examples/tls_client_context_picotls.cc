@@ -92,13 +92,13 @@ ptls_cipher_suite_t *cipher_suites[] = {
 } // namespace
 
 TLSClientContext::TLSClientContext()
-    : ctx_{
-          .random_bytes = ptls_openssl_random_bytes,
-          .get_time = &ptls_get_time,
-          .key_exchanges = key_exchanges,
-          .cipher_suites = cipher_suites,
-          .require_dhe_on_psk = 1,
-      }, sign_cert_{} {}
+  : ctx_{
+      .random_bytes = ptls_openssl_random_bytes,
+      .get_time = &ptls_get_time,
+      .key_exchanges = key_exchanges,
+      .cipher_suites = cipher_suites,
+      .require_dhe_on_psk = 1,
+    } {}
 
 TLSClientContext::~TLSClientContext() {
   if (sign_cert_.key) {

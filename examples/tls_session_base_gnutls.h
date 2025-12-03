@@ -36,7 +36,7 @@
 
 class TLSSessionBase {
 public:
-  TLSSessionBase();
+  TLSSessionBase() = default;
   ~TLSSessionBase();
 
   gnutls_session_t get_native_handle() const;
@@ -47,7 +47,7 @@ public:
   void enable_keylog();
 
 protected:
-  gnutls_session_t session_;
+  gnutls_session_t session_{};
 };
 
 #endif // !defined(TLS_SESSION_BASE_GNUTLS_H)

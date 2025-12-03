@@ -578,6 +578,9 @@ constexpr std::string_view get_string(const std::string_view &uri,
   return {uri.data() + p->off, p->len};
 }
 
+// realpath returns the canonicalized absolute path to |path|.
+std::string realpath(const char *path);
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);

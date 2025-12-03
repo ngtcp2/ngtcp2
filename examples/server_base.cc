@@ -35,15 +35,15 @@ using namespace ngtcp2;
 extern Config config;
 
 Buffer::Buffer(const uint8_t *data, size_t datalen)
-  : buf{data, data + datalen}, begin(buf.data()), tail(begin + datalen) {}
-Buffer::Buffer(size_t datalen) : buf(datalen), begin(buf.data()), tail(begin) {}
+  : buf{data, data + datalen}, begin{buf.data()}, tail{begin + datalen} {}
+Buffer::Buffer(size_t datalen) : buf(datalen), begin{buf.data()}, tail{begin} {}
 
 static ngtcp2_conn *get_conn(ngtcp2_crypto_conn_ref *conn_ref) {
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   return h->conn();
 }
 
-HandlerBase::HandlerBase() : conn_ref_{get_conn, this}, conn_(nullptr) {
+HandlerBase::HandlerBase() : conn_ref_{get_conn, this} {
   ngtcp2_ccerr_default(&last_error_);
 }
 

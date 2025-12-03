@@ -50,8 +50,6 @@ auto _ = [] {
 
 extern Config config;
 
-TLSClientContext::TLSClientContext() : ssl_ctx_{nullptr} {}
-
 TLSClientContext::~TLSClientContext() {
   if (ssl_ctx_) {
     SSL_CTX_free(ssl_ctx_);

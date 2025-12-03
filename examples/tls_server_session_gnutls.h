@@ -36,8 +36,7 @@ class HandlerBase;
 
 class TLSServerSession : public TLSSessionBase {
 public:
-  TLSServerSession();
-  ~TLSServerSession();
+  TLSServerSession() = default;
 
   int init(const TLSServerContext &tls_ctx, HandlerBase *handler);
   int send_session_ticket();

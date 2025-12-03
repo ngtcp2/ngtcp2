@@ -284,18 +284,16 @@ ptls_cipher_suite_t *cipher_suites[] = {
 } // namespace
 
 TLSServerContext::TLSServerContext()
-    : ctx_{
-          .random_bytes = ptls_openssl_random_bytes,
-          .get_time = &ptls_get_time,
-          .key_exchanges = key_exchanges,
-          .cipher_suites = cipher_suites,
-          .ticket_lifetime = 86400,
-          .require_dhe_on_psk = 1,
-          .server_cipher_preference = 1,
-          .encrypt_ticket = &encrypt_ticket,
-      },
-      sign_cert_{}
-{}
+  : ctx_{
+      .random_bytes = ptls_openssl_random_bytes,
+      .get_time = &ptls_get_time,
+      .key_exchanges = key_exchanges,
+      .cipher_suites = cipher_suites,
+      .ticket_lifetime = 86400,
+      .require_dhe_on_psk = 1,
+      .server_cipher_preference = 1,
+      .encrypt_ticket = &encrypt_ticket,
+    } {}
 
 TLSServerContext::~TLSServerContext() {
   if (sign_cert_.key) {

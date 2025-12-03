@@ -42,10 +42,6 @@ using namespace ngtcp2;
 
 extern Config config;
 
-TLSServerSession::TLSServerSession() {}
-
-TLSServerSession::~TLSServerSession() {}
-
 namespace {
 int client_hello_cb(gnutls_session_t session, unsigned int htype, unsigned when,
                     unsigned int incoming, const gnutls_datum_t *msg) {
