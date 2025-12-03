@@ -226,21 +226,18 @@ struct nlmsg {
 namespace {
 int send_netlink_msg(int fd, const Address &remote_addr, uint32_t seq) {
   nlmsg nlmsg{
-    .hdr =
-      {
-        .nlmsg_type = RTM_GETROUTE,
-        .nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK,
-        .nlmsg_seq = seq,
-      },
-    .msg =
-      {
-        .rtm_family = static_cast<unsigned char>(remote_addr.family()),
-        .rtm_protocol = RTPROT_KERNEL,
-      },
-    .dst =
-      {
-        .rta_type = RTA_DST,
-      },
+    .hdr{
+      .nlmsg_type = RTM_GETROUTE,
+      .nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK,
+      .nlmsg_seq = seq,
+    },
+    .msg{
+      .rtm_family = static_cast<unsigned char>(remote_addr.family()),
+      .rtm_protocol = RTPROT_KERNEL,
+    },
+    .dst{
+      .rta_type = RTA_DST,
+    },
   };
 
   std::visit(
