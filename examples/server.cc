@@ -1198,7 +1198,8 @@ int Handler::http_reset_stream(int64_t stream_id, uint64_t app_error_code) {
 }
 
 namespace {
-int http_recv_settings(nghttp3_conn *conn, const nghttp3_settings *settings,
+int http_recv_settings(nghttp3_conn *conn,
+                       const nghttp3_proto_settings *settings,
                        void *conn_user_data) {
   if (!config.quiet) {
     debug::print_http_settings(settings);
@@ -1229,8 +1230,8 @@ int Handler::setup_httpconn() {
     .stop_sending = ::http_stop_sending,
     .end_stream = ::http_end_stream,
     .reset_stream = ::http_reset_stream,
-    .recv_settings = ::http_recv_settings,
     .rand = rand_bytes,
+    .recv_settings2 = ::http_recv_settings,
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);

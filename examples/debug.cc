@@ -283,7 +283,7 @@ void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
   }
 }
 
-void print_http_settings(const nghttp3_settings *settings) {
+void print_http_settings(const nghttp3_proto_settings *settings) {
   fprintf(outfile,
           "http: remote settings\n"
           "http: SETTINGS_MAX_FIELD_SECTION_SIZE=%" PRIu64 "\n"

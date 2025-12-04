@@ -2148,7 +2148,8 @@ void Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
 }
 
 namespace {
-int http_recv_settings(nghttp3_conn *conn, const nghttp3_settings *settings,
+int http_recv_settings(nghttp3_conn *conn,
+                       const nghttp3_proto_settings *settings,
                        void *conn_user_data) {
   if (!config.quiet) {
     debug::print_http_settings(settings);
@@ -2201,10 +2202,10 @@ int Client::setup_httpconn() {
     .end_trailers = ::http_end_trailers,
     .stop_sending = ::http_stop_sending,
     .reset_stream = ::http_reset_stream,
-    .recv_settings = ::http_recv_settings,
     .recv_origin = ::http_recv_origin,
     .end_origin = ::http_end_origin,
     .rand = rand_bytes,
+    .recv_settings2 = ::http_recv_settings,
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);
