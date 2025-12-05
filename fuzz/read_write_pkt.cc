@@ -466,6 +466,16 @@ int tls_early_data_rejected(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
+int begin_path_validation(ngtcp2_conn *conn, uint32_t flags,
+                          const ngtcp2_path *path,
+                          const ngtcp2_path *fallback_path, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
 void init_path(ngtcp2_path_storage *ps) {
   addrinfo *local, *remote,
     hints{
@@ -563,6 +573,7 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
     .recv_rx_key = recv_rx_key,
     .recv_tx_key = recv_tx_key,
     .tls_early_data_rejected = tls_early_data_rejected,
+    .begin_path_validation = begin_path_validation,
   };
   ngtcp2_cid dcid, scid, odcid;
 
