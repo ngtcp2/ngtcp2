@@ -75,8 +75,9 @@ set(ngtcp2_SOURCES
 )
 
 set(ngtcp2_INCLUDE_DIRS
-  "${CMAKE_CURRENT_SOURCE_DIR}/includes"
-  "${CMAKE_CURRENT_BINARY_DIR}/includes"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/includes>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/includes>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
 
 set(NGTCP2_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -107,11 +108,7 @@ if(ENABLE_SHARED_LIB)
     C_VISIBILITY_PRESET hidden
     POSITION_INDEPENDENT_CODE ON
   )
-  foreach(include_DIR IN LISTS ngtcp2_INCLUDE_DIRS)
-    target_include_directories(ngtcp2 PUBLIC $<BUILD_INTERFACE:${include_DIR}>)
-  endforeach()
-
-  target_include_directories(ngtcp2 PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+  target_include_directories(ngtcp2 PUBLIC ${ngtcp2_INCLUDE_DIRS})
 
   install(TARGETS ngtcp2
     EXPORT ${NGTCP2_TARGETS_EXPORT_NAME}
@@ -130,11 +127,7 @@ if(ENABLE_STATIC_LIB)
     C_VISIBILITY_PRESET hidden
   )
   target_compile_definitions(ngtcp2_static PUBLIC "-DNGTCP2_STATICLIB")
-  foreach(include_DIR IN LISTS ngtcp2_INCLUDE_DIRS)
-    target_include_directories(ngtcp2_static PUBLIC $<BUILD_INTERFACE:${include_DIR}>)
-  endforeach()
-
-  target_include_directories(ngtcp2_static PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+  target_include_directories(ngtcp2_static PUBLIC ${ngtcp2_INCLUDE_DIRS})
 
   install(TARGETS ngtcp2_static
     EXPORT ${NGTCP2_TARGETS_EXPORT_NAME}
