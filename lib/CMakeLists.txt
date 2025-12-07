@@ -111,7 +111,7 @@ if(ENABLE_SHARED_LIB)
     target_include_directories(ngtcp2 PUBLIC $<BUILD_INTERFACE:${include_DIR}>)
   endforeach()
 
-  target_include_directories(ngtcp2 PUBLIC $<INSTALL_INTERFACE:./include>)
+  target_include_directories(ngtcp2 PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
   install(TARGETS ngtcp2
     EXPORT ${NGTCP2_TARGETS_EXPORT_NAME}
@@ -134,7 +134,7 @@ if(ENABLE_STATIC_LIB)
     target_include_directories(ngtcp2_static PUBLIC $<BUILD_INTERFACE:${include_DIR}>)
   endforeach()
 
-  target_include_directories(ngtcp2_static PUBLIC $<INSTALL_INTERFACE:./include>)
+  target_include_directories(ngtcp2_static PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
   install(TARGETS ngtcp2_static
     EXPORT ${NGTCP2_TARGETS_EXPORT_NAME}
