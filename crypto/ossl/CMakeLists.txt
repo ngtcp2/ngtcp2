@@ -29,14 +29,11 @@ set(ngtcp2_crypto_ossl_SOURCES
 )
 
 set(ngtcp2_crypto_ossl_INCLUDE_DIRS
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../lib/includes"
-  "${CMAKE_CURRENT_BINARY_DIR}/../../lib/includes"
   "${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
   "${CMAKE_CURRENT_SOURCE_DIR}/../../crypto/includes"
   "${CMAKE_CURRENT_BINARY_DIR}/../../crypto/includes"
   "${CMAKE_CURRENT_SOURCE_DIR}/../../crypto"
   "${CMAKE_CURRENT_BINARY_DIR}/../../crypto"
-  "${OPENSSL_INCLUDE_DIRS}"
 )
 
 foreach(name libngtcp2_crypto_ossl.pc)
@@ -55,7 +52,7 @@ if(ENABLE_SHARED_LIB)
   )
   target_include_directories(ngtcp2_crypto_ossl PUBLIC
     ${ngtcp2_crypto_ossl_INCLUDE_DIRS})
-  target_link_libraries(ngtcp2_crypto_ossl ngtcp2 ${OPENSSL_LIBRARIES})
+  target_link_libraries(ngtcp2_crypto_ossl PUBLIC ngtcp2 OpenSSL::SSL)
 
   install(TARGETS ngtcp2_crypto_ossl
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
@@ -77,6 +74,7 @@ if(ENABLE_STATIC_LIB)
     "-DNGTCP2_STATICLIB")
   target_include_directories(ngtcp2_crypto_ossl_static PUBLIC
     ${ngtcp2_crypto_ossl_INCLUDE_DIRS})
+  target_link_libraries(ngtcp2_crypto_ossl_static PUBLIC ngtcp2_static OpenSSL::SSL)
 
   install(TARGETS ngtcp2_crypto_ossl_static
     DESTINATION "${CMAKE_INSTALL_LIBDIR}")
