@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef HTTP3_CLIENT_PROTO_CODEC_H
-#define HTTP3_CLIENT_PROTO_CODEC_H
+#ifndef WEBTRANSPORT_CLIENT_PROTO_CODEC_H
+#define WEBTRANSPORT_CLIENT_PROTO_CODEC_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -31,12 +31,14 @@
 
 #include <vector>
 #include <expected>
+#include <unordered_set>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
 
 #include "shared.h"
 #include "client_base.h"
+#include "wt_app.h"
 
 struct Stream;
 class Client;
@@ -51,9 +53,7 @@ public:
   std::expected<void, Error> recv_stream_data(uint32_t flags, int64_t stream_id,
                                               std::span<const uint8_t> data);
 
-  std::expected<void, Error> recv_datagram(std::span<const uint8_t> data) {
-    return {};
-  }
+  std::expected<void, Error> recv_datagram(std::span<const uint8_t> data);
 
   std::expected<void, Error> acked_stream_data_offset(int64_t stream_id,
                                                       uint64_t datalen);
@@ -63,7 +63,7 @@ public:
 
   std::expected<void, Error> extend_max_local_streams_bidi();
 
-  std::expected<void, Error> extend_max_local_streams_uni() { return {}; }
+  std::expected<void, Error> extend_max_local_streams_uni();
 
   void early_data_rejected();
 
@@ -74,7 +74,7 @@ public:
 
   std::expected<void, Error> on_stream_stop_sending(int64_t stream_id);
 
-  std::expected<void, Error> submit_request(const Stream *stream);
+  std::expected<void, Error> submit_request(const Stream *stream) { return {}; }
 
   ngtcp2_ssize write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
                          size_t destlen, ngtcp2_tstamp ts);
@@ -93,24 +93,45 @@ public:
 
   void http_write_data(int64_t stream_id, std::span<const uint8_t> data);
 
+  std::expected<void, Error> http_recv_wt_data(int64_t session_id,
+                                               int64_t stream_id,
+                                               std::span<const uint8_t> data);
+
+  std::expected<void, Error> http_end_headers(Stream *stream);
+
+  std::expected<void, Error> http_end_stream(int64_t stream_id);
+
+  std::expected<void, Error>
+  http_recv_settings(const nghttp3_proto_settings *settings);
+
+  void http_stream_close(int64_t stream_id, uint64_t app_error_code);
+
   static constexpr auto protocol = AppProtocol::H3;
   static constexpr auto no_error = NGHTTP3_H3_NO_ERROR;
 
-  static Config config_default() { return {}; }
+  static Config config_default();
 
-  static void configure_transport_params(ngtcp2_transport_params &params) {}
+  static void configure_transport_params(ngtcp2_transport_params &params);
 
-  static void init() {}
+  static void init();
 
 private:
-  void http_stream_close(int64_t stream_id, uint64_t app_error_code);
+  bool wt_capable() const;
+
+  std::expected<void, Error> submit_webtransport_request();
+
+  void handle_pending_transmission(Stream *stream,
+                                   webtransport::AppBase &wt_app);
 
   Client *client_;
   ngtcp2_conn *conn_;
   ngtcp2_ccerr &last_error_;
   nghttp3_conn *httpconn_{};
+  std::deque<webtransport::Datagram> datagrams_;
+  std::unordered_set<int64_t> bidi_streams_;
+  std::unordered_set<int64_t> uni_streams_;
 };
 
 } // namespace ngtcp2
 
-#endif // !defined(HTTP3_CLIENT_PROTO_CODEC_H)
+#endif // WEBTRANSPORT_CLIENT_PROTO_CODEC_H

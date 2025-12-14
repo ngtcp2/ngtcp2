@@ -89,6 +89,11 @@ void print_stream_data(int64_t stream_id, std::span<const uint8_t> data) {
   util::hexdump(outfile, data);
 }
 
+void print_datagram(std::span<const uint8_t> data) {
+  std::println(outfile, "DATAGRAM {} bytes", data.size());
+  util::hexdump(outfile, data);
+}
+
 void print_initial_secret(std::span<const uint8_t> data) {
   std::println(outfile, "initial_secret={}", util::format_hex(data));
 }
@@ -274,16 +279,17 @@ void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
 }
 
 void print_http_settings(const nghttp3_proto_settings *settings) {
-  std::println(outfile, R"(http: remote settings
+  std::println(
+    outfile, R"(http: remote settings
 http: SETTINGS_MAX_FIELD_SECTION_SIZE={}
 http: SETTINGS_QPACK_MAX_TABLE_CAPACITY={}
 http: SETTINGS_QPACK_BLOCKED_STREAMS={}
 http: SETTINGS_ENABLE_CONNECT_PROTOCOL={}
-http: SETTINGS_H3_DATAGRAM={})",
-               settings->max_field_section_size,
-               settings->qpack_max_dtable_capacity,
-               settings->qpack_blocked_streams,
-               settings->enable_connect_protocol, settings->h3_datagram);
+http: SETTINGS_H3_DATAGRAM={}
+http: SETTINGS_WT_ENABLED={})",
+    settings->max_field_section_size, settings->qpack_max_dtable_capacity,
+    settings->qpack_blocked_streams, settings->enable_connect_protocol,
+    settings->h3_datagram, settings->wt_enabled);
 }
 
 void print_http_origin(const uint8_t *origin, size_t originlen) {

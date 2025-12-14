@@ -11,29 +11,19 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     git clang-19 libclang-rt-19-dev libstdc++-14-dev \
     make autoconf automake autotools-dev libtool \
     pkg-config ca-certificates \
-    libev-dev libjemalloc-dev media-types
+    libev-dev media-types \
+    cmake cmake-data
 
-case "$TARGETPLATFORM" in
-    "linux/amd64")
-        export WSSLFLAGS="--enable-aesni"
-        ;;
-    "linux/arm64")
-        export WSSLFLAGS="--enable-armasm"
-        ;;
-esac
-
-git clone --depth 1 -b v5.9.0-stable https://github.com/wolfSSL/wolfssl
-cd wolfssl
-autoreconf -i
-./configure --disable-dependency-tracking --enable-static --enable-all \
-    --enable-harden --enable-keylog-export --disable-ech \
-    --enable-ticket-nonce-malloc --enable-mlkem $WSSLFLAGS \
-    CC=clang-19 \
-    CXX=clang++-19
-make -j$(nproc)
-make install
+git clone --depth 1 -b v1.71.0 https://github.com/aws/aws-lc
+cd aws-lc
+cmake -Bbuild -DDISABLE_GO=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER=clang-19 \
+    -DCMAKE_CXX_COMPILER=clang++-19
+make -j$(nproc) -C build
+cmake --install build
 cd ..
-rm -rf wolfssl
+rm -rf aws-lc
 
 git clone --recursive --shallow-submodules --depth 1 -b webtransport \
     https://github.com/ngtcp2/nghttp3
@@ -60,21 +50,23 @@ autoreconf -i
     LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
     CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" \
     LIBEV_LIBS="-l:libev.a" \
-    JEMALLOC_LIBS="-l:libjemalloc.a" \
+    BORINGSSL_LIBS="-lssl -lcrypto" \
+    BORINGSSL_CFLAGS="-I/usr/local/include" \
     PKG_CONFIG_PATH=/usr/local/lib/pkgconfig \
     --disable-dependency-tracking \
-    --with-wolfssl
+    --with-boringssl \
+    --without-jemalloc
 make -j$(nproc)
-cp examples/wsslclient examples/wsslserver \
-   examples/wsslhqclient examples/wsslhqserver /usr/local/bin
+cp examples/bsslwtclient examples/bsslwtserver /usr/local/bin
 cd ..
 rm -rf ngtcp2
 EOF
 
 FROM martenseemann/quic-network-simulator-endpoint:latest
 
-COPY --from=build --link /usr/local/bin/wsslclient /usr/local/bin/wsslserver \
-    /usr/local/bin/wsslhqclient /usr/local/bin/wsslhqserver /usr/local/bin/
+COPY --from=build --link \
+    /usr/local/bin/bsslwtclient /usr/local/bin/bsslwtserver \
+    /usr/local/bin/
 COPY --from=build --link /etc/mime.types /etc/
 COPY --link --chmod=0775 run_endpoint.sh .
 

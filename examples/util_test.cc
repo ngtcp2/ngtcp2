@@ -51,6 +51,8 @@ const MunitTest tests[]{
   munit_void_test(test_util_decode_hex),
   munit_void_test(test_util_is_hex_string),
   munit_void_test(test_util_split_str),
+  munit_void_test(test_util_encode_sfstring),
+  munit_void_test(test_util_encode_sflist),
   munit_test_end(),
 };
 } // namespace
@@ -596,6 +598,24 @@ void test_util_split_str() {
     (std::vector{""sv, "alpha"sv, ""sv, ""sv, "bravo"sv, "charlie"sv, ""sv,
                  ""sv} == (util::split_str(" alpha   bravo charlie  "sv, ' ') |
                            std::ranges::to<std::vector>())));
+}
+
+void test_util_encode_sfstring() {
+  assert_stdstring_equal(R"("foo")", util::encode_sfstring("foo"));
+  assert_stdstring_equal(R"("foo\"bar")", util::encode_sfstring(R"(foo"bar)"));
+  assert_stdstring_equal(R"("foo\\bar")", util::encode_sfstring(R"(foo\bar)"));
+  assert_stdstring_equal(R"("")", util::encode_sfstring(""));
+}
+
+void test_util_encode_sflist() {
+  assert_stdstring_equal("",
+                         util::encode_sflist(std::vector<std::string_view>{}));
+  assert_stdstring_equal(
+    R"("foo", "bar", "baz")",
+    util::encode_sflist(std::vector{"foo"s, "bar"s, "baz"s}));
+  assert_stdstring_equal(
+    R"("foo\"bar", "baz")",
+    util::encode_sflist(std::vector{R"(foo"bar)"s, "baz"s}));
 }
 
 } // namespace ngtcp2

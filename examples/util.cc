@@ -910,6 +910,44 @@ std::filesystem::path realpath(const std::filesystem::path &path) {
   return abspath;
 }
 
+std::string encode_sfstring(std::string_view s) {
+  std::string dst;
+
+  auto num_esc =
+    std::ranges::count_if(s, [](auto c) { return c == '"' || c == '\\'; });
+  if (num_esc == 0) {
+    dst.resize_and_overwrite(s.size() + 2, [s](auto p, auto len) {
+      *p++ = '"';
+      *std::ranges::copy(s, p).out = '"';
+
+      return len;
+    });
+
+    return dst;
+  }
+
+  dst.resize_and_overwrite(
+    s.size() + as_unsigned(num_esc) + 2, [s](auto p, auto len) {
+      auto begin = p;
+
+      *p++ = '"';
+
+      for (auto c : s) {
+        if (c == '\\' || c == '"') {
+          *p++ = '\\';
+        }
+
+        *p++ = c;
+      }
+
+      *p++ = '"';
+
+      return as_unsigned(std::ranges::distance(begin, p));
+    });
+
+  return dst;
+}
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {

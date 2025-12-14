@@ -65,7 +65,7 @@ namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
-Config config;
+auto config = ProtoCodec::config_default();
 
 Stream::Stream(int64_t stream_id, Handler *handler)
   : stream_id{stream_id}, handler{handler} {
@@ -481,6 +481,28 @@ std::expected<void, Error> Handler::acked_stream_data_offset(int64_t stream_id,
 }
 
 namespace {
+int recv_datagram(ngtcp2_conn *conn, uint32_t flags, const uint8_t *data,
+                  size_t datalen, void *user_data) {
+  if (!config.quiet && !config.no_quic_dump) {
+    debug::print_datagram({data, datalen});
+  }
+
+  auto h = static_cast<Handler *>(user_data);
+
+  if (!h->recv_datagram({data, datalen})) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
+std::expected<void, Error>
+Handler::recv_datagram(std::span<const uint8_t> data) {
+  return proto_codec_->recv_datagram(data);
+}
+
+namespace {
 int stream_open(ngtcp2_conn *conn, int64_t stream_id, void *user_data) {
   auto h = static_cast<Handler *>(user_data);
   h->on_stream_open(stream_id);
@@ -659,6 +681,40 @@ void Handler::extend_max_remote_streams_bidi(uint64_t max_streams) {
 }
 
 namespace {
+int extend_max_local_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
+                                  void *user_data) {
+  auto h = static_cast<Handler *>(user_data);
+
+  if (auto rv = h->extend_max_local_streams_bidi(); !rv) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
+std::expected<void, Error> Handler::extend_max_local_streams_bidi() {
+  return proto_codec_->extend_max_local_streams_bidi();
+}
+
+namespace {
+int extend_max_local_streams_uni(ngtcp2_conn *conn, uint64_t max_streams,
+                                 void *user_data) {
+  auto h = static_cast<Handler *>(user_data);
+
+  if (auto rv = h->extend_max_local_streams_uni(); !rv) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
+std::expected<void, Error> Handler::extend_max_local_streams_uni() {
+  return proto_codec_->extend_max_local_streams_uni();
+}
+
+namespace {
 int extend_max_stream_data(ngtcp2_conn *conn, int64_t stream_id,
                            uint64_t max_data, void *user_data,
                            void *stream_user_data) {
@@ -729,6 +785,8 @@ Handler::init(const Endpoint &ep, const Address &local_addr,
     .acked_stream_data_offset = ::acked_stream_data_offset,
     .stream_open = stream_open,
     .stream_close = stream_close,
+    .extend_max_local_streams_bidi = ::extend_max_local_streams_bidi,
+    .extend_max_local_streams_uni = ::extend_max_local_streams_uni,
     .rand = rand,
     .remove_connection_id = remove_connection_id,
     .update_key = ::update_key,
@@ -738,6 +796,7 @@ Handler::init(const Endpoint &ep, const Address &local_addr,
     .extend_max_stream_data = ::extend_max_stream_data,
     .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
     .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
+    .recv_datagram = ::recv_datagram,
     .stream_stop_sending = stream_stop_sending,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
     .recv_tx_key = ::recv_tx_key,
@@ -820,6 +879,8 @@ Handler::init(const Endpoint &ep, const Address &local_addr,
   params.stateless_reset_token_present = 1;
   params.active_connection_id_limit = 7;
   params.grease_quic_bit = 1;
+
+  ProtoCodec::configure_transport_params(params);
 
   if (ocid) {
     params.original_dcid = *ocid;
@@ -1308,9 +1369,9 @@ std::expected<void, Error> Handler::on_stream_close(int64_t stream_id,
   if (!ngtcp2_conn_is_local_stream2(conn_, stream_id)) {
     if (ngtcp2_is_bidi_stream(stream_id)) {
       ngtcp2_conn_extend_max_streams_bidi(conn_, 1);
+    } else {
+      ngtcp2_conn_extend_max_streams_uni(conn_, 1);
     }
-
-    // TODO We might later add uni stream extension here.
   }
 
   auto it = streams_.find(stream_id);
@@ -1324,6 +1385,8 @@ std::expected<void, Error> Handler::on_stream_close(int64_t stream_id,
 void Handler::shutdown_read(int64_t stream_id, uint64_t app_error_code) {
   ngtcp2_conn_shutdown_stream_read(conn_, 0, stream_id, app_error_code);
 }
+
+void Handler::break_loop() { ev_break(loop_); }
 
 namespace {
 void sreadcb(struct ev_loop *loop, ev_io *w, int revents) {
@@ -2470,7 +2533,7 @@ namespace {
 void print_help() {
   print_usage(stdout);
 
-  Config config;
+  auto config = ProtoCodec::config_default();
 
   std::cout << R"(
   <ADDR>      Address to listen to.  '*' binds to any address.
@@ -2720,6 +2783,8 @@ int main(int argc, char **argv) {
       {"no-gso", no_argument, &flag, 35},
       {"show-stat", no_argument, &flag, 36},
       {"gso-burst", required_argument, &flag, 37},
+      {"webtransport-interop", no_argument, &flag, 38},
+      {"download", required_argument, &flag, 39},
       {},
     };
 
@@ -3151,6 +3216,16 @@ int main(int argc, char **argv) {
 
         break;
       }
+      case 38:
+        // --webtransport-interop
+        config.webtransport_interop = true;
+
+        break;
+      case 39:
+        // --download
+        config.download = optarg;
+
+        break;
       }
       break;
     default:
@@ -3205,6 +3280,8 @@ int main(int argc, char **argv) {
   }
 
   std::println(stderr, "Using document root {}", config.htdocs.native());
+
+  ProtoCodec::init();
 
   auto ev_loop_d = defer([] { ev_loop_destroy(EV_DEFAULT); });
 
