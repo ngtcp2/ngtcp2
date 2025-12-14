@@ -15,3 +15,5 @@ wsslserver
 osslclient
 osslserver
 gtlssimpleclient
+bsslwtclient
+bsslwtserver
