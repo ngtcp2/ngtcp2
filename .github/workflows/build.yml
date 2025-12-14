@@ -17,7 +17,7 @@ env:
   PICOTLS_VERSION: 44bc503943f47ec59f49ca7a157238fb81a91ac0
   WOLFSSL_VERSION: v5.9.2-stable
   LIBRESSL_VERSION: v4.3.2
-  NGHTTP3_VERSION: head
+  NGHTTP3_VERSION: webtransport
 
 jobs:
   setup:
@@ -34,13 +34,14 @@ jobs:
         script: |
           let version = '${{ env.NGHTTP3_VERSION }}'
 
-          if (version != 'head') {
+          if (version != 'webtransport') {
               return version
           }
 
           let { data: commits } = await github.rest.repos.listCommits({
               owner: 'ngtcp2',
               repo: 'nghttp3',
+              sha: version,
           })
 
           return commits[0].sha
@@ -51,7 +52,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-26, macos-15]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-26]
 
     runs-on: ${{ matrix.os }}
 
@@ -184,6 +185,7 @@ jobs:
     - name: MacOS setup
       if: runner.os == 'macOS' && steps.settings.outputs.needs-build == 'true'
       run: |
+        sudo xcode-select -s /Applications/Xcode_26.4.app/Contents/Developer
         brew install autoconf automake libtool
 
         echo 'NPROC='"$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
@@ -305,27 +307,6 @@ jobs:
             openssl: ossl
             boringssl: aws-lc
           sockaddr: generic-sockaddr
-        - os: macos-15
-          compiler: clang
-          buildtool: autotools
-          tls:
-            openssl: openssl1
-            boringssl: aws-lc
-          sockaddr: native-sockaddr
-        - os: macos-15
-          compiler: clang
-          buildtool: autotools
-          tls:
-            openssl: ossl
-            boringssl: aws-lc
-          sockaddr: native-sockaddr
-        - os: macos-15
-          compiler: clang
-          buildtool: autotools
-          tls:
-            openssl: ossl
-            boringssl: aws-lc
-          sockaddr: generic-sockaddr
         - os: ubuntu-24.04-arm
           compiler: gcc
           buildtool: autotools
@@ -383,6 +364,7 @@ jobs:
     - name: MacOS setup
       if: runner.os == 'macOS'
       run: |
+        sudo xcode-select -s /Applications/Xcode_26.4.app/Contents/Developer
         brew install libev autoconf automake libtool
 
         echo 'NPROC='"$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
