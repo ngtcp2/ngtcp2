@@ -206,6 +206,15 @@ struct Config {
   // gso_burst is the number of packets to aggregate in GSO.  0 means
   // it is not limited by the configuration.
   size_t gso_burst{};
+  // htdocs is a root directory to serve documents.
+  std::filesystem::path htdocs{util::realpath(".")};
+  // webtransport_interop enables webtransport interop mode instead of
+  // devious-baton.
+  bool webtransport_interop{};
+  // addr is the server address.
+  std::string addr;
+  // port is the server port.
+  std::string port;
 };
 
 class ClientBase {

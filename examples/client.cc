@@ -60,7 +60,7 @@ auto randgen = util::make_mt19937();
 
 constexpr auto max_preferred_versionslen = 4UZ;
 
-Config config;
+auto config = ProtoCodec::config_default();
 
 Stream::Stream(const Request &req, int64_t stream_id)
   : req{req}, stream_id{stream_id} {}
@@ -157,7 +157,7 @@ void delay_streamcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto c = static_cast<Client *>(w->data);
 
   ev_timer_stop(loop, w);
-  c->on_extend_max_streams();
+  (void)c->extend_max_local_streams_bidi();
   (void)c->on_write();
 }
 } // namespace
@@ -265,6 +265,28 @@ int acked_stream_data_offset(ngtcp2_conn *conn, int64_t stream_id,
   return 0;
 }
 } // namespace
+
+namespace {
+int recv_datagram(ngtcp2_conn *conn, uint32_t flags, const uint8_t *data,
+                  size_t datalen, void *user_data) {
+  if (!config.quiet && !config.no_quic_dump) {
+    debug::print_datagram({data, datalen});
+  }
+
+  auto c = static_cast<Client *>(user_data);
+
+  if (!c->recv_datagram({data, datalen})) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
+std::expected<void, Error>
+Client::recv_datagram(std::span<const uint8_t> data) {
+  return proto_codec_->recv_datagram(data);
+}
 
 namespace {
 int handshake_completed(ngtcp2_conn *conn, void *user_data) {
@@ -443,7 +465,22 @@ int extend_max_local_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
                                   void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  c->on_extend_max_streams();
+  if (!c->extend_max_local_streams_bidi()) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
+namespace {
+int extend_max_local_streams_uni(ngtcp2_conn *conn, uint64_t max_streams,
+                                 void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  if (!c->extend_max_local_streams_uni()) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
 
   return 0;
 }
@@ -663,7 +700,8 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
     .recv_stream_data = ::recv_stream_data,
     .acked_stream_data_offset = ::acked_stream_data_offset,
     .recv_retry = ngtcp2_crypto_recv_retry_cb,
-    .extend_max_local_streams_bidi = extend_max_local_streams_bidi,
+    .extend_max_local_streams_bidi = ::extend_max_local_streams_bidi,
+    .extend_max_local_streams_uni = ::extend_max_local_streams_uni,
     .rand = rand,
     .update_key = ::update_key,
     .path_validation = path_validation,
@@ -674,6 +712,7 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
     .recv_new_token = ::recv_new_token,
     .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
     .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
+    .recv_datagram = ::recv_datagram,
     .stream_stop_sending = stream_stop_sending,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
     .recv_rx_key = ::recv_rx_key,
@@ -792,6 +831,8 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
   params.max_idle_timeout = config.timeout;
   params.active_connection_id_limit = 7;
   params.grease_quic_bit = 1;
+
+  ProtoCodec::configure_transport_params(params);
 
   auto path = ngtcp2_path{
     .local = as_ngtcp2_addr(ep.addr),
@@ -1684,8 +1725,9 @@ Client::on_stream_close(int64_t stream_id,
   }
 
   if (!ngtcp2_conn_is_local_stream2(conn_, stream_id)) {
-    // TODO We might later add bidi stream extension here.
-    if (!ngtcp2_is_bidi_stream(stream_id)) {
+    if (ngtcp2_is_bidi_stream(stream_id)) {
+      ngtcp2_conn_extend_max_streams_bidi(conn_, 1);
+    } else {
       ngtcp2_conn_extend_max_streams_uni(conn_, 1);
     }
   }
@@ -1713,24 +1755,40 @@ std::expected<void, Error> Client::make_stream_early() {
     return rv;
   }
 
-  on_extend_max_streams();
+  return extend_max_local_streams_bidi();
 
   return {};
 }
 
-void Client::on_extend_max_streams() {
+std::expected<void, Error> Client::extend_max_local_streams_bidi() {
+  if ((config.delay_stream && !handshake_confirmed_) ||
+      ev_is_active(&delay_stream_timer_)) {
+    return {};
+  }
+
+  return proto_codec_->extend_max_local_streams_bidi();
+}
+
+std::expected<void, Error> Client::extend_max_local_streams_uni() {
+  return proto_codec_->extend_max_local_streams_uni();
+}
+
+std::expected<void, Error> Client::handle_pending_requests() {
   int64_t stream_id;
 
   if ((config.delay_stream && !handshake_confirmed_) ||
       ev_is_active(&delay_stream_timer_)) {
-    return;
+    return {};
   }
 
   for (; nstreams_done_ < config.nstreams; ++nstreams_done_) {
     if (auto rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
         rv != 0) {
-      assert(NGTCP2_ERR_STREAM_ID_BLOCKED == rv);
-      break;
+      if (NGTCP2_ERR_STREAM_ID_BLOCKED == rv) {
+        return {};
+      }
+
+      return std::unexpected{Error::QUIC};
     }
 
     auto stream = std::make_unique<Stream>(
@@ -1749,6 +1807,8 @@ void Client::on_extend_max_streams() {
       assert(0);
     }
   }
+
+  return {};
 }
 
 std::expected<void, Error>
@@ -1819,6 +1879,14 @@ Stream *Client::find_stream(int64_t stream_id) const {
 
   return (*it).second.get();
 }
+
+void Client::add_stream(std::unique_ptr<Stream> stream) {
+  auto [_, rv] = streams_.try_emplace(stream->stream_id, std::move(stream));
+  (void)rv;
+  assert(rv);
+}
+
+void Client::break_loop() { ev_break(loop_); }
 
 namespace {
 std::expected<void, Error> run(Client &c, const char *addr, const char *port,
@@ -1945,7 +2013,7 @@ namespace {
 void print_help() {
   print_usage(stdout);
 
-  Config config;
+  auto config = ProtoCodec::config_default();
 
   std::cout << R"(
   <HOST>      Remote server host (DNS name or IP address).  In case of
@@ -2254,6 +2322,8 @@ int main(int argc, char **argv) {
       {"no-gso", no_argument, &flag, 45},
       {"show-stat", no_argument, &flag, 46},
       {"gso-burst", required_argument, &flag, 47},
+      {"webtransport-interop", no_argument, &flag, 48},
+      {"htdocs", required_argument, &flag, 49},
       {},
     };
 
@@ -2764,6 +2834,16 @@ int main(int argc, char **argv) {
 
         break;
       }
+      case 48:
+        // --webtransport-interop
+        config.webtransport_interop = true;
+
+        break;
+      case 49:
+        // --htdocs
+        config.htdocs = optarg;
+
+        break;
       }
       break;
     default:
@@ -2771,7 +2851,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (argc - optind < 2) {
+  if (!config.webtransport_interop && argc - optind < 2) {
     std::println(stderr, "Too few arguments");
     print_usage(stderr);
     exit(EXIT_FAILURE);
@@ -2829,11 +2909,13 @@ int main(int argc, char **argv) {
     }
   }
 
-  auto addr = argv[optind++];
-  auto port = argv[optind++];
+  if (!config.webtransport_interop) {
+    config.addr = argv[optind++];
+    config.port = argv[optind++];
 
-  if (!parse_requests(&argv[optind], static_cast<size_t>(argc - optind))) {
-    exit(EXIT_FAILURE);
+    if (!parse_requests(&argv[optind], static_cast<size_t>(argc - optind))) {
+      exit(EXIT_FAILURE);
+    }
   }
 
   if (!ngtcp2_is_reserved_version(config.version)) {
@@ -2878,12 +2960,14 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  ProtoCodec::init();
+
   auto client_chosen_version = config.version;
 
   for (;;) {
     Client c(EV_DEFAULT, client_chosen_version, config.version);
 
-    if (!run(c, addr, port, tls_ctx)) {
+    if (!run(c, config.addr.c_str(), config.port.c_str(), tls_ctx)) {
       exit(EXIT_FAILURE);
     }
 

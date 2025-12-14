@@ -169,6 +169,12 @@ struct Config {
   // gso_burst is the number of packets to aggregate in GSO.  0 means
   // it is not limited by the configuration.
   size_t gso_burst{};
+  // webtransport_interop enables webtransport interop mode instead of
+  // devious-baton.
+  bool webtransport_interop{};
+  // download is a path to a directory where a downloaded file is
+  // saved.  If it is empty, no file is saved.
+  std::filesystem::path download;
 };
 
 struct HTTPHeader {
