@@ -172,6 +172,12 @@ struct Config {
   // write_stream_data_thresh is the threshold for the length of
   // STREAM frame payload that the local endpoint sends.
   size_t write_stream_data_thresh{255};
+  // webtransport_interop enables webtransport interop mode instead of
+  // devious-baton.
+  bool webtransport_interop{};
+  // download is a path to a directory where a downloaded file is
+  // saved.  If it is empty, no file is saved.
+  std::filesystem::path download;
 };
 
 struct HTTPHeader {
