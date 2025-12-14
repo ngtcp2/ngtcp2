@@ -35,3 +35,9 @@ liburlparse_la_SOURCES = \
 	urlparse/urlparse.c \
 	urlparse/urlparse.h
 liburlparse_la_CPPFLAGS = -I${srcdir}/urlparse
+
+noinst_LTLIBRARIES += libsfparse.la
+libsfparse_la_SOURCES = \
+	sfparse/sfparse.c \
+	sfparse/sfparse.h
+libsfparse_la_CPPFLAGS = -I${srcdir}/sfparse
