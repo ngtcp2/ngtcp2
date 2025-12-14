@@ -79,6 +79,8 @@ enum class Error {
   DROP_CONN,
   // Retry token is unreadable, and should be ignored.
   UNREADABLE_TOKEN,
+  // Opening stream is blocked.
+  STREAM_ID_BLOCKED,
 };
 
 enum class AppProtocol {
@@ -242,6 +244,9 @@ struct std::formatter<ngtcp2::Error> : public std::formatter<std::string_view> {
       break;
     case ngtcp2::Error::UNREADABLE_TOKEN:
       s = "unreadable token"sv;
+      break;
+    case ngtcp2::Error::STREAM_ID_BLOCKED:
+      s = "stream ID blocked"sv;
       break;
     }
 

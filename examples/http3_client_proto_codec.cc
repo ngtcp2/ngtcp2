@@ -87,6 +87,10 @@ ProtoCodec::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
   return {};
 }
 
+std::expected<void, Error> ProtoCodec::extend_max_local_streams_bidi() {
+  return client_->handle_pending_requests();
+}
+
 void ProtoCodec::early_data_rejected() {
   nghttp3_conn_del(httpconn_);
   httpconn_ = nullptr;

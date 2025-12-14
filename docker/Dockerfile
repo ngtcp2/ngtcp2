@@ -22,7 +22,7 @@ cmake --install build
 cd ..
 rm -rf aws-lc
 
-git clone --recursive --shallow-submodules --depth 1 \
+git clone --recursive --shallow-submodules --depth 1 -b webtransport \
     https://github.com/ngtcp2/nghttp3
 cd nghttp3
 autoreconf -i
