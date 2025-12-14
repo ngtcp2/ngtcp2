@@ -102,6 +102,10 @@ ProtoCodec::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
   return {};
 }
 
+std::expected<void, Error> ProtoCodec::extend_max_local_streams_bidi() {
+  return client_->handle_pending_requests();
+}
+
 ngtcp2_ssize ProtoCodec::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
                                    uint8_t *dest, size_t destlen,
                                    ngtcp2_tstamp ts) {

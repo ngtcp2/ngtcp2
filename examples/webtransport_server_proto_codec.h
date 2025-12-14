@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef HTTP3_SERVER_PROTO_CODEC_H
-#define HTTP3_SERVER_PROTO_CODEC_H
+#ifndef WEBTRANSPORT_SERVER_PROTO_CODEC_H
+#define WEBTRANSPORT_SERVER_PROTO_CODEC_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -31,12 +31,14 @@
 
 #include <vector>
 #include <expected>
+#include <unordered_set>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
 
 #include "shared.h"
 #include "server_base.h"
+#include "wt_app.h"
 
 struct Stream;
 class Handler;
@@ -57,12 +59,12 @@ public:
 
   void extend_max_remote_streams_bidi(uint64_t max_streams);
 
-  std::expected<void, Error> extend_max_local_streams_bidi() { return {}; }
-
-  std::expected<void, Error> extend_max_local_streams_uni() { return {}; }
-
   std::expected<void, Error> extend_max_stream_data(int64_t stream_id,
                                                     uint64_t max_data);
+
+  std::expected<void, Error> extend_max_local_streams_bidi();
+
+  std::expected<void, Error> extend_max_local_streams_uni();
 
   std::expected<void, Error> on_app_tx_ready();
 
@@ -72,9 +74,7 @@ public:
   std::expected<void, Error> recv_stream_data(uint32_t flags, int64_t stream_id,
                                               std::span<const uint8_t> data);
 
-  std::expected<void, Error> recv_datagram(std::span<const uint8_t> data) {
-    return {};
-  }
+  std::expected<void, Error> recv_datagram(std::span<const uint8_t> data);
 
   std::expected<void, Error> on_stream_close(int64_t stream_id,
                                              uint64_t app_error_code);
@@ -97,38 +97,48 @@ public:
   std::expected<void, Error> http_stop_sending(int64_t stream_id,
                                                uint64_t app_error_code);
 
-  std::expected<void, Error> http_end_stream(Stream *stream);
+  std::expected<void, Error> http_end_stream(int64_t stream_id);
 
   std::expected<void, Error> http_reset_stream(int64_t stream_id,
                                                uint64_t app_error_code);
 
+  void http_stream_close(int64_t stream_id, uint64_t app_error_code);
+
+  void http_recv_settings(const nghttp3_proto_settings *settings);
+
+  std::expected<void, Error> http_recv_wt_data(int64_t session_id,
+                                               int64_t stream_id,
+                                               std::span<const uint8_t> data);
+
   static constexpr auto protocol = AppProtocol::H3;
 
-  static Config config_default() { return {}; }
+  static Config config_default();
 
-  static void configure_transport_params(ngtcp2_transport_params &params) {}
+  static void configure_transport_params(ngtcp2_transport_params &params);
 
-  static void init() {}
+  static void init();
 
 private:
-  std::expected<void, Error>
-  send_status_response(Stream *stream, unsigned int status_code,
-                       std::vector<HTTPHeader> extra_headers = {});
-
-  std::expected<void, Error> send_redirect_response(Stream *stream,
-                                                    unsigned int status_code,
-                                                    std::string_view path);
+  std::expected<void, Error> send_status_response(Stream *stream,
+                                                  uint32_t status_code);
 
   std::expected<void, Error> setup_httpconn();
 
-  void http_stream_close(int64_t stream_id, uint64_t app_error_code);
+  void handle_pending_transmission(Stream *stream,
+                                   webtransport::AppBase &wt_app);
+
+  bool wt_capable(Stream *stream) const;
 
   Handler *handler_;
   ngtcp2_conn *conn_;
   ngtcp2_ccerr &last_error_;
   nghttp3_conn *httpconn_{};
+  bool wt_settings_enabled_{};
+  std::deque<webtransport::Datagram> datagrams_;
+  std::unordered_set<int64_t> bidi_streams_;
+  std::unordered_set<int64_t> uni_streams_;
 };
 
 } // namespace ngtcp2
 
-#endif // !defined(HTTP3_SERVER_PROTO_CODEC_H)
+#endif // WEBTRANSPORT_SERVER_PROTO_CODEC_H

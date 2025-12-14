@@ -56,6 +56,11 @@
 #  include "hq_client_proto_codec.h"
 #endif // WITH_EXAMPLE_HQ_PROTO_CODEC
 
+#ifdef WITH_EXAMPLE_WEBTRANSPORT_PROTO_CODEC
+#  include "wt_app.h"
+#  include "webtransport_client_proto_codec.h"
+#endif // WITH_EXAMPLE_WEBTRANSPORT_PROTO_CODEC
+
 using namespace ngtcp2;
 
 struct Stream {
@@ -71,6 +76,11 @@ struct Stream {
   std::string rawreqbuf;
   std::span<const uint8_t> reqbuf;
 #endif // WITH_EXAMPLE_HQ_PROTO_CODEC
+#ifdef WITH_EXAMPLE_WEBTRANSPORT_PROTO_CODEC
+  std::unique_ptr<webtransport::AppBase> wt_app;
+  uint32_t status_code{};
+  std::string negotiated_proto;
+#endif // WITH_EXAMPLE_WEBTRANSPORT_PROTO_CODEC
 };
 
 class Client;
@@ -118,7 +128,6 @@ public:
                          std::span<const uint8_t> data, size_t gso_size);
   std::expected<void, Error> on_stream_close(int64_t stream_id,
                                              uint64_t app_error_code);
-  void on_extend_max_streams();
   std::expected<void, Error> handle_error();
   std::expected<void, Error> make_stream_early();
   std::expected<void, Error> change_local_addr();
@@ -144,6 +153,7 @@ public:
   std::expected<void, Error> setup_codec();
   std::expected<void, Error> recv_stream_data(uint32_t flags, int64_t stream_id,
                                               std::span<const uint8_t> data);
+  std::expected<void, Error> recv_datagram(std::span<const uint8_t> data);
   std::expected<void, Error> acked_stream_data_offset(int64_t stream_id,
                                                       uint64_t datalen);
   std::expected<void, Error> on_stream_reset(int64_t stream_id);
@@ -166,6 +176,12 @@ public:
   bool should_exit() const;
 
   Stream *find_stream(int64_t stream_id) const;
+
+  void break_loop();
+  std::expected<void, Error> extend_max_local_streams_bidi();
+  std::expected<void, Error> extend_max_local_streams_uni();
+  std::expected<void, Error> handle_pending_requests();
+  void add_stream(std::unique_ptr<Stream> stream);
 
 private:
   std::vector<Endpoint> endpoints_;

@@ -276,6 +276,12 @@ constexpr bool istarts_with(std::string_view s, std::string_view prefix) {
          std::ranges::equal(s.substr(0, prefix.size()), prefix, CaseCmp());
 }
 
+template <std::ranges::input_range R1, std::ranges::input_range R2>
+constexpr bool strieq(R1 &&a, R2 &&b) {
+  return std::ranges::equal(std::forward<R1>(a), std::forward<R2>(b),
+                            CaseCmp());
+}
+
 // make_cid_key returns the key for |cid|.
 std::string_view make_cid_key(const ngtcp2_cid *cid);
 ngtcp2_cid make_cid_key(std::span<const uint8_t> cid);
@@ -595,6 +601,22 @@ get_string(std::string_view uri, const urlparse_url &u, urlparse_url_fields f) {
 
 // realpath returns the canonicalized absolute path to |path|.
 std::filesystem::path realpath(const std::filesystem::path &path);
+
+// encode_sfstring encodes |s| as Structured Field Values String, and
+// returns it.
+std::string encode_sfstring(std::string_view s);
+
+// encode_sflist encodes |l| as Structured Field Values List of
+// Strings, and returns it.  If |l| is empty it returns an empty
+// string.
+template <std::ranges::input_range R>
+requires(std::convertible_to<std::ranges::range_value_t<R>, std::string_view>)
+std::string encode_sflist(R &&l) {
+  return l | std::ranges::views::transform([](auto &&k) {
+           return encode_sfstring(k);
+         }) |
+         std::ranges::views::join_with(", "sv) | std::ranges::to<std::string>();
+}
 
 } // namespace util
 

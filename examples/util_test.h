@@ -50,6 +50,8 @@ munit_void_test_decl(test_util_format_hex)
 munit_void_test_decl(test_util_decode_hex)
 munit_void_test_decl(test_util_is_hex_string)
 munit_void_test_decl(test_util_split_str)
+munit_void_test_decl(test_util_encode_sfstring)
+munit_void_test_decl(test_util_encode_sflist)
 
 } // namespace ngtcp2
 

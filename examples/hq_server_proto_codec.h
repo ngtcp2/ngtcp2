@@ -65,6 +65,10 @@ public:
 
   void extend_max_remote_streams_bidi(uint64_t max_streams) {}
 
+  std::expected<void, Error> extend_max_local_streams_bidi() { return {}; }
+
+  std::expected<void, Error> extend_max_local_streams_uni() { return {}; }
+
   std::expected<void, Error> extend_max_stream_data(int64_t stream_id,
                                                     uint64_t max_data);
 
@@ -76,12 +80,22 @@ public:
   std::expected<void, Error> recv_stream_data(uint32_t flags, int64_t stream_id,
                                               std::span<const uint8_t> data);
 
+  std::expected<void, Error> recv_datagram(std::span<const uint8_t> data) {
+    return {};
+  }
+
   std::expected<void, Error> on_stream_close(int64_t stream_id,
                                              uint64_t app_error_code);
 
   std::expected<void, Error> start_response(Stream *stream);
 
   static constexpr auto protocol = AppProtocol::HQ;
+
+  static Config config_default() { return {}; }
+
+  static void configure_transport_params(ngtcp2_transport_params &params) {}
+
+  static void init() {}
 
 private:
   std::expected<void, Error> send_status_response(Stream *stream,

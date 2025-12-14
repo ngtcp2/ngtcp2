@@ -54,6 +54,10 @@ public:
   std::expected<void, Error> recv_stream_data(uint32_t flags, int64_t stream_id,
                                               std::span<const uint8_t> data);
 
+  std::expected<void, Error> recv_datagram(std::span<const uint8_t> data) {
+    return {};
+  }
+
   std::expected<void, Error> acked_stream_data_offset(int64_t stream_id,
                                                       uint64_t datalen) {
     return {};
@@ -61,6 +65,10 @@ public:
 
   std::expected<void, Error> extend_max_stream_data(int64_t stream_id,
                                                     uint64_t max_data);
+
+  std::expected<void, Error> extend_max_local_streams_bidi();
+
+  std::expected<void, Error> extend_max_local_streams_uni() { return {}; }
 
   void early_data_rejected() {}
 
@@ -82,6 +90,12 @@ public:
 
   static constexpr auto protocol = AppProtocol::HQ;
   static constexpr auto no_error = 0;
+
+  static Config config_default() { return {}; }
+
+  static void configure_transport_params(ngtcp2_transport_params &params) {}
+
+  static void init() {}
 
 private:
   Client *client_;

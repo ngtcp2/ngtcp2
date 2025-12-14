@@ -58,6 +58,11 @@
 #  include "hq_server_proto_codec.h"
 #endif // WITH_EXAMPLE_HQ_PROTO_CODEC
 
+#ifdef WITH_EXAMPLE_WEBTRANSPORT_PROTO_CODEC
+#  include "wt_app.h"
+#  include "webtransport_server_proto_codec.h"
+#endif // WITH_EXAMPLE_WEBTRANSPORT_PROTO_CODEC
+
 using namespace ngtcp2;
 
 class Handler;
@@ -120,6 +125,11 @@ struct Stream {
   // eos gets true when one HTTP request message is seen.
   bool eos{};
 #endif // WITH_EXAMPLE_HQ_PROTO_CODEC
+#ifdef WITH_EXAMPLE_WEBTRANSPORT_PROTO_CODEC
+  std::string wt_available_protos;
+  std::unique_ptr<webtransport::AppBase> wt_app;
+  bool webtransport{};
+#endif // WITH_EXAMPLE_WEBTRANSPORT_PROTO_CODEC
 };
 
 class Server;
@@ -188,6 +198,8 @@ public:
              size_t secretlen);
 
   void extend_max_remote_streams_bidi(uint64_t max_streams);
+  std::expected<void, Error> extend_max_local_streams_bidi();
+  std::expected<void, Error> extend_max_local_streams_uni();
   Stream *find_stream(int64_t stream_id) const;
   std::expected<void, Error> on_stream_reset(int64_t stream_id);
   std::expected<void, Error> on_stream_stop_sending(int64_t stream_id);
@@ -212,6 +224,10 @@ public:
   std::expected<void, Error> on_app_tx_ready();
 
   std::expected<void, Error> start_response(Stream *stream);
+
+  std::expected<void, Error> recv_datagram(std::span<const uint8_t> data);
+
+  void break_loop();
 
 private:
   struct ev_loop *loop_;
