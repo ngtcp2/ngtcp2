@@ -52,6 +52,8 @@ const MunitTest tests[]{
   munit_void_test(test_util_is_hex_string),
   munit_void_test(test_util_split_str),
   munit_void_test(test_util_format_app_error_code),
+  munit_void_test(test_util_encode_sfstring),
+  munit_void_test(test_util_encode_sflist),
   munit_test_end(),
 };
 } // namespace
@@ -626,6 +628,24 @@ void test_util_split_str() {
 void test_util_format_app_error_code() {
   assert_stdstring_equal("(no error)", util::format_app_error_code({}));
   assert_stdstring_equal("0xfe01", util::format_app_error_code(0xfe01));
+}
+
+void test_util_encode_sfstring() {
+  assert_stdstring_equal(R"("foo")", util::encode_sfstring("foo"));
+  assert_stdstring_equal(R"("foo\"bar")", util::encode_sfstring(R"(foo"bar)"));
+  assert_stdstring_equal(R"("foo\\bar")", util::encode_sfstring(R"(foo\bar)"));
+  assert_stdstring_equal(R"("")", util::encode_sfstring(""));
+}
+
+void test_util_encode_sflist() {
+  assert_stdstring_equal("",
+                         util::encode_sflist(std::vector<std::string_view>{}));
+  assert_stdstring_equal(
+    R"("foo", "bar", "baz")",
+    util::encode_sflist(std::vector{"foo"s, "bar"s, "baz"s}));
+  assert_stdstring_equal(
+    R"("foo\"bar", "baz")",
+    util::encode_sflist(std::vector{R"(foo"bar)"s, "baz"s}));
 }
 
 } // namespace ngtcp2

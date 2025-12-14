@@ -56,6 +56,8 @@ void print_crypto_data(ngtcp2_encryption_level encryption_level,
 
 void print_stream_data(int64_t stream_id, std::span<const uint8_t> data);
 
+void print_datagram(std::span<const uint8_t> data);
+
 void print_initial_secret(std::span<const uint8_t> data);
 
 void print_client_in_secret(std::span<const uint8_t> data);

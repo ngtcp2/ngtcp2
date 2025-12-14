@@ -29,6 +29,7 @@ AM_CPPFLAGS = \
 	-I$(top_builddir)/lib/includes \
 	-I$(top_srcdir)/crypto/includes \
 	-I$(top_srcdir)/third-party/urlparse \
+	-I$(top_srcdir)/third-party/sfparse \
 	@LIBEV_CFLAGS@ \
 	@LIBNGHTTP3_CFLAGS@ \
 	@LIBBROTLIENC_CFLAGS@ \
@@ -39,6 +40,7 @@ AM_LDFLAGS = -no-install \
 	@LIBTOOL_LDFLAGS@
 LDADD = $(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/liburlparse.la \
+	$(top_builddir)/third-party/libsfparse.la \
 	@LIBEV_LIBS@ \
 	@LIBNGHTTP3_LIBS@ \
 	@LIBBROTLIENC_LIBS@ \
@@ -148,7 +150,7 @@ gtlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 endif # ENABLE_EXAMPLE_GNUTLS
 
 if ENABLE_EXAMPLE_BORINGSSL
-noinst_PROGRAMS += bsslclient bsslserver
+noinst_PROGRAMS += bsslclient bsslserver bsslwtclient bsslwtserver
 
 bsslclient_CPPFLAGS = @BORINGSSL_CFLAGS@ \
 	-DWITH_EXAMPLE_BORINGSSL -DWITH_EXAMPLE_HTTP3_PROTO_CODEC ${AM_CPPFLAGS}
@@ -173,6 +175,36 @@ bsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	tls_server_session_boringssl.cc tls_server_session_boringssl.h \
 	tls_session_base_quictls.cc tls_session_base_quictls.h \
 	tls_shared_boringssl.cc tls_shared_boringssl.h \
+	util_openssl.cc
+
+bsslwtclient_CPPFLAGS = @BORINGSSL_CFLAGS@ \
+	-DWITH_EXAMPLE_BORINGSSL -DWITH_EXAMPLE_WEBTRANSPORT_PROTO_CODEC \
+	${AM_CPPFLAGS}
+bsslwtclient_LDADD = ${bsslclient_LDADD}
+bsslwtclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
+	webtransport_client_proto_codec.cc webtransport_client_proto_codec.h \
+	tls_client_context_boringssl.cc tls_client_context_boringssl.h \
+	tls_client_session_boringssl.cc tls_client_session_boringssl.h \
+	tls_session_base_quictls.cc tls_session_base_quictls.h \
+	tls_shared_boringssl.cc tls_shared_boringssl.h \
+	wt_app.h \
+	baton_wt_app.cc baton_wt_app.h \
+	baton.cc baton.h \
+	interop_wt_app.cc interop_wt_app.h \
+	util_openssl.cc
+
+bsslwtserver_CPPFLAGS = ${bsslwtclient_CPPFLAGS}
+bsslwtserver_LDADD = ${bsslclient_LDADD}
+bsslwtserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
+	webtransport_server_proto_codec.cc webtransport_server_proto_codec.h \
+	tls_server_context_boringssl.cc tls_server_context_boringssl.h \
+	tls_server_session_boringssl.cc tls_server_session_boringssl.h \
+	tls_session_base_quictls.cc tls_session_base_quictls.h \
+	tls_shared_boringssl.cc tls_shared_boringssl.h \
+	wt_app.h \
+	baton_wt_app.cc baton_wt_app.h \
+	baton.cc baton.h \
+	interop_wt_app.cc interop_wt_app.h \
 	util_openssl.cc
 endif # ENABLE_EXAMPLE_BORINGSSL
 
