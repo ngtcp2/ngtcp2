@@ -142,7 +142,7 @@ gtlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 endif # ENABLE_EXAMPLE_GNUTLS
 
 if ENABLE_EXAMPLE_BORINGSSL
-noinst_PROGRAMS += bsslclient bsslserver
+noinst_PROGRAMS += bsslclient bsslserver bsslwtclient bsslwtserver
 
 bsslclient_CPPFLAGS = @BORINGSSL_CFLAGS@ -DWITH_EXAMPLE_BORINGSSL ${AM_CPPFLAGS}
 bsslclient_LDADD = \
@@ -164,6 +164,26 @@ bsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	tls_server_session_boringssl.cc tls_server_session_boringssl.h \
 	tls_session_base_quictls.cc tls_session_base_quictls.h \
 	tls_shared_boringssl.cc tls_shared_boringssl.h \
+	util_openssl.cc
+
+bsslwtclient_CPPFLAGS = ${bsslclient_CPPFLAGS}
+bsslwtclient_LDADD = ${bsslclient_LDADD}
+bsslwtclient_SOURCES = wtclient.cc wtclient.h ${CLIENT_SRCS} \
+	tls_client_context_boringssl.cc tls_client_context_boringssl.h \
+	tls_client_session_boringssl.cc tls_client_session_boringssl.h \
+	tls_session_base_quictls.cc tls_session_base_quictls.h \
+	tls_shared_boringssl.cc tls_shared_boringssl.h \
+	baton.cc baton.h \
+	util_openssl.cc
+
+bsslwtserver_CPPFLAGS = ${bsslclient_CPPFLAGS}
+bsslwtserver_LDADD = ${bsslclient_LDADD}
+bsslwtserver_SOURCES = wtserver.cc wtserver.h ${SERVER_SRCS} \
+	tls_server_context_boringssl.cc tls_server_context_boringssl.h \
+	tls_server_session_boringssl.cc tls_server_session_boringssl.h \
+	tls_session_base_quictls.cc tls_session_base_quictls.h \
+	tls_shared_boringssl.cc tls_shared_boringssl.h \
+	baton.cc baton.h \
 	util_openssl.cc
 endif # ENABLE_EXAMPLE_BORINGSSL
 

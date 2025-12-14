@@ -17,7 +17,7 @@ env:
   PICOTLS_VERSION: 34d4d6496cec80bc3b56dbdab45f21bd9fbc17aa
   WOLFSSL_VERSION: v5.8.4-stable
   LIBRESSL_VERSION: v4.2.1
-  NGHTTP3_VERSION: head
+  NGHTTP3_VERSION: webtransport
 
 jobs:
   setup:

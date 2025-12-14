@@ -89,6 +89,11 @@ void print_stream_data(int64_t stream_id, std::span<const uint8_t> data) {
   util::hexdump(outfile, data.data(), data.size());
 }
 
+void print_datagram(std::span<const uint8_t> data) {
+  fprintf(outfile, "DATAGRAM %zu bytes\n", data.size());
+  util::hexdump(outfile, data.data(), data.size());
+}
+
 void print_initial_secret(std::span<const uint8_t> data) {
   fprintf(outfile, "initial_secret=%s\n", util::format_hex(data).c_str());
 }
@@ -290,10 +295,11 @@ void print_http_settings(const nghttp3_proto_settings *settings) {
           "http: SETTINGS_QPACK_MAX_TABLE_CAPACITY=%zu\n"
           "http: SETTINGS_QPACK_BLOCKED_STREAMS=%zu\n"
           "http: SETTINGS_ENABLE_CONNECT_PROTOCOL=%d\n"
-          "http: SETTINGS_H3_DATAGRAM=%d\n",
+          "http: SETTINGS_H3_DATAGRAM=%d\n"
+          "http: SETTINGS_WT_MAX_SESSIONS=%" PRIu64 "\n",
           settings->max_field_section_size, settings->qpack_max_dtable_capacity,
           settings->qpack_blocked_streams, settings->enable_connect_protocol,
-          settings->h3_datagram);
+          settings->h3_datagram, settings->wt_max_sessions);
 }
 
 void print_http_origin(const uint8_t *origin, size_t originlen) {
