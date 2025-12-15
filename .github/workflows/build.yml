@@ -59,25 +59,25 @@ jobs:
     - uses: actions/checkout@v6
     - name: Restore OpenSSL v1.1.1 cache
       id: cache-openssl1
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openssl1/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL1_VERSION }}
     - name: Restore OpenSSL v3.x cache
       id: cache-openssl3
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openssl3/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL3_VERSION }}
     - name: Restore OSSL cache
       id: cache-ossl
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ossl/build
         key: ${{ matrix.os }}-ossl-${{ env.OSSL_VERSION }}
     - name: Restore BoringSSL cache
       id: cache-boringssl
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           boringssl/build/libcrypto.a
@@ -86,7 +86,7 @@ jobs:
         key: ${{ matrix.os }}-boringssl-${{ env.BORINGSSL_VERSION }}
     - name: Restore aws-lc cache
       id: cache-awslc
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           aws-lc/build/crypto/libcrypto.a
@@ -95,7 +95,7 @@ jobs:
         key: ${{ matrix.os }}-awslc-${{ env.AWSLC_VERSION }}
     - name: Restore Picotls + OpenSSL v1.1.1 cache
       id: cache-picotls-openssl1
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           picotls-openssl1/build/libpicotls-core.a
@@ -104,7 +104,7 @@ jobs:
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL1_VERSION }}
     - name: Restore Picotls + OpenSSL v3.x cache
       id: cache-picotls-openssl3
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           picotls-openssl3/build/libpicotls-core.a
@@ -113,7 +113,7 @@ jobs:
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
     - name: Restore Picotls + OSSL cache
       id: cache-picotls-ossl
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           picotls-ossl/build/libpicotls-core.a
@@ -122,7 +122,7 @@ jobs:
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-ossl-${{ env.OSSL_VERSION }}
     - name: Restore Picotls + LibreSSL cache
       id: cache-picotls-libressl
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           picotls-libressl/build/libpicotls-core.a
@@ -131,20 +131,20 @@ jobs:
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-libressl-${{ env.LIBRESSL_VERSION }}
     - name: Restore wolfSSL cache
       id: cache-wolfssl
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: wolfssl/build
         key: ${{ matrix.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
     - name: Restore LibreSSL cache
       id: cache-libressl
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           libressl/build
         key: ${{ matrix.os }}-libressl-${{ env.LIBRESSL_VERSION }}
     - name: Restore nghttp3 cache
       id: cache-nghttp3
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: nghttp3/build
         key: ${{ matrix.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-version }}
@@ -396,28 +396,28 @@ jobs:
         echo 'CC=gcc-14' >> $GITHUB_ENV
         echo 'CXX=g++-14' >> $GITHUB_ENV
     - name: Restore OpenSSL v1.1.1 cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       if: matrix.tls.openssl == 'openssl1'
       with:
         path: openssl1/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL1_VERSION }}
         fail-on-cache-miss: true
     - name: Restore OpenSSL v3.x cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       if: matrix.tls.openssl == 'openssl3'
       with:
         path: openssl3/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL3_VERSION }}
         fail-on-cache-miss: true
     - name: Restore OSSL cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       if: matrix.tls.openssl == 'ossl'
       with:
         path: ossl/build
         key: ${{ matrix.os }}-ossl-${{ env.OSSL_VERSION }}
         fail-on-cache-miss: true
     - name: Restore BoringSSL cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       if: matrix.tls.boringssl == 'boringssl'
       with:
         path: |
@@ -427,7 +427,7 @@ jobs:
         key: ${{ matrix.os }}-boringssl-${{ env.BORINGSSL_VERSION }}
         fail-on-cache-miss: true
     - name: Restore aws-lc cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       if: matrix.tls.boringssl == 'aws-lc'
       with:
         path: |
@@ -437,7 +437,7 @@ jobs:
         key: ${{ matrix.os }}-awslc-${{ env.AWSLC_VERSION }}
         fail-on-cache-miss: true
     - name: Restore Picotls + OpenSSL v1.1.1 cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       if: matrix.tls.openssl == 'openssl1'
       with:
         path: |
@@ -447,7 +447,7 @@ jobs:
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL1_VERSION }}
         fail-on-cache-miss: true
     - name: Restore Picotls + OpenSSL v3.x cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       if: matrix.tls.openssl == 'openssl3'
       with:
         path: |
@@ -457,7 +457,7 @@ jobs:
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-openssl-${{ env.OPENSSL3_VERSION }}
         fail-on-cache-miss: true
     - name: Restore Picotls + OSSL cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       if: matrix.tls.openssl == 'ossl'
       with:
         path: |
@@ -467,13 +467,13 @@ jobs:
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-ossl-${{ env.OSSL_VERSION }}
         fail-on-cache-miss: true
     - name: Restore wolfSSL cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: wolfssl/build
         key: ${{ matrix.os }}-wolfssl-${{ env.WOLFSSL_VERSION }}
         fail-on-cache-miss: true
     - name: Restore libreSSL cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       if: matrix.tls.openssl == 'libressl'
       with:
         path: |
@@ -481,7 +481,7 @@ jobs:
         key: ${{ matrix.os }}-libressl-${{ env.LIBRESSL_VERSION }}
         fail-on-cache-miss: true
     - name: Restore Picotls + LibreSSL
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       if: matrix.tls.openssl == 'libressl'
       with:
         path: |
@@ -491,7 +491,7 @@ jobs:
         key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-libressl-${{ env.LIBRESSL_VERSION }}
         fail-on-cache-miss: true
     - name: Restore nghttp3 cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: nghttp3/build
         key: ${{ matrix.os }}-nghttp3-${{ needs.setup.outputs.nghttp3-version }}
