@@ -1,4 +1,4 @@
-FROM debian:12 as build
+FROM debian:13 as build
 
 ARG NGTCP2_BRANCH=main
 
@@ -7,16 +7,17 @@ set -e
 
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git g++ clang-15 make binutils autoconf automake autotools-dev libtool \
+    git clang-19 make binutils autoconf automake autotools-dev libtool \
     pkg-config libev-dev libjemalloc-dev \
-    ca-certificates mime-support
+    ca-certificates media-types
 
 git clone --depth 1 -b v5.8.4-stable https://github.com/wolfSSL/wolfssl
 cd wolfssl
 autoreconf -i
 ./configure --disable-dependency-tracking --enable-static --enable-all \
     --enable-aesni --enable-harden --enable-keylog-export --disable-ech \
-    --enable-mlkem
+    --enable-mlkem \
+    CC=clang-19 CXX=clang++-19
 make -j$(nproc)
 make install-strip
 cd ..
@@ -27,7 +28,7 @@ git clone --recursive --shallow-submodules --depth 1 \
 cd nghttp3
 autoreconf -i
 ./configure --disable-dependency-tracking --enable-lib-only \
-    CC=clang-15 CXX=clang++-15
+    CC=clang-19 CXX=clang++-19
 make -j$(nproc)
 make install-strip
 cd ..
@@ -38,8 +39,8 @@ git clone --recursive --shallow-submodules --depth 1 -b $NGTCP2_BRANCH \
 cd ngtcp2
 autoreconf -i
 ./configure \
-    CC=clang-15 \
-    CXX=clang++-15 \
+    CC=clang-19 \
+    CXX=clang++-19 \
     LDFLAGS="-static-libgcc -static-libstdc++" \
     LIBTOOL_LDFLAGS="-static-libtool-libs" \
     LIBEV_LIBS="-l:libev.a" \
@@ -53,14 +54,14 @@ cd ..
 rm -rf ngtcp2
 
 apt-get -y purge \
-    git g++ clang-15 make binutils autoconf automake autotools-dev libtool \
+    git clang-19 make binutils autoconf automake autotools-dev libtool \
     pkg-config libev-dev libjemalloc-dev \
     ca-certificates
 apt-get -y autoremove --purge
 rm -rf /var/log/*
 EOF
 
-FROM gcr.io/distroless/base-nossl-debian12
+FROM gcr.io/distroless/base-nossl-debian13
 
 COPY --from=build --link /usr/local/bin/wsslclient /usr/local/bin/wsslserver \
     /usr/local/bin/
