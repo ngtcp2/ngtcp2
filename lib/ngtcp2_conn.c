@@ -2174,18 +2174,14 @@ static uint8_t conn_pkt_flags_short(ngtcp2_conn *conn) {
 }
 
 /*
- * conn_cut_crypto_frame splits (*pfrc)->fr.stream by removing
- * |removed_data| from (*pfrc)->fr.stream.data[0].
- * (*pfrc)->fr.stream.data[0] must contain |removed_data|, and
- * (*pfrc)->fr.stream.datacnt >= 1.  New ngtcp2_frame_chain object
- * that contains |removed_data| is created, and pushed to
- * |crypto_strm| via ngtcp2_strm_streamfrq_push.  Because
- * (*pfrc)->fr.stream.datacnt cannot be changed, if it is not 1, new
- * ngtcp2_frame_chain object is created to contain the data before
- * |removed_data|.  Then *pfrc is deleted, and the newly created
- * object is assigned to *pfrc instead.  If there are data following
- * the removed part of data, new ngtcp2_frame_chain object is created
- * for it, and (*pfrc)->next points to the object.
+ * conn_cut_crypto_frame splits frc->fr.stream by removing
+ * |removed_data| from frc->fr.stream.data[0].  frc->fr.stream.data[0]
+ * must contain |removed_data|, and frc->fr.stream.datacnt >= 1.  New
+ * ngtcp2_frame_chain object that contains |removed_data| is created,
+ * and pushed to |crypto_strm| via ngtcp2_strm_streamfrq_push.  If
+ * there are data following the removed part of data, new
+ * ngtcp2_frame_chain object is created for it, and frc->next points
+ * to the object.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2193,13 +2189,13 @@ static uint8_t conn_pkt_flags_short(ngtcp2_conn *conn) {
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
+static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain *frc,
                                  ngtcp2_strm *crypto_strm,
                                  const ngtcp2_vec *removed_data) {
-  ngtcp2_vec *data = (*pfrc)->fr.stream.data;
-  size_t datacnt = (*pfrc)->fr.stream.datacnt;
+  ngtcp2_vec *data = frc->fr.stream.data;
+  size_t datacnt = frc->fr.stream.datacnt;
   size_t ndatacnt;
-  ngtcp2_frame_chain *left_frc, *right_frc = NULL, *removed_frc;
+  ngtcp2_frame_chain *right_frc = NULL, *removed_frc;
   size_t offset;
   int rv;
 
@@ -2220,7 +2216,7 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
   removed_frc->fr.stream.flags = 0;
   removed_frc->fr.stream.fin = 0;
   removed_frc->fr.stream.stream_id = 0;
-  removed_frc->fr.stream.offset = (*pfrc)->fr.stream.offset + offset;
+  removed_frc->fr.stream.offset = frc->fr.stream.offset + offset;
   removed_frc->fr.stream.datacnt = 1;
   removed_frc->fr.stream.data[0] = (ngtcp2_vec){
     .base = data->base + offset,
@@ -2259,35 +2255,9 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
     assert(1 == datacnt);
   }
 
-  /* We cannot change (*pfrc)->fr.stream.datacnt.  If it changes,
-     create new ngtcp2_frame_chain. */
-  if ((*pfrc)->fr.stream.datacnt == 1) {
-    (*pfrc)->fr.stream.data[0].len = offset;
-    (*pfrc)->next = right_frc;
-    return 0;
-  }
-
-  rv = ngtcp2_frame_chain_stream_datacnt_objalloc_new(
-    &left_frc, 1, &conn->frc_objalloc, conn->mem);
-  if (rv != 0) {
-    ngtcp2_frame_chain_objalloc_del(right_frc, &conn->frc_objalloc, conn->mem);
-    return rv;
-  }
-
-  left_frc->fr.stream.type = NGTCP2_FRAME_CRYPTO;
-  left_frc->fr.stream.flags = 0;
-  left_frc->fr.stream.fin = 0;
-  left_frc->fr.stream.stream_id = 0;
-  left_frc->fr.stream.offset = (*pfrc)->fr.stream.offset;
-  left_frc->fr.stream.datacnt = 1;
-  left_frc->fr.stream.data[0] = (ngtcp2_vec){
-    .base = data[0].base,
-    .len = offset,
-  };
-  left_frc->next = right_frc;
-
-  ngtcp2_frame_chain_objalloc_del(*pfrc, &conn->frc_objalloc, conn->mem);
-  *pfrc = left_frc;
+  frc->fr.stream.datacnt = 1;
+  frc->fr.stream.data[0].len = offset;
+  frc->next = right_frc;
 
   return 0;
 }
@@ -2371,7 +2341,7 @@ conn_crumble_initial_crypto(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
       datacnt = ngtcp2_pkt_remove_vec_partial(
         &removed_data, data, datacnt, offsets, &conn->pcg, &server_name);
 
-      rv = conn_cut_crypto_frame(conn, pfrc, crypto_strm, &removed_data);
+      rv = conn_cut_crypto_frame(conn, *pfrc, crypto_strm, &removed_data);
       if (rv != 0) {
         ngtcp2_frame_chain_objalloc_del(*pfrc, &conn->frc_objalloc, conn->mem);
         return rv;
