@@ -672,6 +672,69 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
+  /* Everything acknowledged but fin.  datacnt >
+     NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_objalloc,
+                   mem);
+
+  ngtcp2_frame_chain_stream_datacnt_objalloc_new(&frc, 1, &frc_objalloc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.offset = 307;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 149;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_frame_chain_stream_datacnt_objalloc_new(
+    &frc, NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES + 1, &frc_objalloc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 1;
+  frc->fr.stream.offset = 457;
+  frc->fr.stream.datacnt = NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES + 1;
+  data = frc->fr.stream.data;
+  data[0] = (ngtcp2_vec){
+    .len = 303,
+    .base = nulldata,
+  };
+  data[1] = (ngtcp2_vec){
+    .len = 1,
+    .base = nulldata,
+  };
+  data[2] = (ngtcp2_vec){
+    .len = 1,
+    .base = nulldata,
+  };
+  data[3] = (ngtcp2_vec){
+    .len = 1,
+    .base = nulldata,
+  };
+  data[4] = (ngtcp2_vec){
+    .len = 1,
+    .base = nulldata,
+  };
+
+  assert(4 == NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES);
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_strm_ack_data(&strm, 0, 764);
+
+  frc = NULL;
+  rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
+
+  assert_int(0, ==, rv);
+  assert_uint64(NGTCP2_FRAME_STREAM, ==, frc->fr.hd.type);
+  assert_true(frc->fr.stream.fin);
+  assert_uint64(764, ==, frc->fr.stream.offset);
+  assert_uint64(0, ==,
+                ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
+
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
+  ngtcp2_strm_free(&strm);
+
   /* Remove leading acknowledged data */
   setup_strm_streamfrq_fixture(&strm, &frc_objalloc, mem);
 
