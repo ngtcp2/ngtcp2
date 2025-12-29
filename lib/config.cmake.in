@@ -1,3 +1,5 @@
+@PACKAGE_INIT@
+
 include(CMakeFindDependencyMacro)
 if("@HAVE_OSSL@")
     find_dependency(OpenSSL)
