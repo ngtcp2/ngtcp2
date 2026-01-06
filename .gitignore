@@ -37,3 +37,5 @@ test-driver
 
 # idea settings
 .idea
+build/
+_codeql_detected_source_root
