@@ -164,34 +164,7 @@ The most of the TLS work is done by the callback functions passed to
 application in order to make TLS integration work.  We have a set of
 helper functions to make it easier for applications to configure TLS
 stack object to work with QUIC and ngtcp2.  They are specific to each
-supported TLS stack:
-
-- quictls
-
-  * `ngtcp2_crypto_quictls_configure_client_context`
-  * `ngtcp2_crypto_quictls_configure_server_context`
-
-- BoringSSL and aws-lc
-
-  * `ngtcp2_crypto_boringssl_configure_client_context`
-  * `ngtcp2_crypto_boringssl_configure_server_context`
-
-- GnuTLS
-
-  * `ngtcp2_crypto_gnutls_configure_client_session`
-  * `ngtcp2_crypto_gnutls_configure_server_session`
-
-- Picotls
-
-  * `ngtcp2_crypto_picotls_configure_client_context`
-  * `ngtcp2_crypto_picotls_configure_server_context`
-  * `ngtcp2_crypto_picotls_configure_client_session`
-  * `ngtcp2_crypto_picotls_configure_server_session`
-
-- wolfSSL
-
-  * `ngtcp2_crypto_wolfssl_configure_client_context`
-  * `ngtcp2_crypto_wolfssl_configure_server_context`
+supported TLS stack.
 
 They make the minimal QUIC specific changes to TLS stack object.  See
 the ngtcp2 crypto API header files for each supported TLS stack.  In
@@ -201,6 +174,113 @@ object, and its :member:`ngtcp2_crypto_conn_ref.get_conn` must point
 to a function which returns :type:`ngtcp2_conn` of the underlying QUIC
 connection.
 
+quictls
+~~~~~~~
+
+The ``SSL_CTX`` object should be configured with one of the following
+functions:
+
+* `ngtcp2_crypto_quictls_configure_client_context`
+* `ngtcp2_crypto_quictls_configure_server_context`
+
+The ``SSL`` should be set as the TLS native handle for the connection
+using `ngtcp2_conn_set_tls_native_handle`.
+
+:type:`ngtcp2_crypto_conn_ref` must be set as a user data in ``SSL``
+object via ``SSL_set_app_data``.
+
+
+BoringSSL and aws-lc
+~~~~~~~~~~~~~~~~~~~~
+
+The ``SSL_CTX`` object should be configured with one of the following
+functions:
+
+* `ngtcp2_crypto_boringssl_configure_client_context`
+* `ngtcp2_crypto_boringssl_configure_server_context`
+
+The ``SSL`` should be set as the TLS native handle for the connection
+using `ngtcp2_conn_set_tls_native_handle`.
+
+:type:`ngtcp2_crypto_conn_ref` must be set as a user data in ``SSL``
+object via ``SSL_set_app_data``.
+
+GnuTLS
+~~~~~~
+
+The ``gnutls_session_t`` object should be configured with one of the
+following functions:
+
+* `ngtcp2_crypto_gnutls_configure_client_session`
+* `ngtcp2_crypto_gnutls_configure_server_session`
+
+The ``gnutls_session_t`` should be set as the TLS native handle for
+the connection using `ngtcp2_conn_set_tls_native_handle`.
+
+:type:`ngtcp2_crypto_conn_ref` must be set as a user data in
+``gnutls_session_t`` object via ``gnutls_session_set_ptr``.
+
+Picotls
+~~~~~~~
+
+The ``ptls_context_t`` object should be configured with one of the
+following functions:
+
+* `ngtcp2_crypto_picotls_configure_client_context`
+* `ngtcp2_crypto_picotls_configure_server_context`
+
+For each TLS session, create :type:`ngtcp2_crypto_picotls_ctx` object.
+It should be initialized by `ngtcp2_crypto_picotls_ctx_init`, and
+configured with one of the following functions:
+
+* `ngtcp2_crypto_picotls_configure_client_session`
+* `ngtcp2_crypto_picotls_configure_server_session`
+
+The :type:`ngtcp2_crypto_picotls_ctx` should be set as the TLS native
+handle for the connection using `ngtcp2_conn_set_tls_native_handle`.
+
+:type:`ngtcp2_crypto_conn_ref` must be set as a user data in
+``ptls_t`` object inside :type:`ngtcp2_crypto_picotls_ctx` via
+``ptls_get_data_ptr``.
+
+wolfSSL
+~~~~~~~
+
+The ``WOLFSSL_CTX`` object should be configured with one of the
+following functions:
+
+* `ngtcp2_crypto_wolfssl_configure_client_context`
+* `ngtcp2_crypto_wolfssl_configure_server_context`
+
+The ``WOLFSSL`` should be set as the TLS native handle for the
+connection using `ngtcp2_conn_set_tls_native_handle`.
+
+:type:`ngtcp2_crypto_conn_ref` must be set as a user data in
+``WOLFSSL`` object via ``wolfSSL_set_app_data``.
+
+OpenSSL
+~~~~~~~
+
+The ``SSL`` object should be configured with one of the following
+functions:
+
+* `ngtcp2_crypto_ossl_configure_client_session`
+* `ngtcp2_crypto_ossl_configure_server_session`
+
+For each TLS session, create :type:`ngtcp2_crypto_ossl_ctx` via
+`ngtcp2_crypto_ossl_ctx_new`.  It should be set as the TLS native
+handle for the connection using `ngtcp2_conn_set_tls_native_handle`.
+
+:type:`ngtcp2_crypto_conn_ref` must be set as a user data in
+``SSL`` object via ``SSL_set_app_data``.
+
+The application must make sure that :type:`ngtcp2_conn` is kept alive
+until the ``SSL`` object is freed by ``SSL_free``, or it must call
+``SSL_set_app_data(ssl, NULL)`` before calling ``SSL_free``.
+
+Configuring TLS stack yourself
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 If you do not use the above helper functions, you need to generate and
 install keys to :type:`ngtcp2_conn`, and pass handshake messages to
 :type:`ngtcp2_conn` as well.  When TLS stack generates new secrets,
@@ -209,6 +289,9 @@ they have to be installed to :type:`ngtcp2_conn` by calling
 `ngtcp2_crypto_derive_and_install_tx_key()`.  When TLS stack generates
 new crypto data to send, they must be passed to :type:`ngtcp2_conn` by
 calling `ngtcp2_conn_submit_crypto_data()`.
+
+QUIC handshake completion
+-------------------------
 
 When QUIC handshake is completed,
 :member:`ngtcp2_callbacks.handshake_completed` callback function is
