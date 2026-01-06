@@ -751,7 +751,9 @@ static void ksl_print(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
 
   if (blk->leaf) {
     for (i = 0; i < blk->n; ++i) {
-      fprintf(stderr, " %" PRId64, *(int64_t *)ngtcp2_ksl_nth_key(ksl, blk, i));
+      int64_t key;
+      memcpy(&key, ngtcp2_ksl_nth_key(ksl, blk, i), sizeof(key));
+      fprintf(stderr, " %" PRId64, key);
     }
 
     fprintf(stderr, "\n");
@@ -849,7 +851,10 @@ size_t ngtcp2_ksl_range_exclusive_search(const ngtcp2_ksl *ksl,
 
 int ngtcp2_ksl_uint64_less(const ngtcp2_ksl_key *lhs,
                            const ngtcp2_ksl_key *rhs) {
-  return *(uint64_t *)lhs < *(uint64_t *)rhs;
+  uint64_t lval, rval;
+  memcpy(&lval, lhs, sizeof(lval));
+  memcpy(&rval, rhs, sizeof(rval));
+  return lval < rval;
 }
 
 ngtcp2_ksl_search_def(uint64_less, ngtcp2_ksl_uint64_less)
@@ -861,7 +866,10 @@ size_t ngtcp2_ksl_uint64_less_search(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
 
 int ngtcp2_ksl_int64_greater(const ngtcp2_ksl_key *lhs,
                              const ngtcp2_ksl_key *rhs) {
-  return *(int64_t *)lhs > *(int64_t *)rhs;
+  int64_t lval, rval;
+  memcpy(&lval, lhs, sizeof(lval));
+  memcpy(&rval, rhs, sizeof(rval));
+  return lval > rval;
 }
 
 ngtcp2_ksl_search_def(int64_greater, ngtcp2_ksl_int64_greater)

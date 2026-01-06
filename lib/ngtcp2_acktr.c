@@ -196,9 +196,11 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
 
 void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent) {
   ngtcp2_ksl_it it;
+  int64_t key;
 
   it = ngtcp2_ksl_lower_bound(&acktr->ents, &ent->pkt_num);
-  assert(*(int64_t *)ngtcp2_ksl_it_key(&it) == (int64_t)ent->pkt_num);
+  memcpy(&key, ngtcp2_ksl_it_key(&it), sizeof(key));
+  assert(key == (int64_t)ent->pkt_num);
 
   for (; !ngtcp2_ksl_it_end(&it);) {
     ent = ngtcp2_ksl_it_get(&it);

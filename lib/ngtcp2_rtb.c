@@ -846,7 +846,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   min_ack = largest_ack - (int64_t)fr->first_ack_range;
 
   for (; !ngtcp2_ksl_it_end(&it);) {
-    pkt_num = *(int64_t *)ngtcp2_ksl_it_key(&it);
+    memcpy(&pkt_num, ngtcp2_ksl_it_key(&it), sizeof(pkt_num));
 
     assert(pkt_num <= largest_ack);
 
@@ -882,7 +882,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     }
 
     for (; !ngtcp2_ksl_it_end(&it);) {
-      pkt_num = *(int64_t *)ngtcp2_ksl_it_key(&it);
+      memcpy(&pkt_num, ngtcp2_ksl_it_key(&it), sizeof(pkt_num));
       if (pkt_num < min_ack) {
         break;
       }
