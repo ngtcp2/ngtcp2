@@ -48,7 +48,7 @@ void test_ngtcp2_pv_add_entry(void) {
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   ngtcp2_dcid dcid;
   ngtcp2_log log;
-  uint8_t data[8];
+  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN] = {0};
   size_t i;
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
 
@@ -105,7 +105,7 @@ void test_ngtcp2_pv_validate(void) {
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   ngtcp2_dcid dcid;
   ngtcp2_log log;
-  uint8_t data[8];
+  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
   ngtcp2_path_storage path;
   uint8_t flags;
