@@ -35,6 +35,7 @@
 #include <gnutls/crypto.h>
 #include <string.h>
 
+#include "ngtcp2_macro.h"
 #include "shared.h"
 
 ngtcp2_crypto_aead *ngtcp2_crypto_aead_aes_128_gcm(ngtcp2_crypto_aead *aead) {
@@ -424,7 +425,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 
     gnutls_cipher_set_iv(hd, (void *)sample, 16);
 
-    if (gnutls_cipher_encrypt2(hd, PLAINTEXT, sizeof(PLAINTEXT) - 1, buf,
+    if (gnutls_cipher_encrypt2(hd, PLAINTEXT, ngtcp2_strlen_lit(PLAINTEXT), buf,
                                buflen) != 0) {
       return -1;
     }

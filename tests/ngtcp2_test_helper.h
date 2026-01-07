@@ -34,11 +34,6 @@
 #include "ngtcp2_conn.h"
 
 /*
- * strsize macro returns the length of string literal |S|.
- */
-#define strsize(S) (sizeof(S) - 1)
-
-/*
  * NGTCP2_APP_ERRxx is an application error code solely used in test
  * code.
  */

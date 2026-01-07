@@ -186,7 +186,7 @@ void test_ngtcp2_encode_hex(void) {
   {
     const uint8_t s[] = "\xde\xad\xbe\xef";
 
-    *ngtcp2_encode_hex(dest, s, sizeof(s) - 1) = '\0';
+    *ngtcp2_encode_hex(dest, s, ngtcp2_strlen_lit(s)) = '\0';
 
     assert_string_equal("deadbeef", (const char *)dest);
   }
