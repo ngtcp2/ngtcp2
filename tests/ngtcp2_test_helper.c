@@ -107,7 +107,7 @@ static int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   (void)hp;
   (void)hp_ctx;
   (void)sample;
-  memcpy(dest, NGTCP2_FAKE_HP_MASK, sizeof(NGTCP2_FAKE_HP_MASK) - 1);
+  memcpy(dest, NGTCP2_FAKE_HP_MASK, ngtcp2_strlen_lit(NGTCP2_FAKE_HP_MASK));
   return 0;
 }
 
@@ -239,19 +239,19 @@ size_t rtb_entry_length(const ngtcp2_rtb_entry *ent) {
 void dcid_init(ngtcp2_cid *cid) {
   static const uint8_t id[] = "\xff\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
                               "\xaa\xaa\xaa\xaa\xaa\xff";
-  ngtcp2_cid_init(cid, id, sizeof(id) - 1);
+  ngtcp2_cid_init(cid, id, ngtcp2_strlen_lit(id));
 }
 
 void scid_init(ngtcp2_cid *cid) {
   static const uint8_t id[] = "\xee\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
                               "\xaa\xaa\xaa\xaa\xaa\xee";
-  ngtcp2_cid_init(cid, id, sizeof(id) - 1);
+  ngtcp2_cid_init(cid, id, ngtcp2_strlen_lit(id));
 }
 
 void rcid_init(ngtcp2_cid *cid) {
   static const uint8_t id[] = "\xdd\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
                               "\xaa\xaa\xaa\xaa\xaa\xdd";
-  ngtcp2_cid_init(cid, id, sizeof(id) - 1);
+  ngtcp2_cid_init(cid, id, ngtcp2_strlen_lit(id));
 }
 
 uint64_t read_pkt_payloadlen(const uint8_t *pkt, const ngtcp2_cid *dcid,

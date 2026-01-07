@@ -36,6 +36,7 @@ extern "C" {
 
 #include "ngtcp2_conn.h"
 #include "ngtcp2_transport_params.h"
+#include "ngtcp2_macro.h"
 
 #ifdef __cplusplus
 }
@@ -192,7 +193,7 @@ int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                  const uint8_t *sample) {
   constexpr static const uint8_t NGTCP2_FAKE_HP_MASK[] = "\x00\x00\x00\x00\x00";
 
-  memcpy(dest, NGTCP2_FAKE_HP_MASK, sizeof(NGTCP2_FAKE_HP_MASK) - 1);
+  memcpy(dest, NGTCP2_FAKE_HP_MASK, ngtcp2_strlen_lit(NGTCP2_FAKE_HP_MASK));
 
   return 0;
 }

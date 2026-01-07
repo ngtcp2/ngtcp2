@@ -761,7 +761,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
     .data = &datav,
   };
   datav = (ngtcp2_vec){
-    .len = strsize(data),
+    .len = ngtcp2_strlen_lit(data),
     .base = (uint8_t *)data,
   };
 
@@ -802,7 +802,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
     .data = &datav,
   };
   datav = (ngtcp2_vec){
-    .len = strsize(data),
+    .len = ngtcp2_strlen_lit(data),
     .base = (uint8_t *)data,
   };
 
@@ -845,7 +845,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
     .data = &datav,
   };
   datav = (ngtcp2_vec){
-    .len = strsize(data),
+    .len = ngtcp2_strlen_lit(data),
     .base = (uint8_t *)data,
   };
 
@@ -890,7 +890,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
     .data = &datav,
   };
   datav = (ngtcp2_vec){
-    .len = strsize(data),
+    .len = ngtcp2_strlen_lit(data),
     .base = (uint8_t *)data,
   };
 
@@ -1597,7 +1597,7 @@ void test_ngtcp2_pkt_encode_crypto_frame(void) {
     .data = &datav,
   };
   datav = (ngtcp2_vec){
-    .len = strsize(data),
+    .len = ngtcp2_strlen_lit(data),
     .base = (uint8_t *)data,
   };
 
@@ -1640,10 +1640,10 @@ void test_ngtcp2_pkt_encode_new_token_frame(void) {
   fr = (ngtcp2_new_token){
     .type = NGTCP2_FRAME_NEW_TOKEN,
     .token = (uint8_t *)token,
-    .tokenlen = strsize(token),
+    .tokenlen = ngtcp2_strlen_lit(token),
   };
 
-  framelen = 1 + 1 + strsize(token);
+  framelen = 1 + 1 + ngtcp2_strlen_lit(token);
 
   rv = ngtcp2_pkt_encode_new_token_frame(buf, sizeof(buf), &fr);
 
@@ -1727,7 +1727,7 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
     .datacnt = 1,
     .rdata[0] =
       {
-        .len = strsize(data),
+        .len = ngtcp2_strlen_lit(data),
         .base = (uint8_t *)data,
       },
   };
@@ -1762,7 +1762,7 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
     .datacnt = 1,
     .rdata[0] =
       {
-        .len = strsize(data),
+        .len = ngtcp2_strlen_lit(data),
         .base = (uint8_t *)data,
       },
   };
