@@ -368,8 +368,8 @@ void test_ngtcp2_ksl_range(void) {
   ngtcp2_range_init(&r, 1401, 1402);
   assert_int(0, ==, ngtcp2_ksl_remove(&ksl, NULL, &r));
 
-  r = *(ngtcp2_range *)(void *)ngtcp2_ksl_nth_key(&ksl, ksl.head->nodes[1].blk,
-                                                  0);
+  r =
+    *(ngtcp2_range *)(void *)ngtcp2_ksl_blk_nth_key(ksl.head->nodes[1].blk, 0);
 
   assert_uint64(1701, ==, r.begin);
 
@@ -390,8 +390,8 @@ void test_ngtcp2_ksl_range(void) {
   assert_int(0, ==, ngtcp2_ksl_remove(&ksl, NULL, &r));
 
   node = &ksl.head->nodes[0];
-  r = *(ngtcp2_range *)(void *)ngtcp2_ksl_nth_key(&ksl, node->blk,
-                                                  node->blk->n - 1);
+  r = *(ngtcp2_range *)(void *)ngtcp2_ksl_blk_nth_key(node->blk,
+                                                      node->blk->n - 1);
 
   assert_uint64(14, ==, r.begin);
 
