@@ -54,7 +54,8 @@
 
 /*
  * ngtcp2_strlen_lit returns the length of string literal |S|.  This
- * macro assumes |S| is NULL-terminated string literal.
+ * macro assumes |S| is NULL-terminated string literal.  It must not
+ * be used with pointers.
  */
 #define ngtcp2_strlen_lit(S) (sizeof(S) - 1)
 
