@@ -409,7 +409,7 @@ static ngtcp2_ksl_blk *ksl_merge_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
   lblk = lnode->blk;
   rblk = blk->nodes[i + 1].blk;
 
-  assert(lblk->n + rblk->n < NGTCP2_KSL_MAX_NBLK);
+  assert(lblk->n + rblk->n <= NGTCP2_KSL_MAX_NBLK);
 
   memcpy(lblk->nodes + lblk->n, rblk->nodes, rblk->n * sizeof(ngtcp2_ksl_node));
 
