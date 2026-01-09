@@ -38,10 +38,10 @@
 #define NGTCP2_KSL_DEGR 16
 /* NGTCP2_KSL_MAX_NBLK is the maximum number of nodes which a single
    block can contain. */
-#define NGTCP2_KSL_MAX_NBLK (2 * NGTCP2_KSL_DEGR - 1)
+#define NGTCP2_KSL_MAX_NBLK (2 * NGTCP2_KSL_DEGR)
 /* NGTCP2_KSL_MIN_NBLK is the minimum number of nodes which a single
    block other than root must contain. */
-#define NGTCP2_KSL_MIN_NBLK (NGTCP2_KSL_DEGR - 1)
+#define NGTCP2_KSL_MIN_NBLK NGTCP2_KSL_DEGR
 
 /*
  * ngtcp2_ksl_key represents key in ngtcp2_ksl.
