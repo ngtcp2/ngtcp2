@@ -11969,12 +11969,17 @@ ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
         return NGTCP2_ERR_INVALID_ARGUMENT;
       }
 
-      vmsg.type = NGTCP2_VMSG_TYPE_STREAM;
-      vmsg.stream.strm = strm;
-      vmsg.stream.flags = flags;
-      vmsg.stream.data = datav;
-      vmsg.stream.datacnt = datavcnt;
-      vmsg.stream.pdatalen = pdatalen;
+      vmsg = (ngtcp2_vmsg){
+        .type = NGTCP2_VMSG_TYPE_STREAM,
+        .stream =
+          {
+            .strm = strm,
+            .data = datav,
+            .datacnt = datavcnt,
+            .pdatalen = pdatalen,
+            .flags = flags,
+          },
+      };
 
       pvmsg = &vmsg;
     }
@@ -12047,12 +12052,17 @@ ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  vmsg.type = NGTCP2_VMSG_TYPE_DATAGRAM;
-  vmsg.datagram.dgram_id = dgram_id;
-  vmsg.datagram.flags = flags;
-  vmsg.datagram.data = datav;
-  vmsg.datagram.datacnt = datavcnt;
-  vmsg.datagram.paccepted = paccepted;
+  vmsg = (ngtcp2_vmsg){
+    .type = NGTCP2_VMSG_TYPE_DATAGRAM,
+    .datagram =
+      {
+        .data = datav,
+        .datacnt = datavcnt,
+        .dgram_id = dgram_id,
+        .paccepted = paccepted,
+        .flags = flags,
+      },
+  };
 
   if (flags & NGTCP2_WRITE_DATAGRAM_FLAG_PADDING) {
     wflags = NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY;
