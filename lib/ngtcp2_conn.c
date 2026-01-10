@@ -11710,21 +11710,18 @@ int ngtcp2_conn_set_0rtt_remote_transport_params(
   /* These parameters are treated specially.  If server accepts early
      data, it must not set values for these parameters that are
      smaller than these remembered values. */
-  conn->early.transport_params.initial_max_streams_bidi =
-    params->initial_max_streams_bidi;
-  conn->early.transport_params.initial_max_streams_uni =
-    params->initial_max_streams_uni;
-  conn->early.transport_params.initial_max_stream_data_bidi_local =
-    params->initial_max_stream_data_bidi_local;
-  conn->early.transport_params.initial_max_stream_data_bidi_remote =
-    params->initial_max_stream_data_bidi_remote;
-  conn->early.transport_params.initial_max_stream_data_uni =
-    params->initial_max_stream_data_uni;
-  conn->early.transport_params.initial_max_data = params->initial_max_data;
-  conn->early.transport_params.active_connection_id_limit =
-    params->active_connection_id_limit;
-  conn->early.transport_params.max_datagram_frame_size =
-    params->max_datagram_frame_size;
+  conn->early.transport_params = (ngtcp2_early_transport_params){
+    .initial_max_streams_bidi = params->initial_max_streams_bidi,
+    .initial_max_streams_uni = params->initial_max_streams_uni,
+    .initial_max_stream_data_bidi_local =
+      params->initial_max_stream_data_bidi_local,
+    .initial_max_stream_data_bidi_remote =
+      params->initial_max_stream_data_bidi_remote,
+    .initial_max_stream_data_uni = params->initial_max_stream_data_uni,
+    .initial_max_data = params->initial_max_data,
+    .active_connection_id_limit = params->active_connection_id_limit,
+    .max_datagram_frame_size = params->max_datagram_frame_size,
+  };
 
   conn_sync_stream_id_limit(conn);
 
