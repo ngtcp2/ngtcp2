@@ -361,10 +361,6 @@ int ngtcp2_ksl_insert(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
 
       if (ksl->compar(ngtcp2_ksl_blk_nth_key(blk, i), key)) {
         node = &blk->nodes[i + 1];
-
-        if (ksl->compar(ngtcp2_ksl_blk_nth_key(blk, i + 1), key)) {
-          ksl_set_nth_key(ksl, blk, i + 1, key);
-        }
       }
     }
 
