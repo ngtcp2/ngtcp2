@@ -201,13 +201,12 @@ static int ksl_split_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i) {
   memmove(blk->nodes + (i + 2), blk->nodes + (i + 1),
           (blk->n - (i + 1)) * sizeof(ngtcp2_ksl_node));
 
-  memmove(blk->keys + (i + 2) * ksl->aligned_keylen,
-          blk->keys + (i + 1) * ksl->aligned_keylen,
-          (blk->n - (i + 1)) * ksl->aligned_keylen);
+  memmove(blk->keys + (i + 1) * ksl->aligned_keylen,
+          blk->keys + i * ksl->aligned_keylen,
+          (blk->n - i) * ksl->aligned_keylen);
 
   blk->nodes[i + 1].blk = rblk;
   ++blk->n;
-  ksl_set_nth_key(ksl, blk, i + 1, ngtcp2_ksl_blk_nth_key(rblk, rblk->n - 1));
 
   ksl_set_nth_key(ksl, blk, i, ngtcp2_ksl_blk_nth_key(lblk, lblk->n - 1));
 
@@ -361,10 +360,6 @@ int ngtcp2_ksl_insert(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
 
       if (ksl->compar(ngtcp2_ksl_blk_nth_key(blk, i), key)) {
         node = &blk->nodes[i + 1];
-
-        if (ksl->compar(ngtcp2_ksl_blk_nth_key(blk, i + 1), key)) {
-          ksl_set_nth_key(ksl, blk, i + 1, key);
-        }
       }
     }
 
