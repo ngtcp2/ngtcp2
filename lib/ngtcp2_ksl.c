@@ -535,7 +535,7 @@ int ngtcp2_ksl_remove_hint(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
 
   assert(ksl->head);
 
-  if (blk->n <= NGTCP2_KSL_MIN_NBLK) {
+  if (blk != ksl->head && blk->n == NGTCP2_KSL_MIN_NBLK) {
     return ngtcp2_ksl_remove(ksl, it, key);
   }
 
