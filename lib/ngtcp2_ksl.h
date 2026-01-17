@@ -146,8 +146,8 @@ struct ngtcp2_ksl_it {
  */
 struct ngtcp2_ksl {
   ngtcp2_objalloc blkalloc;
-  /* head points to the root block. */
-  ngtcp2_ksl_blk *head;
+  /* root points to the root block. */
+  ngtcp2_ksl_blk *root;
   /* front points to the first leaf block. */
   ngtcp2_ksl_blk *front;
   /* back points to the last leaf block. */
