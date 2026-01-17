@@ -40,5 +40,6 @@ munit_void_test_decl(test_ngtcp2_encode_ipv6_cstr)
 munit_void_test_decl(test_ngtcp2_get_bytes)
 munit_void_test_decl(test_ngtcp2_encode_uint)
 munit_void_test_decl(test_ngtcp2_encode_hex)
+munit_void_test_decl(test_ngtcp2_encode_hex_byte)
 
 #endif /* !defined(NGTCP2_STR_TEST_H) */
