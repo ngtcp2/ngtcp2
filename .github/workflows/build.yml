@@ -601,15 +601,15 @@ jobs:
         echo 'NGTCP2_BUILD_DIR='"$PWD/build" >> $GITHUB_ENV
 
         cmake -B build $CMAKE_OPTS \
-          -DENABLE_WERROR=ON \
-          -DENABLE_GNUTLS=ON \
-          -DENABLE_BORINGSSL=ON \
+          -DNGTCP2_ENABLE_WERROR=ON \
+          -DNGTCP2_ENABLE_GNUTLS=ON \
+          -DNGTCP2_ENABLE_BORINGSSL=ON \
           -DBORINGSSL_LIBRARIES="$BORINGSSL_LIBS" \
           -DBORINGSSL_INCLUDE_DIR="$BORINGSSL_INCLUDE_DIR" \
-          -DENABLE_PICOTLS=ON \
+          -DNGTCP2_ENABLE_PICOTLS=ON \
           -DPICOTLS_LIBRARIES="$PICOTLS_LIBS" \
           -DPICOTLS_INCLUDE_DIR="$PICOTLS_PREFIX/include/" \
-          -DENABLE_WOLFSSL=ON
+          -DNGTCP2_ENABLE_WOLFSSL=ON
     - name: Build ngtcp2
       if: matrix.buildtool != 'distcheck'
       run: |
@@ -779,7 +779,7 @@ jobs:
     - uses: microsoft/setup-msbuild@v2
     - name: Configure cmake
       run: |
-        cmake -B build -DENABLE_WERROR=ON -DENABLE_OPENSSL=OFF -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows
+        cmake -B build -DNGTCP2_ENABLE_WERROR=ON -DNGTCP2_ENABLE_OPENSSL=OFF -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows
     - name: Build ngtcp2
       run: |
         cmake --build build
