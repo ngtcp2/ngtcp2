@@ -1,19 +1,19 @@
 # Features that can be enabled for cmake (see CMakeLists.txt)
 
-option(ENABLE_STATIC_LIB "Build as static libraries" ON)
-option(ENABLE_SHARED_LIB "Build as shared libraries" ON)
-option(ENABLE_LIB_ONLY   "Build libngtcp2 only" OFF)
+option(NGTCP2_ENABLE_STATIC_LIB "Build as static libraries" ON)
+option(NGTCP2_ENABLE_SHARED_LIB "Build as shared libraries" ON)
+option(NGTCP2_ENABLE_LIB_ONLY   "Build libngtcp2 only" OFF)
 
-option(ENABLE_WERROR    "Make compiler warnings fatal" OFF)
-option(ENABLE_DEBUG     "Turn on debug output" OFF)
-option(ENABLE_ASAN      "Enable AddressSanitizer (ASAN)" OFF)
-option(ENABLE_JEMALLOC  "Enable Jemalloc" OFF)
+option(NGTCP2_ENABLE_WERROR    "Make compiler warnings fatal" OFF)
+option(NGTCP2_ENABLE_DEBUG     "Turn on debug output" OFF)
+option(NGTCP2_ENABLE_ASAN      "Enable AddressSanitizer (ASAN)" OFF)
+option(NGTCP2_ENABLE_JEMALLOC  "Enable Jemalloc" OFF)
 
-option(ENABLE_GNUTLS    "Enable GnuTLS crypto backend" OFF)
-option(ENABLE_OPENSSL   "Enable OpenSSL crypto backend (required for examples)" ON)
-option(ENABLE_BORINGSSL "Enable BoringSSL crypto backend" OFF)
-option(ENABLE_PICOTLS "Enable Picotls crypto backend" OFF)
-option(ENABLE_WOLFSSL   "Enable wolfSSL crypto backend" OFF)
-cmake_dependent_option(BUILD_TESTING "Enable tests" ON "ENABLE_STATIC_LIB" OFF)
+option(NGTCP2_ENABLE_GNUTLS    "Enable GnuTLS crypto backend" OFF)
+option(NGTCP2_ENABLE_OPENSSL   "Enable OpenSSL crypto backend (required for examples)" ON)
+option(NGTCP2_ENABLE_BORINGSSL "Enable BoringSSL crypto backend" OFF)
+option(NGTCP2_ENABLE_PICOTLS "Enable Picotls crypto backend" OFF)
+option(NGTCP2_ENABLE_WOLFSSL   "Enable wolfSSL crypto backend" OFF)
+cmake_dependent_option(BUILD_TESTING "Enable tests" ON "NGTCP2_ENABLE_STATIC_LIB" OFF)
 
 # vim: ft=cmake:
