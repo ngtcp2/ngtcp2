@@ -35,6 +35,13 @@
 
 extern const MunitSuite qlog_suite;
 
+munit_void_test_decl(test_ngtcp2_qlog_write_start_end)
 munit_void_test_decl(test_ngtcp2_qlog_write_frame)
+munit_void_test_decl(test_ngtcp2_qlog_parameters_set_transport_params)
+munit_void_test_decl(test_ngtcp2_qlog_metrics_updated)
+munit_void_test_decl(test_ngtcp2_qlog_pkt_lost)
+munit_void_test_decl(test_ngtcp2_qlog_retry_pkt_received)
+munit_void_test_decl(test_ngtcp2_qlog_stateless_reset_pkt_received)
+munit_void_test_decl(test_ngtcp2_qlog_version_negotiation_pkt_received)
 
 #endif /* !defined(NGTCP2_QLOG_TEST_H) */
