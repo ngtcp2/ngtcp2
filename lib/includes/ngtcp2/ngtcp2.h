@@ -1404,7 +1404,8 @@ typedef struct ngtcp2_version_info {
 } ngtcp2_version_info;
 
 #define NGTCP2_TRANSPORT_PARAMS_V1 1
-#define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_V1
+#define NGTCP2_TRANSPORT_PARAMS_V2 2
+#define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_V2
 
 /**
  * @struct
@@ -1572,6 +1573,14 @@ typedef struct ngtcp2_transport_params {
    * this field.
    */
   uint8_t version_info_present;
+  /* The following fields have been added since
+     NGTCP2_TRANSPORT_PARAMS_V2. */
+  /**
+   * :member:`reset_stream_at` is nonzero if sender willingly accepts
+   * RESET_STREAM_AT frame.  See
+   * https://datatracker.ietf.org/doc/html/draft-ietf-quic-reliable-stream-reset.
+   */
+  uint8_t reset_stream_at;
 } ngtcp2_transport_params;
 
 #define NGTCP2_CONN_INFO_V1 1
@@ -4416,6 +4425,28 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
                                               void *stream_user_data);
 
 /**
+ * @macrosection
+ *
+ * Shutdown stream flags
+ */
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_SHUT_STREAM_FLAG_NONE` indicates no flag set.
+ */
+#define NGTCP2_SHUT_STREAM_FLAG_NONE 0x00u
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_SHUT_STREAM_FLAG_FLUSH` indicates that all in-flight
+ * stream data must be acknowledged before closing a stream.  This
+ * flag is only applied when shutting down write-side of a stream.
+ */
+#define NGTCP2_SHUT_STREAM_FLAG_FLUSH 0x01u
+
+/**
  * @function
  *
  * `ngtcp2_conn_shutdown_stream` closes a stream denoted by
@@ -4431,7 +4462,8 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
  * |stream_id| refers to a remote unidirectional stream, this function
  * only shutdowns read side of the stream.
  *
- * |flags| is currently unused, and should be set to 0.
+ * |flags| is bitwise-OR of zero or more of
+ * :macro:`NGTCP2_SHUT_STREAM_FLAG_* <NGTCP2_SHUT_STREAM_FLAG_NONE>`.
  *
  * This function returns 0 if a stream denoted by |stream_id| is not
  * found.
@@ -4456,7 +4488,8 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, uint32_t flags,
  * remote endpoint.  It discards all data which has not been
  * acknowledged yet.
  *
- * |flags| is currently unused, and should be set to 0.
+ * |flags| is bitwise-OR of zero or more of
+ * :macro:`NGTCP2_SHUT_STREAM_FLAG_* <NGTCP2_SHUT_STREAM_FLAG_NONE>`.
  *
  * This function returns 0 if a stream denoted by |stream_id| is not
  * found.
@@ -4483,7 +4516,8 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  * this function succeeds, no further application data is forwarded to
  * an application layer.
  *
- * |flags| is currently unused, and should be set to 0.
+ * |flags| is currently unused, and should be set to
+ * :macro:`NGTCP2_SHUT_STREAM_FLAG_NONE`.
  *
  * This function returns 0 if a stream denoted by |stream_id| is not
  * found.

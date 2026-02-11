@@ -55,8 +55,7 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
    also set. */
 #define NGTCP2_STRM_FLAG_RESET_STREAM 0x04u
 /* NGTCP2_STRM_FLAG_RESET_STREAM_RECVED indicates that RESET_STREAM is
-   received from the remote endpoint.  In this case,
-   NGTCP2_STRM_FLAG_SHUT_RD is also set. */
+   received from the remote endpoint. */
 #define NGTCP2_STRM_FLAG_RESET_STREAM_RECVED 0x08u
 /* NGTCP2_STRM_FLAG_STOP_SENDING indicates that STOP_SENDING is sent
    from the local endpoint. */
@@ -143,6 +142,9 @@ struct ngtcp2_strm {
         /* reset_stream_app_error_code is the application specific
            error code that is sent along with RESET_STREAM. */
         uint64_t reset_stream_app_error_code;
+        /* reset_stream_at is an offset, and stream data up to the
+           offset must be acknowledged before closing the stream. */
+        uint64_t reset_stream_at;
       } tx;
 
       struct {
@@ -166,6 +168,12 @@ struct ngtcp2_strm {
         uint64_t unsent_max_offset;
         /* window is the stream-level flow control window size. */
         uint64_t window;
+        /* final_offset is the final_size field of received
+           RESET_STREAM(_AT). */
+        uint64_t final_offset;
+        /* reliable_offset is the smallest reliable_size of received
+           RESET_STREAM_AT. */
+        uint64_t reliable_offset;
       } rx;
 
       const ngtcp2_mem *mem;

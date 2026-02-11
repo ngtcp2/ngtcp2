@@ -370,6 +370,26 @@ static uint8_t *write_reset_stream_frame(uint8_t *p,
   return p;
 }
 
+static uint8_t *write_reset_stream_at_frame(uint8_t *p,
+                                            const ngtcp2_reset_stream *fr) {
+  /*
+   * {"frame_type":"reset_stream_at","stream_id":0000000000000000000,"error_code":0000000000000000000,"final_size":0000000000000000000,"reliable_size":0000000000000000000}
+   */
+#define NGTCP2_QLOG_RESET_STREAM_AT_FRAME_OVERHEAD 166
+
+  p = write_verbatim(p, "{\"frame_type\":\"reset_stream_at\",");
+  p = write_pair_number(p, "stream_id", (uint64_t)fr->stream_id);
+  *p++ = ',';
+  p = write_pair_number(p, "error_code", fr->app_error_code);
+  *p++ = ',';
+  p = write_pair_number(p, "final_size", fr->final_size);
+  *p++ = ',';
+  p = write_pair_number(p, "reliable_size", fr->reliable_size);
+  *p++ = '}';
+
+  return p;
+}
+
 static uint8_t *write_stop_sending_frame(uint8_t *p,
                                          const ngtcp2_stop_sending *fr) {
   /*
@@ -760,6 +780,14 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
       return;
     }
     p = write_reset_stream_frame(p, &fr->reset_stream);
+    break;
+  case NGTCP2_FRAME_RESET_STREAM_AT:
+    /* TODO No schema is defined for RESET_STREAM_AT. */
+    if (ngtcp2_buf_left(&qlog->buf) <
+        NGTCP2_QLOG_RESET_STREAM_AT_FRAME_OVERHEAD + 1) {
+      return;
+    }
+    p = write_reset_stream_at_frame(p, &fr->reset_stream);
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     if (ngtcp2_buf_left(&qlog->buf) <
