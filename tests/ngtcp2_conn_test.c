@@ -4629,7 +4629,7 @@ void test_ngtcp2_conn_handshake(void) {
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
-  assert_ptrdiff(1200, <=, spktlen);
+  assert_ptrdiff(1200, ==, spktlen);
 
   ngtcp2_conn_del(conn);
 
@@ -4685,7 +4685,7 @@ void test_ngtcp2_conn_handshake(void) {
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
-  assert_ptrdiff(1200, <=, spktlen);
+  assert_ptrdiff(1200, ==, spktlen);
 
   ngtcp2_conn_del(conn);
 
