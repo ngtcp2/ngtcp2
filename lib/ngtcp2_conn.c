@@ -12355,7 +12355,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
         /* We only exceed CWND to avoid deadlock.  Do no write 1RTT
            packet if CWND is depleted. */
         if (conn_cwnd_is_zero(conn) && conn->pktns.rtb.probe_pkt_left == 0) {
-          goto fin;
+          return res;
         }
       } else if (destlen == 0) {
         res = conn_write_handshake_ack_pkts(conn, pi, dest, origlen, ts);
