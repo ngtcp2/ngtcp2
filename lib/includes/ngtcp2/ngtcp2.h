@@ -1866,8 +1866,8 @@ typedef struct ngtcp2_settings {
   uint64_t max_stream_window;
   /**
    * :member:`ack_thresh` is the minimum number of the received ACK
-   * eliciting packets that trigger the immediate acknowledgement from
-   * the local endpoint.
+   * eliciting packets that triggers the immediate acknowledgement
+   * from the local endpoint.
    */
   size_t ack_thresh;
   /**
