@@ -11913,6 +11913,8 @@ conn_write_vmsg_wrapper(ngtcp2_conn *conn, ngtcp2_path *path,
     return nwrite;
   }
 
+  assert((size_t)nwrite <= destlen);
+
   if (cstat->bytes_in_flight >= cstat->cwnd) {
     conn->rst.is_cwnd_limited = 1;
   } else if ((cstat->cwnd >= cstat->ssthresh ||
