@@ -766,12 +766,6 @@ void ngtcp2_log_tx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
   log_pkt_hd(log, hd, "tx");
 }
 
-void ngtcp2_log_tx_cancel(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
-  ngtcp2_log_infof(log, NGTCP2_LOG_EVENT_PKT,
-                   "cancel tx pkn=%" PRId64 " type=%s", hd->pkt_num,
-                   strpkttype(hd));
-}
-
 uint64_t ngtcp2_log_timestamp(const ngtcp2_log *log) {
   return (log->last_ts - log->ts) / NGTCP2_MILLISECONDS;
 }
