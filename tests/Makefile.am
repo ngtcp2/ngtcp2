@@ -58,6 +58,7 @@ OBJECTS = \
 	ngtcp2_ratelim_test.c \
 	ngtcp2_conn_info_test.c \
 	ngtcp2_cid_test.c \
+	ngtcp2_log_test.c \
 	ngtcp2_test_helper.c \
 	munit/munit.c
 
@@ -93,6 +94,7 @@ HFILES= \
 	ngtcp2_ratelim_test.h \
 	ngtcp2_conn_info_test.h \
 	ngtcp2_cid_test.h \
+	ngtcp2_log_test.h \
 	ngtcp2_test_helper.h \
 	munit/munit.h
 
