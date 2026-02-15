@@ -41,5 +41,6 @@ munit_void_test_decl(test_ngtcp2_ksl_range)
 munit_void_test_decl(test_ngtcp2_ksl_update_key_range)
 munit_void_test_decl(test_ngtcp2_ksl_dup)
 munit_void_test_decl(test_ngtcp2_ksl_remove_hint)
+munit_void_test_decl(test_ngtcp2_ksl_remove)
 
 #endif /* !defined(NGTCP2_KSL_TEST_H) */

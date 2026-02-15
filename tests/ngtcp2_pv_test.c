@@ -32,6 +32,7 @@
 static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_pv_add_entry),
   munit_void_test(test_ngtcp2_pv_validate),
+  munit_void_test(test_ngtcp2_pv_cancel_expired_timer),
   munit_test_end(),
 };
 
@@ -120,6 +121,11 @@ void test_ngtcp2_pv_validate(void) {
 
   assert_int(0, ==, rv);
 
+  /* Validation fails if there is no outstanding entry. */
+  rv = ngtcp2_pv_validate(pv, &flags, data);
+
+  assert_int(NGTCP2_ERR_INVALID_STATE, ==, rv);
+
   memset(data, 0, sizeof(data));
   ngtcp2_pv_add_entry(pv, data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 1);
 
@@ -135,6 +141,42 @@ void test_ngtcp2_pv_validate(void) {
   rv = ngtcp2_pv_validate(pv, &flags, data);
 
   assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
+
+  ngtcp2_pv_del(pv);
+}
+
+void test_ngtcp2_pv_cancel_expired_timer(void) {
+  ngtcp2_pv *pv;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_cid cid;
+  ngtcp2_dcid dcid;
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+  const uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN] = {0xee};
+  ngtcp2_log log;
+  int rv;
+
+  dcid_init(&cid);
+  ngtcp2_dcid_init(&dcid, 9, &cid, token);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+
+  rv = ngtcp2_pv_new(&pv, &dcid, 3 * NGTCP2_SECONDS, NGTCP2_PV_FLAG_NONE, &log,
+                     mem);
+
+  assert_int(0, ==, rv);
+
+  ngtcp2_pv_add_entry(pv, data, 30 * NGTCP2_MILLISECONDS,
+                      NGTCP2_PV_ENTRY_FLAG_NONE, 0);
+
+  assert_uint64(30 * NGTCP2_MILLISECONDS, ==, ngtcp2_pv_next_expiry(pv));
+
+  ngtcp2_pv_cancel_expired_timer(pv, 30 * NGTCP2_MILLISECONDS - 1);
+
+  assert_false(pv->flags & NGTCP2_PV_FLAG_CANCEL_TIMER);
+
+  ngtcp2_pv_cancel_expired_timer(pv, 30 * NGTCP2_MILLISECONDS);
+
+  assert_true(pv->flags & NGTCP2_PV_FLAG_CANCEL_TIMER);
+  assert_uint64(UINT64_MAX, ==, ngtcp2_pv_next_expiry(pv));
 
   ngtcp2_pv_del(pv);
 }

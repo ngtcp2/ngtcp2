@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2019 ngtcp2 contributors
+ * Copyright (c) 2026 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_PV_TEST_H
-#define NGTCP2_PV_TEST_H
+#ifndef NGTCP2_CID_TEST_H
+#define NGTCP2_CID_TEST_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -33,10 +33,9 @@
 
 #include "munit.h"
 
-extern const MunitSuite pv_suite;
+extern const MunitSuite cid_suite;
 
-munit_void_test_decl(test_ngtcp2_pv_add_entry)
-munit_void_test_decl(test_ngtcp2_pv_validate)
-munit_void_test_decl(test_ngtcp2_pv_cancel_expired_timer)
+munit_void_test_decl(test_ngtcp2_scid_copy)
+munit_void_test_decl(test_ngtcp2_dcid_copy_cid_token)
 
-#endif /* !defined(NGTCP2_PV_TEST_H) */
+#endif /* !defined(NGTCP2_CID_TEST_H) */

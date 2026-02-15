@@ -36,6 +36,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_ksl_update_key_range),
   munit_void_test(test_ngtcp2_ksl_dup),
   munit_void_test(test_ngtcp2_ksl_remove_hint),
+  munit_void_test(test_ngtcp2_ksl_remove),
   munit_test_end(),
 };
 
@@ -244,6 +245,8 @@ void test_ngtcp2_ksl_clear(void) {
 
   ngtcp2_ksl_init(&ksl, ngtcp2_ksl_uint64_less, ngtcp2_ksl_uint64_less_search,
                   sizeof(uint64_t), mem);
+
+  ngtcp2_ksl_clear(&ksl);
 
   for (i = 0; i < 100; ++i) {
     k = (uint64_t)i;
@@ -542,4 +545,16 @@ void test_ngtcp2_ksl_remove_hint(void) {
 
     ngtcp2_ksl_free(&ksl);
   }
+}
+
+void test_ngtcp2_ksl_remove(void) {
+  ngtcp2_ksl ksl;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  uint64_t key = 0;
+
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_uint64_less, ngtcp2_ksl_uint64_less_search,
+                  sizeof(uint64_t), mem);
+
+  assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==,
+             ngtcp2_ksl_remove(&ksl, NULL, &key));
 }
