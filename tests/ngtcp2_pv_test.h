@@ -37,5 +37,6 @@ extern const MunitSuite pv_suite;
 
 munit_void_test_decl(test_ngtcp2_pv_add_entry)
 munit_void_test_decl(test_ngtcp2_pv_validate)
+munit_void_test_decl(test_ngtcp2_pv_cancel_expired_timer)
 
 #endif /* !defined(NGTCP2_PV_TEST_H) */
