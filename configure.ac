@@ -447,86 +447,96 @@ AM_CONDITIONAL([HAVE_CRYPTO], [ test "x${have_crypto}" = "xyes" ])
 
 # libnghttp3 (required for examples)
 have_libnghttp3=no
-if test "x${request_libnghttp3}" != "xno"; then
-  PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 1.14.0],
-                    [have_libnghttp3=yes], [have_libnghttp3=no])
-  if test "${have_libnghttp3}" = "xno"; then
-    AC_MSG_NOTICE($LIBNGHTTP3_PKG_ERRORS)
+if test "x${lib_only}" = "xno"; then
+  if test "x${request_libnghttp3}" != "xno"; then
+    PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 1.14.0],
+                      [have_libnghttp3=yes], [have_libnghttp3=no])
+    if test "${have_libnghttp3}" = "xno"; then
+      AC_MSG_NOTICE($LIBNGHTTP3_PKG_ERRORS)
+    fi
   fi
-fi
 
-if test "x${request_libnghttp3}" = "xyes" &&
-   test "x${have_libnghttp3}" != "xyes"; then
-  AC_MSG_ERROR([libnghttp3 was requested (--with-libnghttp3) but not found])
+  if test "x${request_libnghttp3}" = "xyes" &&
+     test "x${have_libnghttp3}" != "xyes"; then
+    AC_MSG_ERROR([libnghttp3 was requested (--with-libnghttp3) but not found])
+  fi
 fi
 
 AM_CONDITIONAL([HAVE_NGHTTP3], [ test "x${have_libnghttp3}" = "xyes" ])
 
 # libev (required for examples)
 have_libev=no
-if test "x${request_libev}" != "xno"; then
-  if test "x${LIBEV_LIBS}" = "x" && test "x${LIBEV_CFLAGS}" = "x"; then
-    # libev does not have pkg-config file.  Check it in an old way.
-    save_LIBS=$LIBS
-    # android requires -lm for floor
-    AC_CHECK_LIB([ev], [ev_time], [have_libev=yes], [have_libev=no], [-lm])
-    if test "x${have_libev}" = "xyes"; then
-      AC_CHECK_HEADER([ev.h], [have_libev=yes], [have_libev=no])
+if test "x${lib_only}" = "xno"; then
+  if test "x${request_libev}" != "xno"; then
+    if test "x${LIBEV_LIBS}" = "x" && test "x${LIBEV_CFLAGS}" = "x"; then
+      # libev does not have pkg-config file.  Check it in an old way.
+      save_LIBS=$LIBS
+      # android requires -lm for floor
+      AC_CHECK_LIB([ev], [ev_time], [have_libev=yes], [have_libev=no], [-lm])
       if test "x${have_libev}" = "xyes"; then
-        LIBEV_LIBS=-lev
-        LIBEV_CFLAGS=
+        AC_CHECK_HEADER([ev.h], [have_libev=yes], [have_libev=no])
+        if test "x${have_libev}" = "xyes"; then
+          LIBEV_LIBS=-lev
+          LIBEV_CFLAGS=
+        fi
       fi
+      LIBS=$save_LIBS
+    else
+      have_libev=yes
     fi
-    LIBS=$save_LIBS
-  else
-    have_libev=yes
   fi
-fi
 
-if test "x${request_libev}" = "xyes" &&
-   test "x${have_libev}" != "xyes"; then
-  AC_MSG_ERROR([libev was requested (--with-libev) but not found])
+  if test "x${request_libev}" = "xyes" &&
+     test "x${have_libev}" != "xyes"; then
+    AC_MSG_ERROR([libev was requested (--with-libev) but not found])
+  fi
 fi
 
 # libbrotlienc (for examples)
 have_libbrotlienc=no
-if test "x${request_libbrotlienc}" != "xno"; then
-  PKG_CHECK_MODULES([LIBBROTLIENC], [libbrotlienc >= 1.0.9],
-                    [have_libbrotlienc=yes],
-                    [have_libbrotlienc=no])
-  if test "x${have_libbrotlienc}" = "xno"; then
-    AC_MSG_NOTICE($LIBBROTLIENC_PKG_ERRORS)
+if test "x${lib_only}" = "xno"; then
+  if test "x${request_libbrotlienc}" != "xno"; then
+    PKG_CHECK_MODULES([LIBBROTLIENC], [libbrotlienc >= 1.0.9],
+                      [have_libbrotlienc=yes],
+                      [have_libbrotlienc=no])
+    if test "x${have_libbrotlienc}" = "xno"; then
+      AC_MSG_NOTICE($LIBBROTLIENC_PKG_ERRORS)
+    fi
   fi
-fi
 
-if test "x${request_libbrotlienc}" = "xyes" &&
-   test "x${have_libbrotlienc}" != "xyes"; then
-  AC_MSG_ERROR([libbrotlienc was requested (--with-libbrotlienc) but not found])
+  if test "x${request_libbrotlienc}" = "xyes" &&
+     test "x${have_libbrotlienc}" != "xyes"; then
+    AC_MSG_ERROR([libbrotlienc was requested (--with-libbrotlienc) but not found])
+  fi
 fi
 
 # libbrotlidec (for examples)
 have_libbrotlidec=no
-if test "x${request_libbrotlidec}" != "xno"; then
-  PKG_CHECK_MODULES([LIBBROTLIDEC], [libbrotlidec >= 1.0.9],
-                    [have_libbrotlidec=yes],
-                    [have_libbrotlidec=no])
-  if test "x${have_libbrotlidec}" = "xno"; then
-    AC_MSG_NOTICE($LIBBROTLIDEC_PKG_ERRORS)
+if test "x${lib_only}" = "xno"; then
+  if test "x${request_libbrotlidec}" != "xno"; then
+    PKG_CHECK_MODULES([LIBBROTLIDEC], [libbrotlidec >= 1.0.9],
+                      [have_libbrotlidec=yes],
+                      [have_libbrotlidec=no])
+    if test "x${have_libbrotlidec}" = "xno"; then
+      AC_MSG_NOTICE($LIBBROTLIDEC_PKG_ERRORS)
+    fi
+  fi
+
+  if test "x${request_libbrotlidec}" = "xyes" &&
+     test "x${have_libbrotlidec}" != "xyes"; then
+    AC_MSG_ERROR([libbrotlidec was requested (--with-libbrotlidec) but not found])
   fi
 fi
 
-if test "x${request_libbrotlidec}" = "xyes" &&
-   test "x${have_libbrotlidec}" != "xyes"; then
-  AC_MSG_ERROR([libbrotlidec was requested (--with-libbrotlidec) but not found])
-fi
-
 have_libbrotli=no
-if test "x${have_libbrotlienc}" = "xyes" &&
-   test "x${have_libbrotlidec}" = "xyes"; then
-  have_libbrotli=yes
+if test "x${lib_only}" = "xno"; then
+  if test "x${have_libbrotlienc}" = "xyes" &&
+     test "x${have_libbrotlidec}" = "xyes"; then
+    have_libbrotli=yes
 
-  AC_DEFINE([HAVE_LIBBROTLI], [1],
-            [Define to 1 if you have `libbrotlienc` and `libbrotlidec` libraries.])
+    AC_DEFINE([HAVE_LIBBROTLI], [1],
+              [Define to 1 if you have `libbrotlienc` and `libbrotlidec` libraries.])
+  fi
 fi
 
 if test "x${lib_only}" = "xno" &&
@@ -563,38 +573,40 @@ AC_SUBST([EXAMPLES_OSSL], "${have_ossl}")
 
 # jemalloc
 have_jemalloc=no
-if test "x${request_jemalloc}" != "xno"; then
-  if test "x${JEMALLOC_LIBS}" = "x" && test "x${JEMALLOC_CFLAGS}" = "x"; then
-    save_LIBS=$LIBS
-    AC_SEARCH_LIBS([malloc_stats_print], [jemalloc], [have_jemalloc=yes], [],
-                   [$PTHREAD_LDFLAGS])
-
-    if test "x${have_jemalloc}" = "xyes"; then
-      jemalloc_libs=${ac_cv_search_malloc_stats_print}
-    else
-      # On Darwin, malloc_stats_print is je_malloc_stats_print
-      AC_SEARCH_LIBS([je_malloc_stats_print], [jemalloc], [have_jemalloc=yes],
-                     [], [$PTHREAD_LDFLAGS])
+if test "x${lib_only}" = "xno"; then
+  if test "x${request_jemalloc}" != "xno"; then
+    if test "x${JEMALLOC_LIBS}" = "x" && test "x${JEMALLOC_CFLAGS}" = "x"; then
+      save_LIBS=$LIBS
+      AC_SEARCH_LIBS([malloc_stats_print], [jemalloc], [have_jemalloc=yes], [],
+                     [$PTHREAD_LDFLAGS])
 
       if test "x${have_jemalloc}" = "xyes"; then
-        jemalloc_libs=${ac_cv_search_je_malloc_stats_print}
+        jemalloc_libs=${ac_cv_search_malloc_stats_print}
+      else
+        # On Darwin, malloc_stats_print is je_malloc_stats_print
+        AC_SEARCH_LIBS([je_malloc_stats_print], [jemalloc], [have_jemalloc=yes],
+                       [], [$PTHREAD_LDFLAGS])
+
+        if test "x${have_jemalloc}" = "xyes"; then
+          jemalloc_libs=${ac_cv_search_je_malloc_stats_print}
+        fi
       fi
-    fi
 
-    LIBS=$save_LIBS
+      LIBS=$save_LIBS
 
-    if test "x${have_jemalloc}" = "xyes" &&
-       test "x${jemalloc_libs}" != "xnone required"; then
-      JEMALLOC_LIBS=${jemalloc_libs}
+      if test "x${have_jemalloc}" = "xyes" &&
+         test "x${jemalloc_libs}" != "xnone required"; then
+        JEMALLOC_LIBS=${jemalloc_libs}
+      fi
+    else
+      have_jemalloc=yes
     fi
-  else
-    have_jemalloc=yes
   fi
-fi
 
-if test "x${request_jemalloc}" = "xyes" &&
-   test "x${have_jemalloc}" != "xyes"; then
-  AC_MSG_ERROR([jemalloc was requested (--with-jemalloc) but not found])
+  if test "x${request_jemalloc}" = "xyes" &&
+     test "x${have_jemalloc}" != "xyes"; then
+    AC_MSG_ERROR([jemalloc was requested (--with-jemalloc) but not found])
+  fi
 fi
 
 # Checks for header files.
@@ -721,19 +733,22 @@ if test "x$werror" != "xno"; then
     AX_CHECK_COMPILE_FLAG([-Wno-format-nonliteral], [CFLAGS="$CFLAGS -Wno-format-nonliteral"])
 
     # For C++ compiler
-    AC_LANG_PUSH(C++)
-    AX_CHECK_COMPILE_FLAG([-Wall], [CXXFLAGS="$CXXFLAGS -Wall"])
-    AX_CHECK_COMPILE_FLAG([-Werror], [CXXFLAGS="$CXXFLAGS -Werror"])
-    AX_CHECK_COMPILE_FLAG([-Wformat-security], [CXXFLAGS="$CXXFLAGS -Wformat-security"])
-    AX_CHECK_COMPILE_FLAG([-Wsometimes-uninitialized], [CXXFLAGS="$CXXFLAGS -Wsometimes-uninitialized"])
-    AX_CHECK_COMPILE_FLAG([-Wextra-semi], [CXXFLAGS="$CXXFLAGS -Wextra-semi"])
-    AX_CHECK_COMPILE_FLAG([-Wconversion], [CXXFLAGS="$CXXFLAGS -Wconversion"])
-    # Disable noexcept-type warning of g++-7.  This is not harmful as
-    # long as all source files are compiled with the same compiler.
-    AX_CHECK_COMPILE_FLAG([-Wno-noexcept-type], [CXXFLAGS="$CXXFLAGS -Wno-noexcept-type"])
-    # clang++-18 warns this when building with wolfSSL >= v5.7.6-stable.
-    AX_CHECK_COMPILE_FLAG([-Wno-extern-c-compat], [CXXFLAGS="$CXXFLAGS -Wno-extern-c-compat"])
-    AC_LANG_POP()
+    if test "x${lib_only}" = "xno"; then
+      AC_LANG_PUSH(C++)
+      AX_CHECK_COMPILE_FLAG([-Wall], [CXXFLAGS="$CXXFLAGS -Wall"])
+      AX_CHECK_COMPILE_FLAG([-Werror], [CXXFLAGS="$CXXFLAGS -Werror"])
+      AX_CHECK_COMPILE_FLAG([-Wformat-security], [CXXFLAGS="$CXXFLAGS -Wformat-security"])
+      AX_CHECK_COMPILE_FLAG([-Wsometimes-uninitialized], [CXXFLAGS="$CXXFLAGS -Wsometimes-uninitialized"])
+      AX_CHECK_COMPILE_FLAG([-Wextra-semi], [CXXFLAGS="$CXXFLAGS -Wextra-semi"])
+      AX_CHECK_COMPILE_FLAG([-Wconversion], [CXXFLAGS="$CXXFLAGS -Wconversion"])
+      # Disable noexcept-type warning of g++-7.  This is not harmful
+      # as long as all source files are compiled with the same
+      # compiler.
+      AX_CHECK_COMPILE_FLAG([-Wno-noexcept-type], [CXXFLAGS="$CXXFLAGS -Wno-noexcept-type"])
+      # clang++-18 warns this when building with wolfSSL >= v5.7.6-stable.
+      AX_CHECK_COMPILE_FLAG([-Wno-extern-c-compat], [CXXFLAGS="$CXXFLAGS -Wno-extern-c-compat"])
+      AC_LANG_POP()
+    fi
 fi
 
 WARNCFLAGS=$CFLAGS
