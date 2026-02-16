@@ -557,9 +557,11 @@ void test_ngtcp2_qlog_write_frame(void) {
     fr.datagram = (ngtcp2_datagram){
       .type = NGTCP2_FRAME_DATAGRAM,
       .datacnt = 1,
-      .rdata[0].len = 1301458,
+      .data = &datav,
     };
-    fr.datagram.data = fr.datagram.rdata;
+    datav = (ngtcp2_vec){
+      .len = 1301458,
+    };
 
     ngtcp2_qlog_write_frame(&qlog, &fr);
     *qlog.buf.last = '\0';
