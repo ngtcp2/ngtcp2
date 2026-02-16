@@ -1281,7 +1281,7 @@ typedef struct ngtcp2_sockaddr_in {
 } ngtcp2_sockaddr_in;
 
 typedef struct ngtcp2_in6_addr {
-  uint8_t in6_addr[16];
+  uint8_t s6_addr[16];
 } ngtcp2_in6_addr;
 
 typedef struct ngtcp2_sockaddr_in6 {
