@@ -1061,6 +1061,10 @@ void test_ngtcp2_log_fr(void) {
   assert_null(ld.expected[ld.idx]);
 }
 
+#if defined(NGTCP2_USE_GENERIC_SOCKADDR) && defined(s6_addr)
+#  undef s6_addr
+#endif /* defined(NGTCP2_USE_GENERIC_SOCKADDR) && defined(s6_addr) */
+
 void test_ngtcp2_log_remote_tp(void) {
   log_data ld;
   ngtcp2_log log;
@@ -1174,13 +1178,8 @@ void test_ngtcp2_log_remote_tp(void) {
               .sin6_family = NGTCP2_AF_INET6,
               .sin6_addr =
                 {
-#ifdef NGTCP2_USE_GENERIC_SOCKADDR
-                  .in6_addr =
-#else  /* !defined(NGTCP2_USE_GENERIC_SOCKADDR) */
-                  .s6_addr =
-#endif /* !defined(NGTCP2_USE_GENERIC_SOCKADDR) */
-                    {0xde, 0xad, 0xbe, 0xef, 0xba, 0xad, 0xf0, 0x0d, 0xba, 0xad,
-                     0xca, 0xce, 0xbe, 0xef, 0xca, 0xfe},
+                  .s6_addr = {0xde, 0xad, 0xbe, 0xef, 0xba, 0xad, 0xf0, 0x0d,
+                              0xba, 0xad, 0xca, 0xce, 0xbe, 0xef, 0xca, 0xfe},
                 },
               .sin6_port = ngtcp2_htons(63111),
             },
