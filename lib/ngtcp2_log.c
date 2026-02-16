@@ -266,7 +266,7 @@ static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     log, NGTCP2_LOG_EVENT_FRM,
     NGTCP2_LOG_PKT " CONNECTION_CLOSE(0x%02" PRIx64 ") error_code=%s(0x%" PRIx64
                    ") "
-                   "frame_type=%" PRIx64 " reason_len=%zu reason=[%s]",
+                   "frame_type=0x%" PRIx64 " reason_len=%zu reason=[%s]",
     NGTCP2_LOG_PKT_HD_FIELDS(dir), fr->type,
     fr->type == NGTCP2_FRAME_CONNECTION_CLOSE ? strerrorcode(fr->error_code)
                                               : strapperrorcode(fr->error_code),
