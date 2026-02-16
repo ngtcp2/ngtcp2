@@ -9105,13 +9105,12 @@ void test_ngtcp2_conn_recv_datagram(void) {
   fr.datagram = (ngtcp2_datagram){
     .type = NGTCP2_FRAME_DATAGRAM,
     .datacnt = 1,
-    .rdata[0] =
-      {
-        .base = null_data,
-        .len = 1111,
-      },
+    .data = &datav,
   };
-  fr.datagram.data = fr.datagram.rdata;
+  datav = (ngtcp2_vec){
+    .base = null_data,
+    .len = 1111,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -9139,13 +9138,12 @@ void test_ngtcp2_conn_recv_datagram(void) {
   fr.datagram = (ngtcp2_datagram){
     .type = NGTCP2_FRAME_DATAGRAM,
     .datacnt = 1,
-    .rdata[0] =
-      {
-        .base = null_data,
-        .len = 1111,
-      },
+    .data = &datav,
   };
-  fr.datagram.data = fr.datagram.rdata;
+  datav = (ngtcp2_vec){
+    .base = null_data,
+    .len = 1111,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -9190,13 +9188,12 @@ void test_ngtcp2_conn_recv_datagram(void) {
   fr.datagram = (ngtcp2_datagram){
     .type = NGTCP2_FRAME_DATAGRAM,
     .datacnt = 1,
-    .rdata[0] =
-      {
-        .base = null_data,
-        .len = 1111,
-      },
+    .data = &datav,
   };
-  fr.datagram.data = fr.datagram.rdata;
+  datav = (ngtcp2_vec){
+    .base = null_data,
+    .len = 1111,
+  };
 
   tpe.early.ckm = conn->early.ckm;
 

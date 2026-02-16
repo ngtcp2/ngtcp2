@@ -1717,6 +1717,7 @@ void test_ngtcp2_pkt_encode_handshake_done_frame(void) {
 void test_ngtcp2_pkt_encode_datagram_frame(void) {
   const uint8_t data[] = "0123456789abcdef3";
   uint8_t buf[256];
+  ngtcp2_vec datav, ndatav;
   ngtcp2_datagram fr, nfr;
   ngtcp2_ssize rv;
   size_t framelen;
@@ -1725,13 +1726,12 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
   fr = (ngtcp2_datagram){
     .type = NGTCP2_FRAME_DATAGRAM_LEN,
     .datacnt = 1,
-    .rdata[0] =
-      {
-        .len = ngtcp2_strlen_lit(data),
-        .base = (uint8_t *)data,
-      },
+    .data = &datav,
   };
-  fr.data = fr.rdata;
+  datav = (ngtcp2_vec){
+    .len = ngtcp2_strlen_lit(data),
+    .base = (uint8_t *)data,
+  };
 
   framelen = 1 + 1 + 17;
 
@@ -1739,6 +1739,7 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
 
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
 
+  nfr.data = &ndatav;
   rv = ngtcp2_pkt_decode_datagram_frame(&nfr, buf, framelen);
 
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
@@ -1749,6 +1750,7 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
 
   /* Fail if a frame is truncated. */
   for (i = 1; i < framelen; ++i) {
+    nfr.data = &ndatav;
     rv = ngtcp2_pkt_decode_datagram_frame(&nfr, buf, i);
 
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
@@ -1760,13 +1762,12 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
   fr = (ngtcp2_datagram){
     .type = NGTCP2_FRAME_DATAGRAM,
     .datacnt = 1,
-    .rdata[0] =
-      {
-        .len = ngtcp2_strlen_lit(data),
-        .base = (uint8_t *)data,
-      },
+    .data = &datav,
   };
-  fr.data = fr.rdata;
+  datav = (ngtcp2_vec){
+    .len = ngtcp2_strlen_lit(data),
+    .base = (uint8_t *)data,
+  };
 
   framelen = 1 + 17;
 
@@ -1774,6 +1775,7 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
 
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
 
+  nfr.data = &ndatav;
   rv = ngtcp2_pkt_decode_datagram_frame(&nfr, buf, framelen);
 
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
@@ -1784,6 +1786,7 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
 
   /* Does not fail if a frame is truncated. */
   for (i = 1; i < framelen; ++i) {
+    nfr.data = &ndatav;
     rv = ngtcp2_pkt_decode_datagram_frame(&nfr, buf, i);
 
     assert_ptrdiff((ngtcp2_ssize)i, ==, rv);
@@ -1802,16 +1805,16 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
 
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
 
+  nfr.data = &ndatav;
   rv = ngtcp2_pkt_decode_datagram_frame(&nfr, buf, framelen);
 
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
   assert_uint64(fr.type, ==, nfr.type);
   assert_size(fr.datacnt, ==, nfr.datacnt);
-  assert_null(nfr.data);
-  ;
 
   /* Fail if a frame is truncated. */
   for (i = 1; i < framelen; ++i) {
+    nfr.data = &ndatav;
     rv = ngtcp2_pkt_decode_datagram_frame(&nfr, buf, i);
 
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
@@ -1830,13 +1833,12 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
 
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
 
+  nfr.data = &ndatav;
   rv = ngtcp2_pkt_decode_datagram_frame(&nfr, buf, framelen);
 
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
   assert_uint64(fr.type, ==, nfr.type);
   assert_size(fr.datacnt, ==, nfr.datacnt);
-  assert_null(nfr.data);
-  ;
 }
 
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
