@@ -57,6 +57,9 @@ typedef uint64_t ngtcp2_transport_param_id;
 #define NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT 0x2ab2
 /* https://datatracker.ietf.org/doc/html/rfc9368 */
 #define NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION 0x11
+/* https://datatracker.ietf.org/doc/html/draft-ietf-quic-reliable-stream-reset
+ */
+#define NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT 0x17f7586d2cb571llu
 
 /* NGTCP2_MAX_STREAMS is the maximum number of streams. */
 #define NGTCP2_MAX_STREAMS (1LL << 60)
@@ -114,5 +117,11 @@ ngtcp2_transport_params_convert_to_latest(ngtcp2_transport_params *dest,
 void ngtcp2_transport_params_convert_to_old(int transport_params_version,
                                             ngtcp2_transport_params *dest,
                                             const ngtcp2_transport_params *src);
+
+/*
+ * ngtcp2_transport_paramslen_version returns the effective length of
+ * ngtcp2_transport_params at the version |transport_params_version|.
+ */
+size_t ngtcp2_transport_paramslen_version(int transport_params_version);
 
 #endif /* !defined(NGTCP2_TRANSPORT_PARAMS_H) */

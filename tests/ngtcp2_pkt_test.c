@@ -1126,6 +1126,36 @@ void test_ngtcp2_pkt_encode_reset_stream_frame(void) {
   assert_int64(fr.stream_id, ==, nfr.stream_id);
   assert_uint64(fr.app_error_code, ==, nfr.app_error_code);
   assert_uint64(fr.final_size, ==, nfr.final_size);
+  assert_uint64(fr.reliable_size, ==, nfr.reliable_size);
+
+  /* Fail if a frame is truncated. */
+  for (i = 1; i < framelen; ++i) {
+    rv = ngtcp2_pkt_decode_reset_stream_frame(&nfr, buf, i);
+
+    assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
+  }
+
+  framelen = 1 + 4 + 4 + 8 + 8;
+  memset(&nfr, 0, sizeof(nfr));
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM_AT;
+  fr.stream_id = 1000000007;
+  fr.app_error_code = 0xe1e2;
+  fr.final_size = 0x31f2f3f4f5f6f7f8llu;
+  fr.reliable_size = 0x0a127d400c6ffcc9llu;
+
+  rv = ngtcp2_pkt_encode_reset_stream_frame(buf, sizeof(buf), &fr);
+
+  assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
+
+  rv = ngtcp2_pkt_decode_reset_stream_frame(&nfr, buf, framelen);
+
+  assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
+  assert_uint64(fr.type, ==, nfr.type);
+  assert_int64(fr.stream_id, ==, nfr.stream_id);
+  assert_uint64(fr.app_error_code, ==, nfr.app_error_code);
+  assert_uint64(fr.final_size, ==, nfr.final_size);
+  assert_uint64(fr.reliable_size, ==, nfr.reliable_size);
 
   /* Fail if a frame is truncated. */
   for (i = 1; i < framelen; ++i) {
