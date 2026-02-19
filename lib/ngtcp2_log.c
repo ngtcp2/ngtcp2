@@ -146,33 +146,22 @@ static const char *strapperrorcode(uint64_t app_error_code) {
   return "(unknown)";
 }
 
-static const char *strpkttype_long(uint8_t type) {
-  switch (type) {
+static const char *strpkttype(const ngtcp2_pkt_hd *hd) {
+  switch (hd->type) {
   case NGTCP2_PKT_INITIAL:
     return "Initial";
-  case NGTCP2_PKT_RETRY:
-    return "Retry";
-  case NGTCP2_PKT_HANDSHAKE:
-    return "Handshake";
   case NGTCP2_PKT_0RTT:
     return "0RTT";
-  default:
-    return "(unknown)";
-  }
-}
-
-static const char *strpkttype(const ngtcp2_pkt_hd *hd) {
-  if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    return strpkttype_long(hd->type);
-  }
-
-  switch (hd->type) {
+  case NGTCP2_PKT_HANDSHAKE:
+    return "Handshake";
+  case NGTCP2_PKT_RETRY:
+    return "Retry";
+  case NGTCP2_PKT_1RTT:
+    return "1RTT";
   case NGTCP2_PKT_VERSION_NEGOTIATION:
     return "VN";
   case NGTCP2_PKT_STATELESS_RESET:
     return "SR";
-  case NGTCP2_PKT_1RTT:
-    return "1RTT";
   default:
     return "(unknown)";
   }
