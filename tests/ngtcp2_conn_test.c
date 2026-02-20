@@ -11832,13 +11832,19 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   ngtcp2_conn *conn;
   ngtcp2_cid_token cid_token[2];
   ngtcp2_cid dcid;
+  const ngtcp2_cid new_dcid = {
+    .datalen = 4,
+    .data = {0xde, 0xad, 0xbe, 0xef},
+  };
   static uint8_t token[] = {0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1,
                             0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1};
   ngtcp2_tpe tpe;
-  ngtcp2_frame fr;
+  ngtcp2_frame fr, frs[3];
   size_t pktlen;
   uint8_t buf[1200];
   int rv;
+  ngtcp2_ssize spktlen;
+  ngtcp2_tstamp t = 0;
   ngtcp2_transport_params remote_params;
   conn_options opts;
 
@@ -11891,6 +11897,160 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_size(1, ==, ngtcp2_conn_get_active_dcid(conn, cid_token));
   assert_uint64(0, ==, cid_token[0].seq);
   assert_true(ngtcp2_cid_eq(&dcid, &cid_token[0].cid));
+
+  ngtcp2_conn_del(conn);
+
+  /* With path validation and retired Connection ID */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(1, <, ngtcp2_ksl_len(&conn->scid.set));
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = new_dcid,
+  };
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid(conn, NULL));
+
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .len = 1000,
+  };
+  frs[2].ack = (ngtcp2_ack){
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+    .first_ack_range = 1,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 3);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid(conn, NULL));
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid(conn, cid_token));
+  assert_uint64(1, ==, cid_token[0].seq);
+  assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token[0].cid));
+  assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
+  assert_memory_equal(sizeof(NGTCP2_STATELESS_RESET_TOKENLEN), token,
+                      cid_token[0].token);
+
+  dcid_init(&dcid);
+
+  assert_uint64(0, ==, cid_token[1].seq);
+  assert_true(ngtcp2_cid_eq(&dcid, &cid_token[1].cid));
+  assert_true(ngtcp2_path_eq(&null_path.path, &cid_token[1].ps.path));
+  assert_false(cid_token[1].token_present);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(sizeof(buf), ==, spktlen);
+
+  frs[0].path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
+  frs[1].ack = (ngtcp2_ack){
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  /* On successful path validation, the next path validation against
+     old path begins. */
+  assert_not_null(conn->pv);
+  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid(conn, NULL));
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid(conn, cid_token));
+  assert_uint64(1, ==, cid_token[0].seq);
+  assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token[0].cid));
+  assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
+  assert_memory_equal(sizeof(NGTCP2_STATELESS_RESET_TOKENLEN), token,
+                      cid_token[0].token);
+
+  dcid_init(&dcid);
+
+  assert_uint64(0, ==, cid_token[1].seq);
+  assert_true(ngtcp2_cid_eq(&dcid, &cid_token[1].cid));
+  assert_true(ngtcp2_path_eq(&null_path.path, &cid_token[1].ps.path));
+  assert_false(cid_token[1].token_present);
+  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.dtr.retired.rb));
+
+  /* Wait for the path validation to stop */
+  for (;;) {
+    t = ngtcp2_conn_get_expiry(conn);
+
+    assert_uint64(UINT64_MAX, !=, t);
+
+    rv = ngtcp2_conn_handle_expiry(conn, t);
+
+    assert_int(0, ==, rv);
+
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+    assert_ptrdiff(0, <=, spktlen);
+
+    if (ngtcp2_ringbuf_len(&conn->dcid.dtr.retired.rb)) {
+      break;
+    }
+  }
+
+  assert_null(conn->pv);
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid(conn, NULL));
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid(conn, cid_token));
+  assert_uint64(1, ==, cid_token[0].seq);
+  assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token[0].cid));
+  assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
+  assert_memory_equal(sizeof(NGTCP2_STATELESS_RESET_TOKENLEN), token,
+                      cid_token[0].token);
+
+  dcid_init(&dcid);
+
+  assert_uint64(0, ==, cid_token[1].seq);
+  assert_true(ngtcp2_cid_eq(&dcid, &cid_token[1].cid));
+  assert_true(ngtcp2_path_eq(&null_path.path, &cid_token[1].ps.path));
+  assert_false(cid_token[1].token_present);
+
+  /* Wait for old Connection ID to retire */
+  for (;;) {
+    t = ngtcp2_conn_get_expiry(conn);
+
+    assert_uint64(UINT64_MAX, !=, t);
+
+    rv = ngtcp2_conn_handle_expiry(conn, t);
+
+    assert_int(0, ==, rv);
+
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+    assert_ptrdiff(0, <=, spktlen);
+
+    if (ngtcp2_ringbuf_len(&conn->dcid.dtr.retired.rb) == 0) {
+      break;
+    }
+  }
+
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid(conn, cid_token));
+  assert_uint64(1, ==, cid_token[0].seq);
+  assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token[0].cid));
+  assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
+  assert_memory_equal(sizeof(NGTCP2_STATELESS_RESET_TOKENLEN), token,
+                      cid_token[0].token);
 
   ngtcp2_conn_del(conn);
 }
