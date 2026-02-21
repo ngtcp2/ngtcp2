@@ -57,6 +57,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_recv_stream_data_blocked),
   munit_void_test(test_ngtcp2_conn_recv_data_blocked),
   munit_void_test(test_ngtcp2_conn_recv_streams_blocked),
+  munit_void_test(test_ngtcp2_conn_recv_new_token),
   munit_void_test(test_ngtcp2_conn_recv_conn_id_omitted),
   munit_void_test(test_ngtcp2_conn_short_pkt_type),
   munit_void_test(test_ngtcp2_conn_recv_stateless_reset),
@@ -307,6 +308,10 @@ typedef struct {
     int64_t stream_id;
     size_t num_write_left;
   } write_pkt;
+  struct {
+    uint8_t token[256];
+    size_t tokenlen;
+  } new_token;
 } my_user_data;
 
 static int client_initial(ngtcp2_conn *conn, void *user_data) {
@@ -776,6 +781,19 @@ static int begin_path_validation(ngtcp2_conn *conn, uint32_t flags,
   } else {
     ngtcp2_path_storage_zero(&ud->begin_path_validation.fallback_path);
   }
+
+  return 0;
+}
+
+static int recv_new_token(ngtcp2_conn *conn, const uint8_t *token,
+                          size_t tokenlen, void *user_data) {
+  my_user_data *ud = user_data;
+  (void)conn;
+
+  assert_size(sizeof(ud->new_token.token), >=, tokenlen);
+
+  memcpy(ud->new_token.token, token, tokenlen);
+  ud->new_token.tokenlen = tokenlen;
 
   return 0;
 }
@@ -3798,6 +3816,100 @@ void test_ngtcp2_conn_recv_streams_blocked(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_recv_new_token(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  uint8_t buf[1200];
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_ssize spktlen;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_crypto_cc cc;
+  ngtcp2_ppe ppe;
+  ngtcp2_pkt_hd hd;
+  ngtcp2_tpe tpe;
+  const uint8_t token[] = "I am token";
+  ngtcp2_callbacks callbacks;
+  my_user_data ud;
+  conn_options opts;
+
+  /* Receive NEW_TOKEN */
+  client_default_callbacks(&callbacks);
+  callbacks.recv_new_token = recv_new_token;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.new_token = (ngtcp2_new_token){
+    .type = NGTCP2_FRAME_NEW_TOKEN,
+    .token = (uint8_t *)token,
+    .tokenlen = ngtcp2_strlen_lit(token),
+  };
+
+  ud = (my_user_data){0};
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(ngtcp2_strlen_lit(token), ==, ud.new_token.tokenlen);
+  assert_memory_equal(ngtcp2_strlen_lit(token), token, ud.new_token.token);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving NEW_TOKEN by server is treated as an error */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.new_token = (ngtcp2_new_token){
+    .type = NGTCP2_FRAME_NEW_TOKEN,
+    .token = (uint8_t *)token,
+    .tokenlen = ngtcp2_strlen_lit(token),
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_PROTO, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Empty token is treated as an error */
+  setup_default_client(&conn);
+
+  cc = (ngtcp2_crypto_cc){
+    .encrypt = null_encrypt,
+    .hp_mask = null_hp_mask,
+    .ckm = conn->pktns.crypto.rx.ckm,
+    .aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
+  };
+
+  ngtcp2_pkt_hd_init(&hd, 0, NGTCP2_PKT_1RTT, &conn->oscid, NULL, 0, 4,
+                     NGTCP2_PROTO_VER_V1);
+  ngtcp2_ppe_init(&ppe, buf, sizeof(buf), 0, &cc);
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+
+  assert_int(0, ==, rv);
+
+  *ppe.buf.last++ = NGTCP2_FRAME_NEW_TOKEN;
+  *ppe.buf.last++ = 0;
+
+  spktlen = ngtcp2_ppe_final(&ppe, NULL);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, (size_t)spktlen,
+                            ++t);
 
   assert_int(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
 
