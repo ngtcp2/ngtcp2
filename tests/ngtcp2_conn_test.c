@@ -15341,6 +15341,67 @@ void test_ngtcp2_conn_amplification(void) {
   assert_ptrdiff(0, ==, spktlen);
 
   ngtcp2_conn_del(conn);
+
+  /* Disarm loss detection due to amplification limit */
+  setup_handshake_server(&conn);
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data = &datav,
+  };
+  datav = (ngtcp2_vec){
+    .base = null_data,
+    .len = 1200,
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, sizeof(null_data));
+
+  assert_int(0, ==, rv);
+
+  for (;;) {
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+    if (spktlen == 0) {
+      break;
+    }
+
+    assert_ptrdiff(0, <=, spktlen);
+    assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
+  }
+
+  assert_uint64(UINT64_MAX, ==, ngtcp2_conn_loss_detection_expiry(conn));
+
+  /* Re-arm loss detection timer when receiving more packets */
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .offset = 1200,
+    .datacnt = 1,
+    .data = &datav,
+  };
+  datav = (ngtcp2_vec){
+    .base = null_data,
+    .len = 1200,
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+  /* If we wait long enough, ngtcp2_conn_on_loss_detection_timer will
+     be called and probe packets are armed. */
+  t += NGTCP2_SECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
+  assert_size(1, ==, conn->in_pktns->rtb.probe_pkt_left);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
