@@ -56,6 +56,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_recv_stop_sending),
   munit_void_test(test_ngtcp2_conn_recv_stream_data_blocked),
   munit_void_test(test_ngtcp2_conn_recv_data_blocked),
+  munit_void_test(test_ngtcp2_conn_recv_streams_blocked),
   munit_void_test(test_ngtcp2_conn_recv_conn_id_omitted),
   munit_void_test(test_ngtcp2_conn_short_pkt_type),
   munit_void_test(test_ngtcp2_conn_recv_stateless_reset),
@@ -3725,6 +3726,80 @@ void test_ngtcp2_conn_recv_data_blocked(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(NGTCP2_ERR_FLOW_CONTROL, ==, rv);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_recv_streams_blocked(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  uint8_t buf[1200];
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_tpe tpe;
+
+  /* STREAMS_BLOCKED (bidi) */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.streams_blocked = (ngtcp2_streams_blocked){
+    .type = NGTCP2_FRAME_STREAMS_BLOCKED_BIDI,
+    .max_streams = conn->remote.bidi.max_streams,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* STREAMS_BLOCKED (bidi) with invalid max_streams */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.streams_blocked = (ngtcp2_streams_blocked){
+    .type = NGTCP2_FRAME_STREAMS_BLOCKED_BIDI,
+    .max_streams = conn->remote.bidi.max_streams + 1,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* STREAMS_BLOCKED (uni) */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.streams_blocked = (ngtcp2_streams_blocked){
+    .type = NGTCP2_FRAME_STREAMS_BLOCKED_UNI,
+    .max_streams = conn->remote.uni.max_streams,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* STREAMS_BLOCKED (uni) with invalid max_streams */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.streams_blocked = (ngtcp2_streams_blocked){
+    .type = NGTCP2_FRAME_STREAMS_BLOCKED_UNI,
+    .max_streams = conn->remote.uni.max_streams + 1,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
 
   ngtcp2_conn_del(conn);
 }
