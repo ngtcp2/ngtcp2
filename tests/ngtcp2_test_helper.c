@@ -343,7 +343,7 @@ ngtcp2_ssize pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
   p = pkt + nread;
 
-  hb = (uint8_t)(pkt[0] ^ (mask[0] & 0x1f));
+  hb = (uint8_t)(pkt[0] ^ (mask[0] & 0x1F));
 
   dest->pkt_numlen = (size_t)(hb & NGTCP2_PKT_NUMLEN_MASK) + 1;
   if (pktlen < (size_t)nread + dest->pkt_numlen) {

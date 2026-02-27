@@ -42,7 +42,7 @@ const MunitSuite ppe_suite = {
 
 static void set_padding_range(uint8_t *buf, size_t buflen, size_t offset,
                               size_t len) {
-  memset(buf, 0xff, buflen);
+  memset(buf, 0xFF, buflen);
   memset(buf + offset, 0, len);
 }
 
@@ -60,7 +60,7 @@ void test_ngtcp2_ppe_dgram_padding_size(void) {
   ppe.buf.last += 917;
 
   set_padding_range(pkt, sizeof(pkt), 917, 267);
-  memset(buf, 0xff, sizeof(buf));
+  memset(buf, 0xFF, sizeof(buf));
 
   ngtcp2_ppe_dgram_padding(&ppe);
 
@@ -71,7 +71,7 @@ void test_ngtcp2_ppe_dgram_padding_size(void) {
   ppe.buf.last += 1200;
 
   set_padding_range(pkt, sizeof(pkt), 0, 0);
-  memset(buf, 0xff, sizeof(buf));
+  memset(buf, 0xFF, sizeof(buf));
 
   ngtcp2_ppe_dgram_padding(&ppe);
 
@@ -83,7 +83,7 @@ void test_ngtcp2_ppe_dgram_padding_size(void) {
   ppe.buf.last += 311;
 
   set_padding_range(pkt, sizeof(pkt), 0, 0);
-  memset(buf, 0xff, sizeof(buf));
+  memset(buf, 0xFF, sizeof(buf));
 
   ngtcp2_ppe_dgram_padding(&ppe);
 
@@ -94,7 +94,7 @@ void test_ngtcp2_ppe_dgram_padding_size(void) {
   ppe.buf.last += 917;
 
   set_padding_range(pkt, sizeof(pkt), 1028, 236);
-  memset(buf, 0xff, sizeof(buf));
+  memset(buf, 0xFF, sizeof(buf));
 
   ngtcp2_ppe_dgram_padding_size(&ppe, 1400);
 
@@ -115,7 +115,7 @@ void test_ngtcp2_ppe_padding_size(void) {
   ppe.buf.last += 917;
 
   set_padding_range(pkt, sizeof(pkt), 917, 267);
-  memset(buf, 0xff, sizeof(buf));
+  memset(buf, 0xFF, sizeof(buf));
 
   ngtcp2_ppe_padding_size(&ppe, NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
@@ -126,7 +126,7 @@ void test_ngtcp2_ppe_padding_size(void) {
   ppe.buf.last += 1200;
 
   set_padding_range(pkt, sizeof(pkt), 0, 0);
-  memset(buf, 0xff, sizeof(buf));
+  memset(buf, 0xFF, sizeof(buf));
 
   ngtcp2_ppe_padding_size(&ppe, NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
@@ -137,7 +137,7 @@ void test_ngtcp2_ppe_padding_size(void) {
   ppe.buf.last += 917;
 
   set_padding_range(pkt, sizeof(pkt), 917, 347);
-  memset(buf, 0xff, sizeof(buf));
+  memset(buf, 0xFF, sizeof(buf));
 
   ngtcp2_ppe_padding_size(&ppe, 1400);
 
@@ -149,7 +149,7 @@ void test_ngtcp2_ppe_padding_size(void) {
   ppe.pkt_num_offset = 4;
 
   set_padding_range(pkt, sizeof(pkt), 5, 3);
-  memset(buf, 0xff, sizeof(buf));
+  memset(buf, 0xFF, sizeof(buf));
 
   ngtcp2_ppe_padding_size(&ppe, 0);
 
@@ -161,7 +161,7 @@ void test_ngtcp2_ppe_padding_size(void) {
   ppe.pkt_num_offset = 4;
 
   set_padding_range(pkt, sizeof(pkt), 0, 0);
-  memset(buf, 0xff, sizeof(buf));
+  memset(buf, 0xFF, sizeof(buf));
 
   ngtcp2_ppe_padding_size(&ppe, 0);
 

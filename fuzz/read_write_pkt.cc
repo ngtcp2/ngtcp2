@@ -261,16 +261,16 @@ int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
 
   assert(sizeof(null_secret) == secretlen);
 
-  memset(rx_secret, 0xff, sizeof(null_secret));
-  memset(tx_secret, 0xff, sizeof(null_secret));
+  memset(rx_secret, 0xFF, sizeof(null_secret));
+  memset(tx_secret, 0xFF, sizeof(null_secret));
 
   rx_aead_ctx->native_handle = nullptr;
 
-  memset(rx_iv, 0xff, sizeof(null_iv));
+  memset(rx_iv, 0xFF, sizeof(null_iv));
 
   tx_aead_ctx->native_handle = nullptr;
 
-  memset(tx_iv, 0xff, sizeof(null_iv));
+  memset(tx_iv, 0xFF, sizeof(null_iv));
 
   return 0;
 }

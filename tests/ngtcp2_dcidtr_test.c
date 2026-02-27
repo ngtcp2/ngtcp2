@@ -445,7 +445,7 @@ void test_ngtcp2_dcidtr_retire_stale_bound_dcid(void) {
     .data = {1},
     .datalen = 11,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xfe};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFE};
   ngtcp2_dcid *dcid;
   size_t i;
   userdata ud;
@@ -532,7 +532,7 @@ void test_ngtcp2_dcidtr_pop_bound_dcid(void) {
     .data = {1},
     .datalen = 11,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xfe};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFE};
   ngtcp2_dcid *dcid, bound_dcid;
   size_t i;
   int rv;
@@ -566,7 +566,7 @@ void test_ngtcp2_dcidtr_earliest_bound_ts(void) {
     .data = {1},
     .datalen = 11,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xfe};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFE};
   ngtcp2_dcid *dcid;
   size_t i;
   int rv;
@@ -620,7 +620,7 @@ void test_ngtcp2_dcidtr_pop_unused(void) {
     .data = {1},
     .datalen = 11,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xfe};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFE};
   ngtcp2_dcid dcid;
   size_t i;
 

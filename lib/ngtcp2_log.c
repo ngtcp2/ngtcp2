@@ -47,7 +47,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
     log->scid[0] = '\0';
   }
   log->log_printf = log_printf;
-  log->events = 0xff;
+  log->events = 0xFF;
   log->ts = log->last_ts = ts;
   log->user_data = user_data;
 }
@@ -134,7 +134,7 @@ static const char *strerrorcode(uint64_t error_code) {
   case NGTCP2_VERSION_NEGOTIATION_ERROR:
     return "VERSION_NEGOTIATION_ERROR";
   default:
-    if (0x100u <= error_code && error_code <= 0x1ffu) {
+    if (0x100U <= error_code && error_code <= 0x1FFU) {
       return "CRYPTO_ERROR";
     }
     return "(unknown)";

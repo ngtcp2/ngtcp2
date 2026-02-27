@@ -90,7 +90,7 @@ constexpr O format_hex_uint8(uint8_t b, O result) {
 #  pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif // __GNUC__
   *result++ = LOWER_XDIGITS[b >> 4];
-  *result++ = LOWER_XDIGITS[b & 0xf];
+  *result++ = LOWER_XDIGITS[b & 0xF];
 #ifdef __GNUC__
 #  pragma GCC diagnostic pop
 #endif // __GNUC__

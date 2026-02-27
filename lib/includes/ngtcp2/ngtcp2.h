@@ -262,7 +262,7 @@ typedef struct ngtcp2_mem {
  *
  * :macro:`NGTCP2_PROTO_VER_V1` is the QUIC version 1.
  */
-#define NGTCP2_PROTO_VER_V1 ((uint32_t)0x00000001u)
+#define NGTCP2_PROTO_VER_V1 ((uint32_t)0x00000001U)
 
 /**
  * @macro
@@ -270,7 +270,7 @@ typedef struct ngtcp2_mem {
  * :macro:`NGTCP2_PROTO_VER_V2` is the QUIC version 2.  See
  * :rfc:`9369`.
  */
-#define NGTCP2_PROTO_VER_V2 ((uint32_t)0x6b3343cfu)
+#define NGTCP2_PROTO_VER_V2 ((uint32_t)0x6B3343CFU)
 
 /**
  * @macro
@@ -294,7 +294,7 @@ typedef struct ngtcp2_mem {
  * :macro:`NGTCP2_RESERVED_VERSION_MASK` is the bit mask of reserved
  * version.
  */
-#define NGTCP2_RESERVED_VERSION_MASK 0x0a0a0a0au
+#define NGTCP2_RESERVED_VERSION_MASK 0x0A0A0A0AU
 
 /**
  * @macrosection
@@ -812,7 +812,7 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  *
  * :macro:`NGTCP2_PKT_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_PKT_FLAG_NONE 0x00u
+#define NGTCP2_PKT_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -820,7 +820,7 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  * :macro:`NGTCP2_PKT_FLAG_LONG_FORM` indicates the Long header packet
  * header.
  */
-#define NGTCP2_PKT_FLAG_LONG_FORM 0x01u
+#define NGTCP2_PKT_FLAG_LONG_FORM 0x01U
 
 /**
  * @macro
@@ -828,14 +828,14 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  * :macro:`NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR` indicates that Fixed Bit
  * (aka QUIC bit) is not set.
  */
-#define NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR 0x02u
+#define NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR 0x02U
 
 /**
  * @macro
  *
  * :macro:`NGTCP2_PKT_FLAG_KEY_PHASE` indicates Key Phase bit set.
  */
-#define NGTCP2_PKT_FLAG_KEY_PHASE 0x04u
+#define NGTCP2_PKT_FLAG_KEY_PHASE 0x04U
 
 /**
  * @enum
@@ -887,7 +887,7 @@ typedef enum ngtcp2_pkt_type {
  *
  * :macro:`NGTCP2_NO_ERROR` is QUIC transport error code ``NO_ERROR``.
  */
-#define NGTCP2_NO_ERROR 0x0u
+#define NGTCP2_NO_ERROR 0x0U
 
 /**
  * @macro
@@ -895,7 +895,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_INTERNAL_ERROR` is QUIC transport error code
  * ``INTERNAL_ERROR``.
  */
-#define NGTCP2_INTERNAL_ERROR 0x1u
+#define NGTCP2_INTERNAL_ERROR 0x1U
 
 /**
  * @macro
@@ -903,7 +903,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_CONNECTION_REFUSED` is QUIC transport error code
  * ``CONNECTION_REFUSED``.
  */
-#define NGTCP2_CONNECTION_REFUSED 0x2u
+#define NGTCP2_CONNECTION_REFUSED 0x2U
 
 /**
  * @macro
@@ -911,7 +911,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_FLOW_CONTROL_ERROR` is QUIC transport error code
  * ``FLOW_CONTROL_ERROR``.
  */
-#define NGTCP2_FLOW_CONTROL_ERROR 0x3u
+#define NGTCP2_FLOW_CONTROL_ERROR 0x3U
 
 /**
  * @macro
@@ -919,7 +919,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_STREAM_LIMIT_ERROR` is QUIC transport error code
  * ``STREAM_LIMIT_ERROR``.
  */
-#define NGTCP2_STREAM_LIMIT_ERROR 0x4u
+#define NGTCP2_STREAM_LIMIT_ERROR 0x4U
 
 /**
  * @macro
@@ -927,7 +927,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_STREAM_STATE_ERROR` is QUIC transport error code
  * ``STREAM_STATE_ERROR``.
  */
-#define NGTCP2_STREAM_STATE_ERROR 0x5u
+#define NGTCP2_STREAM_STATE_ERROR 0x5U
 
 /**
  * @macro
@@ -935,7 +935,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_FINAL_SIZE_ERROR` is QUIC transport error code
  * ``FINAL_SIZE_ERROR``.
  */
-#define NGTCP2_FINAL_SIZE_ERROR 0x6u
+#define NGTCP2_FINAL_SIZE_ERROR 0x6U
 
 /**
  * @macro
@@ -943,7 +943,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_FRAME_ENCODING_ERROR` is QUIC transport error code
  * ``FRAME_ENCODING_ERROR``.
  */
-#define NGTCP2_FRAME_ENCODING_ERROR 0x7u
+#define NGTCP2_FRAME_ENCODING_ERROR 0x7U
 
 /**
  * @macro
@@ -951,7 +951,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_TRANSPORT_PARAMETER_ERROR` is QUIC transport error
  * code ``TRANSPORT_PARAMETER_ERROR``.
  */
-#define NGTCP2_TRANSPORT_PARAMETER_ERROR 0x8u
+#define NGTCP2_TRANSPORT_PARAMETER_ERROR 0x8U
 
 /**
  * @macro
@@ -959,7 +959,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_CONNECTION_ID_LIMIT_ERROR` is QUIC transport error
  * code ``CONNECTION_ID_LIMIT_ERROR``.
  */
-#define NGTCP2_CONNECTION_ID_LIMIT_ERROR 0x9u
+#define NGTCP2_CONNECTION_ID_LIMIT_ERROR 0x9U
 
 /**
  * @macro
@@ -967,7 +967,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_PROTOCOL_VIOLATION` is QUIC transport error code
  * ``PROTOCOL_VIOLATION``.
  */
-#define NGTCP2_PROTOCOL_VIOLATION 0xau
+#define NGTCP2_PROTOCOL_VIOLATION 0xAU
 
 /**
  * @macro
@@ -975,7 +975,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_INVALID_TOKEN` is QUIC transport error code
  * ``INVALID_TOKEN``.
  */
-#define NGTCP2_INVALID_TOKEN 0xbu
+#define NGTCP2_INVALID_TOKEN 0xBU
 
 /**
  * @macro
@@ -983,7 +983,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_APPLICATION_ERROR` is QUIC transport error code
  * ``APPLICATION_ERROR``.
  */
-#define NGTCP2_APPLICATION_ERROR 0xcu
+#define NGTCP2_APPLICATION_ERROR 0xCU
 
 /**
  * @macro
@@ -991,7 +991,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_CRYPTO_BUFFER_EXCEEDED` is QUIC transport error code
  * ``CRYPTO_BUFFER_EXCEEDED``.
  */
-#define NGTCP2_CRYPTO_BUFFER_EXCEEDED 0xdu
+#define NGTCP2_CRYPTO_BUFFER_EXCEEDED 0xDU
 
 /**
  * @macro
@@ -999,7 +999,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_KEY_UPDATE_ERROR` is QUIC transport error code
  * ``KEY_UPDATE_ERROR``.
  */
-#define NGTCP2_KEY_UPDATE_ERROR 0xeu
+#define NGTCP2_KEY_UPDATE_ERROR 0xEU
 
 /**
  * @macro
@@ -1007,7 +1007,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_AEAD_LIMIT_REACHED` is QUIC transport error code
  * ``AEAD_LIMIT_REACHED``.
  */
-#define NGTCP2_AEAD_LIMIT_REACHED 0xfu
+#define NGTCP2_AEAD_LIMIT_REACHED 0xFU
 
 /**
  * @macro
@@ -1015,7 +1015,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_NO_VIABLE_PATH` is QUIC transport error code
  * ``NO_VIABLE_PATH``.
  */
-#define NGTCP2_NO_VIABLE_PATH 0x10u
+#define NGTCP2_NO_VIABLE_PATH 0x10U
 
 /**
  * @macro
@@ -1023,7 +1023,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_CRYPTO_ERROR` is QUIC transport error code
  * ``CRYPTO_ERROR``.
  */
-#define NGTCP2_CRYPTO_ERROR 0x100u
+#define NGTCP2_CRYPTO_ERROR 0x100U
 
 /**
  * @macro
@@ -1250,7 +1250,7 @@ typedef struct ngtcp2_pkt_stateless_reset {
  * :macro:`NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1` is TLS
  * extension type of quic_transport_parameters.
  */
-#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1 0x39u
+#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1 0x39U
 
 #ifdef NGTCP2_USE_GENERIC_SOCKADDR
 #  ifndef NGTCP2_AF_INET
@@ -1703,14 +1703,14 @@ typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
  *
  * :macro:`NGTCP2_QLOG_WRITE_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_QLOG_WRITE_FLAG_NONE 0x00u
+#define NGTCP2_QLOG_WRITE_FLAG_NONE 0x00U
 /**
  * @macro
  *
  * :macro:`NGTCP2_QLOG_WRITE_FLAG_FIN` indicates that this is the
  * final call to :type:`ngtcp2_qlog_write` in the current connection.
  */
-#define NGTCP2_QLOG_WRITE_FLAG_FIN 0x01u
+#define NGTCP2_QLOG_WRITE_FLAG_FIN 0x01U
 
 /**
  * @struct
@@ -2744,7 +2744,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  *
  * :macro:`NGTCP2_STREAM_DATA_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_STREAM_DATA_FLAG_NONE 0x00u
+#define NGTCP2_STREAM_DATA_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -2752,7 +2752,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * :macro:`NGTCP2_STREAM_DATA_FLAG_FIN` indicates that this chunk of
  * data is final piece of an incoming stream.
  */
-#define NGTCP2_STREAM_DATA_FLAG_FIN 0x01u
+#define NGTCP2_STREAM_DATA_FLAG_FIN 0x01U
 
 /**
  * @macro
@@ -2761,7 +2761,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * data contains data received in 0-RTT packet, and the handshake has
  * not completed yet, which means that the data might be replayed.
  */
-#define NGTCP2_STREAM_DATA_FLAG_0RTT 0x02u
+#define NGTCP2_STREAM_DATA_FLAG_0RTT 0x02U
 
 /**
  * @functypedef
@@ -2816,7 +2816,7 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
  *
  * :macro:`NGTCP2_STREAM_CLOSE_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_STREAM_CLOSE_FLAG_NONE 0x00u
+#define NGTCP2_STREAM_CLOSE_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -2824,7 +2824,7 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
  * :macro:`NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET` indicates that
  * app_error_code parameter is set.
  */
-#define NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET 0x01u
+#define NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET 0x01U
 
 /**
  * @functypedef
@@ -3033,7 +3033,7 @@ typedef int (*ngtcp2_update_key)(
  *
  * :macro:`NGTCP2_PATH_VALIDATION_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_PATH_VALIDATION_FLAG_NONE 0x00u
+#define NGTCP2_PATH_VALIDATION_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -3042,7 +3042,7 @@ typedef int (*ngtcp2_update_key)(
  * validation involving server preferred address.  This flag is only
  * set for client.
  */
-#define NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR 0x01u
+#define NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR 0x01U
 
 /**
  * @macro
@@ -3051,7 +3051,7 @@ typedef int (*ngtcp2_update_key)(
  * server should send NEW_TOKEN frame for the new remote address.
  * This flag is only set for server.
  */
-#define NGTCP2_PATH_VALIDATION_FLAG_NEW_TOKEN 0x02u
+#define NGTCP2_PATH_VALIDATION_FLAG_NEW_TOKEN 0x02U
 
 /**
  * @functypedef
@@ -3221,7 +3221,7 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
  *
  * :macro:`NGTCP2_DATAGRAM_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_DATAGRAM_FLAG_NONE 0x00u
+#define NGTCP2_DATAGRAM_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -3230,7 +3230,7 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
  * received in 0-RTT packet, and the handshake has not completed yet,
  * which means that the data might be replayed.
  */
-#define NGTCP2_DATAGRAM_FLAG_0RTT 0x01u
+#define NGTCP2_DATAGRAM_FLAG_0RTT 0x01U
 
 /**
  * @functypedef
@@ -4512,7 +4512,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  *
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_NONE 0x00u
+#define NGTCP2_WRITE_STREAM_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -4520,7 +4520,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` indicates that more data may
  * come, and should be coalesced into the same packet if possible.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_MORE 0x01u
+#define NGTCP2_WRITE_STREAM_FLAG_MORE 0x01U
 
 /**
  * @macro
@@ -4528,7 +4528,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` indicates that a passed data
  * is the final part of a stream.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_FIN 0x02u
+#define NGTCP2_WRITE_STREAM_FLAG_FIN 0x02U
 
 /**
  * @macro
@@ -4539,7 +4539,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * finalizing it.  PATH_CHALLENGE, PATH_RESPONSE, CONNECTION_CLOSE
  * only packets and PMTUD packets are excluded.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_PADDING 0x04u
+#define NGTCP2_WRITE_STREAM_FLAG_PADDING 0x04U
 
 /**
  * @function
@@ -4724,7 +4724,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  *
  * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_WRITE_DATAGRAM_FLAG_NONE 0x00u
+#define NGTCP2_WRITE_DATAGRAM_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -4732,7 +4732,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_MORE` indicates that more data
  * may come, and should be coalesced into the same packet if possible.
  */
-#define NGTCP2_WRITE_DATAGRAM_FLAG_MORE 0x01u
+#define NGTCP2_WRITE_DATAGRAM_FLAG_MORE 0x01U
 
 /**
  * @macro
@@ -4743,7 +4743,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * finalizing it.  PATH_CHALLENGE, PATH_RESPONSE, CONNECTION_CLOSE
  * only packets and PMTUD packets are excluded.
  */
-#define NGTCP2_WRITE_DATAGRAM_FLAG_PADDING 0x02u
+#define NGTCP2_WRITE_DATAGRAM_FLAG_PADDING 0x02U
 
 /**
  * @function
@@ -5553,7 +5553,7 @@ NGTCP2_EXTERN void ngtcp2_ccerr_set_application_error(ngtcp2_ccerr *ccerr,
  * @function
  *
  * `ngtcp2_conn_write_connection_close` writes a packet which contains
- * CONNECTION_CLOSE frame(s) (type 0x1c or 0x1d) in the buffer pointed
+ * CONNECTION_CLOSE frame(s) (type 0x1C or 0x1D) in the buffer pointed
  * by |dest| whose capacity is |destlen|.
  *
  * For client, |destlen| should be at least
@@ -5570,10 +5570,10 @@ NGTCP2_EXTERN void ngtcp2_ccerr_set_application_error(ngtcp2_ccerr *ccerr,
  *
  * If :member:`ccerr->type <ngtcp2_ccerr.type>` ==
  * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_TRANSPORT`, this
- * function sends CONNECTION_CLOSE (type 0x1c) frame.  If
+ * function sends CONNECTION_CLOSE (type 0x1C) frame.  If
  * :member:`ccerr->type <ngtcp2_ccerr.type>` ==
  * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_APPLICATION`, it sends
- * CONNECTION_CLOSE (type 0x1d) frame.  Otherwise, it does not produce
+ * CONNECTION_CLOSE (type 0x1D) frame.  Otherwise, it does not produce
  * any data, and returns 0.
  *
  * |destlen| could be shorten by some factors (e.g., server side

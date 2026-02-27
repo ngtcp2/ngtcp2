@@ -182,7 +182,7 @@ uint8_t *hexdump_ascii(uint8_t *dest, std::span<const uint8_t> data) {
   *dest++ = '|';
 
   for (auto c : data) {
-    if (0x20 <= c && c <= 0x7e) {
+    if (0x20 <= c && c <= 0x7E) {
       *dest++ = c;
     } else {
       *dest++ = '.';

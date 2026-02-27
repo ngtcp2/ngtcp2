@@ -92,26 +92,26 @@ void test_util_format_durationf() {
   assert_stdstring_equal("2.00us", util::format_durationf(1999));
   assert_stdstring_equal("1.00ms", util::format_durationf(999999));
   assert_stdstring_equal("3.50ms", util::format_durationf(3500111));
-  assert_stdstring_equal("9999.99s", util::format_durationf(9999990000000llu));
+  assert_stdstring_equal("9999.99s", util::format_durationf(9999990000000ULL));
 }
 
 void test_util_format_uint() {
-  assert_stdstring_equal("0"s, util::format_uint(0u));
+  assert_stdstring_equal("0"s, util::format_uint(0U));
   assert_stdstring_equal("18446744073709551615"s,
-                         util::format_uint(18446744073709551615ull));
+                         util::format_uint(18446744073709551615ULL));
 }
 
 void test_util_format_uint_iec() {
-  assert_stdstring_equal("0"s, util::format_uint_iec(0u));
-  assert_stdstring_equal("1023"s, util::format_uint_iec((1u << 10) - 1));
-  assert_stdstring_equal("1K"s, util::format_uint_iec(1u << 10));
-  assert_stdstring_equal("1M"s, util::format_uint_iec(1u << 20));
-  assert_stdstring_equal("1G"s, util::format_uint_iec(1u << 30));
+  assert_stdstring_equal("0"s, util::format_uint_iec(0U));
+  assert_stdstring_equal("1023"s, util::format_uint_iec((1U << 10) - 1));
+  assert_stdstring_equal("1K"s, util::format_uint_iec(1U << 10));
+  assert_stdstring_equal("1M"s, util::format_uint_iec(1U << 20));
+  assert_stdstring_equal("1G"s, util::format_uint_iec(1U << 30));
   assert_stdstring_equal(
     "18446744073709551615"s,
     util::format_uint_iec(std::numeric_limits<uint64_t>::max()));
   assert_stdstring_equal("1025K"s,
-                         util::format_uint_iec((1u << 20) + (1u << 10)));
+                         util::format_uint_iec((1U << 20) + (1U << 10)));
 }
 
 void test_util_format_duration() {
@@ -120,12 +120,12 @@ void test_util_format_duration() {
   assert_stdstring_equal("1us", util::format_duration(1000));
   assert_stdstring_equal("1ms", util::format_duration(1000000));
   assert_stdstring_equal("1s", util::format_duration(1000000000));
-  assert_stdstring_equal("1m", util::format_duration(60000000000ull));
-  assert_stdstring_equal("1h", util::format_duration(3600000000000ull));
+  assert_stdstring_equal("1m", util::format_duration(60000000000ULL));
+  assert_stdstring_equal("1h", util::format_duration(3600000000000ULL));
   assert_stdstring_equal(
     "18446744073709551615ns",
     util::format_duration(std::numeric_limits<uint64_t>::max()));
-  assert_stdstring_equal("61s", util::format_duration(61000000000ull));
+  assert_stdstring_equal("61s", util::format_duration(61000000000ULL));
 }
 
 void test_util_parse_uint() {
@@ -142,7 +142,7 @@ void test_util_parse_uint() {
   {
     auto res = util::parse_uint("18446744073709551615");
     assert_true(res.has_value());
-    assert_uint64(18446744073709551615ull, ==, *res);
+    assert_uint64(18446744073709551615ULL, ==, *res);
   }
   {
     auto res = util::parse_uint("18446744073709551616");
@@ -187,7 +187,7 @@ void test_util_parse_uint_iec() {
   {
     auto res = util::parse_uint_iec("11G");
     assert_true(res.has_value());
-    assert_uint64((1ull << 30) * 11, ==, *res);
+    assert_uint64((1ULL << 30) * 11, ==, *res);
   }
   {
     auto res = util::parse_uint_iec("18446744073709551616");
@@ -414,35 +414,35 @@ void test_util_hexdump() {
 }
 
 void test_util_format_hex() {
-  auto a = std::to_array<uint8_t>({0xde, 0xad, 0xbe, 0xef});
+  auto a = std::to_array<uint8_t>({0xDE, 0xAD, 0xBE, 0xEF});
 
   assert_stdstring_equal("deadbeef"s, util::format_hex(a));
-  assert_stdstring_equal("deadbeef"s, util::format_hex(0xdeadbeef));
+  assert_stdstring_equal("deadbeef"s, util::format_hex(0xDEADBEEF));
   assert_stdstring_equal("beef"s, util::format_hex(a.data() + 2, 2));
 
   std::array<char, 64> buf;
 
   assert_stdsv_equal(
     "00"sv, (std::string_view{std::ranges::begin(buf),
-                              util::format_hex(static_cast<uint8_t>(0u),
+                              util::format_hex(static_cast<uint8_t>(0U),
                                                std::ranges::begin(buf))}));
   assert_stdsv_equal(
     "ec"sv, (std::string_view{std::ranges::begin(buf),
-                              util::format_hex(static_cast<uint8_t>(0xecu),
+                              util::format_hex(static_cast<uint8_t>(0xECU),
                                                std::ranges::begin(buf))}));
   assert_stdsv_equal(
     "00000000"sv,
     (std::string_view{std::ranges::begin(buf),
-                      util::format_hex(0u, std::ranges::begin(buf))}));
+                      util::format_hex(0U, std::ranges::begin(buf))}));
   assert_stdsv_equal(
     "0000ab01"sv,
     (std::string_view{std::ranges::begin(buf),
-                      util::format_hex(0xab01u, std::ranges::begin(buf))}));
+                      util::format_hex(0xAB01U, std::ranges::begin(buf))}));
   assert_stdsv_equal(
     "deadbeefbaadf00d"sv,
     (std::string_view{
       std::ranges::begin(buf),
-      util::format_hex(0xdeadbeefbaadf00du, std::ranges::begin(buf))}));
+      util::format_hex(0xDEADBEEFBAADF00DU, std::ranges::begin(buf))}));
   assert_stdsv_equal(
     "ffffffffffffffff"sv,
     (std::string_view{std::ranges::begin(buf),

@@ -38,14 +38,14 @@
 
 /* Long header specific macros */
 #define NGTCP2_LONG_TYPE_MASK 0x30
-#define NGTCP2_LONG_RESERVED_BIT_MASK 0x0c
+#define NGTCP2_LONG_RESERVED_BIT_MASK 0x0C
 
 /* Short header specific macros */
 #define NGTCP2_SHORT_RESERVED_BIT_MASK 0x18
 #define NGTCP2_SHORT_KEY_PHASE_BIT 0x04
 
 /* NGTCP2_SR_TYPE is a Type field of Stateless Reset. */
-#define NGTCP2_SR_TYPE 0x1f
+#define NGTCP2_SR_TYPE 0x1F
 
 /* NGTCP2_MIN_LONG_HEADERLEN is the minimum length of long header.
    That is (1|1|TT|RR|PP)<1> + VERSION<4> + DCIL<1> + SCIL<1> +
@@ -78,23 +78,23 @@
 
 /* NGTCP2_MAX_SERVER_STREAM_ID_BIDI is the maximum bidirectional
    server stream ID. */
-#define NGTCP2_MAX_SERVER_STREAM_ID_BIDI ((int64_t)0x3ffffffffffffffdll)
+#define NGTCP2_MAX_SERVER_STREAM_ID_BIDI ((int64_t)0x3FFFFFFFFFFFFFFDLL)
 /* NGTCP2_MAX_CLIENT_STREAM_ID_BIDI is the maximum bidirectional
    client stream ID. */
-#define NGTCP2_MAX_CLIENT_STREAM_ID_BIDI ((int64_t)0x3ffffffffffffffcll)
+#define NGTCP2_MAX_CLIENT_STREAM_ID_BIDI ((int64_t)0x3FFFFFFFFFFFFFFCLL)
 /* NGTCP2_MAX_SERVER_STREAM_ID_UNI is the maximum unidirectional
    server stream ID. */
-#define NGTCP2_MAX_SERVER_STREAM_ID_UNI ((int64_t)0x3fffffffffffffffll)
+#define NGTCP2_MAX_SERVER_STREAM_ID_UNI ((int64_t)0x3FFFFFFFFFFFFFFFLL)
 /* NGTCP2_MAX_CLIENT_STREAM_ID_UNI is the maximum unidirectional
    client stream ID. */
-#define NGTCP2_MAX_CLIENT_STREAM_ID_UNI ((int64_t)0x3ffffffffffffffell)
+#define NGTCP2_MAX_CLIENT_STREAM_ID_UNI ((int64_t)0x3FFFFFFFFFFFFFFELL)
 
 /* NGTCP2_MAX_NUM_ACK_RANGES is the maximum number of Additional ACK
    ranges which this library can create, or decode. */
 #define NGTCP2_MAX_ACK_RANGES 32
 
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
-#define NGTCP2_MAX_PKT_NUM ((int64_t)((1ll << 62) - 1))
+#define NGTCP2_MAX_PKT_NUM ((int64_t)((1LL << 62) - 1))
 
 /* NGTCP2_MIN_PKT_EXPANDLEN is the minimum packet size expansion to
    hide/trigger Stateless Reset. */
@@ -172,11 +172,11 @@ typedef struct ngtcp2_pkt_retry {
 #define NGTCP2_FRAME_STREAMS_BLOCKED_UNI 0x17
 #define NGTCP2_FRAME_NEW_CONNECTION_ID 0x18
 #define NGTCP2_FRAME_RETIRE_CONNECTION_ID 0x19
-#define NGTCP2_FRAME_PATH_CHALLENGE 0x1a
-#define NGTCP2_FRAME_PATH_RESPONSE 0x1b
-#define NGTCP2_FRAME_CONNECTION_CLOSE 0x1c
-#define NGTCP2_FRAME_CONNECTION_CLOSE_APP 0x1d
-#define NGTCP2_FRAME_HANDSHAKE_DONE 0x1e
+#define NGTCP2_FRAME_PATH_CHALLENGE 0x1A
+#define NGTCP2_FRAME_PATH_RESPONSE 0x1B
+#define NGTCP2_FRAME_CONNECTION_CLOSE 0x1C
+#define NGTCP2_FRAME_CONNECTION_CLOSE_APP 0x1D
+#define NGTCP2_FRAME_HANDSHAKE_DONE 0x1E
 #define NGTCP2_FRAME_DATAGRAM 0x30
 #define NGTCP2_FRAME_DATAGRAM_LEN 0x31
 

@@ -35,13 +35,13 @@
 #include "ngtcp2_path.h"
 
 /* NGTCP2_SCID_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_SCID_FLAG_NONE 0x00u
+#define NGTCP2_SCID_FLAG_NONE 0x00U
 /* NGTCP2_SCID_FLAG_USED indicates that a local endpoint observed that
    a remote endpoint uses this particular Connection ID. */
-#define NGTCP2_SCID_FLAG_USED 0x01u
+#define NGTCP2_SCID_FLAG_USED 0x01U
 /* NGTCP2_SCID_FLAG_RETIRED indicates that this particular Connection
    ID is retired. */
-#define NGTCP2_SCID_FLAG_RETIRED 0x02u
+#define NGTCP2_SCID_FLAG_RETIRED 0x02U
 
 typedef struct ngtcp2_scid {
   ngtcp2_pq_entry pe;
@@ -57,13 +57,13 @@ typedef struct ngtcp2_scid {
 } ngtcp2_scid;
 
 /* NGTCP2_DCID_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_DCID_FLAG_NONE 0x00u
+#define NGTCP2_DCID_FLAG_NONE 0x00U
 /* NGTCP2_DCID_FLAG_PATH_VALIDATED indicates that an associated path
    has been validated. */
-#define NGTCP2_DCID_FLAG_PATH_VALIDATED 0x01u
+#define NGTCP2_DCID_FLAG_PATH_VALIDATED 0x01U
 /* NGTCP2_DCID_FLAG_TOKEN_PRESENT indicates that a stateless reset
    token is set in token field. */
-#define NGTCP2_DCID_FLAG_TOKEN_PRESENT 0x02u
+#define NGTCP2_DCID_FLAG_TOKEN_PRESENT 0x02U
 
 typedef struct ngtcp2_dcid {
   /* seq is the sequence number associated to the Connection ID. */
