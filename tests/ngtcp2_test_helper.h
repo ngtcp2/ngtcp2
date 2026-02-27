@@ -37,8 +37,8 @@
  * NGTCP2_APP_ERRxx is an application error code solely used in test
  * code.
  */
-#define NGTCP2_APP_ERR01 0xff01u
-#define NGTCP2_APP_ERR02 0xff02u
+#define NGTCP2_APP_ERR01 0xFF01U
+#define NGTCP2_APP_ERR02 0xFF02U
 
 /*
  * NGTCP2_FAKE_AEAD_OVERHEAD is AEAD overhead used in unit tests.

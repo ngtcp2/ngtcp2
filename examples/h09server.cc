@@ -1912,22 +1912,22 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
 
 namespace {
 uint32_t generate_reserved_version(const Address &addr, uint32_t version) {
-  uint32_t h = 0x811C9DC5u;
+  uint32_t h = 0x811C9DC5U;
   const uint8_t *p = reinterpret_cast<const uint8_t *>(addr.as_sockaddr());
   const uint8_t *ep = p + addr.size();
   for (; p != ep; ++p) {
     h ^= *p;
-    h *= 0x01000193u;
+    h *= 0x01000193U;
   }
   version = htonl(version);
   p = (const uint8_t *)&version;
   ep = p + sizeof(version);
   for (; p != ep; ++p) {
     h ^= *p;
-    h *= 0x01000193u;
+    h *= 0x01000193U;
   }
-  h &= 0xf0f0f0f0u;
-  h |= 0x0a0a0a0au;
+  h &= 0xF0F0F0F0U;
+  h |= 0x0A0A0A0AU;
   return h;
 }
 } // namespace

@@ -568,12 +568,12 @@ static int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
 
   assert(sizeof(null_secret) == secretlen);
 
-  memset(rx_secret, 0xff, sizeof(null_secret));
-  memset(tx_secret, 0xff, sizeof(null_secret));
+  memset(rx_secret, 0xFF, sizeof(null_secret));
+  memset(tx_secret, 0xFF, sizeof(null_secret));
   rx_aead_ctx->native_handle = NULL;
-  memset(rx_iv, 0xff, sizeof(null_iv));
+  memset(rx_iv, 0xFF, sizeof(null_iv));
   tx_aead_ctx->native_handle = NULL;
-  memset(tx_iv, 0xff, sizeof(null_iv));
+  memset(tx_iv, 0xFF, sizeof(null_iv));
 
   return 0;
 }
@@ -1222,7 +1222,7 @@ static void setup_default_client_with_options(ngtcp2_conn **pconn,
   assert_int(0, ==, rv);
 
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_TOKEN_PRESENT;
-  memset((*pconn)->dcid.current.token, 0xf1, NGTCP2_STATELESS_RESET_TOKENLEN);
+  memset((*pconn)->dcid.current.token, 0xF1, NGTCP2_STATELESS_RESET_TOKENLEN);
   (*pconn)->handshake_confirmed_ts = 0;
 }
 
@@ -3551,8 +3551,8 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 2 octets pkt num */
   setup_default_client(&conn);
-  conn->pktns.rtb.largest_acked_tx_pkt_num = 0x6afa2f;
-  conn->pktns.tx.last_pkt_num = 0x6afd78;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 0x6AFA2F;
+  conn->pktns.tx.last_pkt_num = 0x6AFD78;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -3569,8 +3569,8 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 4 octets pkt num */
   setup_default_client(&conn);
-  conn->pktns.rtb.largest_acked_tx_pkt_num = 0x6afa2f;
-  conn->pktns.tx.last_pkt_num = 0x6bc106;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 0x6AFA2F;
+  conn->pktns.tx.last_pkt_num = 0x6BC106;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -4034,9 +4034,9 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   buf[0] |= 0x30;
   /* Make version nonzero so that it does not look like Version
      Negotiation packet */
-  buf[1] = 0xff;
+  buf[1] = 0xFF;
   /* Make largest CID so that ngtcp2_pkt_decode_hd_long fails */
-  buf[5] = 0xff;
+  buf[5] = 0xFF;
 
   rv =
     ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, (size_t)spktlen, 1);
@@ -5291,7 +5291,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   setup_handshake_server_with_options(&conn, opts);
   ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
-  tpe.version = 0xffff;
+  tpe.version = 0xFFFF;
   tpe.initial.last_pkt_num = pkt_num;
 
   fr.stream = (ngtcp2_stream){
@@ -9459,12 +9459,12 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   ngtcp2_tstamp t = 0;
   ngtcp2_frame fr;
   ngtcp2_frame frs[16];
-  const uint8_t cid[] = {0xf0, 0xf1, 0xf2, 0xf3};
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
-  const uint8_t cid2[] = {0xf0, 0xf1, 0xf2, 0xf4};
-  const uint8_t token2[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xfe};
-  const uint8_t cid3[] = {0xf0, 0xf1, 0xf2, 0xf5};
-  const uint8_t token3[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xfd};
+  const uint8_t cid[] = {0xF0, 0xF1, 0xF2, 0xF3};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  const uint8_t cid2[] = {0xF0, 0xF1, 0xF2, 0xF4};
+  const uint8_t token2[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFE};
+  const uint8_t cid3[] = {0xF0, 0xF1, 0xF2, 0xF5};
+  const uint8_t token3[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFD};
   ngtcp2_dcid *dcid;
   int rv;
   ngtcp2_frame_chain *frc;
@@ -10113,9 +10113,9 @@ void test_ngtcp2_conn_server_path_validation(void) {
   ngtcp2_frame fr;
   ngtcp2_frame frs[2];
   int rv;
-  const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
+  const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
   ngtcp2_cid cid, *new_cid, orig_dcid, zerolen_cid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
   ngtcp2_path_storage new_path1, new_path2, new_path3;
   ngtcp2_ksl_it it;
   ngtcp2_path_history_entry *ph_ent;
@@ -10150,7 +10150,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
     .seq = 2,
     .cid = cid,
   };
-  frs[1].new_connection_id.cid.data[0] = 0x1f;
+  frs[1].new_connection_id.cid.data[0] = 0x1F;
   memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
@@ -10436,7 +10436,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_int(0, ==, rv);
 
   frs[0].path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memset(frs[0].path_challenge.data, 0xfe, sizeof(frs[0].path_challenge.data));
+  memset(frs[0].path_challenge.data, 0xFE, sizeof(frs[0].path_challenge.data));
   frs[1].padding = (ngtcp2_padding){
     .type = NGTCP2_FRAME_PADDING,
     .len = 1200,
@@ -10561,9 +10561,9 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   ngtcp2_tstamp t = 900;
   ngtcp2_frame fr[2];
   int rv;
-  const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
+  const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
   ngtcp2_cid cid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
   my_user_data ud;
   ngtcp2_ssize spktlen;
   ngtcp2_path_storage to_path;
@@ -10637,7 +10637,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
     .seq = 2,
     .cid = cid,
   };
-  fr[1].new_connection_id.cid.data[0] = 0x0e;
+  fr[1].new_connection_id.cid.data[0] = 0x0E;
   memcpy(fr[1].new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 2);
@@ -10701,11 +10701,11 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   ngtcp2_frame fr;
   ngtcp2_frame frs[2];
   int rv;
-  const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
+  const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
   ngtcp2_cid cid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
-  const uint8_t data[] = {0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8};
-  const uint8_t data2[] = {0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf9};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  const uint8_t data[] = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8};
+  const uint8_t data2[] = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF9};
   ngtcp2_path_storage ps;
   ngtcp2_ssize shdlen;
   ngtcp2_pkt_hd hd;
@@ -11997,7 +11997,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   ngtcp2_frame fr;
   ngtcp2_tstamp t = 0;
   int rv;
-  const uint8_t raw_token[] = {0xff, 0x12, 0x31, 0x04, 0xab};
+  const uint8_t raw_token[] = {0xFF, 0x12, 0x31, 0x04, 0xAB};
   ngtcp2_tpe tpe;
   ngtcp2_settings settings;
   conn_options opts;
@@ -12076,10 +12076,10 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   ngtcp2_cid dcid;
   const ngtcp2_cid new_dcid = {
     .datalen = 4,
-    .data = {0xde, 0xad, 0xbe, 0xef},
+    .data = {0xDE, 0xAD, 0xBE, 0xEF},
   };
-  static uint8_t token[] = {0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1,
-                            0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1};
+  static uint8_t token[] = {0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1,
+                            0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1};
   ngtcp2_tpe tpe;
   ngtcp2_frame fr, frs[3];
   size_t pktlen;
@@ -12316,10 +12316,10 @@ void test_ngtcp2_conn_recv_version_negotiation(void) {
 
   dcid = ngtcp2_conn_get_dcid(conn);
 
-  nsv[0] = 0xffffffff;
+  nsv[0] = 0xFFFFFFFF;
 
   spktlen = ngtcp2_pkt_write_version_negotiation(
-    buf, sizeof(buf), 0xfe, conn->oscid.data, conn->oscid.datalen, dcid->data,
+    buf, sizeof(buf), 0xFE, conn->oscid.data, conn->oscid.datalen, dcid->data,
     dcid->datalen, nsv, 1);
 
   assert_ptrdiff(0, <, spktlen);
@@ -12341,7 +12341,7 @@ void test_ngtcp2_conn_recv_version_negotiation(void) {
 
   dcid = ngtcp2_conn_get_dcid(conn);
 
-  nsv[0] = 0xfffffff0;
+  nsv[0] = 0xFFFFFFF0;
   nsv[1] = conn->client_chosen_version;
 
   spktlen = ngtcp2_pkt_write_version_negotiation(
@@ -12374,10 +12374,10 @@ void test_ngtcp2_conn_recv_version_negotiation(void) {
 
   dcid = ngtcp2_conn_get_dcid(conn);
 
-  nsv[0] = 0xffffffff;
+  nsv[0] = 0xFFFFFFFF;
 
   spktlen = ngtcp2_pkt_write_version_negotiation(
-    buf, sizeof(buf), 0xfe, conn->oscid.data, conn->oscid.datalen, dcid->data,
+    buf, sizeof(buf), 0xFE, conn->oscid.data, conn->oscid.datalen, dcid->data,
     dcid->datalen, nsv, 1);
 
   assert_ptrdiff(0, <, spktlen);
@@ -14552,9 +14552,9 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
   ngtcp2_frame fr;
   int rv;
   ngtcp2_cid cid;
-  const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
-  const uint8_t data[] = {0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8};
+  const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  const uint8_t data[] = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8};
   ngtcp2_tpe tpe;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
@@ -14606,7 +14606,7 @@ void test_ngtcp2_conn_get_scid(void) {
   ngtcp2_transport_params params;
   ngtcp2_cid dcid, scid;
   ngtcp2_callbacks cb;
-  const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
+  const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
   ngtcp2_cid scids[16];
 
   dcid_init(&dcid);
@@ -15397,8 +15397,8 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
 
   /* version_info.available_versions and preferred_versions do not
      share any version. */
-  ngtcp2_put_uint32be(&client_available_versions[0], 0xff000001);
-  ngtcp2_put_uint32be(&client_available_versions[4], 0xff000002);
+  ngtcp2_put_uint32be(&client_available_versions[0], 0xFF000001);
+  ngtcp2_put_uint32be(&client_available_versions[4], 0xFF000002);
 
   version_info.available_versions = client_available_versions;
   version_info.available_versionslen = sizeof(uint32_t) * 2;
@@ -15408,7 +15408,7 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
 
   /* version_info.available_versions and preferred_versions share the
      version. */
-  ngtcp2_put_uint32be(&client_available_versions[0], 0xff000001);
+  ngtcp2_put_uint32be(&client_available_versions[0], 0xFF000001);
   ngtcp2_put_uint32be(&client_available_versions[4], NGTCP2_PROTO_VER_V2);
 
   version_info.available_versions = client_available_versions;
@@ -15430,7 +15430,7 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
 
   setup_handshake_server_with_options(&conn, opts);
 
-  ngtcp2_put_uint32be(&client_available_versions[0], 0xff000001);
+  ngtcp2_put_uint32be(&client_available_versions[0], 0xFF000001);
   ngtcp2_put_uint32be(&client_available_versions[4], NGTCP2_PROTO_VER_V2);
 
   version_info.available_versions = client_available_versions;
@@ -17017,8 +17017,8 @@ void test_ngtcp2_conn_submit_new_token(void) {
   ngtcp2_ssize spktlen;
   ngtcp2_frame fr;
   ngtcp2_tpe tpe;
-  const uint8_t large_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES + 1] = {0xef};
-  const uint8_t small_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES] = {0xfe};
+  const uint8_t large_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES + 1] = {0xEF};
+  const uint8_t small_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES] = {0xFE};
   uint8_t buf[1200];
   size_t pktlen;
   int rv;
@@ -17605,10 +17605,10 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
     .seq = 1,
     .cid =
       {
-        .data = {0xfe},
+        .data = {0xFE},
         .datalen = 11,
       },
-    .stateless_reset_token = {0xab},
+    .stateless_reset_token = {0xAB},
   };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
@@ -18247,7 +18247,7 @@ void test_ngtcp2_conn_new_failmalloc(void) {
   uint32_t available_versions[] = {
     NGTCP2_PROTO_VER_V2,
     NGTCP2_PROTO_VER_V1,
-    0x5a9aeaca,
+    0x5A9AEACA,
   };
   ngtcp2_cid dcid, scid;
   int rv;

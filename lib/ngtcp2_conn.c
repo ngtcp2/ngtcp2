@@ -840,8 +840,8 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
  */
 static void reset_conn_stat_recovery(ngtcp2_conn_stat *cstat) {
   /* Initializes them with UINT64_MAX. */
-  memset(cstat->loss_time, 0xff, sizeof(cstat->loss_time));
-  memset(cstat->last_tx_pkt_ts, 0xff, sizeof(cstat->last_tx_pkt_ts));
+  memset(cstat->loss_time, 0xFF, sizeof(cstat->loss_time));
+  memset(cstat->last_tx_pkt_ts, 0xFF, sizeof(cstat->last_tx_pkt_ts));
 }
 
 /*
@@ -1072,13 +1072,13 @@ static void conn_update_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
 
   conn->callbacks.rand(&r, 1, &conn->local.settings.rand_ctx);
 
-  if (1ll << pktns->tx.skip_pkt.exponent >
+  if (1LL << pktns->tx.skip_pkt.exponent >
       (NGTCP2_MAX_PKT_NUM - min_gap) / ((int64_t)r + 1)) {
     pktns->tx.skip_pkt.next_pkt_num = INT64_MAX;
     return;
   }
 
-  gap = ((int64_t)r + 1) * (1ll << pktns->tx.skip_pkt.exponent++) + min_gap;
+  gap = ((int64_t)r + 1) * (1LL << pktns->tx.skip_pkt.exponent++) + min_gap;
 
   if (pktns->tx.last_pkt_num > NGTCP2_MAX_PKT_NUM - gap) {
     pktns->tx.skip_pkt.next_pkt_num = INT64_MAX;
@@ -1860,13 +1860,13 @@ static size_t pktns_select_pkt_numlen(ngtcp2_pktns *pktns) {
 
   n = n * 2 - 1;
 
-  if (n > 0xffffff) {
+  if (n > 0xFFFFFF) {
     return 4;
   }
-  if (n > 0xffff) {
+  if (n > 0xFFFF) {
     return 3;
   }
-  if (n > 0xff) {
+  if (n > 0xFF) {
     return 2;
   }
   return 1;
@@ -5877,9 +5877,9 @@ decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   }
 
   if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    dest[0] = (uint8_t)(dest[0] ^ (mask[0] & 0x0f));
+    dest[0] = (uint8_t)(dest[0] ^ (mask[0] & 0x0F));
   } else {
-    dest[0] = (uint8_t)(dest[0] ^ (mask[0] & 0x1f));
+    dest[0] = (uint8_t)(dest[0] ^ (mask[0] & 0x1F));
     if (dest[0] & NGTCP2_SHORT_KEY_PHASE_BIT) {
       hd->flags |= NGTCP2_PKT_FLAG_KEY_PHASE;
     }

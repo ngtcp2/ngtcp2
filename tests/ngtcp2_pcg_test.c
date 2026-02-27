@@ -42,7 +42,7 @@ const MunitSuite pcg_suite = {
 void test_ngtcp2_pcg32(void) {
   ngtcp2_pcg32 pcg;
 
-  ngtcp2_pcg32_init(&pcg, 0xdeadbeef);
+  ngtcp2_pcg32_init(&pcg, 0xDEADBEEF);
 
   assert_uint32(3283094731, ==, ngtcp2_pcg32_rand(&pcg));
   assert_uint32(3888927911, ==, ngtcp2_pcg32_rand(&pcg));

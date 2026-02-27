@@ -46,10 +46,10 @@ typedef struct ngtcp2_log ngtcp2_log;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 /* NGTCP2_PV_ENTRY_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_PV_ENTRY_FLAG_NONE 0x00u
+#define NGTCP2_PV_ENTRY_FLAG_NONE 0x00U
 /* NGTCP2_PV_ENTRY_FLAG_UNDERSIZED indicates that UDP datagram which
    contains PATH_CHALLENGE is undersized (< 1200 bytes) */
-#define NGTCP2_PV_ENTRY_FLAG_UNDERSIZED 0x01u
+#define NGTCP2_PV_ENTRY_FLAG_UNDERSIZED 0x01U
 
 typedef struct ngtcp2_pv_entry {
   /* expiry is the timestamp when this PATH_CHALLENGE expires. */
@@ -64,23 +64,23 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
                           ngtcp2_tstamp expiry, uint8_t flags);
 
 /* NGTCP2_PV_FLAG_NONE indicates no flag is set. */
-#define NGTCP2_PV_FLAG_NONE 0x00u
+#define NGTCP2_PV_FLAG_NONE 0x00U
 /* NGTCP2_PV_FLAG_DONT_CARE indicates that the outcome of path
    validation should be ignored entirely. */
-#define NGTCP2_PV_FLAG_DONT_CARE 0x01u
+#define NGTCP2_PV_FLAG_DONT_CARE 0x01U
 /* NGTCP2_PV_FLAG_CANCEL_TIMER indicates that the expiry timer is
    cancelled. */
-#define NGTCP2_PV_FLAG_CANCEL_TIMER 0x02u
+#define NGTCP2_PV_FLAG_CANCEL_TIMER 0x02U
 /* NGTCP2_PV_FLAG_FALLBACK_PRESENT indicates that a fallback
    Destination Connection ID and PTO are available in ngtcp2_pv.  If
    path validation fails, then fallback to them.  If path validation
    succeeds, the fallback Destination Connection ID is retired if it
    is not zero length, and does not equal to the current Destination
    Connection ID. */
-#define NGTCP2_PV_FLAG_FALLBACK_PRESENT 0x04u
+#define NGTCP2_PV_FLAG_FALLBACK_PRESENT 0x04U
 /* NGTCP2_PV_FLAG_PREFERRED_ADDR indicates that client is migrating to
    server's preferred address.  This flag is only used by client. */
-#define NGTCP2_PV_FLAG_PREFERRED_ADDR 0x10u
+#define NGTCP2_PV_FLAG_PREFERRED_ADDR 0x10U
 
 typedef struct ngtcp2_pv ngtcp2_pv;
 

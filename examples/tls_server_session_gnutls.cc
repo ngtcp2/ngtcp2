@@ -107,7 +107,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
 
   gnutls_anti_replay_enable(session_, tls_ctx.get_anti_replay());
 
-  gnutls_record_set_max_early_data_size(session_, 0xffffffffu);
+  gnutls_record_set_max_early_data_size(session_, 0xFFFFFFFFU);
 
   gnutls_session_set_ptr(session_, handler->conn_ref());
 

@@ -263,7 +263,7 @@ int64_t Stream::find_dyn_length(const std::string_view &path) {
       return -1;
     }
     auto d = static_cast<uint64_t>(*it - '0');
-    if (n > (((1ull << 62) - 1) - d) / 10) {
+    if (n > (((1ULL << 62) - 1) - d) / 10) {
       return -1;
     }
     n = n * 10 + d;
@@ -2630,22 +2630,22 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
 
 namespace {
 uint32_t generate_reserved_version(const Address &addr, uint32_t version) {
-  uint32_t h = 0x811C9DC5u;
+  uint32_t h = 0x811C9DC5U;
   const uint8_t *p = reinterpret_cast<const uint8_t *>(addr.as_sockaddr());
   const uint8_t *ep = p + addr.size();
   for (; p != ep; ++p) {
     h ^= *p;
-    h *= 0x01000193u;
+    h *= 0x01000193U;
   }
   version = htonl(version);
   p = (const uint8_t *)&version;
   ep = p + sizeof(version);
   for (; p != ep; ++p) {
     h ^= *p;
-    h *= 0x01000193u;
+    h *= 0x01000193U;
   }
-  h &= 0xf0f0f0f0u;
-  h |= 0x0a0a0a0au;
+  h &= 0xF0F0F0F0U;
+  h |= 0x0A0A0A0AU;
   return h;
 }
 } // namespace
@@ -3839,7 +3839,7 @@ int main(int argc, char **argv) {
         }
 
         config.origin_list->push_back(static_cast<uint8_t>(origin.size() >> 8));
-        config.origin_list->push_back(origin.size() & 0xff);
+        config.origin_list->push_back(origin.size() & 0xFF);
         std::ranges::copy(origin, std::back_inserter(*config.origin_list));
 
         break;

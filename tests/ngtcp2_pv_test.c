@@ -46,7 +46,7 @@ void test_ngtcp2_pv_add_entry(void) {
   int rv;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_cid cid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
   ngtcp2_dcid dcid;
   ngtcp2_log log;
   uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN] = {0};
@@ -103,7 +103,7 @@ void test_ngtcp2_pv_validate(void) {
   int rv;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_cid cid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
   ngtcp2_dcid dcid;
   ngtcp2_log log;
   uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
@@ -150,8 +150,8 @@ void test_ngtcp2_pv_cancel_expired_timer(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_cid cid;
   ngtcp2_dcid dcid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
-  const uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN] = {0xee};
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  const uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN] = {0xEE};
   ngtcp2_log log;
   int rv;
 
