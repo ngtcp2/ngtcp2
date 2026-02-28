@@ -100,7 +100,7 @@ install(
   DESTINATION "${NGTCP2_CONFIG_INSTALL_DIR}")
 
 # Public shared library
-if(ENABLE_SHARED_LIB)
+if(NGTCP2_ENABLE_SHARED_LIB)
   add_library(ngtcp2 SHARED ${ngtcp2_SOURCES})
   set_target_properties(ngtcp2 PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
@@ -117,7 +117,7 @@ if(ENABLE_SHARED_LIB)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
-if(ENABLE_STATIC_LIB)
+if(NGTCP2_ENABLE_STATIC_LIB)
   # Public static library
   add_library(ngtcp2_static STATIC ${ngtcp2_SOURCES})
   set_target_properties(ngtcp2_static PROPERTIES
