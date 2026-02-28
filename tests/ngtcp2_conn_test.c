@@ -1222,7 +1222,8 @@ static void setup_default_client_with_options(ngtcp2_conn **pconn,
   assert_int(0, ==, rv);
 
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_TOKEN_PRESENT;
-  memset((*pconn)->dcid.current.token, 0xF1, NGTCP2_STATELESS_RESET_TOKENLEN);
+  (*pconn)->dcid.current.token =
+    (ngtcp2_stateless_reset_token)make_client_stateless_reset_token();
   (*pconn)->handshake_confirmed_ts = 0;
 }
 
@@ -3921,14 +3922,10 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   uint8_t buf[256];
   ngtcp2_ssize spktlen;
   int rv;
-  size_t i;
-  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  static const ngtcp2_stateless_reset_token token =
+    make_stateless_reset_token();
   ngtcp2_callbacks callbacks;
   conn_options opts;
-
-  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
-    token[i] = (uint8_t)~i;
-  }
 
   /* server */
   server_default_callbacks(&callbacks);
@@ -3941,10 +3938,11 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   setup_default_server_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 24324325;
 
-  ngtcp2_dcid_set_token(&conn->dcid.current, token);
+  ngtcp2_dcid_set_token(&conn->dcid.current, &token);
 
-  spktlen = ngtcp2_pkt_write_stateless_reset(
-    buf, sizeof(buf), token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
+  spktlen =
+    ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token.data, null_data,
+                                     NGTCP2_MIN_STATELESS_RESET_RANDLEN);
 
   assert_ptrdiff(0, <, spktlen);
 
@@ -3967,10 +3965,10 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   setup_default_client_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 3255454;
 
-  ngtcp2_dcid_set_token(&conn->dcid.current, token);
+  ngtcp2_dcid_set_token(&conn->dcid.current, &token);
 
-  spktlen =
-    ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token, null_data, 29);
+  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token.data,
+                                             null_data, 29);
 
   assert_ptrdiff(0, <, spktlen);
 
@@ -3993,10 +3991,11 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   setup_default_server_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 754233;
 
-  ngtcp2_dcid_set_token(&conn->dcid.current, token);
+  ngtcp2_dcid_set_token(&conn->dcid.current, &token);
 
-  spktlen = ngtcp2_pkt_write_stateless_reset(
-    buf, sizeof(buf), token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
+  spktlen =
+    ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token.data, null_data,
+                                     NGTCP2_MIN_STATELESS_RESET_RANDLEN);
 
   assert_ptrdiff(0, <, spktlen);
 
@@ -4022,10 +4021,10 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   setup_default_server_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 754233;
 
-  ngtcp2_dcid_set_token(&conn->dcid.current, token);
+  ngtcp2_dcid_set_token(&conn->dcid.current, &token);
 
   spktlen = ngtcp2_pkt_write_stateless_reset(
-    buf, 41, token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
+    buf, 41, token.data, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN + 1);
 
   assert_ptrdiff(0, <, spktlen);
 
@@ -4057,8 +4056,8 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   setup_default_client_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 24324325;
 
-  spktlen =
-    ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token, null_data, 29);
+  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token.data,
+                                             null_data, 29);
 
   assert_ptrdiff(0, <, spktlen);
 
@@ -9459,12 +9458,27 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   ngtcp2_tstamp t = 0;
   ngtcp2_frame fr;
   ngtcp2_frame frs[16];
-  const uint8_t cid[] = {0xF0, 0xF1, 0xF2, 0xF3};
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
-  const uint8_t cid2[] = {0xF0, 0xF1, 0xF2, 0xF4};
-  const uint8_t token2[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFE};
-  const uint8_t cid3[] = {0xF0, 0xF1, 0xF2, 0xF5};
-  const uint8_t token3[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFD};
+  static const ngtcp2_cid cid = {
+    .datalen = 4,
+    .data = {0xF0, 0xF1, 0xF2, 0xF3},
+  };
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFF},
+  };
+  static const ngtcp2_cid cid2 = {
+    .datalen = 4,
+    .data = {0xF0, 0xF1, 0xF2, 0xF4},
+  };
+  static const ngtcp2_stateless_reset_token token2 = {
+    .data = {0xFE},
+  };
+  static const ngtcp2_cid cid3 = {
+    .datalen = 4,
+    .data = {0xF0, 0xF1, 0xF2, 0xF5},
+  };
+  static const ngtcp2_stateless_reset_token token3 = {
+    .data = {0xFD},
+  };
   ngtcp2_dcid *dcid;
   int rv;
   ngtcp2_frame_chain *frc;
@@ -9484,9 +9498,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   fr.new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
+    .cid = cid,
+    .token = token,
   };
-  ngtcp2_cid_init(&fr.new_connection_id.cid, cid, sizeof(cid));
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -9498,16 +9512,16 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   dcid = ngtcp2_ringbuf_get(&conn->dcid.dtr.unused.rb, 0);
   assert_true(ngtcp2_cid_eq(&fr.new_connection_id.cid, &dcid->cid));
   assert_true(dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT);
-  assert_memory_equal(sizeof(fr.new_connection_id.stateless_reset_token),
-                      fr.new_connection_id.stateless_reset_token, dcid->token);
+  assert_true(
+    ngtcp2_stateless_reset_token_eq(&fr.new_connection_id.token, &dcid->token));
 
   fr.new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 2,
     .retire_prior_to = 2,
+    .cid = cid2,
+    .token = token2,
   };
-  ngtcp2_cid_init(&fr.new_connection_id.cid, cid2, sizeof(cid2));
-  memcpy(fr.new_connection_id.stateless_reset_token, token2, sizeof(token2));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -9550,9 +9564,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 2,
     .retire_prior_to = 2,
+    .cid = cid,
+    .token = token,
   };
-  ngtcp2_cid_init(&fr.new_connection_id.cid, cid, sizeof(cid));
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -9576,9 +9590,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   fr.new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
+    .cid = cid2,
+    .token = token2,
   };
-  ngtcp2_cid_init(&fr.new_connection_id.cid, cid2, sizeof(cid2));
-  memcpy(fr.new_connection_id.stateless_reset_token, token2, sizeof(token2));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -9626,23 +9640,21 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   frs[1].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
+    .cid = cid,
+    .token = token,
   };
-  ngtcp2_cid_init(&frs[1].new_connection_id.cid, cid, sizeof(cid));
-  memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
   frs[2].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 2,
+    .cid = cid2,
+    .token = token2,
   };
-  ngtcp2_cid_init(&frs[2].new_connection_id.cid, cid2, sizeof(cid2));
-  memcpy(frs[2].new_connection_id.stateless_reset_token, token2,
-         sizeof(token2));
   frs[3].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 3,
+    .cid = cid3,
+    .token = token3,
   };
-  ngtcp2_cid_init(&frs[3].new_connection_id.cid, cid3, sizeof(cid3));
-  memcpy(frs[3].new_connection_id.stateless_reset_token, token3,
-         sizeof(token3));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 4);
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
@@ -9661,9 +9673,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 3,
     .retire_prior_to = 2,
+    .cid = cid3,
+    .token = token3,
   };
-  ngtcp2_cid_init(&fr.new_connection_id.cid, cid3, sizeof(cid3));
-  memcpy(fr.new_connection_id.stateless_reset_token, token3, sizeof(token3));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -9703,9 +9715,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   frs[1].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
+    .cid = cid,
+    .token = token,
   };
-  ngtcp2_cid_init(&frs[1].new_connection_id.cid, cid, sizeof(cid));
-  memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
@@ -9723,9 +9735,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 2,
     .retire_prior_to = 2,
+    .cid = cid2,
+    .token = token2,
   };
-  ngtcp2_cid_init(&fr.new_connection_id.cid, cid2, sizeof(cid2));
-  memcpy(fr.new_connection_id.stateless_reset_token, token2, sizeof(token2));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -9765,9 +9777,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   frs[1].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
+    .cid = cid,
+    .token = token,
   };
-  ngtcp2_cid_init(&frs[1].new_connection_id.cid, cid, sizeof(cid));
-  memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
@@ -9791,9 +9803,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 3,
     .retire_prior_to = 3,
+    .cid = cid3,
+    .token = token3,
   };
-  ngtcp2_cid_init(&fr.new_connection_id.cid, cid3, sizeof(cid3));
-  memcpy(fr.new_connection_id.stateless_reset_token, token3, sizeof(token3));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -9838,23 +9850,21 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   frs[0].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
+    .cid = cid,
+    .token = token,
   };
-  ngtcp2_cid_init(&frs[0].new_connection_id.cid, cid, sizeof(cid));
-  memcpy(frs[0].new_connection_id.stateless_reset_token, token, sizeof(token));
   frs[1].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 2,
+    .cid = cid2,
+    .token = token2,
   };
-  ngtcp2_cid_init(&frs[1].new_connection_id.cid, cid2, sizeof(cid2));
-  memcpy(frs[1].new_connection_id.stateless_reset_token, token2,
-         sizeof(token2));
   frs[2].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 3,
+    .cid = cid3,
+    .token = token3,
   };
-  ngtcp2_cid_init(&frs[2].new_connection_id.cid, cid3, sizeof(cid3));
-  memcpy(frs[2].new_connection_id.stateless_reset_token, token3,
-         sizeof(token3));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 3);
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
@@ -9878,18 +9888,17 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .retire_prior_to = 1,
+    .cid = cid,
+    .token = token,
   };
-  ngtcp2_cid_init(&frs[1].new_connection_id.cid, cid, sizeof(cid));
-  memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
 
   frs[2].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 2,
     .retire_prior_to = 1,
+    .cid = cid2,
+    .token = token2,
   };
-  ngtcp2_cid_init(&frs[2].new_connection_id.cid, cid2, sizeof(cid2));
-  memcpy(frs[2].new_connection_id.stateless_reset_token, token2,
-         sizeof(token2));
 
   frs[3].padding = (ngtcp2_padding){
     .type = NGTCP2_FRAME_PADDING,
@@ -9949,11 +9958,13 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
     frs[i].new_connection_id = (ngtcp2_new_connection_id){
       .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
       .seq = i + 1,
+      .cid =
+        {
+          .datalen = 4,
+          .data = {(uint8_t)i, 0xF1, 0xF2, 0xF3},
+        },
+      .token = token,
     };
-    ngtcp2_cid_init(&frs[i].new_connection_id.cid, cid, sizeof(cid));
-    frs[i].new_connection_id.cid.data[0] = (uint8_t)i;
-    memcpy(frs[i].new_connection_id.stateless_reset_token, token,
-           sizeof(token));
   }
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 7);
@@ -9966,11 +9977,13 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
       .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
       .seq = i + 8,
       .retire_prior_to = 8,
+      .cid =
+        {
+          .datalen = 4,
+          .data = {(uint8_t)(i + 8), 0xF1, 0xF2, 0xF3},
+        },
+      .token = token,
     };
-    ngtcp2_cid_init(&frs[i].new_connection_id.cid, cid, sizeof(cid));
-    frs[i].new_connection_id.cid.data[0] = (uint8_t)(i + 8);
-    memcpy(frs[i].new_connection_id.stateless_reset_token, token,
-           sizeof(token));
   }
 
   for (i = 0; i < 8; ++i) {
@@ -9978,11 +9991,13 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
       .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
       .seq = i + 16,
       .retire_prior_to = 16,
+      .cid =
+        {
+          .datalen = 4,
+          .data = {(uint8_t)(i + 16), 0xF1, 0xF2, 0xF3},
+        },
+      .token = token,
     };
-    ngtcp2_cid_init(&frs[i + 8].new_connection_id.cid, cid, sizeof(cid));
-    frs[i + 8].new_connection_id.cid.data[0] = (uint8_t)(i + 16);
-    memcpy(frs[i + 8].new_connection_id.stateless_reset_token, token,
-           sizeof(token));
   }
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 16);
@@ -9994,10 +10009,13 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 24,
     .retire_prior_to = 17,
+    .cid =
+      {
+        .datalen = 4,
+        .data = {(uint8_t)(i + 24), 0xF1, 0xF2, 0xF3},
+      },
+    .token = token,
   };
-  ngtcp2_cid_init(&frs[0].new_connection_id.cid, cid, sizeof(cid));
-  frs[0].new_connection_id.cid.data[0] = (uint8_t)(i + 24);
-  memcpy(frs[0].new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
@@ -10113,9 +10131,14 @@ void test_ngtcp2_conn_server_path_validation(void) {
   ngtcp2_frame fr;
   ngtcp2_frame frs[2];
   int rv;
-  const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
-  ngtcp2_cid cid, *new_cid, orig_dcid, zerolen_cid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  static const ngtcp2_cid cid = {
+    .datalen = 4,
+    .data = {0x0F, 0x00, 0x00, 0x00},
+  };
+  ngtcp2_cid *new_cid, orig_dcid, zerolen_cid;
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFF},
+  };
   ngtcp2_path_storage new_path1, new_path2, new_path3;
   ngtcp2_ksl_it it;
   ngtcp2_path_history_entry *ph_ent;
@@ -10127,7 +10150,6 @@ void test_ngtcp2_conn_server_path_validation(void) {
   path_init(&new_path2, 0, 0, 3, 0);
   path_init(&new_path3, 1, 0, 0, 0);
 
-  ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
   ngtcp2_cid_zero(&zerolen_cid);
 
   setup_default_server(&conn);
@@ -10143,15 +10165,18 @@ void test_ngtcp2_conn_server_path_validation(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(frs[0].new_connection_id.stateless_reset_token, token, sizeof(token));
   frs[1].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 2,
-    .cid = cid,
+    .cid =
+      {
+        .datalen = 4,
+        .data = {0x1F, 0x00, 0x00, 0x00},
+      },
+    .token = token,
   };
-  frs[1].new_connection_id.cid.data[0] = 0x1F;
-  memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
 
@@ -10266,8 +10291,8 @@ void test_ngtcp2_conn_server_path_validation(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10343,8 +10368,8 @@ void test_ngtcp2_conn_server_path_validation(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10426,8 +10451,8 @@ void test_ngtcp2_conn_server_path_validation(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10561,16 +10586,18 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   ngtcp2_tstamp t = 900;
   ngtcp2_frame fr[2];
   int rv;
-  const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
-  ngtcp2_cid cid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  static const ngtcp2_cid cid = {
+    .datalen = 4,
+    .data = {0x0F, 0x00, 0x00, 0x00},
+  };
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFF},
+  };
   my_user_data ud;
   ngtcp2_ssize spktlen;
   ngtcp2_path_storage to_path;
   ngtcp2_tpe tpe;
   ngtcp2_path_history_entry *ph_ent;
-
-  ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
   /* immediate migration */
   setup_default_client(&conn);
@@ -10580,8 +10607,8 @@ void test_ngtcp2_conn_client_connection_migration(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr[0].new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
 
@@ -10630,15 +10657,18 @@ void test_ngtcp2_conn_client_connection_migration(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr[0].new_connection_id.stateless_reset_token, token, sizeof(token));
   fr[1].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 2,
-    .cid = cid,
+    .cid =
+      {
+        .datalen = 4,
+        .data = {0x0E, 0x00, 0x00, 0x00},
+      },
+    .token = token,
   };
-  fr[1].new_connection_id.cid.data[0] = 0x0E;
-  memcpy(fr[1].new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 2);
 
@@ -10701,9 +10731,13 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   ngtcp2_frame fr;
   ngtcp2_frame frs[2];
   int rv;
-  const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
-  ngtcp2_cid cid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  static const ngtcp2_cid cid = {
+    .datalen = 4,
+    .data = {0x0F, 0x00, 0x00, 0x00},
+  };
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFF},
+  };
   const uint8_t data[] = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8};
   const uint8_t data2[] = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF9};
   ngtcp2_path_storage ps;
@@ -10715,8 +10749,6 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   ngtcp2_tpe tpe;
   conn_options opts;
 
-  ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
-
   setup_default_server(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
@@ -10724,8 +10756,8 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10800,8 +10832,8 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10844,8 +10876,8 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10905,8 +10937,8 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10956,8 +10988,8 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -12078,8 +12110,8 @@ void test_ngtcp2_conn_get_active_dcid(void) {
     .datalen = 4,
     .data = {0xDE, 0xAD, 0xBE, 0xEF},
   };
-  static uint8_t token[] = {0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1,
-                            0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1};
+  static const ngtcp2_stateless_reset_token token =
+    make_client_stateless_reset_token();
   ngtcp2_tpe tpe;
   ngtcp2_frame fr, frs[3];
   size_t pktlen;
@@ -12099,7 +12131,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_true(ngtcp2_cid_eq(&dcid, &cid_token[0].cid));
   assert_true(ngtcp2_path_eq(&null_path.path, &cid_token[0].ps.path));
   assert_true(cid_token[0].token_present);
-  assert_memory_equal(NGTCP2_STATELESS_RESET_TOKENLEN, token,
+  assert_memory_equal(NGTCP2_STATELESS_RESET_TOKENLEN, token.data,
                       cid_token[0].token);
 
   ngtcp2_conn_del(conn);
@@ -12155,8 +12187,8 @@ void test_ngtcp2_conn_get_active_dcid(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = new_dcid,
+    .token = token,
   };
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -12185,8 +12217,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_uint64(1, ==, cid_token[0].seq);
   assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token[0].cid));
   assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
-  assert_memory_equal(sizeof(NGTCP2_STATELESS_RESET_TOKENLEN), token,
-                      cid_token[0].token);
+  assert_memory_equal(sizeof(token.data), token.data, cid_token[0].token);
 
   dcid_init(&dcid);
 
@@ -12221,8 +12252,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_uint64(1, ==, cid_token[0].seq);
   assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token[0].cid));
   assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
-  assert_memory_equal(sizeof(NGTCP2_STATELESS_RESET_TOKENLEN), token,
-                      cid_token[0].token);
+  assert_memory_equal(sizeof(token.data), token.data, cid_token[0].token);
 
   dcid_init(&dcid);
 
@@ -12257,8 +12287,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_uint64(1, ==, cid_token[0].seq);
   assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token[0].cid));
   assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
-  assert_memory_equal(sizeof(NGTCP2_STATELESS_RESET_TOKENLEN), token,
-                      cid_token[0].token);
+  assert_memory_equal(sizeof(token.data), token.data, cid_token[0].token);
 
   dcid_init(&dcid);
 
@@ -12291,8 +12320,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_uint64(1, ==, cid_token[0].seq);
   assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token[0].cid));
   assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
-  assert_memory_equal(sizeof(NGTCP2_STATELESS_RESET_TOKENLEN), token,
-                      cid_token[0].token);
+  assert_memory_equal(sizeof(token.data), token.data, cid_token[0].token);
 
   ngtcp2_conn_del(conn);
 }
@@ -14551,13 +14579,15 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
   ngtcp2_tstamp expiry;
   ngtcp2_frame fr;
   int rv;
-  ngtcp2_cid cid;
-  const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  static const ngtcp2_cid cid = {
+    .datalen = 4,
+    .data = {0x0F, 0x00, 0x00, 0x00},
+  };
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFF},
+  };
   const uint8_t data[] = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8};
   ngtcp2_tpe tpe;
-
-  ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
   setup_default_server(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
@@ -14566,8 +14596,8 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1,
     .cid = cid,
+    .token = token,
   };
-  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -17608,7 +17638,10 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
         .data = {0xFE},
         .datalen = 11,
       },
-    .stateless_reset_token = {0xAB},
+    .token =
+      {
+        .data = {0xAB},
+      },
   };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);

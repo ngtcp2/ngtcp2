@@ -547,8 +547,7 @@ write_new_connection_id_frame(uint8_t *p, const ngtcp2_new_connection_id *fr) {
   *p++ = ',';
   p = write_pair_cid(p, "connection_id", &fr->cid);
   p = write_verbatim(p, ",\"stateless_reset_token\":{");
-  p = write_pair_hex(p, "data", fr->stateless_reset_token,
-                     sizeof(fr->stateless_reset_token));
+  p = write_pair_hex(p, "data", fr->token.data, sizeof(fr->token.data));
   *p++ = '}';
   *p++ = '}';
 
@@ -1118,7 +1117,7 @@ void ngtcp2_qlog_retry_pkt_received(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
 }
 
 void ngtcp2_qlog_stateless_reset_pkt_received(
-  ngtcp2_qlog *qlog, const ngtcp2_pkt_stateless_reset *sr) {
+  ngtcp2_qlog *qlog, const ngtcp2_pkt_stateless_reset2 *sr) {
   uint8_t buf[256];
   uint8_t *p = buf;
 
@@ -1135,8 +1134,8 @@ void ngtcp2_qlog_stateless_reset_pkt_received(
                         .type = NGTCP2_PKT_STATELESS_RESET,
                       });
   *p++ = ',';
-  p = write_pair_hex(p, "stateless_reset_token", sr->stateless_reset_token,
-                     NGTCP2_STATELESS_RESET_TOKENLEN);
+  p = write_pair_hex(p, "stateless_reset_token", sr->token.data,
+                     sizeof(sr->token.data));
   p = write_verbatim(p, "}}\n");
 
   qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,

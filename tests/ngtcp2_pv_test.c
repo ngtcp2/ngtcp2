@@ -45,16 +45,17 @@ void test_ngtcp2_pv_add_entry(void) {
   ngtcp2_pv *pv;
   int rv;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
-  ngtcp2_cid cid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  static const ngtcp2_cid cid = make_dcid();
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFF},
+  };
   ngtcp2_dcid dcid;
   ngtcp2_log log;
   uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN] = {0};
   size_t i;
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
 
-  dcid_init(&cid);
-  ngtcp2_dcid_init(&dcid, 1000000007, &cid, token);
+  ngtcp2_dcid_init(&dcid, 1000000007, &cid, &token);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
   rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_NONE, &log, mem);
@@ -102,8 +103,10 @@ void test_ngtcp2_pv_validate(void) {
   ngtcp2_pv *pv;
   int rv;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
-  ngtcp2_cid cid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  static const ngtcp2_cid cid = make_dcid();
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFF},
+  };
   ngtcp2_dcid dcid;
   ngtcp2_log log;
   uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
@@ -112,8 +115,7 @@ void test_ngtcp2_pv_validate(void) {
   uint8_t flags;
 
   path_init(&path, 1, 0, 2, 0);
-  dcid_init(&cid);
-  ngtcp2_dcid_init(&dcid, 1000000007, &cid, token);
+  ngtcp2_dcid_init(&dcid, 1000000007, &cid, &token);
   ngtcp2_path_copy(&dcid.ps.path, &path.path);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
@@ -148,15 +150,16 @@ void test_ngtcp2_pv_validate(void) {
 void test_ngtcp2_pv_cancel_expired_timer(void) {
   ngtcp2_pv *pv;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
-  ngtcp2_cid cid;
+  static const ngtcp2_cid cid = make_dcid();
   ngtcp2_dcid dcid;
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFF};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFF},
+  };
   const uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN] = {0xEE};
   ngtcp2_log log;
   int rv;
 
-  dcid_init(&cid);
-  ngtcp2_dcid_init(&dcid, 9, &cid, token);
+  ngtcp2_dcid_init(&dcid, 9, &cid, &token);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
   rv = ngtcp2_pv_new(&pv, &dcid, 3 * NGTCP2_SECONDS, NGTCP2_PV_FLAG_NONE, &log,

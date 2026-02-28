@@ -101,7 +101,9 @@ void test_ngtcp2_dcidtr_track_retired_seq(void) {
 void test_ngtcp2_dcidtr_bind_dcid(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_cid cid = {0};
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {5};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {5},
+  };
   ngtcp2_dcid *dcid = NULL;
   ngtcp2_path_storage ps;
   ngtcp2_tstamp t = 1000000007;
@@ -112,7 +114,7 @@ void test_ngtcp2_dcidtr_bind_dcid(void) {
   path_init(&ps, 0, 0, 0, 7);
   ngtcp2_dcidtr_init(&dtr);
 
-  ngtcp2_dcidtr_push_unused(&dtr, 0, &cid, token);
+  ngtcp2_dcidtr_push_unused(&dtr, 0, &cid, &token);
 
   rv = ngtcp2_dcidtr_bind_dcid(&dtr, &dcid, &ps.path, t, NULL, NULL);
 
@@ -127,7 +129,7 @@ void test_ngtcp2_dcidtr_bind_dcid(void) {
   ngtcp2_dcidtr_init(&dtr);
 
   for (i = 0; i < NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE + 1; ++i) {
-    ngtcp2_dcidtr_push_unused(&dtr, i, &cid, token);
+    ngtcp2_dcidtr_push_unused(&dtr, i, &cid, &token);
   }
 
   for (i = 0; i < NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE; ++i) {
@@ -150,7 +152,9 @@ void test_ngtcp2_dcidtr_bind_dcid(void) {
 void test_ngtcp2_dcidtr_find_bound_dcid(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_cid cid = {0};
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {8};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {8},
+  };
   ngtcp2_dcid *dcid;
   ngtcp2_path_storage ps[2];
   ngtcp2_tstamp t = 0;
@@ -163,7 +167,7 @@ void test_ngtcp2_dcidtr_find_bound_dcid(void) {
 
   ngtcp2_dcidtr_init(&dtr);
 
-  ngtcp2_dcidtr_push_unused(&dtr, 0, &cid, token);
+  ngtcp2_dcidtr_push_unused(&dtr, 0, &cid, &token);
 
   rv = ngtcp2_dcidtr_bind_dcid(&dtr, &dcid, &ps[0].path, t, NULL, NULL);
 
@@ -211,10 +215,16 @@ void test_ngtcp2_dcidtr_verify_stateless_reset(void) {
       .datalen = 7,
     },
   };
-  const uint8_t token[][NGTCP2_STATELESS_RESET_TOKENLEN] = {
-    {1},
-    {2},
-    {3},
+  static const ngtcp2_stateless_reset_token token[] = {
+    {
+      .data = {1},
+    },
+    {
+      .data = {2},
+    },
+    {
+      .data = {3},
+    },
   };
   ngtcp2_dcid *dcid;
   ngtcp2_dcid active_dcid;
@@ -228,29 +238,29 @@ void test_ngtcp2_dcidtr_verify_stateless_reset(void) {
   ngtcp2_dcidtr_init(&dtr);
 
   for (i = 0; i < ngtcp2_arraylen(cid) - 1; ++i) {
-    ngtcp2_dcidtr_push_unused(&dtr, i, &cid[i], token[i]);
+    ngtcp2_dcidtr_push_unused(&dtr, i, &cid[i], &token[i]);
   }
 
   rv = ngtcp2_dcidtr_bind_dcid(&dtr, &dcid, &ps[0].path, 0, NULL, NULL);
 
   assert_int(0, ==, rv);
 
-  rv = ngtcp2_dcidtr_verify_stateless_reset(&dtr, &ps[0].path, token[0]);
+  rv = ngtcp2_dcidtr_verify_stateless_reset(&dtr, &ps[0].path, &token[0]);
 
   assert_int(0, ==, rv);
 
-  rv = ngtcp2_dcidtr_verify_stateless_reset(&dtr, &ps[1].path, token[1]);
+  rv = ngtcp2_dcidtr_verify_stateless_reset(&dtr, &ps[1].path, &token[1]);
 
   assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
 
-  ngtcp2_dcid_init(&active_dcid, 2, &cid[2], token[2]);
+  ngtcp2_dcid_init(&active_dcid, 2, &cid[2], &token[2]);
   ngtcp2_dcid_set_path(&active_dcid, &ps[2].path);
 
   rv = ngtcp2_dcidtr_retire_active_dcid(&dtr, &active_dcid, 0, NULL, NULL);
 
   assert_int(0, ==, rv);
 
-  rv = ngtcp2_dcidtr_verify_stateless_reset(&dtr, &ps[2].path, token[2]);
+  rv = ngtcp2_dcidtr_verify_stateless_reset(&dtr, &ps[2].path, &token[2]);
 
   assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
 }
@@ -272,10 +282,16 @@ void test_ngtcp2_dcidtr_verify_token_uniqueness(void) {
       .datalen = 7,
     },
   };
-  const uint8_t token[][NGTCP2_STATELESS_RESET_TOKENLEN] = {
-    {1},
-    {2},
-    {3},
+  static const ngtcp2_stateless_reset_token token[] = {
+    {
+      .data = {1},
+    },
+    {
+      .data = {2},
+    },
+    {
+      .data = {3},
+    },
   };
   ngtcp2_dcid *dcid;
   size_t i;
@@ -289,7 +305,7 @@ void test_ngtcp2_dcidtr_verify_token_uniqueness(void) {
   ngtcp2_dcidtr_init(&dtr);
 
   for (i = 0; i < ngtcp2_arraylen(cid) - 1; ++i) {
-    ngtcp2_dcidtr_push_unused(&dtr, i, &cid[i], token[i]);
+    ngtcp2_dcidtr_push_unused(&dtr, i, &cid[i], &token[i]);
   }
 
   rv = ngtcp2_dcidtr_bind_dcid(&dtr, &dcid, &ps[0].path, 0, NULL, NULL);
@@ -298,32 +314,32 @@ void test_ngtcp2_dcidtr_verify_token_uniqueness(void) {
 
   found = 0;
   rv =
-    ngtcp2_dcidtr_verify_token_uniqueness(&dtr, &found, 0, &cid[0], token[0]);
+    ngtcp2_dcidtr_verify_token_uniqueness(&dtr, &found, 0, &cid[0], &token[0]);
 
   assert_int(0, ==, rv);
   assert_true(found);
 
   found = 0;
   rv =
-    ngtcp2_dcidtr_verify_token_uniqueness(&dtr, &found, 1, &cid[1], token[1]);
+    ngtcp2_dcidtr_verify_token_uniqueness(&dtr, &found, 1, &cid[1], &token[1]);
 
   assert_int(0, ==, rv);
   assert_true(found);
 
   found = 0;
   rv =
-    ngtcp2_dcidtr_verify_token_uniqueness(&dtr, &found, 2, &cid[2], token[2]);
+    ngtcp2_dcidtr_verify_token_uniqueness(&dtr, &found, 2, &cid[2], &token[2]);
 
   assert_int(0, ==, rv);
   assert_false(found);
 
   rv =
-    ngtcp2_dcidtr_verify_token_uniqueness(&dtr, &found, 1, &cid[2], token[2]);
+    ngtcp2_dcidtr_verify_token_uniqueness(&dtr, &found, 1, &cid[2], &token[2]);
 
   assert_int(NGTCP2_ERR_PROTO, ==, rv);
 
   rv =
-    ngtcp2_dcidtr_verify_token_uniqueness(&dtr, &found, 2, &cid[0], token[0]);
+    ngtcp2_dcidtr_verify_token_uniqueness(&dtr, &found, 2, &cid[0], &token[0]);
 
   assert_int(NGTCP2_ERR_PROTO, ==, rv);
 }
@@ -349,11 +365,19 @@ void test_ngtcp2_dcidtr_retire_inactive_dcid_prior_to(void) {
       .datalen = 7,
     },
   };
-  const uint8_t token[][NGTCP2_STATELESS_RESET_TOKENLEN] = {
-    {1},
-    {2},
-    {3},
-    {4},
+  static const ngtcp2_stateless_reset_token token[] = {
+    {
+      .data = {1},
+    },
+    {
+      .data = {2},
+    },
+    {
+      .data = {3},
+    },
+    {
+      .data = {4},
+    },
   };
   ngtcp2_dcid *dcid;
   size_t i;
@@ -367,7 +391,7 @@ void test_ngtcp2_dcidtr_retire_inactive_dcid_prior_to(void) {
   ngtcp2_dcidtr_init(&dtr);
 
   for (i = 0; i < ngtcp2_arraylen(cid); ++i) {
-    ngtcp2_dcidtr_push_unused(&dtr, i, &cid[i], token[i]);
+    ngtcp2_dcidtr_push_unused(&dtr, i, &cid[i], &token[i]);
   }
 
   for (i = 0; i < 2; ++i) {
@@ -396,7 +420,9 @@ void test_ngtcp2_dcidtr_retire_active_dcid(void) {
     .data = {1},
     .datalen = 9,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {1};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {1},
+  };
   ngtcp2_dcid dcid, *retired_dcid;
   size_t i;
   userdata ud;
@@ -406,7 +432,7 @@ void test_ngtcp2_dcidtr_retire_active_dcid(void) {
   ngtcp2_dcidtr_init(&dtr);
 
   for (i = 0; i < NGTCP2_DCIDTR_MAX_RETIRED_DCID_SIZE; ++i) {
-    ngtcp2_dcid_init(&dcid, i, &cid, token);
+    ngtcp2_dcid_init(&dcid, i, &cid, &token);
     ud.cb_called = 0;
     rv = ngtcp2_dcidtr_retire_active_dcid(&dtr, &dcid, 1000000007 + i,
                                           dcidtr_cb, &ud);
@@ -419,10 +445,10 @@ void test_ngtcp2_dcidtr_retire_active_dcid(void) {
 
     assert_uint64(i, ==, retired_dcid->seq);
     assert_true(ngtcp2_cid_eq(&cid, &retired_dcid->cid));
-    assert_memory_equal(sizeof(token), token, retired_dcid->token);
+    assert_true(ngtcp2_stateless_reset_token_eq(&token, &retired_dcid->token));
   }
 
-  ngtcp2_dcid_init(&dcid, i, &cid, token);
+  ngtcp2_dcid_init(&dcid, i, &cid, &token);
   ud.cb_called = 0;
   rv = ngtcp2_dcidtr_retire_active_dcid(&dtr, &dcid, 1000000007 + i, dcidtr_cb,
                                         &ud);
@@ -435,7 +461,7 @@ void test_ngtcp2_dcidtr_retire_active_dcid(void) {
 
   assert_uint64(i, ==, retired_dcid->seq);
   assert_true(ngtcp2_cid_eq(&cid, &retired_dcid->cid));
-  assert_memory_equal(sizeof(token), token, retired_dcid->token);
+  assert_true(ngtcp2_stateless_reset_token_eq(&token, &retired_dcid->token));
 }
 
 void test_ngtcp2_dcidtr_retire_stale_bound_dcid(void) {
@@ -445,7 +471,9 @@ void test_ngtcp2_dcidtr_retire_stale_bound_dcid(void) {
     .data = {1},
     .datalen = 11,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFE};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFE},
+  };
   ngtcp2_dcid *dcid;
   size_t i;
   userdata ud;
@@ -456,7 +484,7 @@ void test_ngtcp2_dcidtr_retire_stale_bound_dcid(void) {
   ngtcp2_dcidtr_init(&dtr);
 
   for (i = 0; i < 3; ++i) {
-    ngtcp2_dcidtr_push_unused(&dtr, i, &cid, token);
+    ngtcp2_dcidtr_push_unused(&dtr, i, &cid, &token);
 
     rv = ngtcp2_dcidtr_bind_dcid(&dtr, &dcid, &ps.path, t + i, NULL, NULL);
 
@@ -486,7 +514,9 @@ void test_ngtcp2_dcidtr_remove_stale_retired_dcid(void) {
     .data = {1},
     .datalen = 1,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {1};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {1},
+  };
   ngtcp2_dcid dcid, *retired_dcid;
   size_t i;
   userdata ud;
@@ -497,7 +527,7 @@ void test_ngtcp2_dcidtr_remove_stale_retired_dcid(void) {
   ngtcp2_dcidtr_init(&dtr);
 
   for (i = 0; i < NGTCP2_DCIDTR_MAX_RETIRED_DCID_SIZE; ++i) {
-    ngtcp2_dcid_init(&dcid, i, &cid, token);
+    ngtcp2_dcid_init(&dcid, i, &cid, &token);
     ud.cb_called = 0;
     rv = ngtcp2_dcidtr_retire_active_dcid(&dtr, &dcid, t + i, dcidtr_cb, &ud);
 
@@ -532,7 +562,9 @@ void test_ngtcp2_dcidtr_pop_bound_dcid(void) {
     .data = {1},
     .datalen = 11,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFE};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFE},
+  };
   ngtcp2_dcid *dcid, bound_dcid;
   size_t i;
   int rv;
@@ -544,7 +576,7 @@ void test_ngtcp2_dcidtr_pop_bound_dcid(void) {
   ngtcp2_dcidtr_init(&dtr);
 
   for (i = 0; i < 2; ++i) {
-    ngtcp2_dcidtr_push_unused(&dtr, i, &cid, token);
+    ngtcp2_dcidtr_push_unused(&dtr, i, &cid, &token);
 
     rv = ngtcp2_dcidtr_bind_dcid(&dtr, &dcid, &ps[i].path, 0, NULL, NULL);
 
@@ -566,7 +598,9 @@ void test_ngtcp2_dcidtr_earliest_bound_ts(void) {
     .data = {1},
     .datalen = 11,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFE};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFE},
+  };
   ngtcp2_dcid *dcid;
   size_t i;
   int rv;
@@ -578,7 +612,7 @@ void test_ngtcp2_dcidtr_earliest_bound_ts(void) {
   assert_uint64(UINT64_MAX, ==, ngtcp2_dcidtr_earliest_bound_ts(&dtr));
 
   for (i = 0; i < 3; ++i) {
-    ngtcp2_dcidtr_push_unused(&dtr, i, &cid, token);
+    ngtcp2_dcidtr_push_unused(&dtr, i, &cid, &token);
 
     rv = ngtcp2_dcidtr_bind_dcid(&dtr, &dcid, &ps.path, t + i, NULL, NULL);
 
@@ -595,7 +629,9 @@ void test_ngtcp2_dcidtr_earliest_retired_ts(void) {
     .data = {1},
     .datalen = 1,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {1};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {1},
+  };
   ngtcp2_dcid dcid;
   int rv;
   ngtcp2_tstamp t = 1000000009;
@@ -605,7 +641,7 @@ void test_ngtcp2_dcidtr_earliest_retired_ts(void) {
 
   assert_uint64(UINT64_MAX, ==, ngtcp2_dcidtr_earliest_retired_ts(&dtr));
 
-  ngtcp2_dcid_init(&dcid, 0, &cid, token);
+  ngtcp2_dcid_init(&dcid, 0, &cid, &token);
 
   rv = ngtcp2_dcidtr_retire_active_dcid(&dtr, &dcid, t, NULL, NULL);
 
@@ -620,7 +656,9 @@ void test_ngtcp2_dcidtr_pop_unused(void) {
     .data = {1},
     .datalen = 11,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xFE};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFE},
+  };
   ngtcp2_dcid dcid;
   size_t i;
 
@@ -629,7 +667,7 @@ void test_ngtcp2_dcidtr_pop_unused(void) {
   assert_uint64(UINT64_MAX, ==, ngtcp2_dcidtr_earliest_bound_ts(&dtr));
 
   for (i = 0; i < 2; ++i) {
-    ngtcp2_dcidtr_push_unused(&dtr, 9155421 + i, &cid, token);
+    ngtcp2_dcidtr_push_unused(&dtr, 9155421 + i, &cid, &token);
   }
 
   path_init(&dcid.ps, 0, 0, 0, 1);
@@ -657,7 +695,9 @@ void test_ngtcp2_dcidtr_check_path_retired(void) {
     .data = {1},
     .datalen = 1,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {1};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {1},
+  };
   ngtcp2_dcid dcid;
   size_t i;
   int rv;
@@ -668,7 +708,7 @@ void test_ngtcp2_dcidtr_check_path_retired(void) {
   }
 
   ngtcp2_dcidtr_init(&dtr);
-  ngtcp2_dcid_init(&dcid, 0, &cid, token);
+  ngtcp2_dcid_init(&dcid, 0, &cid, &token);
   ngtcp2_dcid_set_path(&dcid, &ps[1].path);
 
   rv = ngtcp2_dcidtr_retire_active_dcid(&dtr, &dcid, t, NULL, NULL);
@@ -685,7 +725,9 @@ void test_ngtcp2_dcidtr_len(void) {
     .data = {1},
     .datalen = 1,
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {1};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {1},
+  };
   ngtcp2_dcid *dcid, retired_dcid;
   size_t i;
   int rv;
@@ -702,7 +744,7 @@ void test_ngtcp2_dcidtr_len(void) {
   assert_false(ngtcp2_dcidtr_bound_full(&dtr));
 
   for (i = 0; i < NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE; ++i) {
-    ngtcp2_dcidtr_push_unused(&dtr, 0, &cid, token);
+    ngtcp2_dcidtr_push_unused(&dtr, 0, &cid, &token);
   }
 
   assert_size(NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE, ==,
@@ -732,7 +774,7 @@ void test_ngtcp2_dcidtr_len(void) {
   assert_true(ngtcp2_dcidtr_bound_full(&dtr));
 
   for (i = 0; i < NGTCP2_DCIDTR_MAX_RETIRED_DCID_SIZE; ++i) {
-    ngtcp2_dcid_init(&retired_dcid, 0, &cid, token);
+    ngtcp2_dcid_init(&retired_dcid, 0, &cid, &token);
 
     rv = ngtcp2_dcidtr_retire_active_dcid(&dtr, &retired_dcid, 0, NULL, NULL);
 

@@ -300,7 +300,7 @@ typedef struct ngtcp2_new_connection_id {
   uint64_t seq;
   uint64_t retire_prior_to;
   ngtcp2_cid cid;
-  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  ngtcp2_stateless_reset_token token;
 } ngtcp2_new_connection_id;
 
 typedef struct ngtcp2_stop_sending {
@@ -514,7 +514,7 @@ size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     Payloadlen is too short.
  */
-int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
+int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset2 *sr,
                                       const uint8_t *payload,
                                       size_t payloadlen);
 
@@ -1322,5 +1322,12 @@ void ngtcp2_pkt_permutate_vec(ngtcp2_vec *data, size_t datacnt,
 size_t ngtcp2_pkt_remove_vec_partial(ngtcp2_vec *removed_data, ngtcp2_vec *data,
                                      size_t datacnt, uint64_t *offsets,
                                      ngtcp2_pcg32 *pcg, const ngtcp2_vec *part);
+
+/*
+ * ngtcp2_stateless_reset_token_eq returns nonzero if |a| and |b|
+ * share the same token.
+ */
+int ngtcp2_stateless_reset_token_eq(const ngtcp2_stateless_reset_token *a,
+                                    const ngtcp2_stateless_reset_token *b);
 
 #endif /* !defined(NGTCP2_PKT_H) */

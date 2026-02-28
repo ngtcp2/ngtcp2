@@ -236,23 +236,11 @@ size_t rtb_entry_length(const ngtcp2_rtb_entry *ent) {
   return len;
 }
 
-void dcid_init(ngtcp2_cid *cid) {
-  static const uint8_t id[] = "\xff\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
-                              "\xaa\xaa\xaa\xaa\xaa\xff";
-  ngtcp2_cid_init(cid, id, ngtcp2_strlen_lit(id));
-}
+void dcid_init(ngtcp2_cid *cid) { *cid = (ngtcp2_cid)make_dcid(); }
 
-void scid_init(ngtcp2_cid *cid) {
-  static const uint8_t id[] = "\xee\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
-                              "\xaa\xaa\xaa\xaa\xaa\xee";
-  ngtcp2_cid_init(cid, id, ngtcp2_strlen_lit(id));
-}
+void scid_init(ngtcp2_cid *cid) { *cid = (ngtcp2_cid)make_scid(); }
 
-void rcid_init(ngtcp2_cid *cid) {
-  static const uint8_t id[] = "\xdd\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
-                              "\xaa\xaa\xaa\xaa\xaa\xdd";
-  ngtcp2_cid_init(cid, id, ngtcp2_strlen_lit(id));
-}
+void rcid_init(ngtcp2_cid *cid) { *cid = (ngtcp2_cid)make_rcid(); }
 
 uint64_t read_pkt_payloadlen(const uint8_t *pkt, const ngtcp2_cid *dcid,
                              const ngtcp2_cid *scid) {

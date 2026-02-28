@@ -1187,6 +1187,9 @@ typedef struct ngtcp2_pkt_hd {
  * @struct
  *
  * :type:`ngtcp2_pkt_stateless_reset` represents Stateless Reset.
+ *
+ * Deprecated since v1.22.0.  Use :type:`ngtcp2_pkt_stateless_reset2`
+ * instead.
  */
 typedef struct ngtcp2_pkt_stateless_reset {
   /**
@@ -1203,6 +1206,40 @@ typedef struct ngtcp2_pkt_stateless_reset {
    */
   size_t randlen;
 } ngtcp2_pkt_stateless_reset;
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_stateless_reset_token` stores stateless reset token.
+ *
+ * This struct has been available since v1.22.0.
+ */
+typedef struct ngtcp2_stateless_reset_token {
+  uint8_t data[NGTCP2_STATELESS_RESET_TOKENLEN];
+} ngtcp2_stateless_reset_token;
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_pkt_stateless_reset2` represents Stateless Reset.
+ *
+ * This struct has been available since v1.22.0.
+ */
+typedef struct ngtcp2_pkt_stateless_reset2 {
+  /**
+   * :member:`token` contains stateless reset token.
+   */
+  ngtcp2_stateless_reset_token token;
+  /**
+   * :member:`rand` points a buffer which contains random bytes
+   * section.
+   */
+  const uint8_t *rand;
+  /**
+   * :member:`randlen` is the number of random bytes.
+   */
+  size_t randlen;
+} ngtcp2_pkt_stateless_reset2;
 
 /**
  * @macrosection
@@ -2905,6 +2942,9 @@ typedef int (*ngtcp2_acked_stream_data_offset)(
  * The implementation of this callback should return 0 if it succeeds.
  * Returning :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
+ *
+ * Deprecated since v1.22.0.  Use :type:`ngtcp2_recv_stateless_reset2`
+ * instead.
  */
 typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
                                            const ngtcp2_pkt_stateless_reset *sr,
@@ -2969,6 +3009,9 @@ typedef void (*ngtcp2_rand)(uint8_t *dest, size_t destlen,
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
+ *
+ * Deprecated since v1.22.0.  Use
+ * :type:`ngtcp2_get_new_connection_id2` instead.
  */
 typedef int (*ngtcp2_get_new_connection_id)(ngtcp2_conn *conn, ngtcp2_cid *cid,
                                             uint8_t *token, size_t cidlen,
@@ -3166,6 +3209,9 @@ typedef enum ngtcp2_connection_id_status_type {
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
+ *
+ * Deprecated since v1.22.0.  Use :type:`ngtcp2_connection_id_status2`
+ * instead.
  */
 typedef int (*ngtcp2_connection_id_status)(
   ngtcp2_conn *conn, ngtcp2_connection_id_status_type type, uint64_t seq,
@@ -3364,9 +3410,69 @@ typedef int (*ngtcp2_recv_key)(ngtcp2_conn *conn, ngtcp2_encryption_level level,
 typedef int (*ngtcp2_tls_early_data_rejected)(ngtcp2_conn *conn,
                                               void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_recv_stateless_reset2` is a callback function which
+ * is called when Stateless Reset packet is received.  The stateless
+ * reset details are given in |sr|.
+ *
+ * The implementation of this callback should return 0 if it succeeds.
+ * Returning :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
+ * call return immediately.
+ *
+ * This type has been available since v1.22.0
+ */
+typedef int (*ngtcp2_recv_stateless_reset2)(
+  ngtcp2_conn *conn, const ngtcp2_pkt_stateless_reset2 *sr, void *user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_get_new_connection_id2` is a callback function to ask
+ * an application for new connection ID.  Application must generate
+ * new unused connection ID with the exact |cidlen| bytes, and store
+ * it in |cid|.  It also has to generate a stateless reset token, and
+ * store it in |token|.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ *
+ * This type has been available since v1.22.0
+ */
+typedef int (*ngtcp2_get_new_connection_id2)(
+  ngtcp2_conn *conn, ngtcp2_cid *cid, ngtcp2_stateless_reset_token *token,
+  size_t cidlen, void *user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_connection_id_status2` is a callback function which
+ * is called when the status of Destination Connection ID changes.
+ *
+ * |token| is the associated stateless reset token, and it is ``NULL``
+ * if no token is present.
+ *
+ * |type| is the one of the value defined in
+ * :type:`ngtcp2_connection_id_status_type`.  The new value might be
+ * added in the future release.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ *
+ * This type has been available since v1.22.0
+ */
+typedef int (*ngtcp2_connection_id_status2)(
+  ngtcp2_conn *conn, ngtcp2_connection_id_status_type type, uint64_t seq,
+  const ngtcp2_cid *cid, const ngtcp2_stateless_reset_token *token,
+  void *user_data);
+
 #define NGTCP2_CALLBACKS_V1 1
 #define NGTCP2_CALLBACKS_V2 2
-#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V2
+#define NGTCP2_CALLBACKS_V3 3
+#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V3
 
 /**
  * @struct
@@ -3453,6 +3559,11 @@ typedef struct ngtcp2_callbacks {
    * :member:`recv_stateless_reset` is a callback function which is
    * invoked when Stateless Reset packet is received.  This callback
    * function is optional.
+   *
+   * Deprecated since v1.22.0.  Use :member:`recv_stateless_reset2`
+   * instead.  If both :member:`recv_stateless_reset` and
+   * :member:`recv_stateless_reset2` are set, the latter has the
+   * precedence.
    */
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   /**
@@ -3483,8 +3594,14 @@ typedef struct ngtcp2_callbacks {
   ngtcp2_rand rand;
   /**
    * :member:`get_new_connection_id` is a callback function which is
-   * invoked when the library needs new connection ID.  This callback
-   * function must be specified.
+   * invoked when the library needs new connection ID.  Either this
+   * callback function or :member:`get_new_connection_id2` must be
+   * specified.
+   *
+   * Deprecated since v1.22.0.  Use :member:`get_new_connection_id2`
+   * instead.  If both :member:`get_new_connection_id` and
+   * :member:`get_new_connection_id2` are set, the latter has the
+   * precedence.
    */
   ngtcp2_get_new_connection_id get_new_connection_id;
   /**
@@ -3545,6 +3662,10 @@ typedef struct ngtcp2_callbacks {
    * when the new Destination Connection ID is activated, or the
    * activated Destination Connection ID is now deactivated.  This
    * callback function is optional.
+   *
+   * Deprecated since v1.22.0.  Use :member:`dcid_status2` instead.
+   * If both :member:`dcid_status` and :member:`dcid_status2` are set,
+   * the latter has the precedence.
    */
   ngtcp2_connection_id_status dcid_status;
   /**
@@ -3638,6 +3759,28 @@ typedef struct ngtcp2_callbacks {
    * available since v1.14.0.
    */
   ngtcp2_begin_path_validation begin_path_validation;
+  /* The following fields have been added since NGTCP2_CALLBACKS_V3. */
+  /**
+   * :member:`recv_stateless_reset2` is a callback function which is
+   * invoked when Stateless Reset packet is received.  This callback
+   * function is optional.  This field is available since v1.22.0.
+   */
+  ngtcp2_recv_stateless_reset2 recv_stateless_reset2;
+  /**
+   * :member:`get_new_connection_id2` is a callback function which is
+   * invoked when the library needs new connection ID.  This callback
+   * function must be specified.  This field is available since
+   * v1.22.0.
+   */
+  ngtcp2_get_new_connection_id2 get_new_connection_id2;
+  /**
+   * :member:`dcid_status2` is a callback function which is invoked
+   * when the new Destination Connection ID is activated, or the
+   * activated Destination Connection ID is now deactivated.  This
+   * callback function is optional.  This field is available since
+   * v1.22.0.
+   */
+  ngtcp2_connection_id_status2 dcid_status2;
 } ngtcp2_callbacks;
 
 /**

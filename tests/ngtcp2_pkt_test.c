@@ -75,6 +75,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_pkt_append_ping_and_padding),
   munit_void_test(test_ngtcp2_pkt_permutate_vec),
   munit_void_test(test_ngtcp2_pkt_remove_vec_partial),
+  munit_void_test(test_ngtcp2_stateless_reset_token_eq),
   munit_test_end(),
 };
 
@@ -1464,9 +1465,13 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
     .seq = 1000000009,
     .retire_prior_to = 255,
+    .cid = make_scid(),
+    .token =
+      {
+        .data = {0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1,
+                 0xE1, 0xE1, 0xE1, 0xE1, 0xE1, 0xE1},
+      },
   };
-  scid_init(&fr.cid);
-  memset(fr.stateless_reset_token, 0xE1, sizeof(fr.stateless_reset_token));
 
   rv = ngtcp2_pkt_encode_new_connection_id_frame(buf, sizeof(buf), &fr);
 
@@ -1478,8 +1483,7 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
   assert_uint64(fr.type, ==, nfr.type);
   assert_uint64(fr.seq, ==, nfr.seq);
   assert_true(ngtcp2_cid_eq(&fr.cid, &nfr.cid));
-  assert_memory_equal(sizeof(fr.stateless_reset_token),
-                      fr.stateless_reset_token, nfr.stateless_reset_token);
+  assert_true(ngtcp2_stateless_reset_token_eq(&fr.token, &nfr.token));
 
   /* Fail if a frame is truncated. */
   for (i = 1; i < framelen; ++i) {
@@ -2480,4 +2484,22 @@ void test_ngtcp2_pkt_remove_vec_partial(void) {
   assert_ptr_equal(null_data + 1776, removed.base);
 
   assert_uint64(offsets[0], ==, 88);
+}
+
+void test_ngtcp2_stateless_reset_token_eq(void) {
+  {
+    static const ngtcp2_stateless_reset_token a = make_stateless_reset_token();
+    static const ngtcp2_stateless_reset_token b = make_stateless_reset_token();
+
+    assert_true(ngtcp2_stateless_reset_token_eq(&a, &b));
+  }
+
+  {
+    static const ngtcp2_stateless_reset_token a = make_stateless_reset_token();
+    ngtcp2_stateless_reset_token b = make_stateless_reset_token();
+
+    b.data[NGTCP2_STATELESS_RESET_TOKENLEN - 1] = 0;
+
+    assert_false(ngtcp2_stateless_reset_token_eq(&a, &b));
+  }
 }

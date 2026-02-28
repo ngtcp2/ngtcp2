@@ -255,13 +255,20 @@ static int conn_call_extend_max_local_streams_uni(ngtcp2_conn *conn,
 }
 
 static int conn_call_get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
-                                           uint8_t *token, size_t cidlen) {
+                                           ngtcp2_stateless_reset_token *token,
+                                           size_t cidlen) {
   int rv;
 
-  assert(conn->callbacks.get_new_connection_id);
+  if (conn->callbacks.get_new_connection_id2) {
+    rv = conn->callbacks.get_new_connection_id2(conn, cid, token, cidlen,
+                                                conn->user_data);
+  } else {
+    assert(conn->callbacks.get_new_connection_id);
 
-  rv = conn->callbacks.get_new_connection_id(conn, cid, token, cidlen,
-                                             conn->user_data);
+    rv = conn->callbacks.get_new_connection_id(conn, cid, token->data, cidlen,
+                                               conn->user_data);
+  }
+
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -424,14 +431,20 @@ static int conn_call_dcid_status(ngtcp2_conn *conn,
                                  const ngtcp2_dcid *dcid) {
   int rv;
 
-  if (!conn->callbacks.dcid_status) {
+  if (conn->callbacks.dcid_status2) {
+    rv = conn->callbacks.dcid_status2(
+      conn, type, dcid->seq, &dcid->cid,
+      (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) ? &dcid->token : NULL,
+      conn->user_data);
+  } else if (conn->callbacks.dcid_status) {
+    rv = conn->callbacks.dcid_status(
+      conn, type, dcid->seq, &dcid->cid,
+      (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) ? dcid->token.data : NULL,
+      conn->user_data);
+  } else {
     return 0;
   }
 
-  rv = conn->callbacks.dcid_status(
-    conn, type, dcid->seq, &dcid->cid,
-    (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) ? dcid->token : NULL,
-    conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -550,14 +563,24 @@ static int conn_call_recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd) {
 
 static int
 conn_call_recv_stateless_reset(ngtcp2_conn *conn,
-                               const ngtcp2_pkt_stateless_reset *sr) {
+                               const ngtcp2_pkt_stateless_reset2 *sr) {
   int rv;
+  ngtcp2_pkt_stateless_reset legacy_sr;
 
-  if (!conn->callbacks.recv_stateless_reset) {
+  if (conn->callbacks.recv_stateless_reset2) {
+    rv = conn->callbacks.recv_stateless_reset2(conn, sr, conn->user_data);
+  } else if (conn->callbacks.recv_stateless_reset) {
+    memcpy(legacy_sr.stateless_reset_token, sr->token.data,
+           sizeof(legacy_sr.stateless_reset_token));
+    legacy_sr.rand = sr->rand;
+    legacy_sr.randlen = sr->randlen;
+
+    rv =
+      conn->callbacks.recv_stateless_reset(conn, &legacy_sr, conn->user_data);
+  } else {
     return 0;
   }
 
-  rv = conn->callbacks.recv_stateless_reset(conn, sr, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -3208,14 +3231,14 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
   ngtcp2_cid cid;
   uint64_t seq;
   int rv;
-  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  ngtcp2_stateless_reset_token token;
   ngtcp2_frame_chain *nfrc;
   ngtcp2_pktns *pktns = &conn->pktns;
   ngtcp2_scid *scid;
   ngtcp2_ksl_it it;
 
   for (i = 0; i < need; ++i) {
-    rv = conn_call_get_new_connection_id(conn, &cid, token, cidlen);
+    rv = conn_call_get_new_connection_id(conn, &cid, &token, cidlen);
     if (rv != 0) {
       return rv;
     }
@@ -3251,12 +3274,12 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
       return rv;
     }
 
-    nfrc->fr.new_connection_id.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
-    nfrc->fr.new_connection_id.seq = seq;
-    nfrc->fr.new_connection_id.retire_prior_to = 0;
-    nfrc->fr.new_connection_id.cid = cid;
-    memcpy(nfrc->fr.new_connection_id.stateless_reset_token, token,
-           sizeof(token));
+    nfrc->fr.new_connection_id = (ngtcp2_new_connection_id){
+      .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+      .seq = seq,
+      .cid = cid,
+      .token = token,
+    };
     nfrc->next = pktns->tx.frq;
     pktns->tx.frq = nfrc;
 
@@ -7882,9 +7905,8 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
  */
 static int check_stateless_reset(const ngtcp2_dcid *dcid,
                                  const ngtcp2_path *path,
-                                 const ngtcp2_pkt_stateless_reset *sr) {
-  return ngtcp2_dcid_verify_stateless_reset_token(
-           dcid, path, sr->stateless_reset_token) == 0;
+                                 const ngtcp2_pkt_stateless_reset2 *sr) {
+  return ngtcp2_dcid_verify_stateless_reset_token(dcid, path, &sr->token) == 0;
 }
 
 /*
@@ -7908,7 +7930,7 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_path *path,
                                    const uint8_t *payload, size_t payloadlen) {
   int rv;
   ngtcp2_pv *pv = conn->pv;
-  ngtcp2_pkt_stateless_reset sr;
+  ngtcp2_pkt_stateless_reset2 sr;
 
   rv = ngtcp2_pkt_decode_stateless_reset(&sr, payload, payloadlen);
   if (rv != 0) {
@@ -7919,8 +7941,7 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_path *path,
       (!pv || (!check_stateless_reset(&pv->dcid, path, &sr) &&
                (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) ||
                 !check_stateless_reset(&pv->fallback_dcid, path, &sr))))) {
-    rv = ngtcp2_dcidtr_verify_stateless_reset(&conn->dcid.dtr, path,
-                                              sr.stateless_reset_token);
+    rv = ngtcp2_dcidtr_verify_stateless_reset(&conn->dcid.dtr, path, &sr.token);
     if (rv != 0) {
       return rv;
     }
@@ -8000,7 +8021,7 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
   }
 
   rv = ngtcp2_dcid_verify_uniqueness(&conn->dcid.current, fr->seq, &fr->cid,
-                                     fr->stateless_reset_token);
+                                     &fr->token);
   if (rv != 0) {
     return rv;
   }
@@ -8009,8 +8030,8 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
   }
 
   if (pv) {
-    rv = ngtcp2_dcid_verify_uniqueness(&pv->dcid, fr->seq, &fr->cid,
-                                       fr->stateless_reset_token);
+    rv =
+      ngtcp2_dcid_verify_uniqueness(&pv->dcid, fr->seq, &fr->cid, &fr->token);
     if (rv != 0) {
       return rv;
     }
@@ -8019,8 +8040,8 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     }
   }
 
-  rv = ngtcp2_dcidtr_verify_token_uniqueness(
-    &conn->dcid.dtr, &found, fr->seq, &fr->cid, fr->stateless_reset_token);
+  rv = ngtcp2_dcidtr_verify_token_uniqueness(&conn->dcid.dtr, &found, fr->seq,
+                                             &fr->cid, &fr->token);
   if (rv != 0) {
     return rv;
   }
@@ -8098,8 +8119,7 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     return 0;
   }
 
-  ngtcp2_dcidtr_push_unused(&conn->dcid.dtr, fr->seq, &fr->cid,
-                            fr->stateless_reset_token);
+  ngtcp2_dcidtr_push_unused(&conn->dcid.dtr, fr->seq, &fr->cid, &fr->token);
 
   return 0;
 }
@@ -10406,6 +10426,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   size_t origlen = destlen;
   uint64_t pending_early_datalen;
   ngtcp2_preferred_addr *paddr;
+  ngtcp2_stateless_reset_token token;
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
@@ -10533,8 +10554,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       assert(!ngtcp2_dcidtr_unused_full(&conn->dcid.dtr));
 
       paddr = &conn->remote.transport_params->preferred_addr;
-      ngtcp2_dcidtr_push_unused(&conn->dcid.dtr, 1, &paddr->cid,
-                                paddr->stateless_reset_token);
+      memcpy(token.data, paddr->stateless_reset_token, sizeof(token.data));
+      ngtcp2_dcidtr_push_unused(&conn->dcid.dtr, 1, &paddr->cid, &token);
 
       rv = ngtcp2_gaptr_push(&conn->dcid.seqgap, 1, 1);
       if (rv != 0) {
@@ -10545,9 +10566,9 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     if (conn->remote.transport_params->stateless_reset_token_present) {
       assert(conn->dcid.current.seq == 0);
       assert(!(conn->dcid.current.flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT));
-      ngtcp2_dcid_set_token(
-        &conn->dcid.current,
-        conn->remote.transport_params->stateless_reset_token);
+      memcpy(token.data, conn->remote.transport_params->stateless_reset_token,
+             sizeof(token.data));
+      ngtcp2_dcid_set_token(&conn->dcid.current, &token);
     }
 
     rv = conn_call_activate_dcid(conn, &conn->dcid.current);
@@ -13492,7 +13513,7 @@ static void copy_dcid_to_cid_token(ngtcp2_cid_token *dest,
   ngtcp2_path_storage_init2(&dest->ps, &src->ps.path);
   if ((dest->token_present =
          (src->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) != 0)) {
-    memcpy(dest->token, src->token, NGTCP2_STATELESS_RESET_TOKENLEN);
+    memcpy(dest->token, src->token.data, sizeof(dest->token));
   }
 }
 
