@@ -60,6 +60,7 @@ directory require at least one of the following TLS backends:
 
 - `quictls
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1w+quic>`_
+  (deprecated)
 - GnuTLS >= 3.7.5
 - BoringSSL (commit 7d88bb1bf3372bda1134ad8bf624b25b88e0db86);
   or aws-lc >= 1.39.0
@@ -273,7 +274,7 @@ The header file exists under crypto/includes/ngtcp2 directory.
 Each library file is built for a particular TLS backend.  The
 available crypto helper libraries are:
 
-- libngtcp2_crypto_quictls: Use quictls as TLS backend
+- libngtcp2_crypto_quictls: Use quictls as TLS backend (deprecated)
 - libngtcp2_crypto_libressl: Use libressl as TLS backend
 - libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
 - libngtcp2_crypto_boringssl: Use BoringSSL and aws-lc as TLS backend
