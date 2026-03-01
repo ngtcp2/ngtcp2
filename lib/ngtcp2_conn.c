@@ -3236,58 +3236,59 @@ static size_t conn_required_num_new_connection_id(ngtcp2_conn *conn) {
 static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
   size_t i, need = conn_required_num_new_connection_id(conn);
   size_t cidlen = conn->oscid.datalen;
-  ngtcp2_cid cid;
-  uint64_t seq;
   int rv;
-  ngtcp2_stateless_reset_token token;
   ngtcp2_frame_chain *nfrc;
   ngtcp2_pktns *pktns = &conn->pktns;
   ngtcp2_scid *scid;
   ngtcp2_ksl_it it;
 
   for (i = 0; i < need; ++i) {
-    rv = conn_call_get_new_connection_id(conn, &cid, &token, cidlen);
-    if (rv != 0) {
-      return rv;
-    }
-
-    if (cid.datalen != cidlen) {
-      return NGTCP2_ERR_CALLBACK_FAILURE;
-    }
-
-    /* Assert uniqueness */
-    it = ngtcp2_ksl_lower_bound(&conn->scid.set, &cid);
-    if (!ngtcp2_ksl_it_end(&it) &&
-        ngtcp2_cid_eq(ngtcp2_ksl_it_key(&it), &cid)) {
-      return NGTCP2_ERR_CALLBACK_FAILURE;
-    }
-
-    seq = ++conn->scid.last_seq;
-
-    scid = ngtcp2_mem_malloc(conn->mem, sizeof(*scid));
-    if (scid == NULL) {
-      return NGTCP2_ERR_NOMEM;
-    }
-
-    ngtcp2_scid_init(scid, seq, &cid);
-
-    rv = ngtcp2_ksl_insert(&conn->scid.set, NULL, &scid->cid, scid);
-    if (rv != 0) {
-      ngtcp2_mem_free(conn->mem, scid);
-      return rv;
-    }
-
     rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
     if (rv != 0) {
       return rv;
     }
 
-    nfrc->fr.new_connection_id = (ngtcp2_new_connection_id){
-      .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
-      .seq = seq,
-      .cid = cid,
-      .token = token,
-    };
+    nfrc->fr.new_connection_id.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+    nfrc->fr.new_connection_id.seq = ++conn->scid.last_seq;
+    nfrc->fr.new_connection_id.retire_prior_to = 0;
+
+    rv = conn_call_get_new_connection_id(conn, &nfrc->fr.new_connection_id.cid,
+                                         &nfrc->fr.new_connection_id.token,
+                                         cidlen);
+    if (rv != 0) {
+      goto fail;
+    }
+
+    if (nfrc->fr.new_connection_id.cid.datalen != cidlen) {
+      rv = NGTCP2_ERR_CALLBACK_FAILURE;
+      goto fail;
+    }
+
+    /* Assert uniqueness */
+    it =
+      ngtcp2_ksl_lower_bound(&conn->scid.set, &nfrc->fr.new_connection_id.cid);
+    if (!ngtcp2_ksl_it_end(&it) &&
+        ngtcp2_cid_eq(ngtcp2_ksl_it_key(&it),
+                      &nfrc->fr.new_connection_id.cid)) {
+      rv = NGTCP2_ERR_CALLBACK_FAILURE;
+      goto fail;
+    }
+
+    scid = ngtcp2_mem_malloc(conn->mem, sizeof(*scid));
+    if (scid == NULL) {
+      rv = NGTCP2_ERR_NOMEM;
+      goto fail;
+    }
+
+    ngtcp2_scid_init(scid, nfrc->fr.new_connection_id.seq,
+                     &nfrc->fr.new_connection_id.cid);
+
+    rv = ngtcp2_ksl_insert(&conn->scid.set, NULL, &scid->cid, scid);
+    if (rv != 0) {
+      ngtcp2_mem_free(conn->mem, scid);
+      goto fail;
+    }
+
     nfrc->next = pktns->tx.frq;
     pktns->tx.frq = nfrc;
 
@@ -3297,6 +3298,11 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
   }
 
   return 0;
+
+fail:
+  ngtcp2_frame_chain_objalloc_del(nfrc, &conn->frc_objalloc, conn->mem);
+
+  return rv;
 }
 
 static int dcidtr_on_deactivate(const ngtcp2_dcid *dcid, void *user_data) {
