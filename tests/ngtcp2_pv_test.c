@@ -51,7 +51,7 @@ void test_ngtcp2_pv_add_entry(void) {
   };
   ngtcp2_dcid dcid;
   ngtcp2_log log;
-  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN] = {0};
+  static const ngtcp2_path_challenge_data data = {0};
   size_t i;
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
 
@@ -69,7 +69,7 @@ void test_ngtcp2_pv_add_entry(void) {
   assert_true(ngtcp2_pv_should_send_probe(pv));
 
   for (i = 0; i < NGTCP2_PV_NUM_PROBE_PKT; ++i) {
-    ngtcp2_pv_add_entry(pv, data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 0);
+    ngtcp2_pv_add_entry(pv, &data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 0);
 
     assert_size(i + 1, ==, ngtcp2_ringbuf_len(&pv->ents.rb));
   }
@@ -90,7 +90,7 @@ void test_ngtcp2_pv_add_entry(void) {
   assert_true(ngtcp2_pv_should_send_probe(pv));
   assert_uint64(100, ==, ngtcp2_pv_next_expiry(pv));
 
-  ngtcp2_pv_add_entry(pv, data, 111, NGTCP2_PV_ENTRY_FLAG_NONE, 100);
+  ngtcp2_pv_add_entry(pv, &data, 111, NGTCP2_PV_ENTRY_FLAG_NONE, 100);
 
   assert_size(1, ==, pv->probe_pkt_left);
   assert_true(ngtcp2_pv_should_send_probe(pv));
@@ -109,7 +109,7 @@ void test_ngtcp2_pv_validate(void) {
   };
   ngtcp2_dcid dcid;
   ngtcp2_log log;
-  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
+  ngtcp2_path_challenge_data data = {0};
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
   ngtcp2_path_storage path;
   uint8_t flags;
@@ -124,23 +124,25 @@ void test_ngtcp2_pv_validate(void) {
   assert_int(0, ==, rv);
 
   /* Validation fails if there is no outstanding entry. */
-  rv = ngtcp2_pv_validate(pv, &flags, data);
+  rv = ngtcp2_pv_validate(pv, &flags, &data);
 
   assert_int(NGTCP2_ERR_INVALID_STATE, ==, rv);
 
-  memset(data, 0, sizeof(data));
-  ngtcp2_pv_add_entry(pv, data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 1);
+  ngtcp2_pv_add_entry(pv, &data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 1);
 
-  memset(data, 1, sizeof(data));
-  ngtcp2_pv_add_entry(pv, data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 1);
+  data = (ngtcp2_path_challenge_data){
+    .data = {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
+  };
+  ngtcp2_pv_add_entry(pv, &data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 1);
 
-  memset(data, 1, sizeof(data));
-  rv = ngtcp2_pv_validate(pv, &flags, data);
+  rv = ngtcp2_pv_validate(pv, &flags, &data);
 
   assert_int(0, ==, rv);
 
-  memset(data, 3, sizeof(data));
-  rv = ngtcp2_pv_validate(pv, &flags, data);
+  data = (ngtcp2_path_challenge_data){
+    .data = {0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03},
+  };
+  rv = ngtcp2_pv_validate(pv, &flags, &data);
 
   assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
 
@@ -155,7 +157,9 @@ void test_ngtcp2_pv_cancel_expired_timer(void) {
   static const ngtcp2_stateless_reset_token token = {
     .data = {0xFF},
   };
-  const uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN] = {0xEE};
+  static const ngtcp2_path_challenge_data data = {
+    .data = {0xEE},
+  };
   ngtcp2_log log;
   int rv;
 
@@ -167,7 +171,7 @@ void test_ngtcp2_pv_cancel_expired_timer(void) {
 
   assert_int(0, ==, rv);
 
-  ngtcp2_pv_add_entry(pv, data, 30 * NGTCP2_MILLISECONDS,
+  ngtcp2_pv_add_entry(pv, &data, 30 * NGTCP2_MILLISECONDS,
                       NGTCP2_PV_ENTRY_FLAG_NONE, 0);
 
   assert_uint64(30 * NGTCP2_MILLISECONDS, ==, ngtcp2_pv_next_expiry(pv));

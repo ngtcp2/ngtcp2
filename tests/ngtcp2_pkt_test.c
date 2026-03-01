@@ -1533,10 +1533,13 @@ void test_ngtcp2_pkt_encode_path_challenge_frame(void) {
   size_t framelen = 1 + 8;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  for (i = 0; i < sizeof(fr.data); ++i) {
-    fr.data[i] = (uint8_t)(i + 1);
-  }
+  fr = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data =
+      {
+        .data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+      },
+  };
 
   rv = ngtcp2_pkt_encode_path_challenge_frame(buf, sizeof(buf), &fr);
 
@@ -1546,7 +1549,7 @@ void test_ngtcp2_pkt_encode_path_challenge_frame(void) {
 
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
   assert_uint64(fr.type, ==, nfr.type);
-  assert_memory_equal(sizeof(fr.data), fr.data, nfr.data);
+  assert_memory_equal(sizeof(fr.data.data), fr.data.data, nfr.data.data);
 
   /* Fail if a frame is truncated. */
   for (i = 1; i < framelen; ++i) {
@@ -1563,10 +1566,13 @@ void test_ngtcp2_pkt_encode_path_response_frame(void) {
   size_t framelen = 1 + 8;
   size_t i;
 
-  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
-  for (i = 0; i < sizeof(fr.data); ++i) {
-    fr.data[i] = (uint8_t)(i + 1);
-  }
+  fr = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+    .data =
+      {
+        .data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+      },
+  };
 
   rv = ngtcp2_pkt_encode_path_response_frame(buf, sizeof(buf), &fr);
 
@@ -1576,7 +1582,7 @@ void test_ngtcp2_pkt_encode_path_response_frame(void) {
 
   assert_ptrdiff((ngtcp2_ssize)framelen, ==, rv);
   assert_uint64(fr.type, ==, nfr.type);
-  assert_memory_equal(sizeof(fr.data), fr.data, nfr.data);
+  assert_memory_equal(sizeof(fr.data.data), fr.data.data, nfr.data.data);
 
   /* Fail if a frame is truncated. */
   for (i = 1; i < framelen; ++i) {

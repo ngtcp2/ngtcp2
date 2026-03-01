@@ -334,9 +334,9 @@ static int client_quic_init(struct client *c,
     .update_key = ngtcp2_crypto_update_key_cb,
     .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
     .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
-    .get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
     .get_new_connection_id2 = get_new_connection_id_cb,
+    .get_path_challenge_data2 = ngtcp2_crypto_get_path_challenge_data2_cb,
   };
   ngtcp2_cid dcid, scid;
   ngtcp2_settings settings;

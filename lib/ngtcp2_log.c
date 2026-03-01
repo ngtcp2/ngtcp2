@@ -356,25 +356,25 @@ static void log_fr_stop_sending(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_path_challenge(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                   const ngtcp2_path_challenge *fr,
                                   const char *dir) {
-  char buf[sizeof(fr->data) * 2 + 1];
+  char buf[sizeof(fr->data.data) * 2 + 1];
 
-  ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_FRM,
-                       NGTCP2_LOG_PKT " PATH_CHALLENGE(0x%02" PRIx64
-                                      ") data=0x%s",
-                       NGTCP2_LOG_PKT_HD_FIELDS(dir), fr->type,
-                       ngtcp2_encode_hex_cstr(buf, fr->data, sizeof(fr->data)));
+  ngtcp2_log_infof_raw(
+    log, NGTCP2_LOG_EVENT_FRM,
+    NGTCP2_LOG_PKT " PATH_CHALLENGE(0x%02" PRIx64 ") data=0x%s",
+    NGTCP2_LOG_PKT_HD_FIELDS(dir), fr->type,
+    ngtcp2_encode_hex_cstr(buf, fr->data.data, sizeof(fr->data.data)));
 }
 
 static void log_fr_path_response(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                  const ngtcp2_path_response *fr,
                                  const char *dir) {
-  char buf[sizeof(fr->data) * 2 + 1];
+  char buf[sizeof(fr->data.data) * 2 + 1];
 
-  ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_FRM,
-                       NGTCP2_LOG_PKT " PATH_RESPONSE(0x%02" PRIx64
-                                      ") data=0x%s",
-                       NGTCP2_LOG_PKT_HD_FIELDS(dir), fr->type,
-                       ngtcp2_encode_hex_cstr(buf, fr->data, sizeof(fr->data)));
+  ngtcp2_log_infof_raw(
+    log, NGTCP2_LOG_EVENT_FRM,
+    NGTCP2_LOG_PKT " PATH_RESPONSE(0x%02" PRIx64 ") data=0x%s",
+    NGTCP2_LOG_PKT_HD_FIELDS(dir), fr->type,
+    ngtcp2_encode_hex_cstr(buf, fr->data.data, sizeof(fr->data.data)));
 }
 
 static void log_fr_crypto(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,

@@ -731,12 +731,13 @@ static int ack_datagram(ngtcp2_conn *conn, uint64_t dgram_id, void *user_data) {
   return 0;
 }
 
-static int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data,
+static int get_path_challenge_data(ngtcp2_conn *conn,
+                                   ngtcp2_path_challenge_data *data,
                                    void *user_data) {
   (void)conn;
   (void)user_data;
 
-  memset(data, 0, NGTCP2_PATH_CHALLENGE_DATALEN);
+  *data = (ngtcp2_path_challenge_data){0};
 
   return 0;
 }
@@ -876,9 +877,9 @@ static void server_default_callbacks(ngtcp2_callbacks *cb) {
     .update_key = update_key,
     .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
     .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
-    .get_path_challenge_data = get_path_challenge_data,
     .version_negotiation = version_negotiation,
     .get_new_connection_id2 = get_new_connection_id,
+    .get_path_challenge_data2 = get_path_challenge_data,
   };
 }
 
@@ -952,9 +953,9 @@ static void client_default_callbacks(ngtcp2_callbacks *cb) {
     .update_key = update_key,
     .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
     .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
-    .get_path_challenge_data = get_path_challenge_data,
     .version_negotiation = version_negotiation,
     .get_new_connection_id2 = get_new_connection_id,
+    .get_path_challenge_data2 = get_path_challenge_data,
   };
 }
 
@@ -9922,8 +9923,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   assert_ptrdiff(1200, <=, spktlen);
 
-  fr.path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10206,8 +10208,9 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_ptrdiff(0, <, spktlen);
   assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
 
-  fr.path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10241,8 +10244,9 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_ptrdiff(0, <, spktlen);
   assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
 
-  fr.path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10322,8 +10326,9 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_ptrdiff(0, <, spktlen);
   assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
 
-  fr.path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10404,8 +10409,9 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
   assert_null(conn->pmtud);
 
-  fr.path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10461,8 +10467,13 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   assert_int(0, ==, rv);
 
-  frs[0].path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memset(frs[0].path_challenge.data, 0xFE, sizeof(frs[0].path_challenge.data));
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data =
+      {
+        .data = {0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE},
+      },
+  };
   frs[1].padding = (ngtcp2_padding){
     .type = NGTCP2_FRAME_PADDING,
     .len = 1200,
@@ -10496,10 +10507,11 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   assert_ptrdiff(0, <, spktlen);
 
-  fr.path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memcpy(fr.path_response.data,
-         ((ngtcp2_pv_entry *)ngtcp2_ringbuf_get(&conn->pv->ents.rb, 0))->data,
-         sizeof(fr.path_response.data));
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+    .data =
+      ((ngtcp2_pv_entry *)ngtcp2_ringbuf_get(&conn->pv->ents.rb, 0))->data,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10562,10 +10574,11 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   assert_ptrdiff(0, <, spktlen);
 
-  fr.path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memcpy(fr.path_response.data,
-         ((ngtcp2_pv_entry *)ngtcp2_ringbuf_get(&conn->pv->ents.rb, 0))->data,
-         sizeof(fr.path_response.data));
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+    .data =
+      ((ngtcp2_pv_entry *)ngtcp2_ringbuf_get(&conn->pv->ents.rb, 0))->data,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10635,8 +10648,9 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   assert_ptrdiff(0, <, spktlen);
 
-  fr[0].path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memset(fr[0].path_response.data, 0, sizeof(fr[0].path_response.data));
+  fr[0].path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
 
@@ -10692,8 +10706,9 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   assert_ptrdiff(0, <, spktlen);
 
-  fr[0].path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memset(fr[0].path_response.data, 0, sizeof(fr[0].path_response.data));
+  fr[0].path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
 
@@ -10739,8 +10754,12 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   static const ngtcp2_stateless_reset_token token = {
     .data = {0xFF},
   };
-  const uint8_t data[] = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8};
-  const uint8_t data2[] = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF9};
+  static const ngtcp2_path_challenge_data data = {
+    .data = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8},
+  };
+  static const ngtcp2_path_challenge_data data2 = {
+    .data = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF9},
+  };
   ngtcp2_path_storage ps;
   ngtcp2_ssize shdlen;
   ngtcp2_pkt_hd hd;
@@ -10766,8 +10785,10 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   assert_int(0, ==, rv);
 
-  frs[0].path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
   frs[1].padding = (ngtcp2_padding){
     .type = NGTCP2_FRAME_PADDING,
     .len = 1200,
@@ -10799,8 +10820,10 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   assert_true(ngtcp2_cid_eq(&cid, &hd.dcid));
 
   /* Use same bound DCID for PATH_CHALLENGE from the same path. */
-  fr.path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memcpy(fr.path_challenge.data, data2, sizeof(fr.path_challenge.data));
+  fr.path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data2,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -10842,8 +10865,10 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   assert_int(0, ==, rv);
 
-  frs[0].path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
   frs[1].padding = (ngtcp2_padding){
     .type = NGTCP2_FRAME_PADDING,
     .len = 1200,
@@ -10886,8 +10911,10 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   assert_int(0, ==, rv);
 
-  frs[0].path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
   frs[1].padding = (ngtcp2_padding){
     .type = NGTCP2_FRAME_PADDING,
     .len = 1200,
@@ -10947,8 +10974,10 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   assert_int(0, ==, rv);
 
-  frs[0].path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
   frs[1].padding = (ngtcp2_padding){
     .type = NGTCP2_FRAME_PADDING,
     .len = 1200,
@@ -10998,8 +11027,10 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   assert_int(0, ==, rv);
 
-  frs[0].path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
   frs[1].padding = (ngtcp2_padding){
     .type = NGTCP2_FRAME_PADDING,
     .len = 1200,
@@ -12171,8 +12202,9 @@ void test_ngtcp2_conn_get_active_dcid(void) {
 
   assert_size(1, ==, ngtcp2_conn_get_active_dcid2(conn, NULL));
 
-  fr.path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memset(fr.path_challenge.data, 0, sizeof(fr.path_challenge.data));
+  fr.path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, 1);
@@ -14102,8 +14134,10 @@ void test_ngtcp2_conn_path_validation(void) {
   assert_true(ent->flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED);
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
 
-  frs[0].path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memcpy(frs[0].path_response.data, ent->data, sizeof(ent->data));
+  frs[0].path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+    .data = ent->data,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
   rv = ngtcp2_conn_read_pkt(conn, &rpath.path, NULL, buf, pktlen, ++t);
@@ -14123,8 +14157,10 @@ void test_ngtcp2_conn_path_validation(void) {
   assert_size(1, ==, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
 
   ent = ngtcp2_ringbuf_get(&conn->pv->ents.rb, 0);
-  frs[0].path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memcpy(frs[0].path_response.data, ent->data, sizeof(ent->data));
+  frs[0].path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+    .data = ent->data,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
   rv = ngtcp2_conn_read_pkt(conn, &rpath.path, NULL, buf, pktlen, ++t);
@@ -14605,7 +14641,9 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
   static const ngtcp2_stateless_reset_token token = {
     .data = {0xFF},
   };
-  const uint8_t data[] = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8};
+  static const ngtcp2_path_challenge_data data = {
+    .data = {0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8},
+  };
   ngtcp2_tpe tpe;
 
   setup_default_server(&conn);
@@ -14624,8 +14662,10 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
 
   assert_int(0, ==, rv);
 
-  fr.path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memcpy(fr.path_challenge.data, data, sizeof(fr.path_challenge.data));
+  fr.path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
@@ -17647,7 +17687,10 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
 
   frs[0].path_challenge = (ngtcp2_path_challenge){
     .type = NGTCP2_FRAME_PATH_CHALLENGE,
-    .data = {0x11},
+    .data =
+      {
+        .data = {0x11},
+      },
   };
   frs[1].new_connection_id = (ngtcp2_new_connection_id){
     .type = NGTCP2_FRAME_NEW_CONNECTION_ID,

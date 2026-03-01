@@ -128,9 +128,9 @@ ngtcp2_callbacks default_client_callbacks() {
     .update_key = ngtcp2_crypto_update_key_cb,
     .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
     .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
-    .get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
     .get_new_connection_id2 = get_new_connection_id,
+    .get_path_challenge_data2 = ngtcp2_crypto_get_path_challenge_data2_cb,
   };
 }
 
@@ -146,9 +146,9 @@ ngtcp2_callbacks default_server_callbacks() {
     .update_key = ngtcp2_crypto_update_key_cb,
     .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
     .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
-    .get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
     .get_new_connection_id2 = get_new_connection_id,
+    .get_path_challenge_data2 = ngtcp2_crypto_get_path_challenge_data2_cb,
   };
 }
 

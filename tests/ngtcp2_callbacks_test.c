@@ -522,6 +522,16 @@ static int dcid_status2(ngtcp2_conn *conn,
   return 0;
 }
 
+static int get_path_challenge_data2(ngtcp2_conn *conn,
+                                    ngtcp2_path_challenge_data *data,
+                                    void *user_data) {
+  (void)conn;
+  (void)data;
+  (void)user_data;
+
+  return 0;
+}
+
 void test_ngtcp2_callbacks_convert_to_latest(void) {
   ngtcp2_callbacks srcbuf = {
     .client_initial = client_initial,
@@ -635,6 +645,7 @@ void test_ngtcp2_callbacks_convert_to_latest(void) {
   assert_null(dest->recv_stateless_reset2);
   assert_null(dest->get_new_connection_id2);
   assert_null(dest->dcid_status2);
+  assert_null(dest->get_path_challenge_data2);
 }
 
 void test_ngtcp2_callbacks_convert_to_old(void) {
@@ -683,6 +694,7 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
     .recv_stateless_reset2 = recv_stateless_reset2,
     .get_new_connection_id2 = get_new_connection_id2,
     .dcid_status2 = dcid_status2,
+    .get_path_challenge_data2 = get_path_challenge_data2,
   };
   ngtcp2_callbacks *dest, destbuf;
   size_t v2len;
@@ -751,4 +763,5 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
   assert_null(destbuf.recv_stateless_reset2);
   assert_null(destbuf.get_new_connection_id2);
   assert_null(destbuf.dcid_status2);
+  assert_null(destbuf.get_path_challenge_data2);
 }

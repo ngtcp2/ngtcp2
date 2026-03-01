@@ -311,12 +311,12 @@ typedef struct ngtcp2_stop_sending {
 
 typedef struct ngtcp2_path_challenge {
   uint64_t type;
-  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
+  ngtcp2_path_challenge_data data;
 } ngtcp2_path_challenge;
 
 typedef struct ngtcp2_path_response {
   uint64_t type;
-  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
+  ngtcp2_path_challenge_data data;
 } ngtcp2_path_response;
 
 typedef struct ngtcp2_new_token {

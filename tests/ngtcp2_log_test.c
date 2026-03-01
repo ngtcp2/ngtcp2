@@ -918,7 +918,10 @@ void test_ngtcp2_log_fr(void) {
       .path_challenge =
         {
           .type = NGTCP2_FRAME_PATH_CHALLENGE,
-          .data = {0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAD, 0xCA, 0xCE},
+          .data =
+            {
+              .data = {0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAD, 0xCA, 0xCE},
+            },
         },
     });
 
@@ -941,7 +944,10 @@ void test_ngtcp2_log_fr(void) {
       .path_response =
         {
           .type = NGTCP2_FRAME_PATH_RESPONSE,
-          .data = {0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAD, 0xF0, 0x0D},
+          .data =
+            {
+              .data = {0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAD, 0xF0, 0x0D},
+            },
         },
     });
 
