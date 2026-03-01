@@ -1882,7 +1882,7 @@ ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
                                           const ngtcp2_new_connection_id *fr) {
   size_t len = 1 + ngtcp2_put_uvarintlen(fr->seq) +
                ngtcp2_put_uvarintlen(fr->retire_prior_to) + 1 +
-               fr->cid.datalen + NGTCP2_STATELESS_RESET_TOKENLEN;
+               fr->cid.datalen + sizeof(fr->token.data);
   uint8_t *p;
 
   if (outlen < len) {
@@ -2157,12 +2157,12 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset2 *sr,
   const uint8_t *p = payload;
 
   if (payloadlen <
-      NGTCP2_MIN_STATELESS_RESET_RANDLEN + NGTCP2_STATELESS_RESET_TOKENLEN) {
+      NGTCP2_MIN_STATELESS_RESET_RANDLEN + sizeof(sr->token.data)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   sr->rand = p;
-  sr->randlen = payloadlen - NGTCP2_STATELESS_RESET_TOKENLEN;
+  sr->randlen = payloadlen - sizeof(sr->token.data);
   p += sr->randlen;
   memcpy(sr->token.data, p, sizeof(sr->token.data));
 

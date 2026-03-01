@@ -1459,7 +1459,7 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
   uint8_t buf[256];
   ngtcp2_new_connection_id fr, nfr;
   ngtcp2_ssize rv;
-  size_t framelen = 1 + 4 + 2 + 1 + 18 + NGTCP2_STATELESS_RESET_TOKENLEN;
+  size_t framelen = 1 + 4 + 2 + 1 + 18 + sizeof(fr.token.data);
   size_t i;
 
   fr = (ngtcp2_new_connection_id){
@@ -2540,7 +2540,7 @@ void test_ngtcp2_stateless_reset_token_eq(void) {
     static const ngtcp2_stateless_reset_token a = make_stateless_reset_token();
     ngtcp2_stateless_reset_token b = make_stateless_reset_token();
 
-    b.data[NGTCP2_STATELESS_RESET_TOKENLEN - 1] = 0;
+    b.data[sizeof(b.data) - 1] = 0;
 
     assert_false(ngtcp2_stateless_reset_token_eq(&a, &b));
   }

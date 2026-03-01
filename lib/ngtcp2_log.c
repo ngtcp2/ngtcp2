@@ -563,7 +563,7 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset2 *sr) {
 
 void ngtcp2_log_remote_tp(ngtcp2_log *log,
                           const ngtcp2_transport_params *params) {
-  char token[NGTCP2_STATELESS_RESET_TOKENLEN * 2 + 1];
+  char token[sizeof(params->stateless_reset_token) * 2 + 1];
   char addr[16 * 2 + 7 + 1];
   char cid[NGTCP2_MAX_CIDLEN * 2 + 1];
   size_t i;
