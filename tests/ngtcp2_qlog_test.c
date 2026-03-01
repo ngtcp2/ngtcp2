@@ -433,12 +433,17 @@ void test_ngtcp2_qlog_write_frame(void) {
       .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
       .seq = 2322933918954521341,
       .retire_prior_to = 353598537829135415,
+      .cid =
+        {
+          .datalen = 8,
+          .data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+        },
+      .token =
+        {
+          .data = {0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A,
+                   0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x10},
+        },
     };
-    ngtcp2_cid_init(&fr.new_connection_id.cid,
-                    (const uint8_t *)"\x01\x02\x03\x04\x05\x06\x07\x08", 8);
-    memcpy(fr.new_connection_id.stateless_reset_token,
-           "\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x10",
-           NGTCP2_STATELESS_RESET_TOKENLEN);
 
     ngtcp2_qlog_write_frame(&qlog, &fr);
     *qlog.buf.last = '\0';

@@ -328,7 +328,7 @@ static void log_fr_streams_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_new_connection_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                      const ngtcp2_new_connection_id *fr,
                                      const char *dir) {
-  char buf[sizeof(fr->stateless_reset_token) * 2 + 1];
+  char buf[sizeof(fr->token.data) * 2 + 1];
   char cid[sizeof(fr->cid.data) * 2 + 1];
 
   ngtcp2_log_infof_raw(
@@ -339,8 +339,7 @@ static void log_fr_new_connection_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     NGTCP2_LOG_PKT_HD_FIELDS(dir), fr->type, fr->seq,
     ngtcp2_encode_hex_cstr(cid, fr->cid.data, fr->cid.datalen),
     fr->retire_prior_to,
-    ngtcp2_encode_hex_cstr(buf, fr->stateless_reset_token,
-                           sizeof(fr->stateless_reset_token)));
+    ngtcp2_encode_hex_cstr(buf, fr->token.data, sizeof(fr->token.data)));
 }
 
 static void log_fr_stop_sending(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -542,8 +541,8 @@ void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   }
 }
 
-void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset *sr) {
-  char buf[sizeof(sr->stateless_reset_token) * 2 + 1];
+void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset2 *sr) {
+  char buf[sizeof(sr->token.data) * 2 + 1];
   ngtcp2_pkt_hd shd;
   ngtcp2_pkt_hd *hd = &shd;
 
@@ -558,8 +557,7 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset *sr) {
   ngtcp2_log_infof_raw(
     log, NGTCP2_LOG_EVENT_PKT, NGTCP2_LOG_PKT " token=0x%s randlen=%zu",
     NGTCP2_LOG_PKT_HD_FIELDS("rx"),
-    ngtcp2_encode_hex_cstr(buf, sr->stateless_reset_token,
-                           sizeof(sr->stateless_reset_token)),
+    ngtcp2_encode_hex_cstr(buf, sr->token.data, sizeof(sr->token.data)),
     sr->randlen);
 }
 

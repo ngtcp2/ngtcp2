@@ -77,5 +77,6 @@ munit_void_test_decl(test_ngtcp2_pkt_find_server_name)
 munit_void_test_decl(test_ngtcp2_pkt_append_ping_and_padding)
 munit_void_test_decl(test_ngtcp2_pkt_permutate_vec)
 munit_void_test_decl(test_ngtcp2_pkt_remove_vec_partial)
+munit_void_test_decl(test_ngtcp2_stateless_reset_token_eq)
 
 #endif /* !defined(NGTCP2_PKT_TEST_H) */

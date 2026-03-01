@@ -1208,8 +1208,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_new_connection_id_frame(
   ++p;
   ngtcp2_cid_init(&dest->cid, p, cil);
   p += cil;
-  p = ngtcp2_get_bytes(dest->stateless_reset_token, p,
-                       NGTCP2_STATELESS_RESET_TOKENLEN);
+  p = ngtcp2_get_bytes(dest->token.data, p, sizeof(dest->token.data));
 
   assert((size_t)(p - payload) == len);
 
@@ -1897,8 +1896,7 @@ ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
   p = ngtcp2_put_uvarint(p, fr->retire_prior_to);
   *p++ = (uint8_t)fr->cid.datalen;
   p = ngtcp2_cpymem(p, fr->cid.data, fr->cid.datalen);
-  p = ngtcp2_cpymem(p, fr->stateless_reset_token,
-                    NGTCP2_STATELESS_RESET_TOKENLEN);
+  p = ngtcp2_cpymem(p, fr->token.data, sizeof(fr->token.data));
 
   assert((size_t)(p - out) == len);
 
@@ -2153,7 +2151,7 @@ size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
   return payloadlen / sizeof(uint32_t);
 }
 
-int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
+int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset2 *sr,
                                       const uint8_t *payload,
                                       size_t payloadlen) {
   const uint8_t *p = payload;
@@ -2166,7 +2164,7 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
   sr->rand = p;
   sr->randlen = payloadlen - NGTCP2_STATELESS_RESET_TOKENLEN;
   p += sr->randlen;
-  memcpy(sr->stateless_reset_token, p, NGTCP2_STATELESS_RESET_TOKENLEN);
+  memcpy(sr->token.data, p, sizeof(sr->token.data));
 
   return 0;
 }
@@ -2868,4 +2866,9 @@ size_t ngtcp2_pkt_remove_vec_partial(ngtcp2_vec *removed_data, ngtcp2_vec *data,
   offsets[datacnt] = offsets[0] + v->len + removed_data->len;
 
   return datacnt + 1;
+}
+
+int ngtcp2_stateless_reset_token_eq(const ngtcp2_stateless_reset_token *a,
+                                    const ngtcp2_stateless_reset_token *b) {
+  return memcmp(a->data, b->data, sizeof(a->data)) == 0;
 }

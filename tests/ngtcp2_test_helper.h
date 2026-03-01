@@ -88,9 +88,42 @@ ngtcp2_strm *open_stream(ngtcp2_conn *conn, int64_t stream_id);
  */
 size_t rtb_entry_length(const ngtcp2_rtb_entry *ent);
 
+#define make_scid()                                                            \
+  {                                                                            \
+    .datalen = 18,                                                             \
+    .data = {0xEE, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, \
+             0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xEE},                        \
+  }
+
+#define make_dcid()                                                            \
+  {                                                                            \
+    .datalen = 18,                                                             \
+    .data = {0xFF, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, \
+             0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xFF},                        \
+  }
+
+#define make_rcid()                                                            \
+  {                                                                            \
+    .datalen = 18,                                                             \
+    .data = {0xDD, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, \
+             0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xDD},                        \
+  }
+
 void scid_init(ngtcp2_cid *cid);
 void dcid_init(ngtcp2_cid *cid);
 void rcid_init(ngtcp2_cid *cid);
+
+#define make_client_stateless_reset_token()                                    \
+  {                                                                            \
+    .data = {0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, \
+             0xF1, 0xF1, 0xF1, 0xF1, 0xF1},                                    \
+  }
+
+#define make_stateless_reset_token()                                           \
+  {                                                                            \
+    .data = {0x70, 0xC0, 0x70, 0xC0, 0x70, 0xC0, 0x70, 0xC0, 0x70, 0xC0, 0x70, \
+             0xC0, 0x70, 0xC0, 0x70, 0xC0},                                    \
+  }
 
 /*
  * read_pkt_payloadlen reads long header payload length field from

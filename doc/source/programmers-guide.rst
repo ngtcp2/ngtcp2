@@ -56,8 +56,8 @@ callback functions must be set:
 * :member:`recv_retry <ngtcp2_callbacks.recv_retry>`:
   `ngtcp2_crypto_recv_retry_cb()` can be passed directly.
 * :member:`rand <ngtcp2_callbacks.rand>`
-* :member:`get_new_connection_id
-  <ngtcp2_callbacks.get_new_connection_id>`
+* :member:`get_new_connection_id2
+  <ngtcp2_callbacks.get_new_connection_id2>`
 * :member:`update_key <ngtcp2_callbacks.update_key>`:
   `ngtcp2_crypto_update_key_cb()` can be passed directly.
 * :member:`delete_crypto_aead_ctx
@@ -88,8 +88,8 @@ For server application, the following callback functions must be set:
 * :member:`hp_mask <ngtcp2_callbacks.hp_mask>`:
   `ngtcp2_crypto_hp_mask_cb()` can be passed directly.
 * :member:`rand <ngtcp2_callbacks.rand>`
-* :member:`get_new_connection_id
-  <ngtcp2_callbacks.get_new_connection_id>`
+* :member:`get_new_connection_id2
+  <ngtcp2_callbacks.get_new_connection_id2>`
 * :member:`update_key <ngtcp2_callbacks.update_key>`:
   `ngtcp2_crypto_update_key_cb()` can be passed directly.
 * :member:`delete_crypto_aead_ctx
@@ -407,9 +407,10 @@ connections, and it is successfully processed by
 the QUIC packet and :type:`ngtcp2_conn` object.  The server must
 associate the Connection IDs returned by `ngtcp2_conn_get_scid()` to
 the :type:`ngtcp2_conn` object as well.  When new Connection ID is
-asked by the library, :member:`ngtcp2_callbacks.get_new_connection_id`
-is called.  Inside the callback, associate the newly generated
-Connection ID to the :type:`ngtcp2_conn` object.
+asked by the library,
+:member:`ngtcp2_callbacks.get_new_connection_id2` is called.  Inside
+the callback, associate the newly generated Connection ID to the
+:type:`ngtcp2_conn` object.
 
 When Connection ID is no longer used, its association should be
 removed.  When Connection ID is retired,

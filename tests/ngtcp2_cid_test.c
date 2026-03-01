@@ -65,18 +65,20 @@ void test_ngtcp2_dcid_copy_cid_token(void) {
     .datalen = 8,
     .data = {0xE1},
   };
-  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xDD};
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xDD},
+  };
   ngtcp2_dcid src, dest = {0};
 
   /* With token */
-  ngtcp2_dcid_init(&src, 776, &cid, token);
+  ngtcp2_dcid_init(&src, 776, &cid, &token);
 
   ngtcp2_dcid_copy_cid_token(&dest, &src);
 
   assert_uint64(src.seq, ==, dest.seq);
   assert_true(ngtcp2_cid_eq(&src.cid, &dest.cid));
   assert_true(dest.flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT);
-  assert_memory_equal(sizeof(src.token), src.token, dest.token);
+  assert_true(ngtcp2_stateless_reset_token_eq(&src.token, &dest.token));
 
   /* Without token */
   ngtcp2_dcid_init(&src, 776, &cid, NULL);
