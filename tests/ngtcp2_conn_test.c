@@ -845,7 +845,7 @@ static void server_default_transport_params(ngtcp2_transport_params *params) {
   params->max_idle_timeout = 60 * NGTCP2_SECONDS;
   params->stateless_reset_token_present = 1;
   params->active_connection_id_limit = 8;
-  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
+  for (i = 0; i < sizeof(params->stateless_reset_token); ++i) {
     params->stateless_reset_token[i] = (uint8_t)i;
   }
 }
@@ -12137,7 +12137,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
     assert_true(ngtcp2_cid_eq(&dcid, &regacy_cid_token[0].cid));
     assert_true(ngtcp2_path_eq(&null_path.path, &regacy_cid_token[0].ps.path));
     assert_true(regacy_cid_token[0].token_present);
-    assert_memory_equal(NGTCP2_STATELESS_RESET_TOKENLEN, token.data,
+    assert_memory_equal(sizeof(token.data), token.data,
                         regacy_cid_token[0].token);
 
     ngtcp2_conn_del(conn);

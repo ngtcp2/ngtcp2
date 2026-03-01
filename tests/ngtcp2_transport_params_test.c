@@ -144,14 +144,14 @@ void test_ngtcp2_transport_params_encode(void) {
     varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT,
                     params.active_connection_id_limit) +
     (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN) +
-     ngtcp2_put_uvarintlen(NGTCP2_STATELESS_RESET_TOKENLEN) +
-     NGTCP2_STATELESS_RESET_TOKENLEN) +
+     ngtcp2_put_uvarintlen(sizeof(params.stateless_reset_token)) +
+     sizeof(params.stateless_reset_token)) +
     (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS) +
-     ngtcp2_put_uvarintlen(4 + 2 + 16 + 2 + 1 +
-                           params.preferred_addr.cid.datalen +
-                           NGTCP2_STATELESS_RESET_TOKENLEN) +
+     ngtcp2_put_uvarintlen(
+       4 + 2 + 16 + 2 + 1 + params.preferred_addr.cid.datalen +
+       sizeof(params.preferred_addr.stateless_reset_token)) +
      4 + 2 + 16 + 2 + 1 + params.preferred_addr.cid.datalen +
-     NGTCP2_STATELESS_RESET_TOKENLEN) +
+     sizeof(params.preferred_addr.stateless_reset_token)) +
     (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID) +
      ngtcp2_put_uvarintlen(params.retry_scid.datalen) +
      params.retry_scid.datalen) +
@@ -379,14 +379,14 @@ void test_ngtcp2_transport_params_decode_new(void) {
     varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT,
                     params.active_connection_id_limit) +
     (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN) +
-     ngtcp2_put_uvarintlen(NGTCP2_STATELESS_RESET_TOKENLEN) +
-     NGTCP2_STATELESS_RESET_TOKENLEN) +
+     ngtcp2_put_uvarintlen(sizeof(params.stateless_reset_token)) +
+     sizeof(params.stateless_reset_token)) +
     (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS) +
-     ngtcp2_put_uvarintlen(4 + 2 + 16 + 2 + 1 +
-                           params.preferred_addr.cid.datalen +
-                           NGTCP2_STATELESS_RESET_TOKENLEN) +
+     ngtcp2_put_uvarintlen(
+       4 + 2 + 16 + 2 + 1 + params.preferred_addr.cid.datalen +
+       sizeof(params.preferred_addr.stateless_reset_token)) +
      4 + 2 + 16 + 2 + 1 + params.preferred_addr.cid.datalen +
-     NGTCP2_STATELESS_RESET_TOKENLEN) +
+     sizeof(params.preferred_addr.stateless_reset_token)) +
     (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID) +
      ngtcp2_put_uvarintlen(params.retry_scid.datalen) +
      params.retry_scid.datalen) +
