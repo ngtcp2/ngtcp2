@@ -1219,7 +1219,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(callbacks->hp_mask);
   assert(server || callbacks->recv_retry);
   assert(callbacks->rand);
-  assert(callbacks->get_new_connection_id);
+  assert(callbacks->get_new_connection_id2 || callbacks->get_new_connection_id);
   assert(callbacks->update_key);
   assert(callbacks->delete_crypto_aead_ctx);
   assert(callbacks->delete_crypto_cipher_ctx);
