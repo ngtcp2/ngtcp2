@@ -3943,9 +3943,8 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   ngtcp2_dcid_set_token(&conn->dcid.current, &token);
 
-  spktlen =
-    ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token.data, null_data,
-                                     NGTCP2_MIN_STATELESS_RESET_RANDLEN);
+  spktlen = ngtcp2_pkt_write_stateless_reset2(
+    buf, sizeof(buf), &token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
 
   assert_ptrdiff(0, <, spktlen);
 
@@ -3970,8 +3969,8 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   ngtcp2_dcid_set_token(&conn->dcid.current, &token);
 
-  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token.data,
-                                             null_data, 29);
+  spktlen =
+    ngtcp2_pkt_write_stateless_reset2(buf, sizeof(buf), &token, null_data, 29);
 
   assert_ptrdiff(0, <, spktlen);
 
@@ -3996,9 +3995,8 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   ngtcp2_dcid_set_token(&conn->dcid.current, &token);
 
-  spktlen =
-    ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token.data, null_data,
-                                     NGTCP2_MIN_STATELESS_RESET_RANDLEN);
+  spktlen = ngtcp2_pkt_write_stateless_reset2(
+    buf, sizeof(buf), &token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
 
   assert_ptrdiff(0, <, spktlen);
 
@@ -4026,8 +4024,8 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   ngtcp2_dcid_set_token(&conn->dcid.current, &token);
 
-  spktlen = ngtcp2_pkt_write_stateless_reset(
-    buf, 41, token.data, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN + 1);
+  spktlen = ngtcp2_pkt_write_stateless_reset2(
+    buf, 41, &token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN + 1);
 
   assert_ptrdiff(0, <, spktlen);
 
@@ -4059,8 +4057,8 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   setup_default_client_with_options(&conn, opts);
   conn->pktns.acktr.max_pkt_num = 24324325;
 
-  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token.data,
-                                             null_data, 29);
+  spktlen =
+    ngtcp2_pkt_write_stateless_reset2(buf, sizeof(buf), &token, null_data, 29);
 
   assert_ptrdiff(0, <, spktlen);
 

@@ -66,6 +66,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_pkt_adjust_pkt_num),
   munit_void_test(test_ngtcp2_pkt_validate_ack),
   munit_void_test(test_ngtcp2_pkt_write_stateless_reset),
+  munit_void_test(test_ngtcp2_pkt_write_stateless_reset2),
   munit_void_test(test_ngtcp2_pkt_write_retry),
   munit_void_test(test_ngtcp2_pkt_write_version_negotiation),
   munit_void_test(test_ngtcp2_pkt_stream_max_datalen),
@@ -1973,6 +1974,47 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
     buf,
     NGTCP2_MIN_STATELESS_RESET_RANDLEN - 1 + NGTCP2_STATELESS_RESET_TOKENLEN,
     token, rand, sizeof(rand));
+
+  assert_ptrdiff(NGTCP2_ERR_NOBUF, ==, spktlen);
+}
+
+void test_ngtcp2_pkt_write_stateless_reset2(void) {
+  uint8_t buf[256];
+  ngtcp2_ssize spktlen;
+  static const ngtcp2_stateless_reset_token token =
+    make_stateless_reset_token();
+  static const uint8_t rand[256] = {0xDE, 0xAD, 0xF0, 0x0D};
+  uint8_t *p;
+  size_t randlen;
+
+  spktlen = ngtcp2_pkt_write_stateless_reset2(buf, sizeof(buf), &token, rand,
+                                              sizeof(rand));
+
+  p = buf;
+
+  assert_ptrdiff(256, ==, spktlen);
+  assert_uint8(0, ==, (*p & NGTCP2_HEADER_FORM_BIT));
+  assert_true((*p & NGTCP2_FIXED_BIT_MASK));
+  assert_uint8(0x40 | (0x3F & rand[0]), ==, *p);
+
+  ++p;
+
+  randlen = (size_t)(spktlen - (p - buf)) - sizeof(token.data);
+
+  assert_memory_equal(randlen, rand + 1, p);
+
+  p += randlen;
+
+  assert_memory_equal(sizeof(token.data), token.data, p);
+
+  p += sizeof(token.data);
+
+  assert_ptrdiff(spktlen, ==, p - buf);
+
+  /* Not enough buffer */
+  spktlen = ngtcp2_pkt_write_stateless_reset2(
+    buf, NGTCP2_MIN_STATELESS_RESET_RANDLEN - 1 + sizeof(token.data), &token,
+    rand, sizeof(rand));
 
   assert_ptrdiff(NGTCP2_ERR_NOBUF, ==, spktlen);
 }
