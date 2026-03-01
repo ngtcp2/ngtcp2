@@ -522,16 +522,17 @@ void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
 } // namespace
 
 namespace {
-int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
-                          size_t cidlen, void *user_data) {
+int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
+                          ngtcp2_stateless_reset_token *token, size_t cidlen,
+                          void *user_data) {
   if (util::generate_secure_random({cid->data, cidlen}) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   cid->datalen = cidlen;
   if (ngtcp2_crypto_generate_stateless_reset_token(
-        token, config.static_secret.data(), config.static_secret.size(), cid) !=
-      0) {
+        token->data, config.static_secret.data(), config.static_secret.size(),
+        cid) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -660,7 +661,6 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     .stream_open = stream_open,
     .stream_close = stream_close,
     .rand = rand,
-    .get_new_connection_id = get_new_connection_id,
     .remove_connection_id = remove_connection_id,
     .update_key = ::update_key,
     .path_validation = path_validation,
@@ -669,6 +669,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
     .get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
+    .get_new_connection_id2 = get_new_connection_id,
   };
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;

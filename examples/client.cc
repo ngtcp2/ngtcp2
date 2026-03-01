@@ -482,16 +482,17 @@ void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
 } // namespace
 
 namespace {
-int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
-                          size_t cidlen, void *user_data) {
+int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
+                          ngtcp2_stateless_reset_token *token, size_t cidlen,
+                          void *user_data) {
   if (util::generate_secure_random({cid->data, cidlen}) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   cid->datalen = cidlen;
   if (ngtcp2_crypto_generate_stateless_reset_token(
-        token, config.static_secret.data(), config.static_secret.size(), cid) !=
-      0) {
+        token->data, config.static_secret.data(), config.static_secret.size(),
+        cid) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -685,7 +686,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     .recv_retry = ngtcp2_crypto_recv_retry_cb,
     .extend_max_local_streams_bidi = extend_max_local_streams_bidi,
     .rand = rand,
-    .get_new_connection_id = get_new_connection_id,
     .update_key = ::update_key,
     .path_validation = path_validation,
     .select_preferred_addr = ::select_preferred_address,
@@ -700,6 +700,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
     .recv_rx_key = ::recv_rx_key,
     .tls_early_data_rejected = ::early_data_rejected,
+    .get_new_connection_id2 = get_new_connection_id,
   };
 
   ngtcp2_cid scid, dcid;

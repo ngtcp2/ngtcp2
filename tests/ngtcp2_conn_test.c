@@ -223,13 +223,16 @@ static int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 }
 
 static int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
-                                 uint8_t *token, size_t cidlen,
-                                 void *user_data) {
+                                 ngtcp2_stateless_reset_token *token,
+                                 size_t cidlen, void *user_data) {
   (void)user_data;
-  memset(cid->data, 0, cidlen);
-  cid->data[0] = (uint8_t)(conn->scid.last_seq + 1);
-  cid->datalen = cidlen;
-  memset(token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
+
+  *cid = (ngtcp2_cid){
+    .datalen = cidlen,
+    .data = {(uint8_t)(conn->scid.last_seq + 1)},
+  };
+  *token = (ngtcp2_stateless_reset_token){0};
+
   return 0;
 }
 
@@ -870,12 +873,12 @@ static void server_default_callbacks(ngtcp2_callbacks *cb) {
     .encrypt = null_encrypt,
     .hp_mask = null_hp_mask,
     .rand = genrand,
-    .get_new_connection_id = get_new_connection_id,
     .update_key = update_key,
     .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
     .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
     .get_path_challenge_data = get_path_challenge_data,
     .version_negotiation = version_negotiation,
+    .get_new_connection_id2 = get_new_connection_id,
   };
 }
 
@@ -946,12 +949,12 @@ static void client_default_callbacks(ngtcp2_callbacks *cb) {
     .hp_mask = null_hp_mask,
     .recv_retry = recv_retry,
     .rand = genrand,
-    .get_new_connection_id = get_new_connection_id,
     .update_key = update_key,
     .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
     .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
     .get_path_challenge_data = get_path_challenge_data,
     .version_negotiation = version_negotiation,
+    .get_new_connection_id2 = get_new_connection_id,
   };
 }
 
