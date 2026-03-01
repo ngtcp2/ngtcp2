@@ -485,6 +485,43 @@ static int begin_path_validation(ngtcp2_conn *conn, uint32_t flags,
   return 0;
 }
 
+static int recv_stateless_reset2(ngtcp2_conn *conn,
+                                 const ngtcp2_pkt_stateless_reset2 *sr,
+                                 void *user_data) {
+  (void)conn;
+  (void)sr;
+  (void)user_data;
+
+  return 0;
+}
+
+static int get_new_connection_id2(ngtcp2_conn *conn, ngtcp2_cid *cid,
+                                  ngtcp2_stateless_reset_token *token,
+                                  size_t cidlen, void *user_data) {
+  (void)conn;
+  (void)cid;
+  (void)token;
+  (void)cidlen;
+  (void)user_data;
+
+  return 0;
+}
+
+static int dcid_status2(ngtcp2_conn *conn,
+                        ngtcp2_connection_id_status_type type, uint64_t seq,
+                        const ngtcp2_cid *cid,
+                        const ngtcp2_stateless_reset_token *token,
+                        void *user_data) {
+  (void)conn;
+  (void)type;
+  (void)seq;
+  (void)cid;
+  (void)token;
+  (void)user_data;
+
+  return 0;
+}
+
 void test_ngtcp2_callbacks_convert_to_latest(void) {
   ngtcp2_callbacks srcbuf = {
     .client_initial = client_initial,
@@ -527,19 +564,20 @@ void test_ngtcp2_callbacks_convert_to_latest(void) {
     .recv_rx_key = recv_rx_key,
     .recv_tx_key = recv_tx_key,
     .tls_early_data_rejected = tls_early_data_rejected,
+    .begin_path_validation = begin_path_validation,
   };
   ngtcp2_callbacks *src, callbacksbuf;
   const ngtcp2_callbacks *dest;
-  size_t v1len;
+  size_t v2len;
 
-  v1len = ngtcp2_callbackslen_version(NGTCP2_CALLBACKS_V1);
+  v2len = ngtcp2_callbackslen_version(NGTCP2_CALLBACKS_V2);
 
-  src = malloc(v1len);
+  src = malloc(v2len);
 
-  memcpy(src, &srcbuf, v1len);
+  memcpy(src, &srcbuf, v2len);
 
   dest =
-    ngtcp2_callbacks_convert_to_latest(&callbacksbuf, NGTCP2_CALLBACKS_V1, src);
+    ngtcp2_callbacks_convert_to_latest(&callbacksbuf, NGTCP2_CALLBACKS_V2, src);
 
   free(src);
 
@@ -593,7 +631,10 @@ void test_ngtcp2_callbacks_convert_to_latest(void) {
   assert_ptr_equal(srcbuf.recv_tx_key, dest->recv_tx_key);
   assert_ptr_equal(srcbuf.tls_early_data_rejected,
                    dest->tls_early_data_rejected);
-  assert_null(dest->begin_path_validation);
+  assert_ptr_equal(srcbuf.begin_path_validation, dest->begin_path_validation);
+  assert_null(dest->recv_stateless_reset2);
+  assert_null(dest->get_new_connection_id2);
+  assert_null(dest->dcid_status2);
 }
 
 void test_ngtcp2_callbacks_convert_to_old(void) {
@@ -639,18 +680,21 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
     .recv_tx_key = recv_tx_key,
     .tls_early_data_rejected = tls_early_data_rejected,
     .begin_path_validation = begin_path_validation,
+    .recv_stateless_reset2 = recv_stateless_reset2,
+    .get_new_connection_id2 = get_new_connection_id2,
+    .dcid_status2 = dcid_status2,
   };
   ngtcp2_callbacks *dest, destbuf;
-  size_t v1len;
+  size_t v2len;
 
-  v1len = ngtcp2_callbackslen_version(NGTCP2_CALLBACKS_V1);
+  v2len = ngtcp2_callbackslen_version(NGTCP2_CALLBACKS_V2);
 
-  dest = malloc(v1len);
+  dest = malloc(v2len);
 
-  ngtcp2_callbacks_convert_to_old(NGTCP2_CALLBACKS_V1, dest, &src);
+  ngtcp2_callbacks_convert_to_old(NGTCP2_CALLBACKS_V2, dest, &src);
 
   memset(&destbuf, 0, sizeof(destbuf));
-  memcpy(&destbuf, dest, v1len);
+  memcpy(&destbuf, dest, v2len);
 
   free(dest);
 
@@ -703,5 +747,8 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
   assert_ptr_equal(src.recv_tx_key, destbuf.recv_tx_key);
   assert_ptr_equal(src.tls_early_data_rejected,
                    destbuf.tls_early_data_rejected);
-  assert_null(destbuf.begin_path_validation);
+  assert_ptr_equal(src.begin_path_validation, destbuf.begin_path_validation);
+  assert_null(destbuf.recv_stateless_reset2);
+  assert_null(destbuf.get_new_connection_id2);
+  assert_null(destbuf.dcid_status2);
 }
