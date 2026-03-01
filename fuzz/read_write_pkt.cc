@@ -477,6 +477,46 @@ int begin_path_validation(ngtcp2_conn *conn, uint32_t flags,
 } // namespace
 
 namespace {
+int recv_stateless_reset2(ngtcp2_conn *conn,
+                          const ngtcp2_pkt_stateless_reset2 *sr,
+                          void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int get_new_connection_id2(ngtcp2_conn *conn, ngtcp2_cid *cid,
+                           ngtcp2_stateless_reset_token *token, size_t cidlen,
+                           void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  if (fuzzed_data_provider->ConsumeBool()) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  *cid = (ngtcp2_cid){
+    .datalen = cidlen,
+    .data = {static_cast<uint8_t>(conn->scid.last_seq + 1)},
+  };
+  *token = {};
+
+  return 0;
+}
+} // namespace
+
+namespace {
+int dcid_status2(ngtcp2_conn *conn, ngtcp2_connection_id_status_type type,
+                 uint64_t seq, const ngtcp2_cid *cid,
+                 const ngtcp2_stateless_reset_token *token, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
 void init_path(ngtcp2_path_storage *ps) {
   addrinfo *local, *remote,
     hints{
@@ -575,7 +615,23 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
     .recv_tx_key = recv_tx_key,
     .tls_early_data_rejected = tls_early_data_rejected,
     .begin_path_validation = begin_path_validation,
+    .recv_stateless_reset2 = recv_stateless_reset2,
+    .get_new_connection_id2 = get_new_connection_id2,
+    .dcid_status2 = dcid_status2,
   };
+
+  if (fuzzed_data_provider.ConsumeBool()) {
+    cb.recv_stateless_reset2 = nullptr;
+  }
+
+  if (fuzzed_data_provider.ConsumeBool()) {
+    cb.get_new_connection_id2 = nullptr;
+  }
+
+  if (fuzzed_data_provider.ConsumeBool()) {
+    cb.dcid_status2 = nullptr;
+  }
+
   ngtcp2_cid dcid, scid, odcid;
 
   ngtcp2_cid_init(

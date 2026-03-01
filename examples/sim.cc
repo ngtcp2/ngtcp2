@@ -63,15 +63,16 @@ void rand_bytes(uint8_t *dest, size_t destlen,
   assert(0 == rv);
 }
 
-int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
-                          size_t cidlen, void *user_data) {
+int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
+                          ngtcp2_stateless_reset_token *token, size_t cidlen,
+                          void *user_data) {
   if (generate_secure_random({cid->data, cidlen}) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   cid->datalen = cidlen;
   if (ngtcp2_crypto_generate_stateless_reset_token(
-        token, SERVER_SECRET, sizeof(SERVER_SECRET) - 1, cid) != 0) {
+        token->data, SERVER_SECRET, sizeof(SERVER_SECRET) - 1, cid) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -124,12 +125,12 @@ ngtcp2_callbacks default_client_callbacks() {
     .recv_stream_data = recv_stream_data,
     .recv_retry = ngtcp2_crypto_recv_retry_cb,
     .rand = rand_bytes,
-    .get_new_connection_id = get_new_connection_id,
     .update_key = ngtcp2_crypto_update_key_cb,
     .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
     .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
     .get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
+    .get_new_connection_id2 = get_new_connection_id,
   };
 }
 
@@ -142,12 +143,12 @@ ngtcp2_callbacks default_server_callbacks() {
     .hp_mask = ngtcp2_crypto_hp_mask_cb,
     .recv_stream_data = recv_stream_data,
     .rand = rand_bytes,
-    .get_new_connection_id = get_new_connection_id,
     .update_key = ngtcp2_crypto_update_key_cb,
     .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
     .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
     .get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
+    .get_new_connection_id2 = get_new_connection_id,
   };
 }
 
