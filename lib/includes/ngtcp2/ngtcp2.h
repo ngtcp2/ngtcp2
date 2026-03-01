@@ -5154,6 +5154,8 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest);
  *
  * :type:`ngtcp2_cid_token` is the convenient struct to store
  * Connection ID, its associated path, and stateless reset token.
+ *
+ * Deprecated since v1.22.0.  Use :type:`ngtcp2_cid_token2` instead.
  */
 typedef struct ngtcp2_cid_token {
   /**
@@ -5193,9 +5195,64 @@ typedef struct ngtcp2_cid_token {
  * sizeof(:type:`ngtcp2_cid_token`) * n bytes available, where n is
  * the return value of `ngtcp2_conn_get_active_dcid` with |dest| ==
  * NULL.
+ *
+ * Deprecated since v1.22.0.  Use `ngtcp2_conn_get_active_dcid2`
+ * instead.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn,
                                                  ngtcp2_cid_token *dest);
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_cid_token2` is the convenient struct to store
+ * Connection ID, its associated path, and stateless reset token.
+ *
+ * This type has been available since v1.22.0.
+ */
+typedef struct ngtcp2_cid_token2 {
+  /**
+   * :member:`seq` is the sequence number of this Connection ID.
+   */
+  uint64_t seq;
+  /**
+   * :member:`cid` is Connection ID.
+   */
+  ngtcp2_cid cid;
+  /**
+   * :member:`ps` is the path which this Connection ID is associated
+   * with.
+   */
+  ngtcp2_path_storage ps;
+  /**
+   * :member:`token` is the stateless reset token for this Connection
+   * ID.
+   */
+  ngtcp2_stateless_reset_token token;
+  /**
+   * :member:`token_present` is nonzero if token contains stateless
+   * reset token.
+   */
+  uint8_t token_present;
+} ngtcp2_cid_token2;
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_active_dcid2` writes the all active Destination
+ * Connection IDs and their tokens to |dest|.  Before handshake
+ * completes, this function returns 0.  If |dest| is NULL, this
+ * function does not write anything, and returns the number of
+ * Destination Connection IDs that would otherwise be written to the
+ * provided buffer.  The buffer pointed by |dest| must have
+ * sizeof(:type:`ngtcp2_cid_token2`) * n bytes available, where n is
+ * the return value of `ngtcp2_conn_get_active_dcid2` with |dest| ==
+ * NULL.
+ *
+ * This function has been available since v1.22.0.
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid2(ngtcp2_conn *conn,
+                                                  ngtcp2_cid_token2 *dest);
 
 /**
  * @function
