@@ -13506,20 +13506,46 @@ static size_t conn_get_num_active_dcid(ngtcp2_conn *conn) {
   return n;
 }
 
-static void copy_dcid_to_cid_token(ngtcp2_cid_token *dest,
+size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn, ngtcp2_cid_token *dest) {
+  ngtcp2_cid_token2 cid_tokens[/* current */ 1 + /* pv */ 2 +
+                               NGTCP2_DCIDTR_MAX_RETIRED_DCID_SIZE];
+  size_t n, i;
+
+  if (!dest) {
+    return ngtcp2_conn_get_active_dcid2(conn, NULL);
+  }
+
+  n = ngtcp2_conn_get_active_dcid2(conn, cid_tokens);
+
+  for (i = 0; i < n; ++i) {
+    dest[i].seq = cid_tokens[i].seq;
+    dest[i].cid = cid_tokens[i].cid;
+    ngtcp2_path_storage_init2(&dest[i].ps, &cid_tokens[i].ps.path);
+    dest[i].token_present = cid_tokens[i].token_present;
+
+    if (dest[i].token_present) {
+      memcpy(dest[i].token, cid_tokens[i].token.data, sizeof(dest[i].token));
+    }
+  }
+
+  return n;
+}
+
+static void copy_dcid_to_cid_token(ngtcp2_cid_token2 *dest,
                                    const ngtcp2_dcid *src) {
   dest->seq = src->seq;
   dest->cid = src->cid;
   ngtcp2_path_storage_init2(&dest->ps, &src->ps.path);
   if ((dest->token_present =
          (src->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) != 0)) {
-    memcpy(dest->token, src->token.data, sizeof(dest->token));
+    dest->token = src->token;
   }
 }
 
-size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn, ngtcp2_cid_token *dest) {
+size_t ngtcp2_conn_get_active_dcid2(ngtcp2_conn *conn,
+                                    ngtcp2_cid_token2 *dest) {
   ngtcp2_pv *pv = conn->pv;
-  ngtcp2_cid_token *orig = dest;
+  ngtcp2_cid_token2 *orig = dest;
   ngtcp2_dcid *dcid;
   size_t len, i;
 
