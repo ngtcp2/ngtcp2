@@ -2243,10 +2243,21 @@ ngtcp2_ssize
 ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
                                  const uint8_t *stateless_reset_token,
                                  const uint8_t *rand, size_t randlen) {
+  ngtcp2_stateless_reset_token token;
+
+  memcpy(token.data, stateless_reset_token, sizeof(token.data));
+
+  return ngtcp2_pkt_write_stateless_reset2(dest, destlen, &token, rand,
+                                           randlen);
+}
+
+ngtcp2_ssize
+ngtcp2_pkt_write_stateless_reset2(uint8_t *dest, size_t destlen,
+                                  const ngtcp2_stateless_reset_token *token,
+                                  const uint8_t *rand, size_t randlen) {
   uint8_t *p;
 
-  if (destlen <
-      NGTCP2_MIN_STATELESS_RESET_RANDLEN + NGTCP2_STATELESS_RESET_TOKENLEN) {
+  if (destlen < NGTCP2_MIN_STATELESS_RESET_RANDLEN + sizeof(token->data)) {
     return NGTCP2_ERR_NOBUF;
   }
 
@@ -2256,11 +2267,11 @@ ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
 
   p = dest;
 
-  randlen = ngtcp2_min_size(destlen - NGTCP2_STATELESS_RESET_TOKENLEN, randlen);
+  randlen = ngtcp2_min_size(destlen - sizeof(token->data), randlen);
 
   p = ngtcp2_cpymem(p, rand, randlen);
-  p = ngtcp2_cpymem(p, stateless_reset_token, NGTCP2_STATELESS_RESET_TOKENLEN);
-  *dest = (uint8_t)((*dest & 0x7FU) | 0x40U);
+  p = ngtcp2_cpymem(p, token->data, sizeof(token->data));
+  *dest = (uint8_t)((*dest & 0x3FU) | 0x40U);
 
   return p - dest;
 }

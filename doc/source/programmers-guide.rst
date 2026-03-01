@@ -391,7 +391,7 @@ belongs to an existing connection, pass the UDP datagram to
 connection, it should be passed to `ngtcp2_accept()`.  If it returns a
 negative error code, just drop the packet to the floor and take no
 action, or send Stateless Reset packet (use
-`ngtcp2_pkt_write_stateless_reset()` to create Stateless Reset
+`ngtcp2_pkt_write_stateless_reset2()` to create Stateless Reset
 packet).  Otherwise, the UDP datagram is acceptable as a new
 connection.  Create :type:`ngtcp2_conn` object and pass the UDP
 datagram to `ngtcp2_conn_read_pkt()`.

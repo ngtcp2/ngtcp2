@@ -2481,9 +2481,40 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
  * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     |randlen| is strictly less than
  *     :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN`.
+ *
+ * Deprecated since v1.22.0.  Use `ngtcp2_pkt_write_stateless_reset2`
+ * instead.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(
   uint8_t *dest, size_t destlen, const uint8_t *stateless_reset_token,
+  const uint8_t *rand, size_t randlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_write_stateless_reset2` writes Stateless Reset packet
+ * in the buffer pointed by |dest| whose length is |destlen|.  |token|
+ * must store the Stateless Reset Token.  |rand| specifies the random
+ * octets preceding Stateless Reset Token.  The length of |rand| is
+ * specified by |randlen| which must be at least
+ * :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN` bytes long.
+ *
+ * If |randlen| is too long to write them all in the buffer, |rand| is
+ * written to the buffer as much as possible, and is truncated.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * one of the following negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |randlen| is strictly less than
+ *     :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN`.
+ *
+ * This function has been available since v1.22.0.
+ */
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset2(
+  uint8_t *dest, size_t destlen, const ngtcp2_stateless_reset_token *token,
   const uint8_t *rand, size_t randlen);
 
 /**

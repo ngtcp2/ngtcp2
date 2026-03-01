@@ -2797,10 +2797,10 @@ int Server::send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
 
   ngtcp2_cid_init(&cid, dcid.data(), dcid.size());
 
-  std::array<uint8_t, NGTCP2_STATELESS_RESET_TOKENLEN> token;
+  ngtcp2_stateless_reset_token token;
 
   if (ngtcp2_crypto_generate_stateless_reset_token(
-        token.data(), config.static_secret.data(), config.static_secret.size(),
+        token.data, config.static_secret.data(), config.static_secret.size(),
         &cid) != 0) {
     return -1;
   }
@@ -2827,10 +2827,10 @@ int Server::send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
 
   Buffer buf{NGTCP2_MAX_UDP_PAYLOAD_SIZE};
 
-  auto nwrite = ngtcp2_pkt_write_stateless_reset(
-    buf.wpos(), buf.left(), token.data(), rand_bytes.data(), rand_byteslen);
+  auto nwrite = ngtcp2_pkt_write_stateless_reset2(
+    buf.wpos(), buf.left(), &token, rand_bytes.data(), rand_byteslen);
   if (nwrite < 0) {
-    std::cerr << "ngtcp2_pkt_write_stateless_reset: "
+    std::cerr << "ngtcp2_pkt_write_stateless_reset2: "
               << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
 
     return -1;
