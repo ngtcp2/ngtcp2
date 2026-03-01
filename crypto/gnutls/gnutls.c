@@ -543,6 +543,20 @@ int ngtcp2_crypto_get_path_challenge_data_cb(ngtcp2_conn *conn, uint8_t *data,
   return 0;
 }
 
+int ngtcp2_crypto_get_path_challenge_data2_cb(ngtcp2_conn *conn,
+                                              ngtcp2_path_challenge_data *data,
+                                              void *user_data) {
+  (void)conn;
+  (void)user_data;
+
+  if (gnutls_rnd(GNUTLS_RND_RANDOM, data->data,
+                 NGTCP2_PATH_CHALLENGE_DATALEN) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 int ngtcp2_crypto_random(uint8_t *data, size_t datalen) {
   if (gnutls_rnd(GNUTLS_RND_RANDOM, data, datalen) != 0) {
     return -1;

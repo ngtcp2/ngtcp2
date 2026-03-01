@@ -517,12 +517,19 @@ static int conn_call_client_initial(ngtcp2_conn *conn) {
   return 0;
 }
 
-static int conn_call_get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data) {
+static int conn_call_get_path_challenge_data(ngtcp2_conn *conn,
+                                             ngtcp2_path_challenge_data *data) {
   int rv;
 
-  assert(conn->callbacks.get_path_challenge_data);
+  if (conn->callbacks.get_path_challenge_data2) {
+    rv = conn->callbacks.get_path_challenge_data2(conn, data, conn->user_data);
+  } else {
+    assert(conn->callbacks.get_path_challenge_data);
 
-  rv = conn->callbacks.get_path_challenge_data(conn, data, conn->user_data);
+    rv = conn->callbacks.get_path_challenge_data(conn, data->data,
+                                                 conn->user_data);
+  }
+
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -1223,7 +1230,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(callbacks->update_key);
   assert(callbacks->delete_crypto_aead_ctx);
   assert(callbacks->delete_crypto_cipher_ctx);
-  assert(callbacks->get_path_challenge_data);
+  assert(callbacks->get_path_challenge_data2 ||
+         callbacks->get_path_challenge_data);
   assert(!server || !ngtcp2_is_reserved_version(client_chosen_version));
 
   for (i = 0; i < settings->pmtud_probeslen; ++i) {
@@ -3628,9 +3636,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       /* PATH_RESPONSE is bound to the path that the corresponding
          PATH_CHALLENGE is received. */
       if (ngtcp2_path_eq(&conn->dcid.current.ps.path, &pcent->ps.path)) {
-        lfr.path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-        memcpy(lfr.path_response.data, pcent->data,
-               sizeof(lfr.path_response.data));
+        lfr.path_response = (ngtcp2_path_response){
+          .type = NGTCP2_FRAME_PATH_RESPONSE,
+          .data = pcent->data,
+        };
 
         rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
         if (rv != 0) {
@@ -5144,7 +5153,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
     return 0;
   }
 
-  rv = conn_call_get_path_challenge_data(conn, lfr.path_challenge.data);
+  rv = conn_call_get_path_challenge_data(conn, &lfr.path_challenge.data);
   if (rv != 0) {
     return rv;
   }
@@ -5176,7 +5185,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
     flags = NGTCP2_PV_ENTRY_FLAG_NONE;
   }
 
-  ngtcp2_pv_add_entry(pv, lfr.path_challenge.data, expiry, flags, ts);
+  ngtcp2_pv_add_entry(pv, &lfr.path_challenge.data, expiry, flags, ts);
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
     conn, pi, dest, destlen, NGTCP2_PKT_1RTT, NGTCP2_WRITE_PKT_FLAG_NONE,
@@ -5282,8 +5291,10 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
     }
   }
 
-  lfr.path_response.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memcpy(lfr.path_response.data, pcent->data, sizeof(lfr.path_response.data));
+  lfr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+    .data = pcent->data,
+  };
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
     conn, pi, dest, destlen, NGTCP2_PKT_1RTT, NGTCP2_WRITE_PKT_FLAG_NONE,
@@ -6017,7 +6028,7 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   ent = ngtcp2_ringbuf_push_front(&conn->rx.path_challenge.rb);
-  ngtcp2_path_challenge_entry_init(ent, path, fr->data);
+  ngtcp2_path_challenge_entry_init(ent, path, &fr->data);
 }
 
 /*
@@ -6087,7 +6098,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return 0;
   }
 
-  rv = ngtcp2_pv_validate(pv, &ent_flags, fr->data);
+  rv = ngtcp2_pv_validate(pv, &ent_flags, &fr->data);
   if (rv != 0) {
     assert(!ngtcp2_err_is_fatal(rv));
 
@@ -14115,9 +14126,9 @@ ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const ngtcp2_path *path,
-                                      const uint8_t *data) {
+                                      const ngtcp2_path_challenge_data *data) {
   ngtcp2_path_storage_init2(&pcent->ps, path);
-  memcpy(pcent->data, data, sizeof(pcent->data));
+  pcent->data = *data;
 }
 
 /* The functions prefixed with ngtcp2_pkt_ are usually put inside

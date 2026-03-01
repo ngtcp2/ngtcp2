@@ -241,8 +241,10 @@ void delete_crypto_cipher_ctx(ngtcp2_conn *conn,
 } // namespace
 
 namespace {
-int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data, void *user_data) {
-  memset(data, 0, NGTCP2_PATH_CHALLENGE_DATALEN);
+int get_path_challenge_data2(ngtcp2_conn *conn,
+                             ngtcp2_path_challenge_data *data,
+                             void *user_data) {
+  *data = {};
 
   return 0;
 }
@@ -313,9 +315,9 @@ ngtcp2_conn *setup_conn(TLSState *state) {
     .update_key = update_key,
     .delete_crypto_aead_ctx = delete_crypto_aead_ctx,
     .delete_crypto_cipher_ctx = delete_crypto_cipher_ctx,
-    .get_path_challenge_data = get_path_challenge_data,
     .version_negotiation = version_negotiation,
     .get_new_connection_id2 = get_new_connection_id2,
+    .get_path_challenge_data2 = get_path_challenge_data2,
   };
 
   ngtcp2_path_storage ps;

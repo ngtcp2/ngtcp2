@@ -577,7 +577,7 @@ static uint8_t *write_path_challenge_frame(uint8_t *p,
 #define NGTCP2_QLOG_PATH_CHALLENGE_FRAME_OVERHEAD 57
 
   p = write_verbatim(p, "{\"frame_type\":\"path_challenge\",");
-  p = write_pair_hex(p, "data", fr->data, sizeof(fr->data));
+  p = write_pair_hex(p, "data", fr->data.data, sizeof(fr->data.data));
   *p++ = '}';
 
   return p;
@@ -591,7 +591,7 @@ static uint8_t *write_path_response_frame(uint8_t *p,
 #define NGTCP2_QLOG_PATH_RESPONSE_FRAME_OVERHEAD 56
 
   p = write_verbatim(p, "{\"frame_type\":\"path_response\",");
-  p = write_pair_hex(p, "data", fr->data, sizeof(fr->data));
+  p = write_pair_hex(p, "data", fr->data.data, sizeof(fr->data.data));
   *p++ = '}';
 
   return p;

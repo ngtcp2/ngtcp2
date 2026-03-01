@@ -517,6 +517,22 @@ int dcid_status2(ngtcp2_conn *conn, ngtcp2_connection_id_status_type type,
 } // namespace
 
 namespace {
+int get_path_challenge_data2(ngtcp2_conn *conn,
+                             ngtcp2_path_challenge_data *data,
+                             void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  if (fuzzed_data_provider->ConsumeBool()) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  *data = {};
+
+  return 0;
+}
+} // namespace
+
+namespace {
 void init_path(ngtcp2_path_storage *ps) {
   addrinfo *local, *remote,
     hints{
@@ -618,6 +634,7 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
     .recv_stateless_reset2 = recv_stateless_reset2,
     .get_new_connection_id2 = get_new_connection_id2,
     .dcid_status2 = dcid_status2,
+    .get_path_challenge_data2 = get_path_challenge_data2,
   };
 
   if (fuzzed_data_provider.ConsumeBool()) {
@@ -630,6 +647,10 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
 
   if (fuzzed_data_provider.ConsumeBool()) {
     cb.dcid_status2 = nullptr;
+  }
+
+  if (fuzzed_data_provider.ConsumeBool()) {
+    cb.get_path_challenge_data2 = nullptr;
   }
 
   ngtcp2_cid dcid, scid, odcid;

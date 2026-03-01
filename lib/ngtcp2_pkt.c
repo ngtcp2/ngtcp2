@@ -1267,7 +1267,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
   p = payload + 1;
 
   dest->type = NGTCP2_FRAME_PATH_CHALLENGE;
-  ngtcp2_cpymem(dest->data, p, sizeof(dest->data));
+  ngtcp2_cpymem(dest->data.data, p, sizeof(dest->data.data));
   p += sizeof(dest->data);
 
   assert((size_t)(p - payload) == len);
@@ -1288,7 +1288,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
   p = payload + 1;
 
   dest->type = NGTCP2_FRAME_PATH_RESPONSE;
-  ngtcp2_cpymem(dest->data, p, sizeof(dest->data));
+  ngtcp2_cpymem(dest->data.data, p, sizeof(dest->data.data));
   p += sizeof(dest->data);
 
   assert((size_t)(p - payload) == len);
@@ -1938,7 +1938,7 @@ ngtcp2_pkt_encode_path_challenge_frame(uint8_t *out, size_t outlen,
   p = out;
 
   *p++ = NGTCP2_FRAME_PATH_CHALLENGE;
-  p = ngtcp2_cpymem(p, fr->data, sizeof(fr->data));
+  p = ngtcp2_cpymem(p, fr->data.data, sizeof(fr->data.data));
 
   assert((size_t)(p - out) == len);
 
@@ -1958,7 +1958,7 @@ ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
   p = out;
 
   *p++ = NGTCP2_FRAME_PATH_RESPONSE;
-  p = ngtcp2_cpymem(p, fr->data, sizeof(fr->data));
+  p = ngtcp2_cpymem(p, fr->data.data, sizeof(fr->data.data));
 
   assert((size_t)(p - out) == len);
 

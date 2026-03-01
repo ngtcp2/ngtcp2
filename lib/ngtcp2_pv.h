@@ -57,10 +57,11 @@ typedef struct ngtcp2_pv_entry {
   /* flags is zero or more of NGTCP2_PV_ENTRY_FLAG_*. */
   uint8_t flags;
   /* data is a byte string included in PATH_CHALLENGE. */
-  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
+  ngtcp2_path_challenge_data data;
 } ngtcp2_pv_entry;
 
-void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
+void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent,
+                          const ngtcp2_path_challenge_data *data,
                           ngtcp2_tstamp expiry, uint8_t flags);
 
 /* NGTCP2_PV_FLAG_NONE indicates no flag is set. */
@@ -141,7 +142,7 @@ void ngtcp2_pv_del(ngtcp2_pv *pv);
  * ngtcp2_pv_add_entry adds new entry with |data|.  |expiry| is the
  * expiry time of the entry.
  */
-void ngtcp2_pv_add_entry(ngtcp2_pv *pv, const uint8_t *data,
+void ngtcp2_pv_add_entry(ngtcp2_pv *pv, const ngtcp2_path_challenge_data *data,
                          ngtcp2_tstamp expiry, uint8_t flags, ngtcp2_tstamp ts);
 
 /*
@@ -164,7 +165,8 @@ int ngtcp2_pv_full(ngtcp2_pv *pv);
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     |pv| does not have an entry which has |data| and |path|
  */
-int ngtcp2_pv_validate(ngtcp2_pv *pv, uint8_t *pflags, const uint8_t *data);
+int ngtcp2_pv_validate(ngtcp2_pv *pv, uint8_t *pflags,
+                       const ngtcp2_path_challenge_data *data);
 
 /*
  * ngtcp2_pv_handle_entry_expiry checks expiry of existing entries.

@@ -695,12 +695,12 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     .recv_new_token = ::recv_new_token,
     .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
     .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
-    .get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb,
     .stream_stop_sending = stream_stop_sending,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
     .recv_rx_key = ::recv_rx_key,
     .tls_early_data_rejected = ::early_data_rejected,
     .get_new_connection_id2 = get_new_connection_id,
+    .get_path_challenge_data2 = ngtcp2_crypto_get_path_challenge_data2_cb,
   };
 
   ngtcp2_cid scid, dcid;

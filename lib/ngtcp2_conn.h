@@ -114,12 +114,12 @@ typedef enum {
 
 typedef struct ngtcp2_path_challenge_entry {
   ngtcp2_path_storage ps;
-  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
+  ngtcp2_path_challenge_data data;
 } ngtcp2_path_challenge_entry;
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const ngtcp2_path *path,
-                                      const uint8_t *data);
+                                      const ngtcp2_path_challenge_data *data);
 
 /* NGTCP2_CONN_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_CONN_FLAG_NONE 0x00U

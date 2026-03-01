@@ -478,9 +478,11 @@ void test_ngtcp2_qlog_write_frame(void) {
   {
     fr.path_challenge = (ngtcp2_path_challenge){
       .type = NGTCP2_FRAME_PATH_CHALLENGE,
+      .data =
+        {
+          .data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88},
+        },
     };
-    memcpy(fr.path_challenge.data, "\x11\x22\x33\x44\x55\x66\x77\x88",
-           NGTCP2_PATH_CHALLENGE_DATALEN);
 
     ngtcp2_qlog_write_frame(&qlog, &fr);
     *qlog.buf.last = '\0';
@@ -495,9 +497,11 @@ void test_ngtcp2_qlog_write_frame(void) {
   {
     fr.path_response = (ngtcp2_path_response){
       .type = NGTCP2_FRAME_PATH_RESPONSE,
+      .data =
+        {
+          .data = {0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99},
+        },
     };
-    memcpy(fr.path_challenge.data, "\x22\x33\x44\x55\x66\x77\x88\x99",
-           NGTCP2_PATH_CHALLENGE_DATALEN);
 
     ngtcp2_qlog_write_frame(&qlog, &fr);
     *qlog.buf.last = '\0';
