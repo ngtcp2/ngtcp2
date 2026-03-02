@@ -45,7 +45,7 @@ const MunitSuite acktr_suite = {
 };
 
 void test_ngtcp2_acktr_add(void) {
-  const int64_t pkt_nums[] = {1, 5, 7, 6, 2, 3};
+  static const int64_t pkt_nums[] = {1, 5, 7, 6, 2, 3};
   ngtcp2_acktr acktr;
   ngtcp2_acktr_entry *ent;
   ngtcp2_ksl_it it;
@@ -318,7 +318,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
   size_t i;
   ngtcp2_ack_range ack_ranges[NGTCP2_MAX_ACK_RANGES];
   ngtcp2_ack fr;
-  int64_t rpkt_nums[] = {
+  static const int64_t rpkt_nums[] = {
     4500, 4499, 4497, 4496, 4494, 4493, 4491, 4490, 4488, 4487, 4483,
   };
   /*

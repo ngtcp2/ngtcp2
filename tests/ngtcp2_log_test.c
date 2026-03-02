@@ -77,7 +77,7 @@ static void log_printf(void *user_data, const char *format, ...) {
 }
 
 static void log_init(ngtcp2_log *log, log_data *ld) {
-  ngtcp2_cid scid = {
+  static const ngtcp2_cid scid = {
     .datalen = 4,
     .data = {0xDE, 0xAD, 0xBE, 0xEF},
   };
@@ -212,11 +212,11 @@ void test_ngtcp2_log_pkt_lost(void) {
 void test_ngtcp2_log_pkt_hd(void) {
   log_data ld;
   ngtcp2_log log;
-  const ngtcp2_cid dcid = {
+  static const ngtcp2_cid dcid = {
     .datalen = 4,
     .data = {0xBA, 0xAD, 0xF0, 0x0D},
   };
-  const ngtcp2_cid scid = {
+  static const ngtcp2_cid scid = {
     .datalen = 4,
     .data = {0xBE, 0xEF, 0xCA, 0xCE},
   };
@@ -287,7 +287,7 @@ void test_ngtcp2_log_pkt_hd(void) {
 void test_ngtcp2_log_rx_vn(void) {
   log_data ld;
   ngtcp2_log log;
-  const uint32_t sv[] = {
+  static const uint32_t sv[] = {
     0x1,
     0x2,
     0xEEFFEEFF,
@@ -344,7 +344,7 @@ void test_ngtcp2_log_rx_sr(void) {
 void test_ngtcp2_log_fr(void) {
   log_data ld;
   ngtcp2_log log;
-  const ngtcp2_pkt_hd hd = {
+  static const ngtcp2_pkt_hd hd = {
     .dcid =
       {
         .datalen = 4,
@@ -353,13 +353,13 @@ void test_ngtcp2_log_fr(void) {
     .pkt_num = 778,
     .type = NGTCP2_PKT_1RTT,
   };
-  ngtcp2_vec data[] = {
+  static const ngtcp2_vec data[] = {
     {
       .base = null_data,
       .len = 123,
     },
   };
-  ngtcp2_ack_range ranges[] = {
+  static const ngtcp2_ack_range ranges[] = {
     {
       .len = 1,
     },
@@ -368,7 +368,7 @@ void test_ngtcp2_log_fr(void) {
       .len = 1000000000,
     },
   };
-  uint8_t token[] = {
+  static const uint8_t token[] = {
     0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99, 0xAA, 0x11, 0xE1, 0xDD, 0xAA,
     0x00, 0x33, 0x99, 0xAA, 0x11, 0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99,
     0xAA, 0x11, 0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99, 0xAA, 0x11, 0xE1,
@@ -376,7 +376,7 @@ void test_ngtcp2_log_fr(void) {
     0x33, 0x99, 0xAA, 0x11, 0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99, 0xAA,
     0x11, 0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99, 0xAA, 0x11,
   };
-  uint8_t token_long[] = {
+  static const uint8_t token_long[] = {
     0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99, 0xAA, 0x11, 0xE1, 0xDD, 0xAA,
     0x00, 0x33, 0x99, 0xAA, 0x11, 0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99,
     0xAA, 0x11, 0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99, 0xAA, 0x11, 0xE1,
@@ -408,7 +408,7 @@ void test_ngtcp2_log_fr(void) {
                                      .stream_id = 1000000007,
                                      .offset = 4852383,
                                      .datacnt = ngtcp2_arraylen(data),
-                                     .data = data,
+                                     .data = (ngtcp2_vec *)data,
                                    }});
 
   assert_null(ld.expected[ld.idx]);
@@ -430,7 +430,7 @@ void test_ngtcp2_log_fr(void) {
                                      .stream_id = 1000000009,
                                      .offset = 4852383,
                                      .datacnt = ngtcp2_arraylen(data),
-                                     .data = data,
+                                     .data = (ngtcp2_vec *)data,
                                    }});
 
   assert_null(ld.expected[ld.idx]);
@@ -486,7 +486,7 @@ void test_ngtcp2_log_fr(void) {
                       .ack_delay = 333,
                       .first_ack_range = 1,
                       .rangecnt = ngtcp2_arraylen(ranges),
-                      .ranges = ranges,
+                      .ranges = (ngtcp2_ack_range *)ranges,
                     }});
 
   assert_null(ld.expected[ld.idx]);
@@ -969,7 +969,7 @@ void test_ngtcp2_log_fr(void) {
                                      .type = NGTCP2_FRAME_CRYPTO,
                                      .offset = 352556,
                                      .datacnt = ngtcp2_arraylen(data),
-                                     .data = data,
+                                     .data = (ngtcp2_vec *)data,
                                    }});
 
   assert_null(ld.expected[ld.idx]);
@@ -990,7 +990,7 @@ void test_ngtcp2_log_fr(void) {
   ngtcp2_log_rx_fr(&log, &hd,
                    &(ngtcp2_frame){.new_token = {
                                      .type = NGTCP2_FRAME_NEW_TOKEN,
-                                     .token = token,
+                                     .token = (uint8_t *)token,
                                      .tokenlen = sizeof(token),
                                    }});
 
@@ -1012,7 +1012,7 @@ void test_ngtcp2_log_fr(void) {
   ngtcp2_log_rx_fr(&log, &hd,
                    &(ngtcp2_frame){.new_token = {
                                      .type = NGTCP2_FRAME_NEW_TOKEN,
-                                     .token = token_long,
+                                     .token = (uint8_t *)token_long,
                                      .tokenlen = sizeof(token_long),
                                    }});
 
@@ -1065,7 +1065,7 @@ void test_ngtcp2_log_fr(void) {
                    &(ngtcp2_frame){.datagram = {
                                      .type = NGTCP2_FRAME_DATAGRAM,
                                      .datacnt = ngtcp2_arraylen(data),
-                                     .data = data,
+                                     .data = (ngtcp2_vec *)data,
                                    }});
 
   assert_null(ld.expected[ld.idx]);

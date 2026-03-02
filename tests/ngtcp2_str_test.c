@@ -91,7 +91,7 @@ void test_ngtcp2_encode_ipv6_cstr(void) {
 }
 
 void test_ngtcp2_get_bytes(void) {
-  const uint8_t src[] = {'f', 'o', 'o', 'b', 'a', 'r'};
+  static const uint8_t src[] = {'f', 'o', 'o', 'b', 'a', 'r'};
   uint8_t dest[256];
 
   assert_ptr_equal(src + sizeof(src), ngtcp2_get_bytes(dest, src, sizeof(src)));
@@ -100,7 +100,7 @@ void test_ngtcp2_get_bytes(void) {
 
 void test_ngtcp2_encode_uint(void) {
   uint8_t dest[256];
-  const char *nines[] = {
+  static const char *nines[] = {
     "9",
     "99",
     "999",
@@ -121,7 +121,7 @@ void test_ngtcp2_encode_uint(void) {
     "999999999999999999",
     "9999999999999999999",
   };
-  const char *tens[] = {
+  static const char *tens[] = {
     "10",
     "100",
     "1000",
@@ -184,7 +184,7 @@ void test_ngtcp2_encode_hex(void) {
   }
 
   {
-    const uint8_t s[] = "\xde\xad\xbe\xef";
+    static const uint8_t s[] = "\xde\xad\xbe\xef";
 
     *ngtcp2_encode_hex(dest, s, ngtcp2_strlen_lit(s)) = '\0';
 

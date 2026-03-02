@@ -198,10 +198,10 @@ void test_ngtcp2_addr_cmp(void) {
 }
 
 void test_ngtcp2_addr_empty(void) {
-  ngtcp2_addr a = {
+  static const ngtcp2_addr a = {
     .addrlen = 1,
   };
-  ngtcp2_addr b = {0};
+  static const ngtcp2_addr b = {0};
 
   assert_false(ngtcp2_addr_empty(&a));
   assert_true(ngtcp2_addr_empty(&b));
