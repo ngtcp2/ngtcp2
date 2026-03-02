@@ -854,6 +854,7 @@ static void server_default_transport_params(ngtcp2_transport_params *params) {
 static void
 server_default_remote_transport_params(ngtcp2_transport_params *params) {
   *params = (ngtcp2_transport_params){
+    .initial_scid = make_dcid(),
     .initial_max_stream_data_bidi_local = 64 * 1024,
     .initial_max_stream_data_bidi_remote = 64 * 1024,
     .initial_max_stream_data_uni = 64 * 1024,
@@ -863,7 +864,6 @@ server_default_remote_transport_params(ngtcp2_transport_params *params) {
     .max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE,
     .initial_scid_present = 1,
   };
-  dcid_init(&params->initial_scid);
 }
 
 static void server_default_callbacks(ngtcp2_callbacks *cb) {
@@ -926,6 +926,8 @@ static void client_default_transport_params(ngtcp2_transport_params *params) {
 static void
 client_default_remote_transport_params(ngtcp2_transport_params *params) {
   *params = (ngtcp2_transport_params){
+    .original_dcid = make_dcid(),
+    .initial_scid = make_dcid(),
     .initial_max_stream_data_bidi_local = 64 * 1024,
     .initial_max_stream_data_bidi_remote = 64 * 1024,
     .initial_max_stream_data_uni = 64 * 1024,
@@ -937,8 +939,6 @@ client_default_remote_transport_params(ngtcp2_transport_params *params) {
     .initial_scid_present = 1,
     .original_dcid_present = 1,
   };
-  dcid_init(&params->initial_scid);
-  dcid_init(&params->original_dcid);
 }
 
 static void client_default_callbacks(ngtcp2_callbacks *cb) {
@@ -1033,18 +1033,17 @@ typedef struct conn_options {
 } conn_options;
 
 static void conn_server_new(ngtcp2_conn **pconn, conn_options opts) {
-  ngtcp2_cid dcid, scid;
+  static const ngtcp2_cid dcid = make_dcid();
+  static const ngtcp2_cid scid = make_scid();
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
   ngtcp2_callbacks cb;
 
   if (!opts.dcid) {
-    dcid_init(&dcid);
     opts.dcid = &dcid;
   }
 
   if (!opts.scid) {
-    scid_init(&scid);
     opts.scid = &scid;
   }
 
@@ -1136,18 +1135,17 @@ static void setup_default_server(ngtcp2_conn **pconn) {
 }
 
 static void conn_client_new(ngtcp2_conn **pconn, conn_options opts) {
-  ngtcp2_cid dcid, scid;
+  static const ngtcp2_cid dcid = make_dcid();
+  static const ngtcp2_cid scid = make_scid();
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
   ngtcp2_callbacks cb;
 
   if (!opts.dcid) {
-    dcid_init(&dcid);
     opts.dcid = &dcid;
   }
 
   if (!opts.scid) {
-    scid_init(&scid);
     opts.scid = &scid;
   }
 
@@ -1258,7 +1256,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
 
 static void setup_handshake_client_with_options(ngtcp2_conn **pconn,
                                                 conn_options opts) {
-  ngtcp2_cid rcid;
+  static const ngtcp2_cid rcid = make_rcid();
   ngtcp2_settings settings;
   ngtcp2_crypto_aead retry_aead = {
     .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
@@ -1276,7 +1274,6 @@ static void setup_handshake_client_with_options(ngtcp2_conn **pconn,
   };
 
   if (!opts.dcid) {
-    rcid_init(&rcid);
     opts.dcid = &rcid;
   }
 
@@ -1328,7 +1325,7 @@ static void setup_early_server(ngtcp2_conn **pconn) {
 
 static void setup_early_client_with_options(ngtcp2_conn **pconn,
                                             conn_options opts) {
-  ngtcp2_cid rcid;
+  static const ngtcp2_cid rcid = make_rcid();
   ngtcp2_callbacks cb;
   ngtcp2_transport_params remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
@@ -1336,7 +1333,6 @@ static void setup_early_client_with_options(ngtcp2_conn **pconn,
   ngtcp2_crypto_ctx crypto_ctx;
 
   if (!opts.dcid) {
-    rcid_init(&rcid);
     opts.dcid = &rcid;
   }
 
@@ -4077,7 +4073,7 @@ void test_ngtcp2_conn_recv_retry(void) {
   uint8_t buf[2048];
   ngtcp2_ssize spktlen;
   uint64_t t = 0;
-  ngtcp2_cid dcid;
+  static const ngtcp2_cid dcid = make_dcid();
   const uint8_t token[] = "address-validation-token";
   size_t i;
   int64_t stream_id;
@@ -4094,8 +4090,6 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_transport_params remote_params;
   ngtcp2_callbacks callbacks;
   conn_options opts;
-
-  dcid_init(&dcid);
 
   client_default_callbacks(&callbacks);
   callbacks.recv_retry = recv_retry;
@@ -8315,11 +8309,9 @@ void test_ngtcp2_conn_writev_stream(void) {
   conn_options opts;
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
-  ngtcp2_cid dcid;
+  static const ngtcp2_cid dcid = make_dcid();
   ngtcp2_crypto_aead aead = {0};
   const uint8_t token[] = "token";
-
-  dcid_init(&dcid);
 
   /* 0 length STREAM should not be written if we supply nonzero length
      data. */
@@ -12154,7 +12146,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   ngtcp2_transport_params remote_params;
   conn_options opts;
 
-  dcid_init(&dcid);
+  dcid = (ngtcp2_cid)make_dcid();
 
   {
     /* Compatibility test */
@@ -12270,7 +12262,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
   assert_true(ngtcp2_stateless_reset_token_eq(&token, &cid_token[0].token));
 
-  dcid_init(&dcid);
+  dcid = (ngtcp2_cid)make_dcid();
 
   assert_uint64(0, ==, cid_token[1].seq);
   assert_true(ngtcp2_cid_eq(&dcid, &cid_token[1].cid));
@@ -12305,7 +12297,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
   assert_true(ngtcp2_stateless_reset_token_eq(&token, &cid_token[0].token));
 
-  dcid_init(&dcid);
+  dcid = (ngtcp2_cid)make_dcid();
 
   assert_uint64(0, ==, cid_token[1].seq);
   assert_true(ngtcp2_cid_eq(&dcid, &cid_token[1].cid));
@@ -12340,7 +12332,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
   assert_true(ngtcp2_stateless_reset_token_eq(&token, &cid_token[0].token));
 
-  dcid_init(&dcid);
+  dcid = (ngtcp2_cid)make_dcid();
 
   assert_uint64(0, ==, cid_token[1].seq);
   assert_true(ngtcp2_cid_eq(&dcid, &cid_token[1].cid));
@@ -12505,12 +12497,10 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   ngtcp2_conn *conn;
   ngtcp2_transport_params params;
   int rv;
-  ngtcp2_cid dcid;
+  static const ngtcp2_cid dcid = make_dcid();
   uint8_t available_versions[2 * sizeof(uint32_t)];
   ngtcp2_settings settings;
   conn_options opts;
-
-  dcid_init(&dcid);
 
   /* client: Successful case */
   setup_handshake_client(&conn);
@@ -14693,13 +14683,11 @@ void test_ngtcp2_conn_get_scid(void) {
   ngtcp2_conn *conn;
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
-  ngtcp2_cid dcid, scid;
+  static const ngtcp2_cid dcid = make_dcid();
+  static const ngtcp2_cid scid = make_scid();
   ngtcp2_callbacks cb;
   const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
   ngtcp2_cid scids[16];
-
-  dcid_init(&dcid);
-  dcid_init(&scid);
 
   server_default_callbacks(&cb);
   server_default_settings(&settings);
@@ -15742,7 +15730,8 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   ngtcp2_transport_params params, early_params;
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
-  ngtcp2_cid rcid, scid;
+  static const ngtcp2_cid rcid = make_rcid();
+  static const ngtcp2_cid scid = make_scid();
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
@@ -15769,9 +15758,6 @@ void test_ngtcp2_conn_encode_0rtt_transport_params(void) {
   assert_uint64(8, ==, early_params.active_connection_id_limit);
 
   ngtcp2_conn_del(conn);
-
-  rcid_init(&rcid);
-  scid_init(&scid);
 
   init_initial_crypto_ctx(&crypto_ctx);
 
@@ -18344,15 +18330,13 @@ void test_ngtcp2_conn_new_failmalloc(void) {
     NGTCP2_PROTO_VER_V1,
     0x5A9AEACA,
   };
-  ngtcp2_cid dcid, scid;
+  static const ngtcp2_cid dcid = make_dcid();
+  static const ngtcp2_cid scid = make_scid();
   int rv;
   size_t i;
   size_t nmalloc;
 
   setup_failmalloc_mem(&mem, &mc);
-
-  dcid_init(&dcid);
-  scid_init(&scid);
 
   ngtcp2_settings_default(&settings);
   ngtcp2_transport_params_default(&params);
@@ -18589,15 +18573,13 @@ void test_ngtcp2_conn_post_handshake_failmalloc(void) {
 void test_ngtcp2_accept(void) {
   size_t pktlen;
   uint8_t buf[2048];
-  ngtcp2_cid dcid, scid;
+  static const ngtcp2_cid dcid = make_dcid();
+  static const ngtcp2_cid scid = make_scid();
   ngtcp2_vec datav;
   ngtcp2_frame fr;
   int rv;
   ngtcp2_pkt_hd hd;
   ngtcp2_tpe tpe;
-
-  dcid_init(&dcid);
-  scid_init(&scid);
 
   /* Initial packet */
   memset(&hd, 0, sizeof(hd));
@@ -18768,16 +18750,14 @@ void test_ngtcp2_select_version(void) {
 void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];
-  ngtcp2_cid dcid, scid;
+  static const ngtcp2_cid dcid = make_dcid();
+  static const ngtcp2_cid scid = make_scid();
   ngtcp2_crypto_aead aead = {
     .max_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD,
   };
   ngtcp2_crypto_cipher hp_mask = {0};
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
-
-  dcid_init(&dcid);
-  scid_init(&scid);
 
   spktlen = ngtcp2_pkt_write_connection_close(
     buf, sizeof(buf), NGTCP2_PROTO_VER_V1, &dcid, &scid, NGTCP2_INVALID_TOKEN,

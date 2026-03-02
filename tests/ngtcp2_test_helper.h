@@ -109,10 +109,6 @@ size_t rtb_entry_length(const ngtcp2_rtb_entry *ent);
              0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xDD},                        \
   }
 
-void scid_init(ngtcp2_cid *cid);
-void dcid_init(ngtcp2_cid *cid);
-void rcid_init(ngtcp2_cid *cid);
-
 #define make_client_stateless_reset_token()                                    \
   {                                                                            \
     .data = {0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, 0xF1, \

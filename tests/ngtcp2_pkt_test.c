@@ -297,12 +297,10 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   ngtcp2_pkt_hd hd, nhd;
   uint8_t buf[256];
   ngtcp2_ssize rv;
-  ngtcp2_cid dcid, scid;
+  static const ngtcp2_cid dcid = make_dcid();
+  static const ngtcp2_cid scid = make_scid();
   size_t len;
   size_t i;
-
-  dcid_init(&dcid);
-  scid_init(&scid);
 
   /* Handshake */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
@@ -403,11 +401,8 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   uint8_t buf[256];
   ngtcp2_ssize rv;
   size_t expectedlen;
-  ngtcp2_cid dcid, zcid;
+  static const ngtcp2_cid dcid = make_dcid();
   size_t i;
-
-  dcid_init(&dcid);
-  ngtcp2_cid_zero(&zcid);
 
   /* 4 bytes packet number */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
@@ -2028,7 +2023,9 @@ void test_ngtcp2_pkt_write_stateless_reset2(void) {
 void test_ngtcp2_pkt_write_retry(void) {
   uint8_t buf[256];
   ngtcp2_ssize spktlen;
-  ngtcp2_cid scid, dcid, odcid;
+  static const ngtcp2_cid scid = make_scid();
+  static const ngtcp2_cid dcid = make_dcid();
+  static const ngtcp2_cid odcid = make_rcid();
   ngtcp2_pkt_hd nhd;
   uint8_t token[32];
   size_t i;
@@ -2038,10 +2035,6 @@ void test_ngtcp2_pkt_write_retry(void) {
   ngtcp2_crypto_aead aead = {0};
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   uint8_t tag[NGTCP2_RETRY_TAGLEN] = {0};
-
-  scid_init(&scid);
-  dcid_init(&dcid);
-  rcid_init(&odcid);
 
   for (i = 0; i < sizeof(token); ++i) {
     token[i] = (uint8_t)i;
@@ -2077,11 +2070,9 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
   const uint32_t sv[] = {0xF1F2F3F4, 0x1F2F3F4F};
   const uint8_t *p;
   size_t i;
-  ngtcp2_cid dcid, scid;
+  static const ngtcp2_cid dcid = make_dcid();
+  static const ngtcp2_cid scid = make_scid();
   uint32_t v;
-
-  dcid_init(&dcid);
-  scid_init(&scid);
 
   spktlen = ngtcp2_pkt_write_version_negotiation(
     buf, sizeof(buf), 133, dcid.data, dcid.datalen, scid.data, scid.datalen, sv,

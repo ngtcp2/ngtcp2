@@ -61,7 +61,7 @@ void test_ngtcp2_rtb_add(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_pkt_hd hd;
   ngtcp2_log log;
-  ngtcp2_cid dcid;
+  static const ngtcp2_cid dcid = make_dcid();
   ngtcp2_ksl_it it;
   ngtcp2_conn_stat cstat;
   ngtcp2_cc_reno cc;
@@ -72,7 +72,6 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_objalloc_init(&frc_objalloc, 1024, mem);
   ngtcp2_objalloc_init(&rtb_entry_objalloc, 1024, mem);
 
-  dcid_init(&dcid);
   conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
@@ -144,9 +143,7 @@ static void add_rtb_entry_range_with_flags(ngtcp2_rtb *rtb,
   ngtcp2_pkt_hd hd;
   ngtcp2_rtb_entry *ent;
   size_t i;
-  ngtcp2_cid dcid;
-
-  dcid_init(&dcid);
+  static const ngtcp2_cid dcid = make_dcid();
 
   for (i = 0; i < len; ++i) {
     ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,

@@ -236,12 +236,6 @@ size_t rtb_entry_length(const ngtcp2_rtb_entry *ent) {
   return len;
 }
 
-void dcid_init(ngtcp2_cid *cid) { *cid = (ngtcp2_cid)make_dcid(); }
-
-void scid_init(ngtcp2_cid *cid) { *cid = (ngtcp2_cid)make_scid(); }
-
-void rcid_init(ngtcp2_cid *cid) { *cid = (ngtcp2_cid)make_rcid(); }
-
 uint64_t read_pkt_payloadlen(const uint8_t *pkt, const ngtcp2_cid *dcid,
                              const ngtcp2_cid *scid) {
   uint64_t len;
@@ -402,7 +396,7 @@ void ngtcp2_tpe_init_conn_handshake_server(ngtcp2_tpe *tpe, ngtcp2_conn *conn,
                                            ngtcp2_crypto_km *ckm) {
   ngtcp2_tpe_init_conn(tpe, conn);
 
-  rcid_init(&tpe->dcid);
+  tpe->dcid = (ngtcp2_cid)make_dcid();
   tpe->initial.ckm = ckm;
 }
 
