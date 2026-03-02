@@ -1071,10 +1071,6 @@ void test_ngtcp2_log_fr(void) {
   assert_null(ld.expected[ld.idx]);
 }
 
-#if defined(NGTCP2_USE_GENERIC_SOCKADDR) && defined(s6_addr)
-#  undef s6_addr
-#endif /* defined(NGTCP2_USE_GENERIC_SOCKADDR) && defined(s6_addr) */
-
 void test_ngtcp2_log_remote_tp(void) {
   log_data ld;
   ngtcp2_log log;

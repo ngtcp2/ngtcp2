@@ -115,10 +115,32 @@ size_t rtb_entry_length(const ngtcp2_rtb_entry *ent);
              0xF1, 0xF1, 0xF1, 0xF1, 0xF1},                                    \
   }
 
+#define raw_stateless_reset_token()                                            \
+  {0x70, 0xC0, 0x70, 0xC0, 0x70, 0xC0, 0x70, 0xC0,                             \
+   0x70, 0xC0, 0x70, 0xC0, 0x70, 0xC0, 0x70, 0xC0}
+
 #define make_stateless_reset_token()                                           \
   {                                                                            \
-    .data = {0x70, 0xC0, 0x70, 0xC0, 0x70, 0xC0, 0x70, 0xC0, 0x70, 0xC0, 0x70, \
-             0xC0, 0x70, 0xC0, 0x70, 0xC0},                                    \
+    .data = raw_stateless_reset_token(),                                       \
+  }
+
+#define raw_paddr_stateless_reset_token()                                      \
+  {0x70, 0xC1, 0x70, 0xC1, 0x70, 0xC1, 0x70, 0xC1,                             \
+   0x70, 0xC1, 0x70, 0xC1, 0x70, 0xC1, 0x70, 0xC1}
+
+#define make_ipv4_addr()                                                       \
+  {                                                                            \
+    .s_addr = ngtcp2_htonl(0xFA016EB5),                                        \
+  }
+
+#if defined(NGTCP2_USE_GENERIC_SOCKADDR) && defined(s6_addr)
+#  undef s6_addr
+#endif /* defined(NGTCP2_USE_GENERIC_SOCKADDR) && defined(s6_addr) */
+
+#define make_ipv6_addr()                                                       \
+  {                                                                            \
+    .s6_addr = {0x10, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08,    \
+                0x08, 0x00, 0x20, 0x0C, 0x41, 0x7A},                           \
   }
 
 /*

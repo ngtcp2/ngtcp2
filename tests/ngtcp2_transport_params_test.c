@@ -58,7 +58,6 @@ void test_ngtcp2_transport_params_encode(void) {
   int rv;
   size_t i, len;
   uint8_t available_versions[sizeof(uint32_t) * 3];
-  ngtcp2_sockaddr_in6 *sa_in6;
 
   for (i = 0; i < sizeof(available_versions); i += sizeof(uint32_t)) {
     ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xFF000000U + i));
@@ -83,19 +82,22 @@ void test_ngtcp2_transport_params_encode(void) {
           {
             .sin6_family = NGTCP2_AF_INET6,
             .sin6_port = ngtcp2_htons(63111),
+            .sin6_addr = make_ipv6_addr(),
           },
         .ipv6_present = 1,
+        .stateless_reset_token = raw_paddr_stateless_reset_token(),
       },
     .disable_active_migration = 1,
     .max_ack_delay = 63 * NGTCP2_MILLISECONDS,
     .retry_scid_present = 1,
-    .retry_scid = (ngtcp2_cid)make_rcid(),
-    .original_dcid = (ngtcp2_cid)make_dcid(),
+    .retry_scid = make_rcid(),
+    .original_dcid = make_dcid(),
     .original_dcid_present = 1,
-    .initial_scid = (ngtcp2_cid)make_scid(),
+    .initial_scid = make_scid(),
     .initial_scid_present = 1,
     .active_connection_id_limit = 1073741824,
     .max_datagram_frame_size = 63,
+    .stateless_reset_token = raw_stateless_reset_token(),
     .grease_quic_bit = 1,
     .version_info =
       {
@@ -105,13 +107,6 @@ void test_ngtcp2_transport_params_encode(void) {
       },
     .version_info_present = 1,
   };
-
-  memset(params.stateless_reset_token, 0xF1,
-         sizeof(params.stateless_reset_token));
-  sa_in6 = &params.preferred_addr.ipv6;
-  memset(&sa_in6->sin6_addr, 0xE1, sizeof(sa_in6->sin6_addr));
-  memset(params.preferred_addr.stateless_reset_token, 0xD1,
-         sizeof(params.preferred_addr.stateless_reset_token));
 
   len =
     varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,
@@ -288,7 +283,6 @@ void test_ngtcp2_transport_params_decode_new(void) {
   int rv;
   size_t i, len;
   uint8_t available_versions[sizeof(uint32_t) * 3];
-  ngtcp2_sockaddr_in *sa_in;
 
   for (i = 0; i < sizeof(available_versions); i += sizeof(uint32_t)) {
     ngtcp2_put_uint32be(&available_versions[i], (uint32_t)(0xFF000000U + i));
@@ -313,8 +307,10 @@ void test_ngtcp2_transport_params_decode_new(void) {
           {
             .sin_family = NGTCP2_AF_INET,
             .sin_port = ngtcp2_htons(11732),
+            .sin_addr = make_ipv4_addr(),
           },
         .ipv4_present = 1,
+        .stateless_reset_token = raw_paddr_stateless_reset_token(),
       },
     .disable_active_migration = 1,
     .max_ack_delay = 63 * NGTCP2_MILLISECONDS,
@@ -326,6 +322,7 @@ void test_ngtcp2_transport_params_decode_new(void) {
     .initial_scid_present = 1,
     .active_connection_id_limit = 1073741824,
     .max_datagram_frame_size = 63,
+    .stateless_reset_token = raw_stateless_reset_token(),
     .grease_quic_bit = 1,
     .version_info =
       {
@@ -335,13 +332,6 @@ void test_ngtcp2_transport_params_decode_new(void) {
       },
     .version_info_present = 1,
   };
-
-  memset(params.stateless_reset_token, 0xF1,
-         sizeof(params.stateless_reset_token));
-  sa_in = &params.preferred_addr.ipv4;
-  memset(&sa_in->sin_addr, 0xF1, sizeof(sa_in->sin_addr));
-  memset(params.preferred_addr.stateless_reset_token, 0xD1,
-         sizeof(params.preferred_addr.stateless_reset_token));
 
   len =
     varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,
@@ -481,7 +471,6 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
   const ngtcp2_transport_params *dest;
   size_t v1len;
   uint8_t available_versions[sizeof(uint32_t) * 3];
-  ngtcp2_sockaddr_in6 *sa_in6;
   size_t i;
 
   for (i = 0; i < sizeof(available_versions); i += sizeof(uint32_t)) {
@@ -504,15 +493,17 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
          sizeof(srcbuf.stateless_reset_token));
   srcbuf.ack_delay_exponent = 20;
   srcbuf.preferred_addr_present = 1;
-  srcbuf.preferred_addr.cid = (ngtcp2_cid)make_scid();
-  srcbuf.preferred_addr.ipv4_present = 0;
-  sa_in6 = &srcbuf.preferred_addr.ipv6;
-  sa_in6->sin6_family = NGTCP2_AF_INET6;
-  memset(&sa_in6->sin6_addr, 0xE1, sizeof(sa_in6->sin6_addr));
-  sa_in6->sin6_port = ngtcp2_htons(63111);
-  srcbuf.preferred_addr.ipv6_present = 1;
-  memset(srcbuf.preferred_addr.stateless_reset_token, 0xD1,
-         sizeof(srcbuf.preferred_addr.stateless_reset_token));
+  srcbuf.preferred_addr = (ngtcp2_preferred_addr){
+    .cid = make_scid(),
+    .ipv6 =
+      {
+        .sin6_family = NGTCP2_AF_INET6,
+        .sin6_port = ngtcp2_htons(63111),
+        .sin6_addr = make_ipv6_addr(),
+      },
+    .ipv6_present = 1,
+    .stateless_reset_token = raw_paddr_stateless_reset_token(),
+  };
   srcbuf.disable_active_migration = 1;
   srcbuf.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
   srcbuf.retry_scid_present = 1;
