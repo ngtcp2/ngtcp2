@@ -100,7 +100,7 @@ void test_ngtcp2_dcidtr_track_retired_seq(void) {
 
 void test_ngtcp2_dcidtr_bind_dcid(void) {
   ngtcp2_dcidtr dtr;
-  ngtcp2_cid cid = {0};
+  static const ngtcp2_cid cid = {0};
   static const ngtcp2_stateless_reset_token token = {
     .data = {5},
   };
@@ -151,7 +151,7 @@ void test_ngtcp2_dcidtr_bind_dcid(void) {
 
 void test_ngtcp2_dcidtr_find_bound_dcid(void) {
   ngtcp2_dcidtr dtr;
-  ngtcp2_cid cid = {0};
+  static const ngtcp2_cid cid = {0};
   static const ngtcp2_stateless_reset_token token = {
     .data = {8},
   };
@@ -201,7 +201,7 @@ void test_ngtcp2_dcidtr_bind_zerolen_dcid(void) {
 void test_ngtcp2_dcidtr_verify_stateless_reset(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps[3];
-  ngtcp2_cid cid[] = {
+  static const ngtcp2_cid cid[] = {
     {
       .data = {1},
       .datalen = 7,
@@ -268,7 +268,7 @@ void test_ngtcp2_dcidtr_verify_stateless_reset(void) {
 void test_ngtcp2_dcidtr_verify_token_uniqueness(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps[3];
-  ngtcp2_cid cid[] = {
+  static const ngtcp2_cid cid[] = {
     {
       .data = {1},
       .datalen = 7,
@@ -347,7 +347,7 @@ void test_ngtcp2_dcidtr_verify_token_uniqueness(void) {
 void test_ngtcp2_dcidtr_retire_inactive_dcid_prior_to(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps[4];
-  ngtcp2_cid cid[] = {
+  static const ngtcp2_cid cid[] = {
     {
       .data = {1},
       .datalen = 7,
@@ -416,7 +416,7 @@ void test_ngtcp2_dcidtr_retire_inactive_dcid_prior_to(void) {
 void test_ngtcp2_dcidtr_retire_active_dcid(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps;
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .data = {1},
     .datalen = 9,
   };
@@ -467,7 +467,7 @@ void test_ngtcp2_dcidtr_retire_active_dcid(void) {
 void test_ngtcp2_dcidtr_retire_stale_bound_dcid(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps;
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .data = {1},
     .datalen = 11,
   };
@@ -510,7 +510,7 @@ void test_ngtcp2_dcidtr_retire_stale_bound_dcid(void) {
 void test_ngtcp2_dcidtr_remove_stale_retired_dcid(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps;
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .data = {1},
     .datalen = 1,
   };
@@ -558,7 +558,7 @@ void test_ngtcp2_dcidtr_remove_stale_retired_dcid(void) {
 void test_ngtcp2_dcidtr_pop_bound_dcid(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps[3];
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .data = {1},
     .datalen = 11,
   };
@@ -594,7 +594,7 @@ void test_ngtcp2_dcidtr_pop_bound_dcid(void) {
 void test_ngtcp2_dcidtr_earliest_bound_ts(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps;
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .data = {1},
     .datalen = 11,
   };
@@ -625,7 +625,7 @@ void test_ngtcp2_dcidtr_earliest_bound_ts(void) {
 void test_ngtcp2_dcidtr_earliest_retired_ts(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps;
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .data = {1},
     .datalen = 1,
   };
@@ -652,7 +652,7 @@ void test_ngtcp2_dcidtr_earliest_retired_ts(void) {
 void test_ngtcp2_dcidtr_pop_unused(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps;
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .data = {1},
     .datalen = 11,
   };
@@ -691,7 +691,7 @@ void test_ngtcp2_dcidtr_pop_unused(void) {
 void test_ngtcp2_dcidtr_check_path_retired(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps[2];
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .data = {1},
     .datalen = 1,
   };
@@ -721,7 +721,7 @@ void test_ngtcp2_dcidtr_check_path_retired(void) {
 void test_ngtcp2_dcidtr_len(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps;
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .data = {1},
     .datalen = 1,
   };

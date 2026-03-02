@@ -1230,11 +1230,11 @@ static void setup_handshake_client_with_options(ngtcp2_conn **pconn,
                                                 conn_options opts) {
   static const ngtcp2_cid rcid = make_rcid();
   ngtcp2_settings settings;
-  const uint32_t preferred_versions[] = {
+  static const uint32_t preferred_versions[] = {
     NGTCP2_PROTO_VER_V2,
     NGTCP2_PROTO_VER_V1,
   };
-  const uint32_t available_versions[] = {
+  static const uint32_t available_versions[] = {
     NGTCP2_PROTO_VER_V1,
     NGTCP2_PROTO_VER_V2,
   };
@@ -3796,7 +3796,7 @@ void test_ngtcp2_conn_recv_new_token(void) {
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   ngtcp2_tpe tpe;
-  const uint8_t token[] = "I am token";
+  static const uint8_t token[] = "I am token";
   ngtcp2_callbacks callbacks;
   my_user_data ud;
   conn_options opts;
@@ -4035,7 +4035,7 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_ssize spktlen;
   uint64_t t = 0;
   static const ngtcp2_cid dcid = make_dcid();
-  const uint8_t token[] = "address-validation-token";
+  static const uint8_t token[] = "address-validation-token";
   size_t i;
   int64_t stream_id;
   ngtcp2_ssize datalen;
@@ -8244,11 +8244,11 @@ void test_ngtcp2_conn_writev_stream(void) {
   ngtcp2_tstamp t = 0;
   int rv;
   int64_t stream_id;
-  ngtcp2_vec datav = {
+  static const ngtcp2_vec datav = {
     .base = null_data,
     .len = 10,
   };
-  ngtcp2_vec large_datav = {
+  static const ngtcp2_vec large_datav = {
     .base = null_data,
     .len = 800,
   };
@@ -8265,7 +8265,7 @@ void test_ngtcp2_conn_writev_stream(void) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
   static const ngtcp2_cid dcid = make_dcid();
-  const uint8_t token[] = "token";
+  static const uint8_t token[] = "token";
 
   /* 0 length STREAM should not be written if we supply nonzero length
      data. */
@@ -8956,7 +8956,7 @@ void test_ngtcp2_conn_writev_datagram(void) {
   uint8_t buf[2048];
   ngtcp2_ssize spktlen;
   ngtcp2_tstamp t = 0;
-  ngtcp2_vec datav = {
+  static const ngtcp2_vec datav = {
     .base = null_data,
     .len = 10,
   };
@@ -12007,7 +12007,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   ngtcp2_frame fr;
   ngtcp2_tstamp t = 0;
   int rv;
-  const uint8_t raw_token[] = {0xFF, 0x12, 0x31, 0x04, 0xAB};
+  static const uint8_t raw_token[] = {0xFF, 0x12, 0x31, 0x04, 0xAB};
   ngtcp2_tpe tpe;
   ngtcp2_settings settings;
   conn_options opts;
@@ -12084,7 +12084,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   ngtcp2_conn *conn;
   ngtcp2_cid_token2 cid_token[2];
   ngtcp2_cid dcid;
-  const ngtcp2_cid new_dcid = {
+  static const ngtcp2_cid new_dcid = {
     .datalen = 4,
     .data = {0xDE, 0xAD, 0xBE, 0xEF},
   };
@@ -12419,7 +12419,7 @@ void test_ngtcp2_conn_send_initial_token(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
   ngtcp2_settings settings;
-  uint8_t token[] = "this is token";
+  static const uint8_t token[] = "this is token";
   ngtcp2_ssize spktlen, shdlen;
   ngtcp2_tstamp t = 0;
   ngtcp2_pkt_hd hd;
@@ -14607,8 +14607,11 @@ void test_ngtcp2_conn_get_scid(void) {
   ngtcp2_transport_params params;
   static const ngtcp2_cid dcid = make_dcid();
   static const ngtcp2_cid scid = make_scid();
+  static const ngtcp2_cid paddr_cid = {
+    .datalen = 4,
+    .data = {0x0F},
+  };
   ngtcp2_callbacks cb;
-  const uint8_t raw_cid[] = {0x0F, 0x00, 0x00, 0x00};
   ngtcp2_cid scids[16];
 
   server_default_callbacks(&cb);
@@ -14632,7 +14635,7 @@ void test_ngtcp2_conn_get_scid(void) {
   /* With preferred address */
   server_default_transport_params(&params);
   params.preferred_addr_present = 1;
-  ngtcp2_cid_init(&params.preferred_addr.cid, raw_cid, sizeof(raw_cid));
+  params.preferred_addr.cid = paddr_cid;
 
   ngtcp2_conn_server_new(&conn, &dcid, &scid, &null_path.path,
                          NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
@@ -15374,7 +15377,7 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
   ngtcp2_conn *conn;
   ngtcp2_version_info version_info;
   uint8_t client_available_versions[sizeof(uint32_t) * 2];
-  const uint32_t v1_preferred_versions[] = {
+  static const uint32_t v1_preferred_versions[] = {
     NGTCP2_PROTO_VER_V1,
     NGTCP2_PROTO_VER_V2,
   };
@@ -17010,8 +17013,9 @@ void test_ngtcp2_conn_submit_new_token(void) {
   ngtcp2_ssize spktlen;
   ngtcp2_frame fr;
   ngtcp2_tpe tpe;
-  const uint8_t large_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES + 1] = {0xEF};
-  const uint8_t small_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES] = {0xFE};
+  static const uint8_t large_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES + 1] = {
+    0xEF};
+  static const uint8_t small_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES] = {0xFE};
   uint8_t buf[1200];
   size_t pktlen;
   int rv;
@@ -18237,13 +18241,13 @@ void test_ngtcp2_conn_new_failmalloc(void) {
   ngtcp2_transport_params params;
   failmalloc mc;
   ngtcp2_mem mem;
-  uint8_t token[] = "token";
+  static const uint8_t token[] = "token";
   size_t tokenlen = ngtcp2_strlen_lit(token);
-  uint32_t preferred_versions[] = {
+  static const uint32_t preferred_versions[] = {
     NGTCP2_PROTO_VER_V1,
     NGTCP2_PROTO_VER_V2,
   };
-  uint32_t available_versions[] = {
+  static const uint32_t available_versions[] = {
     NGTCP2_PROTO_VER_V2,
     NGTCP2_PROTO_VER_V1,
     0x5A9AEACA,
@@ -18645,8 +18649,10 @@ void test_ngtcp2_select_version(void) {
   assert_uint32(0, ==, ngtcp2_select_version(NULL, 0, NULL, 0));
 
   {
-    uint32_t preferred_versions[] = {NGTCP2_PROTO_VER_V1, NGTCP2_PROTO_VER_V2};
-    uint32_t offered_versions[] = {0x00000004, 0x00000003, NGTCP2_PROTO_VER_V2};
+    static const uint32_t preferred_versions[] = {NGTCP2_PROTO_VER_V1,
+                                                  NGTCP2_PROTO_VER_V2};
+    static const uint32_t offered_versions[] = {0x00000004, 0x00000003,
+                                                NGTCP2_PROTO_VER_V2};
 
     assert_uint32(NGTCP2_PROTO_VER_V2, ==,
                   ngtcp2_select_version(
@@ -18655,8 +18661,9 @@ void test_ngtcp2_select_version(void) {
   }
 
   {
-    uint32_t preferred_versions[] = {NGTCP2_PROTO_VER_V1, NGTCP2_PROTO_VER_V2};
-    uint32_t offered_versions[] = {0x00000004, 0x00000003};
+    static const uint32_t preferred_versions[] = {NGTCP2_PROTO_VER_V1,
+                                                  NGTCP2_PROTO_VER_V2};
+    static const uint32_t offered_versions[] = {0x00000004, 0x00000003};
 
     assert_uint32(0, ==,
                   ngtcp2_select_version(

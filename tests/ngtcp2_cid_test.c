@@ -41,7 +41,7 @@ const MunitSuite cid_suite = {
 };
 
 void test_ngtcp2_scid_copy(void) {
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .datalen = 8,
     .data = {0xFF},
   };
@@ -61,7 +61,7 @@ void test_ngtcp2_scid_copy(void) {
 }
 
 void test_ngtcp2_dcid_copy_cid_token(void) {
-  ngtcp2_cid cid = {
+  static const ngtcp2_cid cid = {
     .datalen = 8,
     .data = {0xE1},
   };

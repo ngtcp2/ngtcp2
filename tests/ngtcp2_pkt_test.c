@@ -584,10 +584,10 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 }
 
 void test_ngtcp2_pkt_decode_frame(void) {
-  const uint8_t malformed_stream_frame[] = {
+  static const uint8_t malformed_stream_frame[] = {
     0xFF, 0x01, 0x01, 0x01, 0x01,
   };
-  const uint8_t good_stream_frame[] = {
+  static const uint8_t good_stream_frame[] = {
     0x0F, 0x01, 0x01, 0x01, 0x01,
   };
   ngtcp2_ssize rv;
@@ -741,7 +741,7 @@ void test_ngtcp2_pkt_decode_padding_frame(void) {
 }
 
 void test_ngtcp2_pkt_encode_stream_frame(void) {
-  const uint8_t data[] = "0123456789abcdef0";
+  static const uint8_t data[] = "0123456789abcdef0";
   uint8_t buf[256];
   ngtcp2_vec datav, ndatav;
   ngtcp2_stream fr, nfr;
@@ -1588,7 +1588,7 @@ void test_ngtcp2_pkt_encode_path_response_frame(void) {
 }
 
 void test_ngtcp2_pkt_encode_crypto_frame(void) {
-  const uint8_t data[] = "0123456789abcdef1";
+  static const uint8_t data[] = "0123456789abcdef1";
   uint8_t buf[256];
   ngtcp2_vec datav, ndatav;
   ngtcp2_stream fr, nfr;
@@ -1636,7 +1636,7 @@ void test_ngtcp2_pkt_encode_crypto_frame(void) {
 }
 
 void test_ngtcp2_pkt_encode_new_token_frame(void) {
-  const uint8_t token[] = "0123456789abcdef2";
+  static const uint8_t token[] = "0123456789abcdef2";
   uint8_t buf[256];
   ngtcp2_new_token fr, nfr;
   ngtcp2_ssize rv;
@@ -1721,7 +1721,7 @@ void test_ngtcp2_pkt_encode_handshake_done_frame(void) {
 }
 
 void test_ngtcp2_pkt_encode_datagram_frame(void) {
-  const uint8_t data[] = "0123456789abcdef3";
+  static const uint8_t data[] = "0123456789abcdef3";
   uint8_t buf[256];
   ngtcp2_vec datav, ndatav;
   ngtcp2_datagram fr, nfr;
@@ -2032,9 +2032,9 @@ void test_ngtcp2_pkt_write_retry(void) {
   ngtcp2_pkt_retry retry;
   ngtcp2_ssize nread;
   int rv;
-  ngtcp2_crypto_aead aead = {0};
-  ngtcp2_crypto_aead_ctx aead_ctx = {0};
-  uint8_t tag[NGTCP2_RETRY_TAGLEN] = {0};
+  static const ngtcp2_crypto_aead aead = {0};
+  static const ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  static const uint8_t tag[NGTCP2_RETRY_TAGLEN] = {0};
 
   for (i = 0; i < sizeof(token); ++i) {
     token[i] = (uint8_t)i;
@@ -2067,7 +2067,7 @@ void test_ngtcp2_pkt_write_retry(void) {
 void test_ngtcp2_pkt_write_version_negotiation(void) {
   uint8_t buf[256];
   ngtcp2_ssize spktlen;
-  const uint32_t sv[] = {0xF1F2F3F4, 0x1F2F3F4F};
+  static const uint32_t sv[] = {0xF1F2F3F4, 0x1F2F3F4F};
   const uint8_t *p;
   size_t i;
   static const ngtcp2_cid dcid = make_dcid();

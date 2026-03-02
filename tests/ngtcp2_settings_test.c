@@ -53,12 +53,12 @@ static void log_printf(void *user_data, const char *format, ...) {
   (void)format;
 }
 
-static uint8_t token[] = "token";
-static int rand_ctx;
-static uint32_t preferred_versions[] = {518522897, 103325514, 932403068};
-static uint32_t available_versions[] = {534114833, 797700084, 96134021,
-                                        55039145};
-static uint16_t pmtud_probes[] = {65466, 47820, 27776};
+static const uint8_t token[] = "token";
+static const int rand_ctx;
+static const uint32_t preferred_versions[] = {518522897, 103325514, 932403068};
+static const uint32_t available_versions[] = {534114833, 797700084, 96134021,
+                                              55039145};
+static const uint16_t pmtud_probes[] = {65466, 47820, 27776};
 
 void test_ngtcp2_settings_convert_to_latest(void) {
   const int srcver = NGTCP2_SETTINGS_V2;
@@ -77,7 +77,7 @@ void test_ngtcp2_settings_convert_to_latest(void) {
   srcbuf.token = token;
   srcbuf.tokenlen = sizeof(token);
   srcbuf.token_type = NGTCP2_TOKEN_TYPE_RETRY;
-  srcbuf.rand_ctx.native_handle = &rand_ctx;
+  srcbuf.rand_ctx.native_handle = (void *)&rand_ctx;
   srcbuf.max_window = 235386122;
   srcbuf.max_stream_window = 812304706;
   srcbuf.ack_thresh = 845485835;
@@ -155,7 +155,7 @@ void test_ngtcp2_settings_convert_to_old(void) {
   src.token = token;
   src.tokenlen = sizeof(token);
   src.token_type = NGTCP2_TOKEN_TYPE_RETRY;
-  src.rand_ctx.native_handle = &rand_ctx;
+  src.rand_ctx.native_handle = (void *)&rand_ctx;
   src.max_window = 235386122;
   src.max_stream_window = 812304706;
   src.ack_thresh = 845485835;

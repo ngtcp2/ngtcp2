@@ -167,7 +167,7 @@ void test_ngtcp2_rob_push(void) {
   ngtcp2_rob_free(&rob);
 }
 
-static ngtcp2_range randkeys[] = {
+static const ngtcp2_range randkeys[] = {
   {25996, 26260}, {9431, 9555},   {9113, 9417},   {2992, 3408},
   {35761, 36019}, {38891, 39113}, {30074, 30325}, {9525, 9953},
   {31708, 31944}, {24554, 24864}, {13097, 13472}, {47253, 47400},
