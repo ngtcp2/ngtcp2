@@ -403,13 +403,11 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   switch (cipher) {
   case GNUTLS_CIPHER_AES_128_CBC:
   case GNUTLS_CIPHER_AES_256_CBC: {
-    uint8_t iv[16];
+    /* Emulate one block AES-ECB by invalidating the effect of IV */
+    static const uint8_t iv[16] = {0};
     uint8_t buf[16];
 
-    /* Emulate one block AES-ECB by invalidating the effect of IV */
-    memset(iv, 0, sizeof(iv));
-
-    gnutls_cipher_set_iv(hd, iv, sizeof(iv));
+    gnutls_cipher_set_iv(hd, (uint8_t *)iv, sizeof(iv));
 
     if (gnutls_cipher_encrypt2(hd, sample, 16, buf, sizeof(buf)) != 0) {
       return -1;

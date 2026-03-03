@@ -922,8 +922,8 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   uint8_t *token, const uint8_t *secret, size_t secretlen, uint32_t version,
   const ngtcp2_sockaddr *remote_addr, ngtcp2_socklen remote_addrlen,
   const ngtcp2_cid *retry_scid, const ngtcp2_cid *odcid, ngtcp2_tstamp ts) {
-  uint8_t
-    plaintext[/* cid len = */ 1 + NGTCP2_MAX_CIDLEN + sizeof(ngtcp2_tstamp)];
+  uint8_t plaintext[/* cid len = */ 1 + NGTCP2_MAX_CIDLEN +
+                    sizeof(ngtcp2_tstamp)] = {0};
   uint8_t rand_data[NGTCP2_CRYPTO_TOKEN_RAND_DATALEN];
   uint8_t key[16];
   uint8_t iv[12];
@@ -941,8 +941,6 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   int rv;
 
   assert((size_t)remote_addrlen <= sizeof(ngtcp2_sockaddr_union));
-
-  memset(plaintext, 0, sizeof(plaintext));
 
   *p++ = (uint8_t)odcid->datalen;
   memcpy(p, odcid->data, odcid->datalen);
@@ -1104,7 +1102,7 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token2(
   const ngtcp2_sockaddr *remote_addr, ngtcp2_socklen remote_addrlen,
   const ngtcp2_cid *retry_scid, const ngtcp2_cid *odcid, ngtcp2_tstamp ts) {
   uint8_t plaintext[sizeof(ngtcp2_sockaddr_union) + /* cid len = */ 1 +
-                    NGTCP2_MAX_CIDLEN + sizeof(ngtcp2_tstamp)];
+                    NGTCP2_MAX_CIDLEN + sizeof(ngtcp2_tstamp)] = {0};
   uint8_t rand_data[NGTCP2_CRYPTO_TOKEN_RAND_DATALEN];
   uint8_t key[16];
   uint8_t iv[12];
@@ -1120,8 +1118,6 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token2(
   int rv;
 
   assert((size_t)remote_addrlen <= sizeof(ngtcp2_sockaddr_union));
-
-  memset(plaintext, 0, sizeof(plaintext));
 
   memcpy(p, remote_addr, (size_t)remote_addrlen);
   p += sizeof(ngtcp2_sockaddr_union);
