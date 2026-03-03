@@ -37,6 +37,22 @@
 #include "ngtcp2_macro.h"
 #include "ngtcp2_net.h"
 
+/*
+ * NGTCP2_INITIAL_SALT_V1 is a salt value which is used to derive
+ * initial secret.  It is used for QUIC v1.
+ */
+static const uint8_t NGTCP2_INITIAL_SALT_V1[] = {
+  0x38, 0x76, 0x2C, 0xF7, 0xF5, 0x59, 0x34, 0xB3, 0x4D, 0x17,
+  0x9A, 0xE6, 0xA4, 0xC8, 0x0C, 0xAD, 0xCC, 0xBB, 0x7F, 0x0A};
+
+/*
+ * NGTCP2_INITIAL_SALT_V2 is a salt value which is used to derive
+ * initial secret.  It is used for QUIC v2.
+ */
+static const uint8_t NGTCP2_INITIAL_SALT_V2[] = {
+  0x0D, 0xED, 0xE3, 0xDE, 0xF7, 0x00, 0xA6, 0xDB, 0x81, 0x93,
+  0x81, 0xBE, 0x6E, 0x26, 0x9D, 0xCB, 0xF9, 0xBD, 0x2E, 0xD9};
+
 ngtcp2_crypto_md *ngtcp2_crypto_md_init(ngtcp2_crypto_md *md,
                                         void *md_native_handle) {
   md->native_handle = md_native_handle;
@@ -87,12 +103,12 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
   default:
-    salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V1;
-    saltlen = ngtcp2_strlen_lit(NGTCP2_INITIAL_SALT_V1);
+    salt = NGTCP2_INITIAL_SALT_V1;
+    saltlen = sizeof(NGTCP2_INITIAL_SALT_V1);
     break;
   case NGTCP2_PROTO_VER_V2:
-    salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V2;
-    saltlen = ngtcp2_strlen_lit(NGTCP2_INITIAL_SALT_V2);
+    salt = NGTCP2_INITIAL_SALT_V2;
+    saltlen = sizeof(NGTCP2_INITIAL_SALT_V2);
     break;
   }
 

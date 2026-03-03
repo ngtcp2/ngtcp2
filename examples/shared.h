@@ -51,7 +51,7 @@ consteval std::span<const uint8_t> as_uint8_span(const uint8_t (&s)[N]) {
   return {s, N - 1};
 }
 
-inline constexpr uint8_t RAW_HQ_ALPN[] = "\xahq-interop";
+inline constexpr uint8_t RAW_HQ_ALPN[] = "\xAhq-interop";
 inline constexpr auto HQ_ALPN = as_uint8_span(RAW_HQ_ALPN);
 inline constexpr auto HQ_ALPN_V1 = as_uint8_span(RAW_HQ_ALPN);
 

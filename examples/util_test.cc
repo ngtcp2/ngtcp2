@@ -349,7 +349,7 @@ void test_util_hexdump() {
     },
     {
       .title = "Non-printables",
-      .data = "\0\a\b\t\n\v\f\r\x7f"sv,
+      .data = "\0\a\b\t\n\v\f\r\x7F"sv,
       .dump = "00000000  00 07 08 09 0a 0b 0c 0d  7f                       "
               "|.........|\n"
               "00000009\n"sv,
@@ -466,7 +466,7 @@ void test_util_format_hex() {
 }
 
 void test_util_decode_hex() {
-  assert_stdstring_equal("\xde\xad\xbe\xef"s, util::decode_hex("deadbeef"sv));
+  assert_stdstring_equal("\xDE\xAD\xBE\xEF"s, util::decode_hex("deadbeef"sv));
   assert_stdstring_equal(""s, util::decode_hex(""sv));
 }
 

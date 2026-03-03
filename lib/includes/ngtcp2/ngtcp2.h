@@ -377,7 +377,7 @@ typedef struct ngtcp2_mem {
  * integrity tag of Retry packet.  It is used for QUIC v1.
  */
 #define NGTCP2_RETRY_KEY_V1                                                    \
-  "\xbe\x0c\x69\x0b\x9f\x66\x57\x5a\x1d\x76\x6b\x54\xe3\x68\xc8\x4e"
+  "\xBE\x0C\x69\x0B\x9F\x66\x57\x5A\x1D\x76\x6B\x54\xE3\x68\xC8\x4E"
 
 /**
  * @macro
@@ -385,7 +385,7 @@ typedef struct ngtcp2_mem {
  * :macro:`NGTCP2_RETRY_NONCE_V1` is nonce used when generating
  * integrity tag of Retry packet.  It is used for QUIC v1.
  */
-#define NGTCP2_RETRY_NONCE_V1 "\x46\x15\x99\xd3\x5d\x63\x2b\xf2\x23\x98\x25\xbb"
+#define NGTCP2_RETRY_NONCE_V1 "\x46\x15\x99\xD3\x5D\x63\x2B\xF2\x23\x98\x25\xBB"
 
 /**
  * @macro
@@ -395,7 +395,7 @@ typedef struct ngtcp2_mem {
  * :rfc:`9369`.
  */
 #define NGTCP2_RETRY_KEY_V2                                                    \
-  "\x8f\xb4\xb0\x1b\x56\xac\x48\xe2\x60\xfb\xcb\xce\xad\x7c\xcc\x92"
+  "\x8F\xB4\xB0\x1B\x56\xAC\x48\xE2\x60\xFB\xCB\xCE\xAD\x7C\xCC\x92"
 
 /**
  * @macro
@@ -404,7 +404,7 @@ typedef struct ngtcp2_mem {
  * integrity tag of Retry packet.  It is used for QUIC v2.  See
  * :rfc:`9369`.
  */
-#define NGTCP2_RETRY_NONCE_V2 "\xd8\x69\x69\xbc\x2d\x7c\x6d\x99\x90\xef\xb0\x4a"
+#define NGTCP2_RETRY_NONCE_V2 "\xD8\x69\x69\xBC\x2D\x7C\x6D\x99\x90\xEF\xB0\x4A"
 
 /**
  * @macro

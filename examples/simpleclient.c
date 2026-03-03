@@ -48,7 +48,7 @@
 
 #define REMOTE_HOST "127.0.0.1"
 #define REMOTE_PORT "4433"
-#define ALPN "\xahq-interop"
+#define ALPN "\xAhq-interop"
 #define MESSAGE "GET /\r\n"
 
 /*
