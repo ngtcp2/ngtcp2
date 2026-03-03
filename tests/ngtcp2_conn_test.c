@@ -6793,7 +6793,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -6817,7 +6817,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -6854,7 +6854,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -6871,7 +6871,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -6910,7 +6910,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -6920,7 +6920,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -6953,7 +6953,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -6972,7 +6972,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -7006,7 +7006,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -7026,7 +7026,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -7062,7 +7062,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -7102,7 +7102,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(NGTCP2_ERR_STREAM_LIMIT, ==, rv);
@@ -7359,7 +7359,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -7378,7 +7378,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -7416,7 +7416,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -7435,7 +7435,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -7977,7 +7977,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   pktlen = ngtcp2_tpe_write_0rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -9307,7 +9307,7 @@ void test_ngtcp2_conn_recv_datagram(void) {
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -9392,7 +9392,7 @@ void test_ngtcp2_conn_recv_datagram(void) {
 
   pktlen = ngtcp2_tpe_write_0rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-  memset(&ud, 0, sizeof(ud));
+  ud = (my_user_data){0};
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
@@ -17499,7 +17499,7 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
 
   setup_default_client_with_options(&conn, opt);
   ngtcp2_path_storage_zero(&ps);
-  memset(&pi, 0, sizeof(pi));
+  pi = (ngtcp2_pkt_info){0};
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -17530,7 +17530,7 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
 
   setup_default_client_with_options(&conn, opt);
   ngtcp2_path_storage_zero(&ps);
-  memset(&pi, 0, sizeof(pi));
+  pi = (ngtcp2_pkt_info){0};
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -17560,7 +17560,7 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
 
   setup_default_client_with_options(&conn, opt);
   ngtcp2_path_storage_zero(&ps);
-  memset(&pi, 0, sizeof(pi));
+  pi = (ngtcp2_pkt_info){0};
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -17591,7 +17591,7 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
   setup_default_server_with_options(&conn, opt);
   ngtcp2_tpe_init_conn(&tpe, conn);
   ngtcp2_path_storage_zero(&ps);
-  memset(&pi, 0, sizeof(pi));
+  pi = (ngtcp2_pkt_info){0};
 
   frs[0].path_challenge = (ngtcp2_path_challenge){
     .type = NGTCP2_FRAME_PATH_CHALLENGE,
@@ -17666,7 +17666,7 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
 
   setup_default_client_with_options(&conn, opt);
   ngtcp2_path_storage_zero(&ps);
-  memset(&pi, 0, sizeof(pi));
+  pi = (ngtcp2_pkt_info){0};
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -18504,7 +18504,7 @@ void test_ngtcp2_accept(void) {
   ngtcp2_tpe tpe;
 
   /* Initial packet */
-  memset(&hd, 0, sizeof(hd));
+  hd = (ngtcp2_pkt_hd){0};
 
   fr.stream = (ngtcp2_stream){
     .type = NGTCP2_FRAME_CRYPTO,
@@ -18535,7 +18535,7 @@ void test_ngtcp2_accept(void) {
   assert_true(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM);
 
   /* 0RTT packet */
-  memset(&hd, 0, sizeof(hd));
+  hd = (ngtcp2_pkt_hd){0};
 
   fr.stream = (ngtcp2_stream){
     .type = NGTCP2_FRAME_STREAM,
@@ -18559,7 +18559,7 @@ void test_ngtcp2_accept(void) {
   assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
 
   /* Unknown version */
-  memset(&hd, 0, sizeof(hd));
+  hd = (ngtcp2_pkt_hd){0};
 
   fr.stream = (ngtcp2_stream){
     .type = NGTCP2_FRAME_CRYPTO,
@@ -18587,7 +18587,7 @@ void test_ngtcp2_accept(void) {
 
   /* Unknown version and the UDP payload size is less than
      NGTCP2_MAX_UDP_PAYLOAD_SIZE. */
-  memset(&hd, 0, sizeof(hd));
+  hd = (ngtcp2_pkt_hd){0};
 
   fr.stream = (ngtcp2_stream){
     .type = NGTCP2_FRAME_CRYPTO,
@@ -18611,7 +18611,7 @@ void test_ngtcp2_accept(void) {
   assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
 
   /* Short packet */
-  memset(&hd, 0, sizeof(hd));
+  hd = (ngtcp2_pkt_hd){0};
 
   fr.stream = (ngtcp2_stream){
     .type = NGTCP2_FRAME_CRYPTO,
@@ -18635,7 +18635,7 @@ void test_ngtcp2_accept(void) {
   assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
 
   /* Unable to decode packet header */
-  memset(&hd, 0, sizeof(hd));
+  hd = (ngtcp2_pkt_hd){0};
 
   memset(buf, 0, 4);
   buf[0] = NGTCP2_HEADER_FORM_BIT;

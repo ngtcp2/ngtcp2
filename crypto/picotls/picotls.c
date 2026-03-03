@@ -511,8 +511,7 @@ int ngtcp2_crypto_random(uint8_t *data, size_t datalen) {
 }
 
 void ngtcp2_crypto_picotls_ctx_init(ngtcp2_crypto_picotls_ctx *cptls) {
-  cptls->ptls = NULL;
-  memset(&cptls->handshake_properties, 0, sizeof(cptls->handshake_properties));
+  *cptls = (ngtcp2_crypto_picotls_ctx){0};
 }
 
 static int set_additional_extensions(ptls_handshake_properties_t *hsprops,

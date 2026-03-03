@@ -593,7 +593,7 @@ static int client_init(struct client *c) {
   struct sockaddr_storage remote_addr, local_addr;
   socklen_t remote_addrlen, local_addrlen = sizeof(local_addr);
 
-  memset(c, 0, sizeof(*c));
+  *c = (struct client){0};
 
   ngtcp2_ccerr_default(&c->last_error);
 

@@ -2919,7 +2919,7 @@ static void conn_discard_early_key(ngtcp2_conn *conn) {
 
   conn_call_delete_crypto_aead_ctx(conn, &conn->early.ckm->aead_ctx);
   conn_call_delete_crypto_cipher_ctx(conn, &conn->early.hp_ctx);
-  memset(&conn->early.hp_ctx, 0, sizeof(conn->early.hp_ctx));
+  conn->early.hp_ctx = (ngtcp2_crypto_cipher_ctx){0};
 
   ngtcp2_crypto_km_del(conn->early.ckm, conn->mem);
   conn->early.ckm = NULL;
@@ -10961,8 +10961,7 @@ int ngtcp2_conn_install_rx_handshake_key(
   if (rv != 0) {
     ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, conn->mem);
     pktns->crypto.rx.ckm = NULL;
-
-    memset(&pktns->crypto.rx.hp_ctx, 0, sizeof(pktns->crypto.rx.hp_ctx));
+    pktns->crypto.rx.hp_ctx = (ngtcp2_crypto_cipher_ctx){0};
 
     return rv;
   }
@@ -11009,8 +11008,7 @@ fail:
      to them. */
   ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
   pktns->crypto.tx.ckm = NULL;
-
-  memset(&pktns->crypto.tx.hp_ctx, 0, sizeof(pktns->crypto.tx.hp_ctx));
+  pktns->crypto.tx.hp_ctx = (ngtcp2_crypto_cipher_ctx){0};
 
   return rv;
 }
@@ -11043,8 +11041,7 @@ int ngtcp2_conn_install_0rtt_key(ngtcp2_conn *conn,
   if (rv != 0) {
     ngtcp2_crypto_km_del(conn->early.ckm, conn->mem);
     conn->early.ckm = NULL;
-
-    memset(&conn->early.hp_ctx, 0, sizeof(conn->early.hp_ctx));
+    conn->early.hp_ctx = (ngtcp2_crypto_cipher_ctx){0};
 
     return rv;
   }
@@ -11091,8 +11088,7 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
   if (rv != 0) {
     ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, conn->mem);
     pktns->crypto.rx.ckm = NULL;
-
-    memset(&pktns->crypto.rx.hp_ctx, 0, sizeof(pktns->crypto.rx.hp_ctx));
+    pktns->crypto.rx.hp_ctx = (ngtcp2_crypto_cipher_ctx){0};
 
     return rv;
   }
@@ -11137,8 +11133,7 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
   if (rv != 0) {
     ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
     pktns->crypto.tx.ckm = NULL;
-
-    memset(&pktns->crypto.tx.hp_ctx, 0, sizeof(pktns->crypto.tx.hp_ctx));
+    pktns->crypto.tx.hp_ctx = (ngtcp2_crypto_cipher_ctx){0};
 
     return rv;
   }

@@ -31,7 +31,7 @@
 #include "ngtcp2_str.h"
 #include "ngtcp2_pkt.h"
 
-void ngtcp2_cid_zero(ngtcp2_cid *cid) { memset(cid, 0, sizeof(*cid)); }
+void ngtcp2_cid_zero(ngtcp2_cid *cid) { *cid = (ngtcp2_cid){0}; }
 
 void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data, size_t datalen) {
   assert(datalen <= NGTCP2_MAX_CIDLEN);

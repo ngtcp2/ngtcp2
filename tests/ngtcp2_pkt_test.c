@@ -647,7 +647,7 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
   }
 
-  memset(&fr, 0, sizeof(fr));
+  fr = (ngtcp2_stream){0};
 
   /* 6 bits Stream ID + no Offset + Data Length */
   buflen =
@@ -674,7 +674,7 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
 
   assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
 
-  memset(&fr, 0, sizeof(fr));
+  fr = (ngtcp2_stream){0};
 
   /* Fin bit set + no Data Length */
   buflen = ngtcp2_t_encode_stream_frame(buf, NGTCP2_STREAM_FIN_BIT, 0x31F2F3F4U,
@@ -694,7 +694,7 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
   assert_size(1, ==, fr.datacnt);
   assert_size(0x14, ==, fr.data[0].len);
 
-  memset(&fr, 0, sizeof(fr));
+  fr = (ngtcp2_stream){0};
 }
 
 void test_ngtcp2_pkt_decode_ack_frame(void) {
@@ -789,7 +789,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
   }
 
-  memset(&nfr, 0, sizeof(nfr));
+  nfr = (ngtcp2_stream){0};
 
   /* 6 bits Stream ID + No Offset + Data Length */
   fr = (ngtcp2_stream){
@@ -830,7 +830,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
   }
 
-  memset(&nfr, 0, sizeof(nfr));
+  nfr = (ngtcp2_stream){0};
 
   /* Fin + 32 bits Stream ID + 62 bits Offset + Data Length */
   fr = (ngtcp2_stream){
@@ -875,7 +875,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
   }
 
-  memset(&nfr, 0, sizeof(nfr));
+  nfr = (ngtcp2_stream){0};
 
   /* NOBUF: Fin + 32 bits Stream ID + 62 bits Offset + Data Length */
   fr = (ngtcp2_stream){
@@ -1170,7 +1170,7 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
   }
 
-  memset(&nfr, 0, sizeof(nfr));
+  nfr = (ngtcp2_connection_close){0};
 
   /* 1024 bytes Reason Phrase */
   fr = (ngtcp2_connection_close){
@@ -1201,7 +1201,7 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
   }
 
-  memset(&nfr, 0, sizeof(nfr));
+  nfr = (ngtcp2_connection_close){0};
 }
 
 void test_ngtcp2_pkt_encode_connection_close_app_frame(void) {
@@ -1243,7 +1243,7 @@ void test_ngtcp2_pkt_encode_connection_close_app_frame(void) {
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
   }
 
-  memset(&nfr, 0, sizeof(nfr));
+  nfr = (ngtcp2_connection_close){0};
 }
 
 void test_ngtcp2_pkt_encode_max_data_frame(void) {
@@ -1762,7 +1762,7 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
   }
 
-  memset(&nfr, 0, sizeof(nfr));
+  nfr = (ngtcp2_datagram){0};
 
   /* Without length field */
   fr = (ngtcp2_datagram){
@@ -1798,7 +1798,7 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
     assert_ptrdiff((ngtcp2_ssize)i, ==, rv);
   }
 
-  memset(&nfr, 0, sizeof(nfr));
+  nfr = (ngtcp2_datagram){0};
 
   /* Zero length data with length field */
   fr = (ngtcp2_datagram){
@@ -1826,7 +1826,7 @@ void test_ngtcp2_pkt_encode_datagram_frame(void) {
     assert_ptrdiff(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
   }
 
-  memset(&nfr, 0, sizeof(nfr));
+  nfr = (ngtcp2_datagram){0};
 
   /* Zero length data without length field */
   fr = (ngtcp2_datagram){
@@ -2046,7 +2046,7 @@ void test_ngtcp2_pkt_write_retry(void) {
 
   assert_ptrdiff(0, <, spktlen);
 
-  memset(&nhd, 0, sizeof(nhd));
+  nhd = (ngtcp2_pkt_hd){0};
 
   nread = ngtcp2_pkt_decode_hd_long(&nhd, buf, (size_t)spktlen);
 
