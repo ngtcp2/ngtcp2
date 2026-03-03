@@ -781,7 +781,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                           const ngtcp2_crypto_cipher_ctx *hp_ctx,
                           const uint8_t *sample) {
-  static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
+  static const uint8_t PLAINTEXT[16] = {0};
   EVP_CIPHER_CTX *actx = hp_ctx->native_handle;
   int len;
 
@@ -797,9 +797,8 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
     break;
   case NID_chacha20:
     if (!EVP_EncryptInit_ex(actx, NULL, NULL, NULL, sample) ||
-        !EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT,
-                           ngtcp2_strlen_lit(PLAINTEXT)) ||
-        !EVP_EncryptFinal_ex(actx, dest + ngtcp2_strlen_lit(PLAINTEXT), &len)) {
+        !EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT, sizeof(PLAINTEXT)) ||
+        !EVP_EncryptFinal_ex(actx, dest + sizeof(PLAINTEXT), &len)) {
       return -1;
     }
 
