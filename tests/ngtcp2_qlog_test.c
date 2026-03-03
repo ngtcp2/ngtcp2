@@ -240,7 +240,7 @@ void test_ngtcp2_qlog_write_frame(void) {
     fr.new_token = (ngtcp2_new_token){
       .type = NGTCP2_FRAME_NEW_TOKEN,
       .tokenlen = 8,
-      .token = (uint8_t *)"\x12\x34\x56\x78\x9a\xbc\xde\xf0",
+      .token = (uint8_t *)"\x12\x34\x56\x78\x9A\xBC\xDE\xF0",
     };
 
     ngtcp2_qlog_write_frame(&qlog, &fr);

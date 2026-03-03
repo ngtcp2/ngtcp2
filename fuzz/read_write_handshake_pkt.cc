@@ -80,7 +80,23 @@ int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
 } // namespace
 
 namespace {
-ngtcp2_cid dcid, scid, odcid;
+const ngtcp2_cid dcid = {
+  .datalen = 17,
+  .data = {0xC1, 0xD8, 0x21, 0x9C, 0xE9, 0xBF, 0x6A, 0x01, 0x63, 0x4E, 0xFD,
+           0xCA, 0x46, 0x5F, 0xB5, 0xB6, 0x06},
+};
+
+const ngtcp2_cid scid = {
+  .datalen = 18,
+  .data = {0xAC, 0xC8, 0xA6, 0x3D, 0xA8, 0x28, 0x14, 0xBD, 0x0B, 0xAF, 0x5F,
+           0xFE, 0x40, 0x79, 0xB9, 0x03, 0x11, 0x83},
+};
+
+const ngtcp2_cid odcid = {
+  .datalen = 18,
+  .data = {0xC3, 0xD7, 0x24, 0x52, 0x16, 0xC9, 0x7B, 0xA6, 0xF5, 0x16, 0xC8,
+           0x53, 0x4D, 0x10, 0x6E, 0x54, 0x9A, 0xB2},
+};
 } // namespace
 
 namespace {
@@ -191,9 +207,7 @@ namespace {
 int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                  const ngtcp2_crypto_cipher_ctx *hp_ctx,
                  const uint8_t *sample) {
-  constexpr static const uint8_t NGTCP2_FAKE_HP_MASK[] = "\x00\x00\x00\x00\x00";
-
-  memcpy(dest, NGTCP2_FAKE_HP_MASK, ngtcp2_strlen_lit(NGTCP2_FAKE_HP_MASK));
+  memset(dest, 0, NGTCP2_HP_MASKLEN);
 
   return 0;
 }
@@ -369,22 +383,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   };
 
   TLSState state{};
-
-  ngtcp2_cid_init(
-    &dcid,
-    reinterpret_cast<const uint8_t *>("\xc1\xd8\x21\x9c\xe9\xbf\x6a\x01\x63"
-                                      "\x4e\xfd\xca\x46\x5f\xb5\xb6\x06"),
-    17);
-  ngtcp2_cid_init(
-    &scid,
-    reinterpret_cast<const uint8_t *>("\xac\xc8\xa6\x3d\xa8\x28\x14\xbd\x0b"
-                                      "\xaf\x5f\xfe\x40\x79\xb9\x03\x11\x83"),
-    18);
-  ngtcp2_cid_init(
-    &odcid,
-    reinterpret_cast<const uint8_t *>("\xc3\xd7\x24\x52\x16\xc9\x7b\xa6\xf5"
-                                      "\x16\xc8\x53\x4d\x10\x6e\x54\x9a\xb2"),
-    18);
 
   auto conn = setup_conn(&state);
 

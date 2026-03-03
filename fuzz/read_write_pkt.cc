@@ -129,9 +129,7 @@ namespace {
 int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                  const ngtcp2_crypto_cipher_ctx *hp_ctx,
                  const uint8_t *sample) {
-  constexpr static const uint8_t NGTCP2_FAKE_HP_MASK[] = "\x00\x00\x00\x00\x00";
-
-  memcpy(dest, NGTCP2_FAKE_HP_MASK, ngtcp2_strlen_lit(NGTCP2_FAKE_HP_MASK));
+  memset(dest, 0, NGTCP2_HP_MASKLEN);
 
   return 0;
 }
@@ -653,23 +651,21 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
     cb.get_path_challenge_data2 = nullptr;
   }
 
-  ngtcp2_cid dcid, scid, odcid;
-
-  ngtcp2_cid_init(
-    &dcid,
-    reinterpret_cast<const uint8_t *>("\x10\xe7\x43\x2a\xaf\x7a\x19\xb0\x3c"
-                                      "\x34\xb3\x3f\xc1\x8d\xe7\x90\x36"),
-    17);
-  ngtcp2_cid_init(
-    &scid,
-    reinterpret_cast<const uint8_t *>("\x8d\x8f\x16\x90\x4e\x41\x90\xb1\x70"
-                                      "\x1e\x5c\x5d\x00\x09\x92\x1d\xdf\xab"),
-    18);
-  ngtcp2_cid_init(
-    &odcid,
-    reinterpret_cast<const uint8_t *>("\xaa\x0a\x9d\x0e\xa4\xc7\xb1\x54\x50"
-                                      "\xf5\x51\x94\x5e\xd6\x16\x9d\xe3\x57"),
-    18);
+  static const ngtcp2_cid dcid = {
+    .datalen = 17,
+    .data = {0x10, 0xE7, 0x43, 0x2A, 0xAF, 0x7A, 0x19, 0xB0, 0x3C, 0x34, 0xB3,
+             0x3F, 0xC1, 0x8D, 0xE7, 0x90, 0x36},
+  };
+  static const ngtcp2_cid scid = {
+    .datalen = 18,
+    .data = {0x8D, 0x8F, 0x16, 0x90, 0x4E, 0x41, 0x90, 0xB1, 0x70, 0x1E, 0x5C,
+             0x5D, 0x00, 0x09, 0x92, 0x1D, 0xDF, 0xAB},
+  };
+  static const ngtcp2_cid odcid = {
+    .datalen = 18,
+    .data = {0xAA, 0x0A, 0x9D, 0x0E, 0xA4, 0xC7, 0xB1, 0x54, 0x50, 0xF5, 0x51,
+             0x94, 0x5E, 0xD6, 0x16, 0x9D, 0xE3, 0x57},
+  };
 
   ngtcp2_path_storage ps;
 
