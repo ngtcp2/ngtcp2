@@ -49,8 +49,8 @@
 static EVP_CIPHER *crypto_aes_128_gcm;
 static EVP_CIPHER *crypto_aes_256_gcm;
 static EVP_CIPHER *crypto_aes_128_ccm;
-static EVP_CIPHER *crypto_aes_128_ctr;
-static EVP_CIPHER *crypto_aes_256_ctr;
+static EVP_CIPHER *crypto_aes_128_ecb;
+static EVP_CIPHER *crypto_aes_256_ecb;
 #ifndef NGTCP2_NO_CHACHA_POLY1305
 static EVP_CIPHER *crypto_chacha20_poly1305;
 static EVP_CIPHER *crypto_chacha20;
@@ -66,8 +66,8 @@ int ngtcp2_crypto_ossl_init(void) {
   crypto_aes_128_gcm = EVP_CIPHER_fetch(NULL, "AES-128-GCM", NULL);
   crypto_aes_256_gcm = EVP_CIPHER_fetch(NULL, "AES-256-GCM", NULL);
   crypto_aes_128_ccm = EVP_CIPHER_fetch(NULL, "AES-128-CCM", NULL);
-  crypto_aes_128_ctr = EVP_CIPHER_fetch(NULL, "AES-128-CTR", NULL);
-  crypto_aes_256_ctr = EVP_CIPHER_fetch(NULL, "AES-256-CTR", NULL);
+  crypto_aes_128_ecb = EVP_CIPHER_fetch(NULL, "AES-128-ECB", NULL);
+  crypto_aes_256_ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
 #ifndef NGTCP2_NO_CHACHA_POLY1305
   crypto_chacha20_poly1305 = EVP_CIPHER_fetch(NULL, "ChaCha20-Poly1305", NULL);
   crypto_chacha20 = EVP_CIPHER_fetch(NULL, "ChaCha20", NULL);
@@ -113,20 +113,20 @@ static const EVP_CIPHER *crypto_aead_aes_128_ccm(void) {
   return EVP_aes_128_ccm();
 }
 
-static const EVP_CIPHER *crypto_cipher_aes_128_ctr(void) {
-  if (crypto_aes_128_ctr) {
-    return crypto_aes_128_ctr;
+static const EVP_CIPHER *crypto_cipher_aes_128_ecb(void) {
+  if (crypto_aes_128_ecb) {
+    return crypto_aes_128_ecb;
   }
 
-  return EVP_aes_128_ctr();
+  return EVP_aes_128_ecb();
 }
 
-static const EVP_CIPHER *crypto_cipher_aes_256_ctr(void) {
-  if (crypto_aes_256_ctr) {
-    return crypto_aes_256_ctr;
+static const EVP_CIPHER *crypto_cipher_aes_256_ecb(void) {
+  if (crypto_aes_256_ecb) {
+    return crypto_aes_256_ecb;
   }
 
-  return EVP_aes_256_ctr();
+  return EVP_aes_256_ecb();
 }
 
 #ifndef NGTCP2_NO_CHACHA_POLY1305
@@ -198,7 +198,7 @@ ngtcp2_crypto_md *ngtcp2_crypto_md_sha256(ngtcp2_crypto_md *md) {
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ngtcp2_crypto_aead_init(&ctx->aead, (void *)crypto_aead_aes_128_gcm());
   ctx->md.native_handle = (void *)crypto_md_sha256();
-  ctx->hp.native_handle = (void *)crypto_cipher_aes_128_ctr();
+  ctx->hp.native_handle = (void *)crypto_cipher_aes_128_ecb();
   ctx->max_encryption = 0;
   ctx->max_decryption_failure = 0;
   return ctx;
@@ -269,9 +269,9 @@ static const EVP_CIPHER *crypto_cipher_id_get_hp(uint32_t cipher_id) {
   switch (cipher_id) {
   case TLS1_3_CK_AES_128_GCM_SHA256:
   case TLS1_3_CK_AES_128_CCM_SHA256:
-    return crypto_cipher_aes_128_ctr();
+    return crypto_cipher_aes_128_ecb();
   case TLS1_3_CK_AES_256_GCM_SHA384:
-    return crypto_cipher_aes_256_ctr();
+    return crypto_cipher_aes_256_ecb();
 #ifndef NGTCP2_NO_CHACHA_POLY1305
   case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
     return crypto_cipher_chacha20();
@@ -661,6 +661,8 @@ int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
     return -1;
   }
 
+  EVP_CIPHER_CTX_set_padding(actx, 0);
+
   cipher_ctx->native_handle = actx;
 
   return 0;
@@ -844,11 +846,26 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 
   (void)hp;
 
-  if (!EVP_EncryptInit_ex(actx, NULL, NULL, NULL, sample) ||
-      !EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT,
-                         ngtcp2_strlen_lit(PLAINTEXT)) ||
-      !EVP_EncryptFinal_ex(actx, dest + ngtcp2_strlen_lit(PLAINTEXT), &len)) {
-    return -1;
+  switch (EVP_CIPHER_CTX_nid(actx)) {
+  case NID_aes_128_ecb:
+  case NID_aes_256_ecb:
+    if (!EVP_EncryptUpdate(actx, dest, &len, sample, NGTCP2_HP_SAMPLELEN)) {
+      return -1;
+    }
+
+    break;
+  case NID_chacha20:
+    if (!EVP_EncryptInit_ex(actx, NULL, NULL, NULL, sample) ||
+        !EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT,
+                           ngtcp2_strlen_lit(PLAINTEXT)) ||
+        !EVP_EncryptFinal_ex(actx, dest + ngtcp2_strlen_lit(PLAINTEXT), &len)) {
+      return -1;
+    }
+
+    break;
+  default:
+    assert(0);
+    abort();
   }
 
   return 0;
