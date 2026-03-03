@@ -417,14 +417,14 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   } break;
 
   case GNUTLS_CIPHER_CHACHA20_32: {
-    static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
+    static const uint8_t PLAINTEXT[16] = {0};
     uint8_t buf[5 + 16];
     size_t buflen = sizeof(buf);
 
     gnutls_cipher_set_iv(hd, (void *)sample, 16);
 
-    if (gnutls_cipher_encrypt2(hd, PLAINTEXT, ngtcp2_strlen_lit(PLAINTEXT), buf,
-                               buflen) != 0) {
+    if (gnutls_cipher_encrypt2(hd, PLAINTEXT, sizeof(PLAINTEXT), buf, buflen) !=
+        0) {
       return -1;
     }
 

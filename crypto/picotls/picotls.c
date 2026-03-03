@@ -357,8 +357,8 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                           const ngtcp2_crypto_cipher_ctx *hp_ctx,
                           const uint8_t *sample) {
+  static const uint8_t PLAINTEXT[16] = {0};
   ptls_cipher_context_t *actx = hp_ctx->native_handle;
-  static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
 
   (void)hp;
 
@@ -370,7 +370,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   }
 
   ptls_cipher_init(actx, sample);
-  ptls_cipher_encrypt(actx, dest, PLAINTEXT, ngtcp2_strlen_lit(PLAINTEXT));
+  ptls_cipher_encrypt(actx, dest, PLAINTEXT, sizeof(PLAINTEXT));
 
   return 0;
 }

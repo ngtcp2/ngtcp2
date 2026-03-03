@@ -289,7 +289,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                           const ngtcp2_crypto_cipher_ctx *hp_ctx,
                           const uint8_t *sample) {
-  static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
+  static const uint8_t PLAINTEXT[16] = {0};
   WOLFSSL_EVP_CIPHER_CTX *actx = hp_ctx->native_handle;
   int len;
 
@@ -298,10 +298,9 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   if (wolfSSL_EVP_EncryptInit_ex(actx, NULL, NULL, NULL, sample) !=
         WOLFSSL_SUCCESS ||
       wolfSSL_EVP_CipherUpdate(actx, dest, &len, PLAINTEXT,
-                               ngtcp2_strlen_lit(PLAINTEXT)) !=
-        WOLFSSL_SUCCESS ||
-      wolfSSL_EVP_EncryptFinal_ex(actx, dest + ngtcp2_strlen_lit(PLAINTEXT),
-                                  &len) != WOLFSSL_SUCCESS) {
+                               sizeof(PLAINTEXT)) != WOLFSSL_SUCCESS ||
+      wolfSSL_EVP_EncryptFinal_ex(actx, dest + sizeof(PLAINTEXT), &len) !=
+        WOLFSSL_SUCCESS) {
     DEBUG_MSG("WOLFSSL: hp_mask FAILED\n");
     return -1;
   }

@@ -402,7 +402,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                           const ngtcp2_crypto_cipher_ctx *hp_ctx,
                           const uint8_t *sample) {
-  static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
+  static const uint8_t PLAINTEXT[16] = {0};
   ngtcp2_crypto_boringssl_cipher_ctx *ctx = hp_ctx->native_handle;
   uint32_t counter;
 
@@ -420,7 +420,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 #else  /* !defined(WORDS_BIGENDIAN) */
     memcpy(&counter, sample, sizeof(counter));
 #endif /* !defined(WORDS_BIGENDIAN) */
-    CRYPTO_chacha_20(dest, PLAINTEXT, ngtcp2_strlen_lit(PLAINTEXT), ctx->key,
+    CRYPTO_chacha_20(dest, PLAINTEXT, sizeof(PLAINTEXT), ctx->key,
                      sample + sizeof(counter), counter);
     return 0;
   default:
