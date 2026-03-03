@@ -508,8 +508,6 @@ int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
     return -1;
   }
 
-  EVP_CIPHER_CTX_set_padding(actx, 0);
-
   cipher_ctx->native_handle = actx;
 
   return 0;
