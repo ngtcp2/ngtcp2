@@ -50,7 +50,7 @@ ngtcp2_crypto_md *ngtcp2_crypto_md_sha256(ngtcp2_crypto_md *md) {
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ngtcp2_crypto_aead_init(&ctx->aead, (void *)&ptls_openssl_aes128gcm);
   ctx->md.native_handle = (void *)&ptls_openssl_sha256;
-  ctx->hp.native_handle = (void *)&ptls_openssl_aes128ctr;
+  ctx->hp.native_handle = (void *)&ptls_openssl_aes128ecb;
   ctx->max_encryption = 0;
   ctx->max_decryption_failure = 0;
   return ctx;
@@ -104,11 +104,11 @@ crypto_cipher_suite_get_aead_max_decryption_failure(ptls_cipher_suite_t *cs) {
 static const ptls_cipher_algorithm_t *
 crypto_cipher_suite_get_hp(ptls_cipher_suite_t *cs) {
   if (cs->aead == &ptls_openssl_aes128gcm) {
-    return &ptls_openssl_aes128ctr;
+    return &ptls_openssl_aes128ecb;
   }
 
   if (cs->aead == &ptls_openssl_aes256gcm) {
-    return &ptls_openssl_aes256ctr;
+    return &ptls_openssl_aes256ecb;
   }
 
 #ifdef PTLS_OPENSSL_HAVE_CHACHA20_POLY1305
@@ -238,6 +238,11 @@ int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
     return -1;
   }
 
+  if (cipher->native_handle == &ptls_openssl_aes128ecb ||
+      cipher->native_handle == &ptls_openssl_aes256ecb) {
+    ptls_cipher_init(actx, NULL);
+  }
+
   cipher_ctx->native_handle = actx;
 
   return 0;
@@ -356,6 +361,13 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
 
   (void)hp;
+
+  if (hp->native_handle == &ptls_openssl_aes128ecb ||
+      hp->native_handle == &ptls_openssl_aes256ecb) {
+    ptls_cipher_encrypt(actx, dest, sample, NGTCP2_HP_SAMPLELEN);
+
+    return 0;
+  }
 
   ptls_cipher_init(actx, sample);
   ptls_cipher_encrypt(actx, dest, PLAINTEXT, ngtcp2_strlen_lit(PLAINTEXT));
