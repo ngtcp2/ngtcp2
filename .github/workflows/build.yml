@@ -51,7 +51,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-14, macos-15]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-26, macos-15]
 
     runs-on: ${{ matrix.os }}
 
@@ -288,14 +288,14 @@ jobs:
             openssl: ossl
             boringssl: aws-lc
           sockaddr: generic-sockaddr
-        - os: macos-14
+        - os: macos-26
           compiler: clang
           buildtool: autotools
           tls:
             openssl: ossl
             boringssl: aws-lc
           sockaddr: native-sockaddr
-        - os: macos-14
+        - os: macos-26
           compiler: clang
           buildtool: autotools
           tls:
