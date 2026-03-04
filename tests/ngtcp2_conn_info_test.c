@@ -84,7 +84,7 @@ void test_ngtcp2_conn_info_init(void) {
   assert_uint64(0, ==, destbuf.ping_recv);
   assert_uint64(0, ==, destbuf.pkt_discarded);
 
-  memset(&destbuf, 0, sizeof(destbuf));
+  destbuf = (ngtcp2_conn_info){0};
 
   ngtcp2_conn_info_init_versioned(NGTCP2_CONN_INFO_VERSION, &destbuf, &cstat);
 

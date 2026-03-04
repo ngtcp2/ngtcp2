@@ -138,7 +138,7 @@ void test_ngtcp2_settings_convert_to_latest(void) {
 
 void test_ngtcp2_settings_convert_to_old(void) {
   const int destver = NGTCP2_SETTINGS_V2;
-  ngtcp2_settings src, *dest, destbuf;
+  ngtcp2_settings src, *dest, destbuf = {0};
   size_t destlen;
 
   destlen = ngtcp2_settingslen_version(destver);
@@ -175,7 +175,6 @@ void test_ngtcp2_settings_convert_to_old(void) {
 
   ngtcp2_settings_convert_to_old(destver, dest, &src);
 
-  memset(&destbuf, 0, sizeof(destbuf));
   memcpy(&destbuf, dest, destlen);
 
   free(dest);

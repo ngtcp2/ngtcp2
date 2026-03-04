@@ -42,7 +42,7 @@ const ngtcp2_callbacks *ngtcp2_callbacks_convert_to_latest(
     return src;
   }
 
-  memset(dest, 0, sizeof(*dest));
+  *dest = (ngtcp2_callbacks){0};
 
   callbacks_copy(dest, src, callbacks_version);
 
