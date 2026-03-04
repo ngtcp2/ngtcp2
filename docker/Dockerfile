@@ -8,20 +8,19 @@ set -e
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     git clang-19 make binutils autoconf automake autotools-dev libtool \
-    pkg-config libev-dev libjemalloc-dev \
+    pkg-config libev-dev libjemalloc-dev cmake cmake-data \
     ca-certificates media-types
 
-git clone --depth 1 -b v5.8.4-stable https://github.com/wolfSSL/wolfssl
-cd wolfssl
-autoreconf -i
-./configure --disable-dependency-tracking --enable-static --enable-all \
-    --enable-aesni --enable-harden --enable-keylog-export --disable-ech \
-    --enable-mlkem \
-    CC=clang-19 CXX=clang++-19
-make -j$(nproc)
-make install-strip
+git clone --depth 1 -b v1.68.0 https://github.com/aws/aws-lc
+cd aws-lc
+cmake -Bbuild -DDISABLE_GO=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER=clang-19 \
+    -DCMAKE_CXX_COMPILER=clang++-19
+make -j$(nproc) -C build
+cmake --install build
 cd ..
-rm -rf wolfssl
+rm -rf aws-lc
 
 git clone --recursive --shallow-submodules --depth 1 \
     https://github.com/ngtcp2/nghttp3
@@ -44,12 +43,14 @@ autoreconf -i
     LDFLAGS="-static-libgcc -static-libstdc++" \
     LIBTOOL_LDFLAGS="-static-libtool-libs" \
     LIBEV_LIBS="-l:libev.a" \
+    BORINGSSL_LIBS="-lssl -lcrypto" \
+    BORINGSSL_CFLAGS="-I/usr/local/include" \
     JEMALLOC_LIBS="-l:libjemalloc.a -lm" \
     --disable-dependency-tracking \
-    --with-wolfssl
+    --with-boringssl
 make -j$(nproc)
-strip examples/wsslclient examples/wsslserver
-cp examples/wsslclient examples/wsslserver /usr/local/bin
+strip examples/bsslclient examples/bsslserver
+cp examples/bsslclient examples/bsslserver /usr/local/bin
 cd ..
 rm -rf ngtcp2
 
@@ -63,8 +64,8 @@ EOF
 
 FROM gcr.io/distroless/base-nossl-debian13
 
-COPY --from=build --link /usr/local/bin/wsslclient /usr/local/bin/wsslserver \
+COPY --from=build --link /usr/local/bin/bsslclient /usr/local/bin/bsslserver \
     /usr/local/bin/
 COPY --from=build --link /etc/mime.types /etc/
 
-CMD ["/usr/local/bin/wsslclient"]
+CMD ["/usr/local/bin/bsslclient"]
