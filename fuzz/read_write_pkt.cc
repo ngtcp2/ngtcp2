@@ -224,10 +224,10 @@ int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  memset(cid->data, 0, cidlen);
-
-  cid->data[0] = static_cast<uint8_t>(conn->scid.last_seq + 1);
-  cid->datalen = cidlen;
+  *cid = (ngtcp2_cid){
+    .datalen = cidlen,
+    .data = {static_cast<uint8_t>(conn->scid.last_seq + 1)},
+  };
 
   memset(token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
 

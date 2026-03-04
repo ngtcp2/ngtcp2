@@ -533,7 +533,7 @@ static int get_path_challenge_data2(ngtcp2_conn *conn,
 }
 
 void test_ngtcp2_callbacks_convert_to_latest(void) {
-  ngtcp2_callbacks srcbuf = {
+  static const ngtcp2_callbacks srcbuf = {
     .client_initial = client_initial,
     .recv_client_initial = recv_client_initial,
     .recv_crypto_data = recv_crypto_data,
@@ -649,7 +649,7 @@ void test_ngtcp2_callbacks_convert_to_latest(void) {
 }
 
 void test_ngtcp2_callbacks_convert_to_old(void) {
-  ngtcp2_callbacks src = {
+  static const ngtcp2_callbacks src = {
     .client_initial = client_initial,
     .recv_client_initial = recv_client_initial,
     .recv_crypto_data = recv_crypto_data,
@@ -696,7 +696,7 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
     .dcid_status2 = dcid_status2,
     .get_path_challenge_data2 = get_path_challenge_data2,
   };
-  ngtcp2_callbacks *dest, destbuf;
+  ngtcp2_callbacks *dest, destbuf = {0};
   size_t v2len;
 
   v2len = ngtcp2_callbackslen_version(NGTCP2_CALLBACKS_V2);
@@ -705,7 +705,6 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
 
   ngtcp2_callbacks_convert_to_old(NGTCP2_CALLBACKS_V2, dest, &src);
 
-  memset(&destbuf, 0, sizeof(destbuf));
   memcpy(&destbuf, dest, v2len);
 
   free(dest);
