@@ -104,7 +104,7 @@ jobs:
         repository: tatsuhiro-t/quic-interop-runner
         ref: ngtcp2
       # Remove this when GitHub runner gets docker engine >= v28.1.0.
-    - uses: docker/setup-docker-action@v4
+    - uses: docker/setup-docker-action@v5
       with:
         version: version=v28.3.0
     - uses: actions/setup-python@v6
