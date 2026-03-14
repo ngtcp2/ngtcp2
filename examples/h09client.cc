@@ -75,7 +75,7 @@ Stream::~Stream() {
   }
 }
 
-int Stream::open_file(const std::string_view &path) {
+int Stream::open_file(std::string_view path) {
   assert(fd == -1);
 
   std::string_view filename;
@@ -1859,7 +1859,7 @@ int run(Client &c, const char *addr, const char *port,
 } // namespace
 
 namespace {
-int parse_uri(Request &req, const std::string_view &uri) {
+int parse_uri(Request &req, std::string_view uri) {
   urlparse_url u;
 
   if (urlparse_parse_url(uri.data(), uri.size(), /* is_connect = */ 0, &u) !=

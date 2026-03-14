@@ -63,8 +63,8 @@ struct Stream {
   int send_status_response(nghttp3_conn *conn, unsigned int status_code,
                            const std::vector<HTTPHeader> &extra_headers = {});
   int send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
-                             const std::string_view &path);
-  int64_t find_dyn_length(const std::string_view &path);
+                             std::string_view path);
+  int64_t find_dyn_length(std::string_view path);
   void http_acked_stream_data(uint64_t datalen);
 
   int64_t stream_id;

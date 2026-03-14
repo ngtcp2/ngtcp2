@@ -88,7 +88,7 @@ int generate_secret(std::span<uint8_t> secret) {
 }
 
 std::optional<HPKEPrivateKey>
-read_hpke_private_key_pem(const std::string_view &filename) {
+read_hpke_private_key_pem(std::string_view filename) {
   auto f = BIO_new_file(filename.data(), "r");
   if (f == nullptr) {
     std::cerr << "Could not open file " << filename << std::endl;
@@ -128,9 +128,9 @@ read_hpke_private_key_pem(const std::string_view &filename) {
   return res;
 }
 
-std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
-                                             const std::string_view &name,
-                                             const std::string_view &type) {
+std::optional<std::vector<uint8_t>> read_pem(std::string_view filename,
+                                             std::string_view name,
+                                             std::string_view type) {
   auto f = BIO_new_file(filename.data(), "r");
   if (f == nullptr) {
     std::cerr << "Could not open " << name << " file " << filename << std::endl;
@@ -164,8 +164,8 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
   }
 }
 
-int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, std::span<const uint8_t> data) {
+int write_pem(std::string_view filename, std::string_view name,
+              std::string_view type, std::span<const uint8_t> data) {
   auto f = BIO_new_file(filename.data(), "w");
   if (f == nullptr) {
     std::cerr << "Could not write " << name << " in " << filename << std::endl;

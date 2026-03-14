@@ -53,8 +53,8 @@ namespace ngtcp2 {
 
 namespace util {
 
-inline nghttp3_nv make_nv(const std::string_view &name,
-                          const std::string_view &value, uint8_t flags) {
+inline nghttp3_nv make_nv(std::string_view name, std::string_view value,
+                          uint8_t flags) {
   return nghttp3_nv{
     reinterpret_cast<uint8_t *>(const_cast<char *>(std::ranges::data(name))),
     reinterpret_cast<uint8_t *>(const_cast<char *>(std::ranges::data(value))),
@@ -64,18 +64,15 @@ inline nghttp3_nv make_nv(const std::string_view &name,
   };
 }
 
-inline nghttp3_nv make_nv_cc(const std::string_view &name,
-                             const std::string_view &value) {
+inline nghttp3_nv make_nv_cc(std::string_view name, std::string_view value) {
   return make_nv(name, value, NGHTTP3_NV_FLAG_NONE);
 }
 
-inline nghttp3_nv make_nv_nc(const std::string_view &name,
-                             const std::string_view &value) {
+inline nghttp3_nv make_nv_nc(std::string_view name, std::string_view value) {
   return make_nv(name, value, NGHTTP3_NV_FLAG_NO_COPY_NAME);
 }
 
-inline nghttp3_nv make_nv_nn(const std::string_view &name,
-                             const std::string_view &value) {
+inline nghttp3_nv make_nv_nn(std::string_view name, std::string_view value) {
   return make_nv(name, value,
                  NGHTTP3_NV_FLAG_NO_COPY_NAME | NGHTTP3_NV_FLAG_NO_COPY_VALUE);
 }
@@ -208,7 +205,7 @@ template <std::unsigned_integral T> constexpr std::string format_hex(T n) {
   return res;
 }
 
-std::string decode_hex(const std::string_view &s);
+std::string decode_hex(std::string_view s);
 
 // format_durationf formats |ns| in human readable manner.  |ns| must
 // be nanoseconds resolution.  This function uses the largest unit so
@@ -259,8 +256,7 @@ struct CaseCmp {
 
 // istarts_with returns true if |s| starts with |prefix|.  Comparison
 // is performed in case-insensitive manner.
-constexpr bool istarts_with(const std::string_view &s,
-                            const std::string_view &prefix) {
+constexpr bool istarts_with(std::string_view s, std::string_view prefix) {
   return s.size() >= prefix.size() &&
          std::ranges::equal(s.substr(0, prefix.size()), prefix, CaseCmp());
 }
@@ -286,7 +282,7 @@ std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 // denoted by |filename| and returns the mapping of extension to MIME
 // media type.
 std::optional<std::unordered_map<std::string, std::string>>
-read_mime_types(const std::string_view &filename);
+read_mime_types(std::string_view filename);
 
 inline constexpr auto count_digit_tbl = [] {
   std::array<uint64_t, std::numeric_limits<uint64_t>::digits10> tbl;
@@ -411,18 +407,18 @@ std::string format_duration(ngtcp2_duration n);
 
 // parse_uint parses |s| as 64-bit unsigned integer.  If it cannot
 // parse |s|, the return value does not contain a value.
-std::optional<uint64_t> parse_uint(const std::string_view &s);
+std::optional<uint64_t> parse_uint(std::string_view s);
 
 // parse_uint_iec parses |s| as 64-bit unsigned integer.  It accepts
 // IEC unit letter (either "G", "M", or "K") in |s|.  If it cannot
 // parse |s|, the return value does not contain a value.
-std::optional<uint64_t> parse_uint_iec(const std::string_view &s);
+std::optional<uint64_t> parse_uint_iec(std::string_view s);
 
 // parse_duration parses |s| as 64-bit unsigned integer.  It accepts a
 // unit (either "h", "m", "s", "ms", "us", or "ns") in |s|.  If no
 // unit is present, the unit "s" is assumed.  If it cannot parse |s|,
 // the return value does not contain a value.
-std::optional<uint64_t> parse_duration(const std::string_view &s);
+std::optional<uint64_t> parse_duration(std::string_view s);
 
 // generate_secure_random generates a cryptographically secure pseudo
 // random data of |data|.
@@ -435,7 +431,7 @@ int generate_secret(std::span<uint8_t> secret);
 // normalize_path removes ".." by consuming a previous path component.
 // It also removes ".".  It assumes that |path| starts with "/".  If
 // it cannot consume a previous path component, it just removes "..".
-std::string normalize_path(const std::string_view &path);
+std::string normalize_path(std::string_view path);
 
 template <std::predicate<size_t> Pred>
 consteval auto pred_tbl_gen256(Pred pred) {
@@ -501,20 +497,18 @@ constexpr uint32_t hex_to_uint(char c) noexcept {
   return hex_to_uint_tbl[static_cast<uint8_t>(c)];
 }
 
-std::string percent_decode(const std::string_view &s);
+std::string percent_decode(std::string_view s);
 
 int make_socket_nonblocking(int fd);
 
 int create_nonblock_socket(int domain, int type, int protocol);
 
-std::optional<std::vector<uint8_t>>
-read_token(const std::string_view &filename);
-int write_token(const std::string_view &filename,
-                std::span<const uint8_t> token);
+std::optional<std::vector<uint8_t>> read_token(std::string_view filename);
+int write_token(std::string_view filename, std::span<const uint8_t> token);
 
 std::optional<std::vector<uint8_t>>
-read_transport_params(const std::string_view &filename);
-int write_transport_params(const std::string_view &filename,
+read_transport_params(std::string_view filename);
+int write_transport_params(std::string_view filename,
                            std::span<const uint8_t> data);
 
 const char *crypto_default_ciphers();
@@ -524,15 +518,14 @@ const char *crypto_default_groups();
 // split_str parses delimited strings in |s| and returns substrings
 // delimited by |delim|.  The any white spaces around substring are
 // treated as a part of substring.
-std::vector<std::string_view> split_str(const std::string_view &s,
-                                        char delim = ',');
+std::vector<std::string_view> split_str(std::string_view s, char delim = ',');
 
 // parse_version parses |s| to get 4 byte QUIC version.  |s| must be a
 // hex string and must start with "0x" (e.g., 0x00000001).
-std::optional<uint32_t> parse_version(const std::string_view &s);
+std::optional<uint32_t> parse_version(std::string_view s);
 
 // read_file reads a file denoted by |path| and returns its content.
-std::optional<std::vector<uint8_t>> read_file(const std::string_view &path);
+std::optional<std::vector<uint8_t>> read_file(std::string_view path);
 
 size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst);
 
@@ -562,16 +555,14 @@ struct ECHServerConfig {
 
 // read_ech_server_config reads server-side ECH configuration from a
 // file denoted by |path|.
-std::optional<ECHServerConfig>
-read_ech_server_config(const std::string_view &path);
+std::optional<ECHServerConfig> read_ech_server_config(std::string_view path);
 
 std::span<uint64_t, 2> generate_siphash_key();
 
 // get_string returns a URL component specified by |f| of |uri|.  This
 // function assumes that u.field_set & (1 << f) is nonzero.
-constexpr std::string_view get_string(const std::string_view &uri,
-                                      const urlparse_url &u,
-                                      urlparse_url_fields f) {
+constexpr std::string_view
+get_string(std::string_view uri, const urlparse_url &u, urlparse_url_fields f) {
   assert(u.field_set & (1 << f));
 
   auto p = &u.field_data[f];

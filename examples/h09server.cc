@@ -112,7 +112,7 @@ struct Request {
 };
 
 namespace {
-Request request_path(const std::string_view &uri) {
+Request request_path(std::string_view uri) {
   urlparse_url u;
   Request req;
 
@@ -2428,7 +2428,7 @@ void Server::on_stateless_reset_regen() {
 }
 
 namespace {
-int parse_host_port(Address &dest, int af, const std::string_view &host_port) {
+int parse_host_port(Address &dest, int af, std::string_view host_port) {
   if (host_port.empty()) {
     return -1;
   }

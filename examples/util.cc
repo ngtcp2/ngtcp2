@@ -58,16 +58,16 @@ namespace ngtcp2 {
 namespace util {
 
 std::optional<HPKEPrivateKey>
-read_hpke_private_key_pem(const std::string_view &filename);
+read_hpke_private_key_pem(std::string_view filename);
 
-std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
-                                             const std::string_view &name,
-                                             const std::string_view &type);
+std::optional<std::vector<uint8_t>> read_pem(std::string_view filename,
+                                             std::string_view name,
+                                             std::string_view type);
 
-int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, std::span<const uint8_t> data);
+int write_pem(std::string_view filename, std::string_view name,
+              std::string_view type, std::span<const uint8_t> data);
 
-std::string decode_hex(const std::string_view &s) {
+std::string decode_hex(std::string_view s) {
   assert(s.size() % 2 == 0);
   std::string res(s.size() / 2, '0');
   auto p = std::ranges::begin(res);
@@ -388,7 +388,7 @@ constexpr bool rws(char c) { return c == '\t' || c == ' '; }
 } // namespace
 
 std::optional<std::unordered_map<std::string, std::string>>
-read_mime_types(const std::string_view &filename) {
+read_mime_types(std::string_view filename) {
   std::ifstream f(filename.data());
   if (!f) {
     return {};
@@ -443,7 +443,7 @@ std::string format_duration(ngtcp2_duration n) {
 
 namespace {
 std::optional<std::pair<uint64_t, size_t>>
-parse_uint_internal(const std::string_view &s) {
+parse_uint_internal(std::string_view s) {
   uint64_t res = 0;
 
   if (s.empty()) {
@@ -469,7 +469,7 @@ parse_uint_internal(const std::string_view &s) {
 }
 } // namespace
 
-std::optional<uint64_t> parse_uint(const std::string_view &s) {
+std::optional<uint64_t> parse_uint(std::string_view s) {
   auto o = parse_uint_internal(s);
   if (!o) {
     return {};
@@ -481,7 +481,7 @@ std::optional<uint64_t> parse_uint(const std::string_view &s) {
   return res;
 }
 
-std::optional<uint64_t> parse_uint_iec(const std::string_view &s) {
+std::optional<uint64_t> parse_uint_iec(std::string_view s) {
   auto o = parse_uint_internal(s);
   if (!o) {
     return {};
@@ -519,7 +519,7 @@ std::optional<uint64_t> parse_uint_iec(const std::string_view &s) {
   return res * m;
 }
 
-std::optional<uint64_t> parse_duration(const std::string_view &s) {
+std::optional<uint64_t> parse_duration(std::string_view s) {
   auto o = parse_uint_internal(s);
   if (!o) {
     return {};
@@ -611,7 +611,7 @@ template <typename InputIt> InputIt eat_dir(InputIt first, InputIt last) {
 }
 } // namespace
 
-std::string normalize_path(const std::string_view &path) {
+std::string normalize_path(std::string_view path) {
   assert(path.size() <= 1024);
   assert(path.size() > 0);
   assert(path[0] == '/');
@@ -698,7 +698,7 @@ int create_nonblock_socket(int domain, int type, int protocol) {
   return fd;
 }
 
-std::vector<std::string_view> split_str(const std::string_view &s, char delim) {
+std::vector<std::string_view> split_str(std::string_view s, char delim) {
   size_t len = 1;
   auto last = std::ranges::end(s);
   std::string_view::const_iterator d;
@@ -722,7 +722,7 @@ std::vector<std::string_view> split_str(const std::string_view &s, char delim) {
   return list;
 }
 
-std::optional<uint32_t> parse_version(const std::string_view &s) {
+std::optional<uint32_t> parse_version(std::string_view s) {
   if (!util::istarts_with(s, "0x"sv)) {
     return {};
   }
@@ -737,29 +737,27 @@ std::optional<uint32_t> parse_version(const std::string_view &s) {
   return v;
 }
 
-std::optional<std::vector<uint8_t>>
-read_token(const std::string_view &filename) {
+std::optional<std::vector<uint8_t>> read_token(std::string_view filename) {
   return read_pem(filename, "token"sv, "QUIC TOKEN"sv);
 }
 
-int write_token(const std::string_view &filename,
-                std::span<const uint8_t> token) {
+int write_token(std::string_view filename, std::span<const uint8_t> token) {
   return write_pem(filename, "token"sv, "QUIC TOKEN"sv, token);
 }
 
 std::optional<std::vector<uint8_t>>
-read_transport_params(const std::string_view &filename) {
+read_transport_params(std::string_view filename) {
   return read_pem(filename, "transport parameters"sv,
                   "QUIC TRANSPORT PARAMETERS"sv);
 }
 
-int write_transport_params(const std::string_view &filename,
+int write_transport_params(std::string_view filename,
                            std::span<const uint8_t> data) {
   return write_pem(filename, "transport parameters"sv,
                    "QUIC TRANSPORT PARAMETERS"sv, data);
 }
 
-std::string percent_decode(const std::string_view &s) {
+std::string percent_decode(std::string_view s) {
   std::string result;
   result.resize(s.size());
   auto p = std::ranges::begin(result);
@@ -784,7 +782,7 @@ std::string percent_decode(const std::string_view &s) {
   return result;
 }
 
-std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
+std::optional<std::vector<uint8_t>> read_file(std::string_view path) {
   auto fd = open(path.data(), O_RDONLY);
   if (fd == -1) {
     return {};
@@ -825,8 +823,7 @@ bool recv_pkt_time_threshold_exceeded(bool time_sensitive, ngtcp2_tstamp start,
          util::timestamp() - start >= NGTCP2_MILLISECONDS;
 }
 
-std::optional<ECHServerConfig>
-read_ech_server_config(const std::string_view &path) {
+std::optional<ECHServerConfig> read_ech_server_config(std::string_view path) {
   auto pkey = read_hpke_private_key_pem(path);
   if (!pkey) {
     return {};
