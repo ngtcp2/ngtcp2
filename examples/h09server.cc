@@ -119,7 +119,7 @@ Request request_path(const std::string_view &uri) {
   if (auto rv = urlparse_parse_url(uri.data(), uri.size(),
                                    /* is_connect = */ 0, &u);
       rv != 0) {
-    return req;
+    return {};
   }
 
   if (u.field_set & (1 << URLPARSE_PATH)) {
@@ -127,7 +127,14 @@ Request request_path(const std::string_view &uri) {
     if (req.path.find('%') != std::string::npos) {
       req.path = util::percent_decode(req.path);
     }
-    if (!req.path.empty() && req.path.back() == '/') {
+
+    assert(!req.path.empty());
+
+    if (req.path[0] != '/') {
+      return {};
+    }
+
+    if (req.path.back() == '/') {
       req.path += "index.html";
     }
   } else {
