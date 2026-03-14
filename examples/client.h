@@ -55,7 +55,7 @@ struct Stream {
   Stream(const Request &req, int64_t stream_id);
   ~Stream();
 
-  int open_file(const std::string_view &path);
+  int open_file(std::string_view path);
 
   Request req;
   int64_t stream_id;

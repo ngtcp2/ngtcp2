@@ -111,7 +111,7 @@ struct Request {
 };
 
 namespace {
-Request request_path(const std::string_view &uri, bool is_connect) {
+Request request_path(std::string_view uri, bool is_connect) {
   urlparse_url u;
   Request req{
     .pri{
@@ -255,7 +255,7 @@ void Stream::map_file(const FileEntry &fe) {
   datalen = fe.len;
 }
 
-int64_t Stream::find_dyn_length(const std::string_view &path) {
+int64_t Stream::find_dyn_length(std::string_view path) {
   assert(path[0] == '/');
 
   if (path.size() == 1) {
@@ -406,7 +406,7 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
 
 int Stream::send_redirect_response(nghttp3_conn *httpconn,
                                    unsigned int status_code,
-                                   const std::string_view &path) {
+                                   std::string_view path) {
   return send_status_response(httpconn, status_code, {{"location", path}});
 }
 
@@ -3146,7 +3146,7 @@ void Server::on_stateless_reset_regen() {
 }
 
 namespace {
-int parse_host_port(Address &dest, int af, const std::string_view &host_port) {
+int parse_host_port(Address &dest, int af, std::string_view host_port) {
   if (host_port.empty()) {
     return -1;
   }

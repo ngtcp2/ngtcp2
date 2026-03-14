@@ -58,22 +58,22 @@ const MunitSuite util_suite{
 
 namespace util {
 std::optional<HPKEPrivateKey>
-read_hpke_private_key_pem(const std::string_view &filename) {
+read_hpke_private_key_pem(std::string_view filename) {
   return {};
 }
 } // namespace util
 
 namespace util {
-std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
-                                             const std::string_view &name,
-                                             const std::string_view &type) {
+std::optional<std::vector<uint8_t>> read_pem(std::string_view filename,
+                                             std::string_view name,
+                                             std::string_view type) {
   return {};
 }
 } // namespace util
 
 namespace util {
-int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, std::span<const uint8_t> data) {
+int write_pem(std::string_view filename, std::string_view name,
+              std::string_view type, std::span<const uint8_t> data) {
   return -1;
 }
 } // namespace util
