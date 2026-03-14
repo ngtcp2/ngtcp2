@@ -5154,6 +5154,43 @@ void test_ngtcp2_conn_handshake(void) {
   assert_true(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED);
 
   ngtcp2_conn_del(conn);
+
+  /* Pad Handshake packet if we have 1-RTT tx key to help GSO */
+  setup_handshake_server(&conn);
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data = &datav,
+  };
+  datav = (ngtcp2_vec){
+    .len = 1200,
+    .base = null_data,
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1200, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+
+  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret),
+                             &null_aead_ctx, null_iv, sizeof(null_iv),
+                             &null_hp_ctx);
+
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 1000);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1200, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_handshake_error(void) {

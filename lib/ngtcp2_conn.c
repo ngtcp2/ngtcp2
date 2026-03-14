@@ -2005,6 +2005,16 @@ static int conn_verify_dcid(ngtcp2_conn *conn, int *pnew_cid_used,
   return 0;
 }
 
+static int conn_can_send_next_pkt(ngtcp2_conn *conn, size_t left,
+                                  uint64_t min_payloadlen) {
+  /* TODO the next packet type should be taken into account */
+  return left >=
+         /* TODO Assuming that pkt_num is encoded in 1 byte. */
+         NGTCP2_MIN_LONG_HEADERLEN + conn->dcid.current.cid.datalen +
+           conn->oscid.datalen + NGTCP2_PKT_LENGTHLEN - 1 + min_payloadlen +
+           NGTCP2_MAX_AEAD_OVERHEAD;
+}
+
 /*
  * conn_should_pad_pkt returns nonzero if the packet should be padded.
  * |type| is the type of packet.  |left| is the space left in packet
@@ -2051,32 +2061,30 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
         return 1;
       }
     }
-  } else {
-    assert(type == NGTCP2_PKT_HANDSHAKE);
 
-    if (!require_padding) {
-      return 0;
-    }
-
-    if (!conn->pktns.crypto.tx.ckm) {
-      return 1;
-    }
-
-    /* We might send Handshake packet even if exceeding CWND.  In that
-       case, we do not write non-probe 1RTT packet. */
-    if (conn_cwnd_is_zero(conn) && conn->pktns.rtb.probe_pkt_left == 0) {
-      return 1;
-    }
-
-    min_payloadlen = NGTCP2_MIN_COALESCED_PAYLOADLEN;
+    return !conn_can_send_next_pkt(conn, left, min_payloadlen);
   }
 
-  /* TODO the next packet type should be taken into account */
-  return left <
-         /* TODO Assuming that pkt_num is encoded in 1 byte. */
-         NGTCP2_MIN_LONG_HEADERLEN + conn->dcid.current.cid.datalen +
-           conn->oscid.datalen + NGTCP2_PKT_LENGTHLEN - 1 + min_payloadlen +
-           NGTCP2_MAX_AEAD_OVERHEAD;
+  assert(type == NGTCP2_PKT_HANDSHAKE);
+
+  if (!require_padding) {
+    /* If we have 1RTT key, pad this Handshake packet so that the next
+       1RTT packet can be squeezed into the same GSO buffer. */
+    return conn->pktns.crypto.tx.ckm &&
+           !conn_can_send_next_pkt(conn, left, NGTCP2_MIN_COALESCED_PAYLOADLEN);
+  }
+
+  if (!conn->pktns.crypto.tx.ckm) {
+    return 1;
+  }
+
+  /* We might send Handshake packet even if exceeding CWND.  In that
+     case, we do not write non-probe 1RTT packet. */
+  if (conn_cwnd_is_zero(conn) && conn->pktns.rtb.probe_pkt_left == 0) {
+    return 1;
+  }
+
+  return !conn_can_send_next_pkt(conn, left, NGTCP2_MIN_COALESCED_PAYLOADLEN);
 }
 
 static void conn_restart_timer_on_write(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
