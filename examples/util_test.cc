@@ -26,6 +26,7 @@
 
 #include <limits>
 #include <array>
+#include <iterator>
 
 #include "util.h"
 
