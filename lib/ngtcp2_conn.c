@@ -13836,6 +13836,27 @@ static size_t conn_estimate_control_overhead(ngtcp2_conn *conn) {
   return overhead;
 }
 
+static size_t max_dgram_datalen_from_limit(size_t limit) {
+  size_t datalen;
+  size_t varint_len;
+
+  if (limit <= 2) {
+    return 0;
+  }
+
+  datalen = limit - 2;
+  varint_len = ngtcp2_put_uvarintlen((uint64_t)datalen);
+
+  if (varint_len > 1) {
+    if (limit <= 1 + varint_len) {
+      return 0;
+    }
+    datalen = limit - 1 - varint_len;
+  }
+
+  return datalen;
+}
+
 size_t ngtcp2_conn_get_max_datagram_size(ngtcp2_conn *conn) {
   ngtcp2_pktns *pktns = &conn->pktns;
   uint64_t max_datagram_frame_size;
@@ -13843,10 +13864,8 @@ size_t ngtcp2_conn_get_max_datagram_size(ngtcp2_conn *conn) {
   size_t hdr_overhead;
   size_t aead_overhead;
   size_t control_overhead;
-  size_t frame_limit;
   size_t left;
   size_t datalen;
-  size_t varint_len;
 
   if (!conn->remote.transport_params ||
       conn->remote.transport_params->max_datagram_frame_size == 0 ||
@@ -13884,41 +13903,11 @@ size_t ngtcp2_conn_get_max_datagram_size(ngtcp2_conn *conn) {
     left = max_udp_payload - hdr_overhead - aead_overhead - control_overhead;
   }
 
-  /* Invert DATAGRAM frame overhead: frame = 1 (type) + varint(len) + len.
-     Start with optimistic estimate (1-byte varint). */
-  if (left <= 2) {
-    return 0;
-  }
-
-  datalen = left - 2; /* 1 byte type + 1 byte varint (optimistic) */
-  varint_len = ngtcp2_put_uvarintlen((uint64_t)datalen);
-
-  if (varint_len > 1) {
-    if (left <= 1 + varint_len) {
-      return 0;
-    }
-    /* Use the varint length computed for the larger optimistic datalen.
-       The final datalen is smaller, so its actual varint length is <=
-       varint_len.  This may waste a byte or two at encoding boundaries
-       but avoids an oscillation where shrinking datalen reduces
-       varint_len, which inflates datalen back past the boundary. */
-    datalen = left - 1 - varint_len;
-  }
+  datalen = max_dgram_datalen_from_limit(left);
 
   /* Clamp to remote's max_datagram_frame_size. */
   if (ngtcp2_pkt_datagram_framelen(datalen) > max_datagram_frame_size) {
-    /* Invert from the remote limit. */
-    frame_limit = (size_t)max_datagram_frame_size;
-
-    if (frame_limit <= 2) {
-      return 0;
-    }
-    datalen = frame_limit - 2;
-    varint_len = ngtcp2_put_uvarintlen((uint64_t)datalen);
-    if (frame_limit <= 1 + varint_len) {
-      return 0;
-    }
-    datalen = frame_limit - 1 - varint_len;
+    datalen = max_dgram_datalen_from_limit((size_t)max_datagram_frame_size);
   }
 
   return datalen;
