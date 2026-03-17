@@ -57,12 +57,12 @@ namespace ngtcp2 {
 
 namespace util {
 
-std::optional<HPKEPrivateKey>
+std::expected<HPKEPrivateKey, Error>
 read_hpke_private_key_pem(std::string_view filename);
 
-std::optional<std::vector<uint8_t>> read_pem(std::string_view filename,
-                                             std::string_view name,
-                                             std::string_view type);
+std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
+                                                    std::string_view name,
+                                                    std::string_view type);
 
 int write_pem(std::string_view filename, std::string_view name,
               std::string_view type, std::span<const uint8_t> data);
@@ -387,11 +387,11 @@ namespace {
 constexpr bool rws(char c) { return c == '\t' || c == ' '; }
 } // namespace
 
-std::optional<std::unordered_map<std::string, std::string>>
+std::expected<std::unordered_map<std::string, std::string>, Error>
 read_mime_types(std::string_view filename) {
   std::ifstream f(filename.data());
   if (!f) {
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   std::unordered_map<std::string, std::string> dest;
@@ -442,12 +442,12 @@ std::string format_duration(ngtcp2_duration n) {
 }
 
 namespace {
-std::optional<std::pair<uint64_t, size_t>>
+std::expected<std::pair<uint64_t, size_t>, Error>
 parse_uint_internal(std::string_view s) {
   uint64_t res = 0;
 
   if (s.empty()) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   for (size_t i = 0; i < s.size(); ++i) {
@@ -458,7 +458,7 @@ parse_uint_internal(std::string_view s) {
 
     auto d = static_cast<uint64_t>(c - '0');
     if (res > (std::numeric_limits<uint64_t>::max() - d) / 10) {
-      return {};
+      return std::unexpected{Error::INTEGER_OVERFLOW};
     }
 
     res *= 10;
@@ -469,29 +469,29 @@ parse_uint_internal(std::string_view s) {
 }
 } // namespace
 
-std::optional<uint64_t> parse_uint(std::string_view s) {
+std::expected<uint64_t, Error> parse_uint(std::string_view s) {
   auto o = parse_uint_internal(s);
   if (!o) {
-    return {};
+    return std::unexpected{o.error()};
   }
   auto [res, idx] = *o;
   if (idx != s.size()) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
   return res;
 }
 
-std::optional<uint64_t> parse_uint_iec(std::string_view s) {
+std::expected<uint64_t, Error> parse_uint_iec(std::string_view s) {
   auto o = parse_uint_internal(s);
   if (!o) {
-    return {};
+    return std::unexpected{o.error()};
   }
   auto [res, idx] = *o;
   if (idx == s.size()) {
     return res;
   }
   if (idx + 1 != s.size()) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   uint64_t m;
@@ -509,20 +509,20 @@ std::optional<uint64_t> parse_uint_iec(std::string_view s) {
     m = 1 << 10;
     break;
   default:
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   if (res > std::numeric_limits<uint64_t>::max() / m) {
-    return {};
+    return std::unexpected{Error::INTEGER_OVERFLOW};
   }
 
   return res * m;
 }
 
-std::optional<uint64_t> parse_duration(std::string_view s) {
+std::expected<uint64_t, Error> parse_duration(std::string_view s) {
   auto o = parse_uint_internal(s);
   if (!o) {
-    return {};
+    return std::unexpected{o.error()};
   }
   auto [res, idx] = *o;
   if (idx == s.size()) {
@@ -545,7 +545,7 @@ std::optional<uint64_t> parse_duration(std::string_view s) {
       m = NGTCP2_SECONDS;
       break;
     default:
-      return {};
+      return std::unexpected{Error::INVALID_ARGUMENT};
     }
   } else if (idx + 2 == s.size() && (s[idx + 1] == 's' || s[idx + 1] == 'S')) {
     switch (s[idx]) {
@@ -561,14 +561,14 @@ std::optional<uint64_t> parse_duration(std::string_view s) {
     case 'n':
       return res;
     default:
-      return {};
+      return std::unexpected{Error::INVALID_ARGUMENT};
     }
   } else {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   if (res > std::numeric_limits<uint64_t>::max() / m) {
-    return {};
+    return std::unexpected{Error::INTEGER_OVERFLOW};
   }
 
   return res * m;
@@ -722,22 +722,23 @@ std::vector<std::string_view> split_str(std::string_view s, char delim) {
   return list;
 }
 
-std::optional<uint32_t> parse_version(std::string_view s) {
+std::expected<uint32_t, Error> parse_version(std::string_view s) {
   if (!util::istarts_with(s, "0x"sv)) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
   auto k = s.substr(2);
   auto k_last = k.data() + k.size();
   uint32_t v;
   auto rv = std::from_chars(k.data(), k_last, v, 16);
   if (rv.ptr != k_last || rv.ec != std::errc{}) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   return v;
 }
 
-std::optional<std::vector<uint8_t>> read_token(std::string_view filename) {
+std::expected<std::vector<uint8_t>, Error>
+read_token(std::string_view filename) {
   return read_pem(filename, "token"sv, "QUIC TOKEN"sv);
 }
 
@@ -745,7 +746,7 @@ int write_token(std::string_view filename, std::span<const uint8_t> token) {
   return write_pem(filename, "token"sv, "QUIC TOKEN"sv, token);
 }
 
-std::optional<std::vector<uint8_t>>
+std::expected<std::vector<uint8_t>, Error>
 read_transport_params(std::string_view filename) {
   return read_pem(filename, "transport parameters"sv,
                   "QUIC TRANSPORT PARAMETERS"sv);
@@ -782,23 +783,23 @@ std::string percent_decode(std::string_view s) {
   return result;
 }
 
-std::optional<std::vector<uint8_t>> read_file(std::string_view path) {
+std::expected<std::vector<uint8_t>, Error> read_file(std::string_view path) {
   auto fd = open(path.data(), O_RDONLY);
   if (fd == -1) {
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   auto fd_d = defer([fd] { close(fd); });
 
   auto size = lseek(fd, 0, SEEK_END);
   if (size == static_cast<off_t>(-1)) {
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   auto addr =
     mmap(nullptr, static_cast<size_t>(size), PROT_READ, MAP_SHARED, fd, 0);
   if (addr == MAP_FAILED) {
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   auto addr_d =
@@ -823,15 +824,16 @@ bool recv_pkt_time_threshold_exceeded(bool time_sensitive, ngtcp2_tstamp start,
          util::timestamp() - start >= NGTCP2_MILLISECONDS;
 }
 
-std::optional<ECHServerConfig> read_ech_server_config(std::string_view path) {
+std::expected<ECHServerConfig, Error>
+read_ech_server_config(std::string_view path) {
   auto pkey = read_hpke_private_key_pem(path);
   if (!pkey) {
-    return {};
+    return std::unexpected{pkey.error()};
   }
 
   auto ech_config = read_pem(path, "ECH config"sv, "ECHCONFIG"sv);
   if (!ech_config) {
-    return {};
+    return std::unexpected{ech_config.error()};
   }
 
   return ECHServerConfig{

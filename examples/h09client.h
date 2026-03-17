@@ -127,7 +127,7 @@ public:
   int select_preferred_address(Address &selected_addr,
                                const ngtcp2_preferred_addr *paddr);
 
-  std::optional<Endpoint *> endpoint_for(const Address &remote_addr);
+  std::expected<Endpoint *, Error> endpoint_for(const Address &remote_addr);
 
   void set_remote_addr(const ngtcp2_addr &remote_addr);
 

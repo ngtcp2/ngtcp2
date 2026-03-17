@@ -162,7 +162,7 @@ void fd_set_udp_gro(int fd) {
 #endif // defined(UDP_GRO)
 }
 
-std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
+std::expected<Address, Error> msghdr_get_local_addr(msghdr *msg, int family) {
   switch (family) {
   case AF_INET:
     for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
@@ -178,7 +178,7 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
         return res;
       }
     }
-    return {};
+    return std::unexpected{Error::NOT_FOUND};
   case AF_INET6:
     for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
       if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
@@ -193,9 +193,9 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
         return res;
       }
     }
-    return {};
+    return std::unexpected{Error::NOT_FOUND};
   }
-  return {};
+  return std::unexpected{Error::INVALID_ARGUMENT};
 }
 
 size_t msghdr_get_udp_gro(msghdr *msg) {

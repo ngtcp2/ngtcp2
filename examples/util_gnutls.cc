@@ -29,6 +29,7 @@
 #include <fstream>
 #include <array>
 #include <algorithm>
+#include <expected>
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
@@ -65,18 +66,18 @@ int generate_secret(std::span<uint8_t> secret) {
   return 0;
 }
 
-std::optional<HPKEPrivateKey>
+std::expected<HPKEPrivateKey, Error>
 read_hpke_private_key_pem(std::string_view filename) {
-  return {};
+  return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 
-std::optional<std::vector<uint8_t>> read_pem(std::string_view filename,
-                                             std::string_view name,
-                                             std::string_view type) {
+std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
+                                                    std::string_view name,
+                                                    std::string_view type) {
   auto f = std::ifstream(filename.data());
   if (!f) {
     std::cerr << "Could not read " << name << " file " << filename << std::endl;
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   f.seekg(0, std::ios::end);
@@ -92,7 +93,7 @@ std::optional<std::vector<uint8_t>> read_pem(std::string_view filename,
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_decode2(type.data(), &s, &d); rv < 0) {
     std::cerr << "Could not read " << name << " file " << filename << std::endl;
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   auto res = std::vector(d.data, d.data + d.size);

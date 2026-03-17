@@ -32,6 +32,8 @@
 #include <optional>
 #include <string_view>
 #include <span>
+#include <print>
+#include <expected>
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -40,6 +42,16 @@
 using namespace std::literals;
 
 namespace ngtcp2 {
+
+enum class Error {
+  INTERNAL,
+  INVALID_ARGUMENT,
+  INTEGER_OVERFLOW,
+  IO,
+  NOT_IMPLEMENTED,
+  UNSUPPORTED,
+  NOT_FOUND,
+};
 
 enum class AppProtocol {
   H3,
@@ -81,7 +93,7 @@ void fd_set_ip_dontfrag(int fd, int family);
 // fd_set_udp_gro sets UDP_GRO socket option to |fd|.
 void fd_set_udp_gro(int fd);
 
-std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family);
+std::expected<Address, Error> msghdr_get_local_addr(msghdr *msg, int family);
 
 // msghdr_get_udp_gro returns UDP_GRO value from |msg|.  If UDP_GRO is
 // not found, or UDP_GRO is not supported, this function returns 0.
@@ -144,5 +156,38 @@ void sockaddr_set(Sockaddr &skaddr, const sockaddr *sa);
 }
 
 } // namespace ngtcp2
+
+template <>
+struct std::formatter<ngtcp2::Error> : public std::formatter<std::string_view> {
+  auto format(ngtcp2::Error e, format_context &ctx) const {
+    auto s = "unknown"sv;
+
+    switch (e) {
+    case ngtcp2::Error::INTERNAL:
+      s = "internal"sv;
+      break;
+    case ngtcp2::Error::INVALID_ARGUMENT:
+      s = "invalid argument"sv;
+      break;
+    case ngtcp2::Error::INTEGER_OVERFLOW:
+      s = "integer overflow"sv;
+      break;
+    case ngtcp2::Error::IO:
+      s = "I/O"sv;
+      break;
+    case ngtcp2::Error::NOT_IMPLEMENTED:
+      s = "not implemented"sv;
+      break;
+    case ngtcp2::Error::UNSUPPORTED:
+      s = "unsupported"sv;
+      break;
+    case ngtcp2::Error::NOT_FOUND:
+      s = "not found"sv;
+      break;
+    }
+
+    return std::formatter<std::string_view>::format(s, ctx);
+  }
+};
 
 #endif // !defined(SHARED_H)
