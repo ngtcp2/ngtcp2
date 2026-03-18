@@ -8,7 +8,7 @@ set -e
 
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git clang-19 libclang-rt-19-dev \
+    git clang-19 libclang-rt-19-dev libstdc++-14-dev \
     make autoconf automake autotools-dev libtool \
     pkg-config ca-certificates \
     libev-dev libjemalloc-dev media-types
