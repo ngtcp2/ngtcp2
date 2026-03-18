@@ -2739,7 +2739,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, const Endpoint &ep,
 
   if (!config.quiet) {
     std::cerr << "Generated address validation token:" << std::endl;
-    util::hexdump(stderr, token.data(), as_unsigned(tokenlen));
+    util::hexdump(stderr, {token.data(), as_unsigned(tokenlen)});
   }
 
   Buffer buf{
@@ -2871,7 +2871,7 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
 
     std::cerr << "Verifying Retry token from [" << host.data()
               << "]:" << port.data() << std::endl;
-    util::hexdump(stderr, hd->token, hd->tokenlen);
+    util::hexdump(stderr, {hd->token, hd->tokenlen});
   }
 
   auto t = util::system_clock_now();
@@ -2916,7 +2916,7 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const Address &remote_addr) {
   if (!config.quiet) {
     std::cerr << "Verifying token from [" << host.data() << "]:" << port.data()
               << std::endl;
-    util::hexdump(stderr, hd->token, hd->tokenlen);
+    util::hexdump(stderr, {hd->token, hd->tokenlen});
   }
 
   auto t = util::system_clock_now();

@@ -401,9 +401,9 @@ void test_util_hexdump() {
     munit_log(MUNIT_LOG_INFO, t.title);
 
     auto f = tmpfile();
-    auto rv = util::hexdump(f, t.data.data(), t.data.size());
+    auto rv = util::hexdump(f, std::span{t.data});
 
-    assert_int(0, ==, rv);
+    assert_true(rv.has_value());
 
     fseek(f, 0, SEEK_SET);
     auto nread = fread(buf, 1, sizeof(buf), f);
