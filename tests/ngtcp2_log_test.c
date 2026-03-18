@@ -1141,6 +1141,8 @@ void test_ngtcp2_log_remote_tp(void) {
         "version_information.available_versions[1]=0xff000004",
         "I00001123 0xdeadbeef cry remote transport_parameters "
         "version_information.available_versions[2]=0xff000008",
+        "I00001123 0xdeadbeef cry remote transport_parameters "
+        "reset_stream_at=1",
       },
   };
 
@@ -1224,6 +1226,7 @@ void test_ngtcp2_log_remote_tp(void) {
           .available_versionslen = ngtcp2_arraylen(available_versions),
         },
       .version_info_present = 1,
+      .reset_stream_at = 1,
     });
 
   assert_null(ld.expected[ld.idx]);
@@ -1259,6 +1262,8 @@ void test_ngtcp2_log_remote_tp(void) {
         "max_datagram_frame_size=63",
         "I00001123 0xdeadbeef cry remote transport_parameters "
         "grease_quic_bit=1",
+        "I00001123 0xdeadbeef cry remote transport_parameters "
+        "reset_stream_at=1",
       },
   };
 
@@ -1279,6 +1284,7 @@ void test_ngtcp2_log_remote_tp(void) {
                                .active_connection_id_limit = 1073741824,
                                .max_datagram_frame_size = 63,
                                .grease_quic_bit = 1,
+                               .reset_stream_at = 1,
                              });
 
   assert_null(ld.expected[ld.idx]);
