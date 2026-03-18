@@ -1239,14 +1239,15 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
 }
 } // namespace
 
-std::optional<Endpoint *> Client::endpoint_for(const Address &remote_addr) {
+std::expected<Endpoint *, Error>
+Client::endpoint_for(const Address &remote_addr) {
 #ifdef HAVE_LINUX_RTNETLINK_H
   InAddr ia;
 
   if (get_local_addr(ia, remote_addr) != 0) {
     std::cerr << "Could not get local address for a selected preferred address"
               << std::endl;
-    return nullptr;
+    return std::unexpected{Error::INTERNAL};
   }
 
   auto current_path = ngtcp2_conn_get_path(conn_);
@@ -1260,7 +1261,7 @@ std::optional<Endpoint *> Client::endpoint_for(const Address &remote_addr) {
 
   auto fd = udp_sock(family);
   if (fd == -1) {
-    return nullptr;
+    return std::unexpected{Error::INTERNAL};
   }
 
   Address local_addr;
@@ -1268,12 +1269,12 @@ std::optional<Endpoint *> Client::endpoint_for(const Address &remote_addr) {
 #ifdef HAVE_LINUX_RTNETLINK_H
   if (bind_addr(local_addr, fd, ia, family) != 0) {
     close(fd);
-    return nullptr;
+    return std::unexpected{Error::INTERNAL};
   }
 #else  // !defined(HAVE_LINUX_RTNETLINK_H)
   if (connect_sock(local_addr, fd, remote_addr) != 0) {
     close(fd);
-    return nullptr;
+    return std::unexpected{Error::INTERNAL};
   }
 #endif // !defined(HAVE_LINUX_RTNETLINK_H)
 

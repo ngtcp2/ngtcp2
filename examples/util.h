@@ -33,12 +33,12 @@
 #include <sys/socket.h>
 
 #include <cassert>
-#include <optional>
 #include <string>
 #include <random>
 #include <unordered_map>
 #include <string_view>
 #include <span>
+#include <expected>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -48,6 +48,7 @@
 #include "network.h"
 #include "siphash.h"
 #include "template.h"
+#include "shared.h"
 
 namespace ngtcp2 {
 
@@ -281,7 +282,7 @@ std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 // read_mime_types reads "MIME media types and the extensions" file
 // denoted by |filename| and returns the mapping of extension to MIME
 // media type.
-std::optional<std::unordered_map<std::string, std::string>>
+std::expected<std::unordered_map<std::string, std::string>, Error>
 read_mime_types(std::string_view filename);
 
 inline constexpr auto count_digit_tbl = [] {
@@ -407,18 +408,18 @@ std::string format_duration(ngtcp2_duration n);
 
 // parse_uint parses |s| as 64-bit unsigned integer.  If it cannot
 // parse |s|, the return value does not contain a value.
-std::optional<uint64_t> parse_uint(std::string_view s);
+std::expected<uint64_t, Error> parse_uint(std::string_view s);
 
 // parse_uint_iec parses |s| as 64-bit unsigned integer.  It accepts
 // IEC unit letter (either "G", "M", or "K") in |s|.  If it cannot
 // parse |s|, the return value does not contain a value.
-std::optional<uint64_t> parse_uint_iec(std::string_view s);
+std::expected<uint64_t, Error> parse_uint_iec(std::string_view s);
 
 // parse_duration parses |s| as 64-bit unsigned integer.  It accepts a
 // unit (either "h", "m", "s", "ms", "us", or "ns") in |s|.  If no
 // unit is present, the unit "s" is assumed.  If it cannot parse |s|,
 // the return value does not contain a value.
-std::optional<uint64_t> parse_duration(std::string_view s);
+std::expected<uint64_t, Error> parse_duration(std::string_view s);
 
 // generate_secure_random generates a cryptographically secure pseudo
 // random data of |data|.
@@ -503,10 +504,11 @@ int make_socket_nonblocking(int fd);
 
 int create_nonblock_socket(int domain, int type, int protocol);
 
-std::optional<std::vector<uint8_t>> read_token(std::string_view filename);
+std::expected<std::vector<uint8_t>, Error>
+read_token(std::string_view filename);
 int write_token(std::string_view filename, std::span<const uint8_t> token);
 
-std::optional<std::vector<uint8_t>>
+std::expected<std::vector<uint8_t>, Error>
 read_transport_params(std::string_view filename);
 int write_transport_params(std::string_view filename,
                            std::span<const uint8_t> data);
@@ -522,10 +524,10 @@ std::vector<std::string_view> split_str(std::string_view s, char delim = ',');
 
 // parse_version parses |s| to get 4 byte QUIC version.  |s| must be a
 // hex string and must start with "0x" (e.g., 0x00000001).
-std::optional<uint32_t> parse_version(std::string_view s);
+std::expected<uint32_t, Error> parse_version(std::string_view s);
 
 // read_file reads a file denoted by |path| and returns its content.
-std::optional<std::vector<uint8_t>> read_file(std::string_view path);
+std::expected<std::vector<uint8_t>, Error> read_file(std::string_view path);
 
 size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst);
 
@@ -555,7 +557,8 @@ struct ECHServerConfig {
 
 // read_ech_server_config reads server-side ECH configuration from a
 // file denoted by |path|.
-std::optional<ECHServerConfig> read_ech_server_config(std::string_view path);
+std::expected<ECHServerConfig, Error>
+read_ech_server_config(std::string_view path);
 
 std::span<uint64_t, 2> generate_siphash_key();
 
