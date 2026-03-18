@@ -59,17 +59,17 @@ enum class AppProtocol {
 };
 
 template <size_t N>
-consteval std::span<const uint8_t> as_uint8_span(const uint8_t (&s)[N]) {
+consteval std::span<const uint8_t> span_from_lit(const uint8_t (&s)[N]) {
   return {s, N - 1};
 }
 
 inline constexpr uint8_t RAW_HQ_ALPN[] = "\xAhq-interop";
-inline constexpr auto HQ_ALPN = as_uint8_span(RAW_HQ_ALPN);
-inline constexpr auto HQ_ALPN_V1 = as_uint8_span(RAW_HQ_ALPN);
+inline constexpr auto HQ_ALPN = span_from_lit(RAW_HQ_ALPN);
+inline constexpr auto HQ_ALPN_V1 = span_from_lit(RAW_HQ_ALPN);
 
 inline constexpr uint8_t RAW_H3_ALPN[] = "\x2h3";
-inline constexpr auto H3_ALPN = as_uint8_span(RAW_H3_ALPN);
-inline constexpr auto H3_ALPN_V1 = as_uint8_span(RAW_H3_ALPN);
+inline constexpr auto H3_ALPN = span_from_lit(RAW_H3_ALPN);
+inline constexpr auto H3_ALPN_V1 = span_from_lit(RAW_H3_ALPN);
 
 inline constexpr uint32_t TLS_ALERT_ECH_REQUIRED = 121;
 

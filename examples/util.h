@@ -226,10 +226,14 @@ bool numeric_host(const char *hostname);
 
 bool numeric_host(const char *hostname, int family);
 
-// hexdump dumps |data| of length |datalen| in the format similar to
-// hexdump(1) with -C option.  This function returns 0 if it succeeds,
-// or -1.
-int hexdump(FILE *out, const void *data, size_t datalen);
+// hexdump dumps |data| in the format similar to hexdump(1) with -C
+// option.
+std::expected<void, Error> hexdump(FILE *out, std::span<const uint8_t> data);
+
+template <typename T, size_t N>
+std::expected<void, Error> hexdump(FILE *out, std::span<T, N> data) {
+  return hexdump(out, as_uint8_span(data));
+}
 
 inline constexpr auto lowcase_tbl = [] {
   std::array<char, 256> tbl;

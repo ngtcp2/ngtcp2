@@ -244,23 +244,24 @@ uint8_t *hexdump_line(uint8_t *dest, std::span<const uint8_t> data,
 } // namespace
 
 namespace {
-int hexdump_write(int fd, std::span<const uint8_t> data) {
+std::expected<void, Error> hexdump_write(int fd,
+                                         std::span<const uint8_t> data) {
   ssize_t nwrite;
 
   for (;
        (nwrite = write(fd, data.data(), data.size())) == -1 && errno == EINTR;)
     ;
   if (nwrite == -1) {
-    return -1;
+    return std::unexpected{Error::IO};
   }
 
-  return 0;
+  return {};
 }
 } // namespace
 
-int hexdump(FILE *out, const void *data, size_t datalen) {
-  if (datalen == 0) {
-    return 0;
+std::expected<void, Error> hexdump(FILE *out, std::span<const uint8_t> data) {
+  if (data.empty()) {
+    return {};
   }
 
   // min_space is the additional minimum space that the buffer must
@@ -271,7 +272,7 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
 
   auto fd = fileno(out);
   std::array<uint8_t, 4096> buf;
-  auto input = std::span{reinterpret_cast<const uint8_t *>(data), datalen};
+  auto input = data;
   auto last = buf.data();
   auto repeated = false;
   std::span<const uint8_t> s, last_s{};
@@ -298,22 +299,21 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
       repeated = false;
     }
 
-    last = hexdump_line(
-      last, s, as_unsigned(s.data() - reinterpret_cast<const uint8_t *>(data)));
+    last = hexdump_line(last, s, as_unsigned(s.data() - data.data()));
     *last++ = '\n';
     last_s = s;
 
     auto len = static_cast<size_t>(last - buf.data());
     if (len + min_space > buf.size()) {
-      if (hexdump_write(fd, {buf.data(), len}) != 0) {
-        return -1;
+      if (auto rv = hexdump_write(fd, {buf.data(), len}); !rv) {
+        return rv;
       }
 
       last = buf.data();
     }
   }
 
-  last = hexdump_addr(last, datalen);
+  last = hexdump_addr(last, data.size());
   *last++ = '\n';
 
   auto len = static_cast<size_t>(last - buf.data());
@@ -321,7 +321,7 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
     return hexdump_write(fd, {buf.data(), len});
   }
 
-  return 0;
+  return {};
 }
 
 ngtcp2_cid make_cid_key(std::span<const uint8_t> cid) {
