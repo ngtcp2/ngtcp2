@@ -2817,7 +2817,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (!util::generate_secret(config.static_secret)) {
+  if (!util::generate_secure_random(config.static_secret)) {
     std::cerr << "Unable to generate static secret" << std::endl;
     exit(EXIT_FAILURE);
   }

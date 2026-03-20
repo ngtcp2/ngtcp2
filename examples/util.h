@@ -429,10 +429,6 @@ std::expected<uint64_t, Error> parse_duration(std::string_view s);
 // random data of |data|.
 std::expected<void, Error> generate_secure_random(std::span<uint8_t> data);
 
-// generate_secret generates secret and writes it to |secret|.
-// Currently, |secret| must be 32 bytes long.
-std::expected<void, Error> generate_secret(std::span<uint8_t> secret);
-
 // normalize_path removes ".." by consuming a previous path component.
 // It also removes ".".  It assumes that |path| starts with "/".  If
 // it cannot consume a previous path component, it just removes "..".
