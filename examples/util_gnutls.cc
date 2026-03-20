@@ -51,21 +51,6 @@ std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
   return {};
 }
 
-std::expected<void, Error> generate_secret(std::span<uint8_t> secret) {
-  std::array<uint8_t, 16> rand;
-
-  if (auto rv = generate_secure_random(rand); !rv) {
-    return rv;
-  }
-
-  if (gnutls_hash_fast(GNUTLS_DIG_SHA256, rand.data(), rand.size(),
-                       secret.data()) != 0) {
-    return std::unexpected{Error::CRYPTO};
-  }
-
-  return {};
-}
-
 std::expected<HPKEPrivateKey, Error>
 read_hpke_private_key_pem(std::string_view filename) {
   return std::unexpected{Error::NOT_IMPLEMENTED};

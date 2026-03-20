@@ -57,37 +57,6 @@ std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
   return {};
 }
 
-std::expected<void, Error> generate_secret(std::span<uint8_t> secret) {
-  std::array<uint8_t, 16> rand;
-
-  if (auto rv = generate_secure_random(rand); !rv) {
-    return rv;
-  }
-
-  auto ctx = EVP_MD_CTX_new();
-  if (ctx == nullptr) {
-    return std::unexpected{Error::CRYPTO};
-  }
-
-  auto ctx_deleter = defer([ctx] { EVP_MD_CTX_free(ctx); });
-
-  static const auto sha256 =
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-    EVP_MD_fetch(nullptr, "sha256", nullptr);
-#else  // OPENSSL_VERSION_NUMBER < 0x30000000L
-    EVP_sha256();
-#endif // OPENSSL_VERSION_NUMBER < 0x30000000L
-
-  auto mdlen = static_cast<unsigned int>(secret.size());
-  if (!EVP_DigestInit_ex(ctx, sha256, nullptr) ||
-      !EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
-      !EVP_DigestFinal_ex(ctx, secret.data(), &mdlen)) {
-    return std::unexpected{Error::CRYPTO};
-  }
-
-  return {};
-}
-
 std::expected<HPKEPrivateKey, Error>
 read_hpke_private_key_pem(std::string_view filename) {
   auto f = BIO_new_file(filename.data(), "r");

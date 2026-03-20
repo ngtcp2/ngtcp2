@@ -55,30 +55,6 @@ read_hpke_private_key_pem(std::string_view filename) {
   return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 
-std::expected<void, Error> generate_secret(std::span<uint8_t> secret) {
-  std::array<uint8_t, 16> rand;
-
-  if (auto rv = generate_secure_random(rand); !rv) {
-    return rv;
-  }
-
-  auto ctx = wolfSSL_EVP_MD_CTX_new();
-  if (ctx == nullptr) {
-    return std::unexpected{Error::CRYPTO};
-  }
-
-  auto mdlen = static_cast<unsigned int>(secret.size());
-  if (!wolfSSL_EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
-      !wolfSSL_EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
-      !wolfSSL_EVP_DigestFinal_ex(ctx, secret.data(), &mdlen)) {
-    wolfSSL_EVP_MD_CTX_free(ctx);
-    return std::unexpected{Error::CRYPTO};
-  }
-
-  wolfSSL_EVP_MD_CTX_free(ctx);
-  return {};
-}
-
 std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
                                                     std::string_view name,
                                                     std::string_view type) {
