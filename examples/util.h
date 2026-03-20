@@ -133,9 +133,12 @@ constexpr std::string format_hex(I first, std::iter_difference_t<I> n) {
 
   std::string res;
 
-  res.resize(as_unsigned(n * 2));
+  res.resize_and_overwrite(as_unsigned(n * 2), [first = std::move(first),
+                                                n](auto p, auto len) mutable {
+    format_hex(std::move(first), n, p);
 
-  format_hex(std::move(first), std::move(n), std::ranges::begin(res));
+    return len;
+  });
 
   return res;
 }
@@ -153,15 +156,18 @@ constexpr O format_hex(R &&r, O result) {
 }
 
 // format_hex converts |R| in hex format, and returns the result.
-template <std::ranges::input_range R>
+template <std::ranges::forward_range R>
 requires(!std::is_array_v<std::remove_cvref_t<R>> &&
          sizeof(std::ranges::range_value_t<R>) == sizeof(uint8_t))
 constexpr std::string format_hex(R &&r) {
   std::string res;
 
-  res.resize(as_unsigned(std::ranges::distance(r) * 2));
+  res.resize_and_overwrite(as_unsigned(std::ranges::distance(r) * 2),
+                           [&r](auto p, auto len) {
+                             format_hex(r, p);
 
-  format_hex(std::forward<R>(r), std::ranges::begin(res));
+                             return len;
+                           });
 
   return res;
 }
@@ -199,9 +205,11 @@ constexpr O format_hex(T n, O result) {
 template <std::unsigned_integral T> constexpr std::string format_hex(T n) {
   std::string res;
 
-  res.resize(sizeof(n) * 2);
+  res.resize_and_overwrite(sizeof(n) * 2, [n](auto p, auto len) {
+    format_hex(n, p);
 
-  format_hex(std::move(n), std::ranges::begin(res));
+    return len;
+  });
 
   return res;
 }
@@ -380,9 +388,11 @@ template <std::unsigned_integral T> constexpr std::string format_uint(T n) {
 
   std::string res;
 
-  res.resize(count_digit(n));
+  res.resize_and_overwrite(count_digit(n), [n](auto p, auto len) {
+    utos(n, p);
 
-  utos(n, std::ranges::begin(res));
+    return len;
+  });
 
   return res;
 }
