@@ -66,14 +66,14 @@ int client_hello_cb(gnutls_session_t session, unsigned int htype, unsigned when,
 }
 } // namespace
 
-int TLSServerSession::init(const TLSServerContext &tls_ctx,
-                           HandlerBase *handler) {
+std::expected<void, Error>
+TLSServerSession::init(const TLSServerContext &tls_ctx, HandlerBase *handler) {
   if (auto rv = gnutls_init(
         &session_, GNUTLS_SERVER | GNUTLS_ENABLE_EARLY_DATA |
                      GNUTLS_NO_AUTO_SEND_TICKET | GNUTLS_NO_END_OF_EARLY_DATA);
       rv != 0) {
     std::cerr << "gnutls_init failed: " << gnutls_strerror(rv) << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   std::string priority = "%DISABLE_TLS13_COMPAT_MODE:";
@@ -85,7 +85,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
       rv != 0) {
     std::cerr << "gnutls_priority_set_direct failed: " << gnutls_strerror(rv)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   auto rv = gnutls_session_ticket_enable_server(
@@ -93,7 +93,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   if (rv != 0) {
     std::cerr << "gnutls_session_ticket_enable_server failed: "
               << gnutls_strerror(rv) << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   gnutls_handshake_set_hook_function(session_, GNUTLS_HANDSHAKE_CLIENT_HELLO,
@@ -102,7 +102,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   if (ngtcp2_crypto_gnutls_configure_server_session(session_) != 0) {
     std::cerr << "ngtcp2_crypto_gnutls_configure_server_session failed"
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   gnutls_anti_replay_enable(session_, tls_ctx.get_anti_replay());
@@ -116,7 +116,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
       rv != 0) {
     std::cerr << "gnutls_credentials_set failed: " << gnutls_strerror(rv)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   // TODO Set all available ALPN based on app_proto.
@@ -134,15 +134,15 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
     gnutls_certificate_send_x509_rdn_sequence(session_, 1);
   }
 
-  return 0;
+  return {};
 }
 
-int TLSServerSession::send_session_ticket() {
+std::expected<void, Error> TLSServerSession::send_session_ticket() {
   if (auto rv = gnutls_session_ticket_send(session_, 1, 0); rv != 0) {
     std::cerr << "gnutls_session_ticket_send failed: " << gnutls_strerror(rv)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
+  return {};
 }

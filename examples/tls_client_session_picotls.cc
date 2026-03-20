@@ -68,13 +68,14 @@ auto negotiated_protocols_hq = std::to_array<ptls_iovec_t>({
 });
 } // namespace
 
-int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
-                           const char *remote_addr, ClientBase *client,
-                           uint32_t quic_version, AppProtocol app_proto) {
+std::expected<void, Error>
+TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
+                       const char *remote_addr, ClientBase *client,
+                       uint32_t quic_version, AppProtocol app_proto) {
   cptls_.ptls = ptls_client_new(tls_ctx.get_native_handle());
   if (!cptls_.ptls) {
     std::cerr << "ptls_client_new failed" << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   *ptls_get_data_ptr(cptls_.ptls) = client->conn_ref();
@@ -94,7 +95,7 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
   if (ngtcp2_crypto_picotls_configure_client_session(&cptls_, conn) != 0) {
     std::cerr << "ngtcp2_crypto_picotls_configure_client_session failed"
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   switch (app_proto) {
@@ -158,7 +159,7 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
     }
   }
 
-  return 0;
+  return {};
 }
 
 bool TLSClientSession::get_early_data_accepted() const {

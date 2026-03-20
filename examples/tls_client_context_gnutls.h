@@ -31,12 +31,17 @@
 
 #include <gnutls/gnutls.h>
 
+#include "shared.h"
+
+using namespace ngtcp2;
+
 class TLSClientContext {
 public:
   TLSClientContext() = default;
   ~TLSClientContext();
 
-  int init(const char *private_key_file, const char *cert_file);
+  std::expected<void, Error> init(const char *private_key_file,
+                                  const char *cert_file);
 
   gnutls_certificate_credentials_t get_native_handle() const;
 

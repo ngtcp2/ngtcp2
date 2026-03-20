@@ -36,10 +36,11 @@
 
 extern Config config;
 
-int TLSClientSession::init(bool &early_data_enabled,
-                           const TLSClientContext &tls_ctx,
-                           const char *remote_addr, ClientBase *client,
-                           uint32_t quic_version, AppProtocol app_proto) {
+std::expected<void, Error>
+TLSClientSession::init(bool &early_data_enabled,
+                       const TLSClientContext &tls_ctx, const char *remote_addr,
+                       ClientBase *client, uint32_t quic_version,
+                       AppProtocol app_proto) {
   early_data_enabled = false;
 
   auto ssl_ctx = tls_ctx.get_native_handle();
@@ -48,7 +49,7 @@ int TLSClientSession::init(bool &early_data_enabled,
   if (!ssl_) {
     std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   SSL_set_app_data(ssl_, client->conn_ref());
@@ -100,7 +101,7 @@ int TLSClientSession::init(bool &early_data_enabled,
     }
   }
 
-  return 0;
+  return {};
 }
 
 bool TLSClientSession::get_early_data_accepted() const {

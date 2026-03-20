@@ -35,10 +35,11 @@
 
 extern Config config;
 
-int TLSClientSession::init(bool &early_data_enabled,
-                           const TLSClientContext &tls_ctx,
-                           const char *remote_addr, ClientBase *client,
-                           uint32_t quic_version, AppProtocol app_proto) {
+std::expected<void, Error>
+TLSClientSession::init(bool &early_data_enabled,
+                       const TLSClientContext &tls_ctx, const char *remote_addr,
+                       ClientBase *client, uint32_t quic_version,
+                       AppProtocol app_proto) {
   early_data_enabled = false;
 
   auto ssl_ctx = tls_ctx.get_native_handle();
@@ -47,7 +48,7 @@ int TLSClientSession::init(bool &early_data_enabled,
   if (!ssl_) {
     std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   SSL_set_app_data(ssl_, client->conn_ref());
@@ -101,10 +102,10 @@ int TLSClientSession::init(bool &early_data_enabled,
                                config.ech_config_list.size()) != 1) {
     std::cerr << "Could not set ECHConfigList: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
+  return {};
 }
 
 bool TLSClientSession::get_early_data_accepted() const {
@@ -115,20 +116,21 @@ bool TLSClientSession::get_ech_accepted() const {
   return SSL_ech_accepted(ssl_);
 }
 
-int TLSClientSession::write_ech_config_list(const char *path) const {
+std::expected<void, Error>
+TLSClientSession::write_ech_config_list(const char *path) const {
   const uint8_t *retry_configs;
   size_t retry_configslen;
 
   SSL_get0_ech_retry_configs(ssl_, &retry_configs, &retry_configslen);
   if (retry_configslen == 0) {
     std::cerr << "No ECH retry configs found" << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   auto f = std::ofstream(path);
 
   if (!f) {
-    return -1;
+    return std::unexpected{Error::IO};
   }
 
   f.write(reinterpret_cast<const char *>(retry_configs),
@@ -136,8 +138,8 @@ int TLSClientSession::write_ech_config_list(const char *path) const {
   f.close();
 
   if (!f) {
-    return -1;
+    return std::unexpected{Error::IO};
   }
 
-  return 0;
+  return {};
 }

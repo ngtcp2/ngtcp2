@@ -754,8 +754,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     return -1;
   }
 
-  if (tls_session_.init(early_data_, tls_ctx, addr_, this,
-                        client_chosen_version_, AppProtocol::HQ) != 0) {
+  if (!tls_session_.init(early_data_, tls_ctx, addr_, this,
+                         client_chosen_version_, AppProtocol::HQ)) {
     return -1;
   }
 
@@ -806,8 +806,7 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
         ngtcp2_ccerr_set_tls_alert(&last_error_, alert, nullptr, 0);
 
         if (alert == TLS_ALERT_ECH_REQUIRED && config.ech_config_list_file &&
-            tls_session_.write_ech_config_list(config.ech_config_list_file) !=
-              0) {
+            !tls_session_.write_ech_config_list(config.ech_config_list_file)) {
           std::cerr << "Could not write ECH retry configs in "
                     << config.ech_config_list_file << std::endl;
         }
@@ -2803,7 +2802,7 @@ int main(int argc, char **argv) {
   }
 
   TLSClientContext tls_ctx;
-  if (tls_ctx.init(private_key_file, cert_file) != 0) {
+  if (!tls_ctx.init(private_key_file, cert_file)) {
     exit(EXIT_FAILURE);
   }
 
