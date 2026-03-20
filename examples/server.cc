@@ -2725,29 +2725,31 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, const Endpoint &ep,
     return -1;
   }
 
-  std::array<uint8_t, NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN2> token;
+  std::array<uint8_t, NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN2> tokenbuf;
 
   auto t = util::system_clock_now();
 
   auto tokenlen = ngtcp2_crypto_generate_retry_token2(
-    token.data(), config.static_secret.data(), config.static_secret.size(),
+    tokenbuf.data(), config.static_secret.data(), config.static_secret.size(),
     chd->version, remote_addr.as_sockaddr(), remote_addr.size(), &scid,
     &chd->dcid, t);
   if (tokenlen < 0) {
     return -1;
   }
 
+  auto token = std::span{tokenbuf}.first(as_unsigned(tokenlen));
+
   if (!config.quiet) {
     std::cerr << "Generated address validation token:" << std::endl;
-    util::hexdump(stderr, {token.data(), as_unsigned(tokenlen)});
+    util::hexdump(stderr, token);
   }
 
   Buffer buf{
     std::min(static_cast<size_t>(NGTCP2_MAX_UDP_PAYLOAD_SIZE), max_pktlen)};
 
-  auto nwrite = ngtcp2_crypto_write_retry(buf.wpos(), buf.left(), chd->version,
-                                          &chd->scid, &scid, &chd->dcid,
-                                          token.data(), as_unsigned(tokenlen));
+  auto nwrite =
+    ngtcp2_crypto_write_retry(buf.wpos(), buf.left(), chd->version, &chd->scid,
+                              &scid, &chd->dcid, token.data(), token.size());
   if (nwrite < 0) {
     std::cerr << "ngtcp2_crypto_write_retry failed" << std::endl;
     return -1;
