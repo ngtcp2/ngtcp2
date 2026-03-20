@@ -44,13 +44,25 @@ using namespace std::literals;
 namespace ngtcp2 {
 
 enum class Error {
+  // the generic errors that are not covered by more specific error
+  // codes.
   INTERNAL,
+  // function arguments are invalid
   INVALID_ARGUMENT,
+  // integer overflow error
   INTEGER_OVERFLOW,
+  // file I/O error
   IO,
+  // function is not implemented yet
   NOT_IMPLEMENTED,
+  // the operation is not supported
   UNSUPPORTED,
+  // entity is not found (e.g., file not found)
   NOT_FOUND,
+  // crypto related error (e.g., error from TLS stack)
+  CRYPTO,
+  // system call error
+  SYSCALL,
 };
 
 enum class AppProtocol {
@@ -99,9 +111,9 @@ std::expected<Address, Error> msghdr_get_local_addr(msghdr *msg, int family);
 // not found, or UDP_GRO is not supported, this function returns 0.
 size_t msghdr_get_udp_gro(msghdr *msg);
 
-// get_local_addr stores preferred local address (interface address)
-// in |ia| for a given destination address |remote_addr|.
-int get_local_addr(InAddr &ia, const Address &remote_addr);
+// get_local_addr returns the preferred local address (interface
+// address) for a given destination address |remote_addr|.
+std::expected<InAddr, Error> get_local_addr(const Address &remote_addr);
 
 // addreq returns true if |addr| and |ia| contain the same address.
 bool addreq(const Address &addr, const InAddr &ia);
@@ -183,6 +195,12 @@ struct std::formatter<ngtcp2::Error> : public std::formatter<std::string_view> {
       break;
     case ngtcp2::Error::NOT_FOUND:
       s = "not found"sv;
+      break;
+    case ngtcp2::Error::CRYPTO:
+      s = "crypto"sv;
+      break;
+    case ngtcp2::Error::SYSCALL:
+      s = "syscall"sv;
       break;
     }
 

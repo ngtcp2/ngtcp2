@@ -64,8 +64,10 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
                                                     std::string_view name,
                                                     std::string_view type);
 
-int write_pem(std::string_view filename, std::string_view name,
-              std::string_view type, std::span<const uint8_t> data);
+std::expected<void, Error> write_pem(std::string_view filename,
+                                     std::string_view name,
+                                     std::string_view type,
+                                     std::span<const uint8_t> data);
 
 std::string decode_hex(std::string_view s) {
   assert(s.size() % 2 == 0);
@@ -664,32 +666,37 @@ std::string normalize_path(std::string_view path) {
   return std::string{res.data(), p};
 }
 
-int make_socket_nonblocking(int fd) {
+std::expected<void, Error> make_socket_nonblocking(int fd) {
   int rv;
   int flags;
 
   while ((flags = fcntl(fd, F_GETFL, 0)) == -1 && errno == EINTR)
     ;
   if (flags == -1) {
-    return -1;
+    return std::unexpected{Error::SYSCALL};
   }
 
   while ((rv = fcntl(fd, F_SETFL, flags | O_NONBLOCK)) == -1 && errno == EINTR)
     ;
 
-  return rv;
+  if (rv == -1) {
+    return std::unexpected{Error::SYSCALL};
+  }
+
+  return {};
 }
 
-int create_nonblock_socket(int domain, int type, int protocol) {
+std::expected<int, Error> create_nonblock_socket(int domain, int type,
+                                                 int protocol) {
 #ifdef SOCK_NONBLOCK
   auto fd = socket(domain, type | SOCK_NONBLOCK, protocol);
   if (fd == -1) {
-    return -1;
+    return std::unexpected{Error::SYSCALL};
   }
 #else  // !defined(SOCK_NONBLOCK)
   auto fd = socket(domain, type, protocol);
   if (fd == -1) {
-    return -1;
+    return std::unexpected{Error::SYSCALL};
   }
 
   make_socket_nonblocking(fd);
@@ -742,7 +749,8 @@ read_token(std::string_view filename) {
   return read_pem(filename, "token"sv, "QUIC TOKEN"sv);
 }
 
-int write_token(std::string_view filename, std::span<const uint8_t> token) {
+std::expected<void, Error> write_token(std::string_view filename,
+                                       std::span<const uint8_t> token) {
   return write_pem(filename, "token"sv, "QUIC TOKEN"sv, token);
 }
 
@@ -752,8 +760,9 @@ read_transport_params(std::string_view filename) {
                   "QUIC TRANSPORT PARAMETERS"sv);
 }
 
-int write_transport_params(std::string_view filename,
-                           std::span<const uint8_t> data) {
+std::expected<void, Error>
+write_transport_params(std::string_view filename,
+                       std::span<const uint8_t> data) {
   return write_pem(filename, "transport parameters"sv,
                    "QUIC TRANSPORT PARAMETERS"sv, data);
 }
@@ -846,8 +855,7 @@ std::span<uint64_t, 2> generate_siphash_key() {
   static auto key = [] {
     std::array<uint64_t, 2> key;
 
-    auto rv = generate_secure_random(as_writable_uint8_span(std::span{key}));
-    if (rv != 0) {
+    if (!generate_secure_random(as_writable_uint8_span(std::span{key}))) {
       assert(0);
       abort();
     }

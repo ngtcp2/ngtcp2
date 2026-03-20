@@ -43,7 +43,7 @@ namespace ngtcp2 {
 
 namespace util {
 
-int generate_secure_random(std::span<uint8_t> data) {
+std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
 #ifdef WITH_EXAMPLE_BORINGSSL
   using size_type = size_t;
 #else  // !defined(WITH_EXAMPLE_BORINGSSL)
@@ -51,22 +51,22 @@ int generate_secure_random(std::span<uint8_t> data) {
 #endif // !defined(WITH_EXAMPLE_BORINGSSL)
 
   if (RAND_bytes(data.data(), static_cast<size_type>(data.size())) != 1) {
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
+  return {};
 }
 
-int generate_secret(std::span<uint8_t> secret) {
+std::expected<void, Error> generate_secret(std::span<uint8_t> secret) {
   std::array<uint8_t, 16> rand;
 
-  if (generate_secure_random(rand) != 0) {
-    return -1;
+  if (auto rv = generate_secure_random(rand); !rv) {
+    return rv;
   }
 
   auto ctx = EVP_MD_CTX_new();
   if (ctx == nullptr) {
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   auto ctx_deleter = defer([ctx] { EVP_MD_CTX_free(ctx); });
@@ -82,10 +82,10 @@ int generate_secret(std::span<uint8_t> secret) {
   if (!EVP_DigestInit_ex(ctx, sha256, nullptr) ||
       !EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
       !EVP_DigestFinal_ex(ctx, secret.data(), &mdlen)) {
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
+  return {};
 }
 
 std::expected<HPKEPrivateKey, Error>
@@ -165,19 +165,21 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
   }
 }
 
-int write_pem(std::string_view filename, std::string_view name,
-              std::string_view type, std::span<const uint8_t> data) {
+std::expected<void, Error> write_pem(std::string_view filename,
+                                     std::string_view name,
+                                     std::string_view type,
+                                     std::span<const uint8_t> data) {
   auto f = BIO_new_file(filename.data(), "w");
   if (f == nullptr) {
     std::cerr << "Could not write " << name << " in " << filename << std::endl;
-    return -1;
+    return std::unexpected{Error::IO};
   }
 
   PEM_write_bio(f, type.data(), "", data.data(),
                 static_cast<long>(data.size()));
   BIO_free(f);
 
-  return 0;
+  return {};
 }
 
 const char *crypto_default_ciphers() {

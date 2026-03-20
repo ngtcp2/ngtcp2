@@ -42,12 +42,12 @@ namespace ngtcp2 {
 
 namespace util {
 
-int generate_secure_random(std::span<uint8_t> data) {
+std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
   if (wolfSSL_RAND_bytes(data.data(), static_cast<int>(data.size())) != 1) {
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
+  return {};
 }
 
 std::expected<HPKEPrivateKey, Error>
@@ -55,16 +55,16 @@ read_hpke_private_key_pem(std::string_view filename) {
   return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 
-int generate_secret(std::span<uint8_t> secret) {
+std::expected<void, Error> generate_secret(std::span<uint8_t> secret) {
   std::array<uint8_t, 16> rand;
 
-  if (generate_secure_random(rand) != 0) {
-    return -1;
+  if (auto rv = generate_secure_random(rand); !rv) {
+    return rv;
   }
 
   auto ctx = wolfSSL_EVP_MD_CTX_new();
   if (ctx == nullptr) {
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   auto mdlen = static_cast<unsigned int>(secret.size());
@@ -72,11 +72,11 @@ int generate_secret(std::span<uint8_t> secret) {
       !wolfSSL_EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
       !wolfSSL_EVP_DigestFinal_ex(ctx, secret.data(), &mdlen)) {
     wolfSSL_EVP_MD_CTX_free(ctx);
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   wolfSSL_EVP_MD_CTX_free(ctx);
-  return 0;
+  return {};
 }
 
 std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
@@ -114,19 +114,21 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
   return {{data, data + datalen}};
 }
 
-int write_pem(std::string_view filename, std::string_view name,
-              std::string_view type, std::span<const uint8_t> data) {
+std::expected<void, Error> write_pem(std::string_view filename,
+                                     std::string_view name,
+                                     std::string_view type,
+                                     std::span<const uint8_t> data) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "w");
   if (f == nullptr) {
     std::cerr << "Could not write " << name << " in " << filename << std::endl;
-    return -1;
+    return std::unexpected{Error::IO};
   }
 
   wolfSSL_PEM_write_bio(f, type.data(), "", data.data(),
                         static_cast<long>(data.size()));
   wolfSSL_BIO_free(f);
 
-  return 0;
+  return {};
 }
 
 const char *crypto_default_ciphers() {

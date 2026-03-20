@@ -336,9 +336,8 @@ int Client::handshake_completed() {
     if (datalen < 0) {
       std::cerr << "Could not encode 0-RTT transport parameters: "
                 << ngtcp2_strerror(static_cast<int>(datalen)) << std::endl;
-    } else if (util::write_transport_params(
-                 config.tp_file, {data.data(), static_cast<size_t>(datalen)}) !=
-               0) {
+    } else if (!util::write_transport_params(
+                 config.tp_file, {data.data(), static_cast<size_t>(datalen)})) {
       std::cerr << "Could not write transport parameters in " << config.tp_file
                 << std::endl;
     }
@@ -467,8 +466,7 @@ int extend_max_local_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
 
 namespace {
 void rand_bytes(uint8_t *dest, size_t destlen) {
-  auto rv = util::generate_secure_random({dest, destlen});
-  if (rv != 0) {
+  if (!util::generate_secure_random({dest, destlen})) {
     assert(0);
     abort();
   }
@@ -485,7 +483,7 @@ namespace {
 int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
                           ngtcp2_stateless_reset_token *token, size_t cidlen,
                           void *user_data) {
-  if (util::generate_secure_random({cid->data, cidlen}) != 0) {
+  if (!util::generate_secure_random({cid->data, cidlen})) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -708,14 +706,14 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     scid = config.scid;
   } else {
     scid.datalen = 17;
-    if (util::generate_secure_random({scid.data, scid.datalen}) != 0) {
+    if (!util::generate_secure_random({scid.data, scid.datalen})) {
       std::cerr << "Could not generate source connection ID" << std::endl;
       return -1;
     }
   }
   if (config.dcid.datalen == 0) {
     dcid.datalen = 18;
-    if (util::generate_secure_random({dcid.data, dcid.datalen}) != 0) {
+    if (!util::generate_secure_random({dcid.data, dcid.datalen})) {
       std::cerr << "Could not generate destination connection ID" << std::endl;
       return -1;
     }
@@ -1287,10 +1285,12 @@ int connect_sock(Address &local_addr, int fd, const Address &remote_addr) {
 
 namespace {
 int udp_sock(int family) {
-  auto fd = util::create_nonblock_socket(family, SOCK_DGRAM, IPPROTO_UDP);
-  if (fd == -1) {
+  auto maybe_fd = util::create_nonblock_socket(family, SOCK_DGRAM, IPPROTO_UDP);
+  if (!maybe_fd) {
     return -1;
   }
+
+  auto fd = *maybe_fd;
 
   fd_set_recv_ecn(fd, family);
   fd_set_ip_mtu_discover(fd, family);
@@ -1341,13 +1341,14 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
 std::expected<Endpoint *, Error>
 Client::endpoint_for(const Address &remote_addr) {
 #ifdef HAVE_LINUX_RTNETLINK_H
-  InAddr ia;
-
-  if (get_local_addr(ia, remote_addr) != 0) {
+  auto maybe_ia = get_local_addr(remote_addr);
+  if (!maybe_ia) {
     std::cerr << "Could not get local address for a selected preferred address"
               << std::endl;
     return std::unexpected{Error::INTERNAL};
   }
+
+  const auto &ia = *maybe_ia;
 
   auto current_path = ngtcp2_conn_get_path(conn_);
   auto current_ep = static_cast<Endpoint *>(current_path->user_data);
@@ -1409,15 +1410,14 @@ int Client::change_local_addr() {
   }
 
 #ifdef HAVE_LINUX_RTNETLINK_H
-  InAddr ia;
-
-  if (get_local_addr(ia, remote_addr_) != 0) {
+  auto maybe_ia = get_local_addr(remote_addr_);
+  if (!maybe_ia) {
     std::cerr << "Could not get local address" << std::endl;
     close(nfd);
     return -1;
   }
 
-  if (bind_addr(local_addr, nfd, ia, family) != 0) {
+  if (bind_addr(local_addr, nfd, *maybe_ia, family) != 0) {
     close(nfd);
     return -1;
   }
@@ -2296,15 +2296,14 @@ int run(Client &c, const char *addr, const char *port,
   }
 
 #ifdef HAVE_LINUX_RTNETLINK_H
-  InAddr ia;
-
-  if (get_local_addr(ia, remote_addr) != 0) {
+  auto maybe_ia = get_local_addr(remote_addr);
+  if (!maybe_ia) {
     std::cerr << "Could not get local address" << std::endl;
     close(fd);
     return -1;
   }
 
-  if (bind_addr(local_addr, fd, ia, remote_addr.family()) != 0) {
+  if (bind_addr(local_addr, fd, *maybe_ia, remote_addr.family()) != 0) {
     close(fd);
     return -1;
   }
@@ -3319,7 +3318,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (util::generate_secret(config.static_secret) != 0) {
+  if (!util::generate_secret(config.static_secret)) {
     std::cerr << "Unable to generate static secret" << std::endl;
     exit(EXIT_FAILURE);
   }

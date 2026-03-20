@@ -520,8 +520,7 @@ int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
 
 namespace {
 void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
-  auto rv = util::generate_secure_random({dest, destlen});
-  if (rv != 0) {
+  if (!util::generate_secure_random({dest, destlen})) {
     assert(0);
     abort();
   }
@@ -532,7 +531,7 @@ namespace {
 int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
                           ngtcp2_stateless_reset_token *token, size_t cidlen,
                           void *user_data) {
-  if (util::generate_secure_random({cid->data, cidlen}) != 0) {
+  if (!util::generate_secure_random({cid->data, cidlen})) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -680,7 +679,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   };
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;
-  if (util::generate_secure_random({scid_.data, scid_.datalen}) != 0) {
+  if (!util::generate_secure_random({scid_.data, scid_.datalen})) {
     std::cerr << "Could not generate connection ID" << std::endl;
     return -1;
   }
@@ -787,17 +786,16 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       params.preferred_addr.ipv6_present = 1;
     }
 
-    if (util::generate_secure_random(
-          params.preferred_addr.stateless_reset_token) != 0) {
+    if (!util::generate_secure_random(
+          params.preferred_addr.stateless_reset_token)) {
       std::cerr << "Could not generate preferred address stateless reset token"
                 << std::endl;
       return -1;
     }
 
     params.preferred_addr.cid.datalen = NGTCP2_SV_SCIDLEN;
-    if (util::generate_secure_random({params.preferred_addr.cid.data,
-                                      params.preferred_addr.cid.datalen}) !=
-        0) {
+    if (!util::generate_secure_random({params.preferred_addr.cid.data,
+                                       params.preferred_addr.cid.datalen})) {
       std::cerr << "Could not generate preferred address connection ID"
                 << std::endl;
       return -1;
@@ -1464,11 +1462,13 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
   int fd = -1;
 
   for (rp = res; rp; rp = rp->ai_next) {
-    fd = util::create_nonblock_socket(rp->ai_family, rp->ai_socktype,
-                                      rp->ai_protocol);
-    if (fd == -1) {
+    auto maybe_fd = util::create_nonblock_socket(rp->ai_family, rp->ai_socktype,
+                                                 rp->ai_protocol);
+    if (!maybe_fd) {
       continue;
     }
+
+    fd = *maybe_fd;
 
     if (rp->ai_family == AF_INET6) {
       if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &val,
@@ -1550,11 +1550,13 @@ namespace {
 int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
   auto family = addr.family();
 
-  auto fd = util::create_nonblock_socket(family, SOCK_DGRAM, 0);
-  if (fd == -1) {
+  auto maybe_fd = util::create_nonblock_socket(family, SOCK_DGRAM, 0);
+  if (!maybe_fd) {
     std::cerr << "socket: " << strerror(errno) << std::endl;
     return -1;
   }
+
+  auto fd = *maybe_fd;
 
   int val = 1;
   if (family == AF_INET6) {
@@ -2003,7 +2005,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, const Endpoint &ep,
   ngtcp2_cid scid;
 
   scid.datalen = NGTCP2_SV_SCIDLEN;
-  if (util::generate_secure_random({scid.data, scid.datalen}) != 0) {
+  if (!util::generate_secure_random({scid.data, scid.datalen})) {
     return -1;
   }
 
@@ -2112,7 +2114,7 @@ int Server::send_stateless_reset(size_t pktlen, std::span<const uint8_t> dcid,
 
   std::array<uint8_t, max_rand_byteslen> rand_bytes;
 
-  if (util::generate_secure_random({rand_bytes.data(), rand_byteslen}) != 0) {
+  if (!util::generate_secure_random({rand_bytes.data(), rand_byteslen})) {
     return -1;
   }
 
@@ -3205,7 +3207,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (util::generate_secret(config.static_secret) != 0) {
+  if (!util::generate_secret(config.static_secret)) {
     std::cerr << "Unable to generate static secret" << std::endl;
     exit(EXIT_FAILURE);
   }
