@@ -686,7 +686,7 @@ int Handler::handshake_completed() {
               << std::endl;
   }
 
-  if (tls_session_.send_session_ticket() != 0) {
+  if (!tls_session_.send_session_ticket()) {
     std::cerr << "Unable to send session ticket" << std::endl;
   }
 
@@ -1543,7 +1543,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     return -1;
   }
 
-  if (tls_session_.init(tls_ctx, this) != 0) {
+  if (!tls_session_.init(tls_ctx, this)) {
     return -1;
   }
 
@@ -3930,7 +3930,7 @@ int main(int argc, char **argv) {
 
   TLSServerContext tls_ctx;
 
-  if (tls_ctx.init(private_key_file, cert_file, AppProtocol::H3) != 0) {
+  if (!tls_ctx.init(private_key_file, cert_file, AppProtocol::H3)) {
     exit(EXIT_FAILURE);
   }
 

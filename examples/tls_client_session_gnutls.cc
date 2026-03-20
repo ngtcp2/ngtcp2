@@ -84,10 +84,11 @@ int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
 }
 } // namespace
 
-int TLSClientSession::init(bool &early_data_enabled,
-                           const TLSClientContext &tls_ctx,
-                           const char *remote_addr, ClientBase *client,
-                           uint32_t quic_version, AppProtocol app_proto) {
+std::expected<void, Error>
+TLSClientSession::init(bool &early_data_enabled,
+                       const TLSClientContext &tls_ctx, const char *remote_addr,
+                       ClientBase *client, uint32_t quic_version,
+                       AppProtocol app_proto) {
   early_data_enabled = false;
 
   if (auto rv =
@@ -95,7 +96,7 @@ int TLSClientSession::init(bool &early_data_enabled,
                                  GNUTLS_NO_END_OF_EARLY_DATA);
       rv != 0) {
     std::cerr << "gnutls_init failed: " << gnutls_strerror(rv) << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   std::string priority = "%DISABLE_TLS13_COMPAT_MODE:";
@@ -107,7 +108,7 @@ int TLSClientSession::init(bool &early_data_enabled,
       rv != 0) {
     std::cerr << "gnutls_priority_set_direct failed: " << gnutls_strerror(rv)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   gnutls_handshake_set_hook_function(session_, GNUTLS_HANDSHAKE_ANY,
@@ -116,7 +117,7 @@ int TLSClientSession::init(bool &early_data_enabled,
   if (ngtcp2_crypto_gnutls_configure_client_session(session_) != 0) {
     std::cerr << "ngtcp2_crypto_gnutls_configure_client_session failed"
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (config.session_file) {
@@ -139,7 +140,7 @@ int TLSClientSession::init(bool &early_data_enabled,
           rv < 0) {
         std::cerr << "Could not read session in " << config.session_file
                   << std::endl;
-        return -1;
+        return std::unexpected{Error::IO};
       }
 
       auto d_d = defer([data = d.data] { gnutls_free(data); });
@@ -148,7 +149,7 @@ int TLSClientSession::init(bool &early_data_enabled,
           rv != 0) {
         std::cerr << "gnutls_session_set_data failed: " << gnutls_strerror(rv)
                   << std::endl;
-        return -1;
+        return std::unexpected{Error::CRYPTO};
       }
 
       if (!config.disable_early_data) {
@@ -164,7 +165,7 @@ int TLSClientSession::init(bool &early_data_enabled,
       rv != 0) {
     std::cerr << "gnutls_credentials_set failed: " << gnutls_strerror(rv)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   // strip the first byte from H3_ALPN_V1
@@ -185,7 +186,7 @@ int TLSClientSession::init(bool &early_data_enabled,
                            strlen(remote_addr));
   }
 
-  return 0;
+  return {};
 }
 
 bool TLSClientSession::get_early_data_accepted() const {

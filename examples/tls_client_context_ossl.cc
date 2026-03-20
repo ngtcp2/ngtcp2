@@ -86,13 +86,13 @@ int new_session_cb(SSL *ssl, SSL_SESSION *session) {
 }
 } // namespace
 
-int TLSClientContext::init(const char *private_key_file,
-                           const char *cert_file) {
+std::expected<void, Error> TLSClientContext::init(const char *private_key_file,
+                                                  const char *cert_file) {
   ssl_ctx_ = SSL_CTX_new(TLS_client_method());
   if (!ssl_ctx_) {
     std::cerr << "SSL_CTX_new: " << ERR_error_string(ERR_get_error(), nullptr)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   SSL_CTX_set_default_verify_paths(ssl_ctx_);
@@ -100,12 +100,12 @@ int TLSClientContext::init(const char *private_key_file,
   if (SSL_CTX_set_ciphersuites(ssl_ctx_, config.ciphers) != 1) {
     std::cerr << "SSL_CTX_set_ciphersuites: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (SSL_CTX_set1_groups_list(ssl_ctx_, config.groups) != 1) {
     std::cerr << "SSL_CTX_set1_groups_list failed" << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (private_key_file && cert_file) {
@@ -113,13 +113,13 @@ int TLSClientContext::init(const char *private_key_file,
                                     SSL_FILETYPE_PEM) != 1) {
       std::cerr << "SSL_CTX_use_PrivateKey_file: "
                 << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-      return -1;
+      return std::unexpected{Error::CRYPTO};
     }
 
     if (SSL_CTX_use_certificate_chain_file(ssl_ctx_, cert_file) != 1) {
       std::cerr << "SSL_CTX_use_certificate_chain_file: "
                 << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-      return -1;
+      return std::unexpected{Error::CRYPTO};
     }
   }
 
@@ -129,7 +129,7 @@ int TLSClientContext::init(const char *private_key_file,
     SSL_CTX_sess_set_new_cb(ssl_ctx_, new_session_cb);
   }
 
-  return 0;
+  return {};
 }
 
 extern std::ofstream keylog_file;

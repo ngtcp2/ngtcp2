@@ -133,8 +133,9 @@ int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
 }
 } // namespace
 
-int TLSServerContext::init(const char *private_key_file, const char *cert_file,
-                           AppProtocol app_proto) {
+std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
+                                                  const char *cert_file,
+                                                  AppProtocol app_proto) {
   constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
 
 #ifdef DEBUG_WOLFSSL
@@ -148,13 +149,13 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     std::cerr << "wolfSSL_CTX_new: "
               << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (ngtcp2_crypto_wolfssl_configure_server_context(ssl_ctx_) != 0) {
     std::cerr << "ngtcp2_crypto_wolfssl_configure_server_context failed"
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
 #ifdef WOLFSSL_EARLY_DATA
@@ -170,14 +171,14 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   if (wolfSSL_CTX_set_cipher_list(ssl_ctx_, config.ciphers) != 1) {
     std::cerr << "wolfSSL_CTX_set_cipher_list: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (wolfSSL_CTX_set1_groups_list(ssl_ctx_,
                                    const_cast<char *>(config.groups)) != 1) {
     std::cerr << "wolfSSL_CTX_set1_groups_list(" << config.groups << ") failed"
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   wolfSSL_CTX_set_mode(ssl_ctx_, SSL_MODE_RELEASE_BUFFERS);
@@ -198,21 +199,21 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     std::cerr << "wolfSSL_CTX_use_PrivateKey_file: "
               << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (wolfSSL_CTX_use_certificate_chain_file(ssl_ctx_, cert_file) != 1) {
     std::cerr << "wolfSSL_CTX_use_certificate_chain_file: "
               << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (wolfSSL_CTX_check_private_key(ssl_ctx_) != 1) {
     std::cerr << "wolfSSL_CTX_check_private_key: "
               << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
   wolfSSL_CTX_set_session_id_context(ssl_ctx_, sid_ctx, sizeof(sid_ctx) - 1);
@@ -224,7 +225,7 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                            verify_cb);
   }
 
-  return 0;
+  return {};
 }
 
 extern std::ofstream keylog_file;

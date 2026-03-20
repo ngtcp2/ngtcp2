@@ -40,8 +40,8 @@ public:
   TLSServerContext();
   ~TLSServerContext();
 
-  int init(const char *private_key_file, const char *cert_file,
-           AppProtocol app_proto);
+  std::expected<void, Error> init(const char *private_key_file,
+                                  const char *cert_file, AppProtocol app_proto);
 
   gnutls_certificate_credentials_t get_certificate_credentials() const;
   const gnutls_datum_t *get_session_ticket_key() const;
