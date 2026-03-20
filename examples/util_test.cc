@@ -74,14 +74,18 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
 } // namespace util
 
 namespace util {
-int write_pem(std::string_view filename, std::string_view name,
-              std::string_view type, std::span<const uint8_t> data) {
-  return -1;
+std::expected<void, Error> write_pem(std::string_view filename,
+                                     std::string_view name,
+                                     std::string_view type,
+                                     std::span<const uint8_t> data) {
+  return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 } // namespace util
 
 namespace util {
-int generate_secure_random(std::span<uint8_t> data) { return -1; }
+std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
+  return std::unexpected{Error::NOT_IMPLEMENTED};
+}
 } // namespace util
 
 void test_util_format_durationf() {

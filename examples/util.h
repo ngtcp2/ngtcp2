@@ -427,11 +427,11 @@ std::expected<uint64_t, Error> parse_duration(std::string_view s);
 
 // generate_secure_random generates a cryptographically secure pseudo
 // random data of |data|.
-int generate_secure_random(std::span<uint8_t> data);
+std::expected<void, Error> generate_secure_random(std::span<uint8_t> data);
 
 // generate_secret generates secret and writes it to |secret|.
 // Currently, |secret| must be 32 bytes long.
-int generate_secret(std::span<uint8_t> secret);
+std::expected<void, Error> generate_secret(std::span<uint8_t> secret);
 
 // normalize_path removes ".." by consuming a previous path component.
 // It also removes ".".  It assumes that |path| starts with "/".  If
@@ -504,18 +504,21 @@ constexpr uint32_t hex_to_uint(char c) noexcept {
 
 std::string percent_decode(std::string_view s);
 
-int make_socket_nonblocking(int fd);
+std::expected<void, Error> make_socket_nonblocking(int fd);
 
-int create_nonblock_socket(int domain, int type, int protocol);
+std::expected<int, Error> create_nonblock_socket(int domain, int type,
+                                                 int protocol);
 
 std::expected<std::vector<uint8_t>, Error>
 read_token(std::string_view filename);
-int write_token(std::string_view filename, std::span<const uint8_t> token);
+std::expected<void, Error> write_token(std::string_view filename,
+                                       std::span<const uint8_t> token);
 
 std::expected<std::vector<uint8_t>, Error>
 read_transport_params(std::string_view filename);
-int write_transport_params(std::string_view filename,
-                           std::span<const uint8_t> data);
+std::expected<void, Error>
+write_transport_params(std::string_view filename,
+                       std::span<const uint8_t> data);
 
 const char *crypto_default_ciphers();
 

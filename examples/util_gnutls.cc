@@ -43,27 +43,27 @@ namespace ngtcp2 {
 
 namespace util {
 
-int generate_secure_random(std::span<uint8_t> data) {
+std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
   if (gnutls_rnd(GNUTLS_RND_RANDOM, data.data(), data.size()) != 0) {
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
+  return {};
 }
 
-int generate_secret(std::span<uint8_t> secret) {
+std::expected<void, Error> generate_secret(std::span<uint8_t> secret) {
   std::array<uint8_t, 16> rand;
 
-  if (generate_secure_random(rand) != 0) {
-    return -1;
+  if (auto rv = generate_secure_random(rand); !rv) {
+    return rv;
   }
 
   if (gnutls_hash_fast(GNUTLS_DIG_SHA256, rand.data(), rand.size(),
                        secret.data()) != 0) {
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
+  return {};
 }
 
 std::expected<HPKEPrivateKey, Error>
@@ -103,12 +103,14 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
   return res;
 }
 
-int write_pem(std::string_view filename, std::string_view name,
-              std::string_view type, std::span<const uint8_t> data) {
+std::expected<void, Error> write_pem(std::string_view filename,
+                                     std::string_view name,
+                                     std::string_view type,
+                                     std::span<const uint8_t> data) {
   auto f = std::ofstream(filename.data());
   if (!f) {
     std::cerr << "Could not write " << name << " in " << filename << std::endl;
-    return -1;
+    return std::unexpected{Error::IO};
   }
 
   gnutls_datum_t s{
@@ -119,13 +121,13 @@ int write_pem(std::string_view filename, std::string_view name,
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_encode2(type.data(), &s, &d); rv < 0) {
     std::cerr << "Could not encode " << name << " in " << filename << std::endl;
-    return -1;
+    return std::unexpected{Error::IO};
   }
 
   f.write(reinterpret_cast<const char *>(d.data), d.size);
   gnutls_free(d.data);
 
-  return 0;
+  return {};
 }
 
 const char *crypto_default_ciphers() {
