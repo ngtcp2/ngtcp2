@@ -63,10 +63,22 @@ enum class Error {
   CRYPTO,
   // system call error
   SYSCALL,
-  // HTTP3 library error
+  // C library error (e.g., error from getaddrinfo)
+  LIBC,
+  // HTTP3 library error (e.g., error from nghttp3 API)
   HTTP3,
-  // QUIC library error
+  // QUIC library error (e.g., error from ngtcp2 API)
   QUIC,
+  // sending packet is blocked by kernel
+  SEND_BLOCKED,
+  // QUIC connection is in close-wait.
+  CLOSE_WAIT,
+  // QUIC connection should be retried.
+  RETRY_CONN,
+  // QUIC connection should be dropped.
+  DROP_CONN,
+  // Retry token is unreadable, and should be ignored.
+  UNREADABLE_TOKEN,
 };
 
 enum class AppProtocol {
@@ -206,11 +218,29 @@ struct std::formatter<ngtcp2::Error> : public std::formatter<std::string_view> {
     case ngtcp2::Error::SYSCALL:
       s = "syscall"sv;
       break;
+    case ngtcp2::Error::LIBC:
+      s = "libc"sv;
+      break;
     case ngtcp2::Error::HTTP3:
       s = "HTTP3"sv;
       break;
     case ngtcp2::Error::QUIC:
       s = "QUIC"sv;
+      break;
+    case ngtcp2::Error::SEND_BLOCKED:
+      s = "send blocked"sv;
+      break;
+    case ngtcp2::Error::CLOSE_WAIT:
+      s = "close wait"sv;
+      break;
+    case ngtcp2::Error::RETRY_CONN:
+      s = "retry connection"sv;
+      break;
+    case ngtcp2::Error::DROP_CONN:
+      s = "drop connection"sv;
+      break;
+    case ngtcp2::Error::UNREADABLE_TOKEN:
+      s = "unreadable token"sv;
       break;
     }
 
