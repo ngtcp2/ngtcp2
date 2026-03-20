@@ -63,6 +63,10 @@ enum class Error {
   CRYPTO,
   // system call error
   SYSCALL,
+  // HTTP3 library error
+  HTTP3,
+  // QUIC library error
+  QUIC,
 };
 
 enum class AppProtocol {
@@ -201,6 +205,12 @@ struct std::formatter<ngtcp2::Error> : public std::formatter<std::string_view> {
       break;
     case ngtcp2::Error::SYSCALL:
       s = "syscall"sv;
+      break;
+    case ngtcp2::Error::HTTP3:
+      s = "HTTP3"sv;
+      break;
+    case ngtcp2::Error::QUIC:
+      s = "QUIC"sv;
       break;
     }
 

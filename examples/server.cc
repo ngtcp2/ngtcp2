@@ -111,7 +111,8 @@ struct Request {
 };
 
 namespace {
-Request request_path(std::string_view uri, bool is_connect) {
+std::expected<Request, Error> request_path(std::string_view uri,
+                                           bool is_connect) {
   urlparse_url u;
   Request req{
     .pri{
@@ -122,7 +123,7 @@ Request request_path(std::string_view uri, bool is_connect) {
 
   if (auto rv = urlparse_parse_url(uri.data(), uri.size(), is_connect, &u);
       rv != 0) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   if (u.field_set & (1 << URLPARSE_PATH)) {
@@ -134,7 +135,7 @@ Request request_path(std::string_view uri, bool is_connect) {
     assert(!req.path.empty());
 
     if (req.path[0] != '/') {
-      return {};
+      return std::unexpected{Error::INVALID_ARGUMENT};
     }
 
     if (req.path.back() == '/') {
@@ -210,21 +211,21 @@ namespace {
 std::unordered_map<std::string, FileEntry> file_cache;
 } // namespace
 
-std::pair<FileEntry, int> Stream::open_file(const std::string &path) {
+std::expected<FileEntry, Error> Stream::open_file(const std::string &path) {
   auto it = file_cache.find(path);
   if (it != std::ranges::end(file_cache)) {
-    return {(*it).second, 0};
+    return (*it).second;
   }
 
   auto fd = open(path.c_str(), O_RDONLY);
   if (fd == -1) {
-    return {{}, -1};
+    return std::unexpected{Error::SYSCALL};
   }
 
   struct stat st{};
   if (fstat(fd, &st) != 0) {
     close(fd);
-    return {{}, -1};
+    return std::unexpected{Error::SYSCALL};
   }
 
   FileEntry fe;
@@ -240,14 +241,14 @@ std::pair<FileEntry, int> Stream::open_file(const std::string &path) {
       if (fe.map == MAP_FAILED) {
         std::cerr << "mmap: " << strerror(errno) << std::endl;
         close(fd);
-        return {{}, -1};
+        return std::unexpected{Error::SYSCALL};
       }
     }
   }
 
   file_cache.emplace(path, fe);
 
-  return {std::move(fe), 0};
+  return fe;
 }
 
 void Stream::map_file(const FileEntry &fe) {
@@ -255,11 +256,11 @@ void Stream::map_file(const FileEntry &fe) {
   datalen = fe.len;
 }
 
-int64_t Stream::find_dyn_length(std::string_view path) {
+std::expected<uint64_t, Error> Stream::find_dyn_length(std::string_view path) {
   assert(path[0] == '/');
 
   if (path.size() == 1) {
-    return -1;
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   uint64_t n = 0;
@@ -267,19 +268,19 @@ int64_t Stream::find_dyn_length(std::string_view path) {
   for (auto it = std::ranges::begin(path) + 1; it != std::ranges::end(path);
        ++it) {
     if (*it < '0' || '9' < *it) {
-      return -1;
+      return std::unexpected{Error::INVALID_ARGUMENT};
     }
     auto d = static_cast<uint64_t>(*it - '0');
     if (n > (((1ULL << 62) - 1) - d) / 10) {
-      return -1;
+      return std::unexpected{Error::INVALID_ARGUMENT};
     }
     n = n * 10 + d;
     if (n > config.max_dyn_length) {
-      return -1;
+      return std::unexpected{Error::INVALID_ARGUMENT};
     }
   }
 
-  return static_cast<int64_t>(n);
+  return n;
 }
 
 namespace {
@@ -349,9 +350,9 @@ void Stream::http_acked_stream_data(uint64_t datalen) {
   dynbuflen -= datalen;
 }
 
-int Stream::send_status_response(nghttp3_conn *httpconn,
-                                 unsigned int status_code,
-                                 const std::vector<HTTPHeader> &extra_headers) {
+std::expected<void, Error>
+Stream::send_status_response(nghttp3_conn *httpconn, unsigned int status_code,
+                             const std::vector<HTTPHeader> &extra_headers) {
   status_resp_body = make_status_body(status_code);
 
   auto status_code_str = util::format_uint(status_code);
@@ -381,7 +382,7 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
       rv != 0) {
     std::cerr << "nghttp3_conn_submit_response: " << nghttp3_strerror(rv)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::HTTP3};
   }
 
   if (config.send_trailers) {
@@ -395,53 +396,54 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
         rv != 0) {
       std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
                 << std::endl;
-      return -1;
+      return std::unexpected{Error::HTTP3};
     }
   }
 
   handler->shutdown_read(stream_id, NGHTTP3_H3_NO_ERROR);
 
-  return 0;
+  return {};
 }
 
-int Stream::send_redirect_response(nghttp3_conn *httpconn,
-                                   unsigned int status_code,
-                                   std::string_view path) {
+std::expected<void, Error>
+Stream::send_redirect_response(nghttp3_conn *httpconn, unsigned int status_code,
+                               std::string_view path) {
   return send_status_response(httpconn, status_code, {{"location", path}});
 }
 
-int Stream::start_response(nghttp3_conn *httpconn) {
+std::expected<void, Error> Stream::start_response(nghttp3_conn *httpconn) {
   // TODO This should be handled by nghttp3
   if (uri.empty() || method.empty()) {
     return send_status_response(httpconn, 400);
   }
 
-  auto req = request_path(uri, method == "CONNECT");
-  if (req.path.empty()) {
+  auto maybe_req = request_path(uri, method == "CONNECT");
+  if (!maybe_req) {
     return send_status_response(httpconn, 400);
   }
 
-  auto dyn_len = find_dyn_length(req.path);
+  const auto &req = *maybe_req;
 
-  int64_t content_length = -1;
+  uint64_t content_length;
   nghttp3_data_reader dr{};
   auto content_type = "text/plain"sv;
 
-  if (dyn_len == -1) {
+  auto maybe_dyn_len = find_dyn_length(req.path);
+  if (!maybe_dyn_len) {
     auto path = config.htdocs + req.path;
-    auto [fe, rv] = open_file(path);
-    if (rv != 0) {
-      send_status_response(httpconn, 404);
-      return 0;
+    auto maybe_fe = open_file(path);
+    if (!maybe_fe) {
+      return send_status_response(httpconn, 404);
     }
+
+    const auto &fe = *maybe_fe;
 
     if (fe.flags & FILE_ENTRY_TYPE_DIR) {
-      send_redirect_response(httpconn, 308,
-                             path.substr(config.htdocs.size() - 1) + '/');
-      return 0;
+      return send_redirect_response(
+        httpconn, 308, path.substr(config.htdocs.size() - 1) + '/');
     }
 
-    content_length = static_cast<int64_t>(fe.len);
+    content_length = fe.len;
 
     if (method != "HEAD") {
       map_file(fe);
@@ -462,19 +464,19 @@ int Stream::start_response(nghttp3_conn *httpconn) {
       }
     }
   } else {
-    content_length = dyn_len;
+    content_length = *maybe_dyn_len;
     dynresp = true;
     dr.read_data = dyn_read_data;
 
     if (method != "HEAD") {
-      datalen = as_unsigned(dyn_len);
-      dyndataleft = as_unsigned(dyn_len);
+      datalen = content_length;
+      dyndataleft = content_length;
     }
 
     content_type = "application/octet-stream"sv;
   }
 
-  auto content_length_str = util::format_uint(as_unsigned(content_length));
+  auto content_length_str = util::format_uint(content_length);
 
   std::array<nghttp3_nv, 5> nva{
     util::make_nv_nn(":status"sv, "200"sv),
@@ -494,7 +496,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
         rv != 0) {
       std::cerr << "nghttp3_conn_get_stream_priority: " << nghttp3_strerror(rv)
                 << std::endl;
-      return -1;
+      return std::unexpected{Error::HTTP3};
     }
 
     if (req.pri.urgency != -1) {
@@ -509,7 +511,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
         rv != 0) {
       std::cerr << "nghttp3_conn_set_stream_priority: " << nghttp3_strerror(rv)
                 << std::endl;
-      return -1;
+      return std::unexpected{Error::HTTP3};
     }
 
     prival = "u=";
@@ -531,10 +533,10 @@ int Stream::start_response(nghttp3_conn *httpconn) {
       rv != 0) {
     std::cerr << "nghttp3_conn_submit_response: " << nghttp3_strerror(rv)
               << std::endl;
-    return -1;
+    return std::unexpected{Error::HTTP3};
   }
 
-  if (config.send_trailers && dyn_len == -1) {
+  if (config.send_trailers && !maybe_dyn_len) {
     auto stream_id_str = util::format_uint(as_unsigned(stream_id));
     auto trailers = std::to_array({
       util::make_nv_nc("x-ngtcp2-stream-id"sv, stream_id_str),
@@ -545,11 +547,11 @@ int Stream::start_response(nghttp3_conn *httpconn) {
         rv != 0) {
       std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
                 << std::endl;
-      return -1;
+      return std::unexpected{Error::HTTP3};
     }
   }
 
-  return 0;
+  return {};
 }
 
 namespace {
@@ -1081,22 +1083,22 @@ int http_end_request_headers(nghttp3_conn *conn, int64_t stream_id, int fin,
 
   auto h = static_cast<Handler *>(user_data);
   auto stream = static_cast<Stream *>(stream_user_data);
-  if (h->http_end_request_headers(stream) != 0) {
+  if (!h->http_end_request_headers(stream)) {
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
   return 0;
 }
 } // namespace
 
-int Handler::http_end_request_headers(Stream *stream) {
+std::expected<void, Error> Handler::http_end_request_headers(Stream *stream) {
   if (config.early_response) {
-    if (start_response(stream) != 0) {
-      return -1;
+    if (auto rv = start_response(stream); !rv) {
+      return rv;
     }
 
     shutdown_read(stream->stream_id, NGHTTP3_H3_NO_ERROR);
   }
-  return 0;
+  return {};
 }
 
 namespace {
@@ -1104,21 +1106,21 @@ int http_end_stream(nghttp3_conn *conn, int64_t stream_id, void *user_data,
                     void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
   auto stream = static_cast<Stream *>(stream_user_data);
-  if (h->http_end_stream(stream) != 0) {
+  if (!h->http_end_stream(stream)) {
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
   return 0;
 }
 } // namespace
 
-int Handler::http_end_stream(Stream *stream) {
+std::expected<void, Error> Handler::http_end_stream(Stream *stream) {
   if (!config.early_response) {
     return start_response(stream);
   }
-  return 0;
+  return {};
 }
 
-int Handler::start_response(Stream *stream) {
+std::expected<void, Error> Handler::start_response(Stream *stream) {
   return stream->start_response(httpconn_);
 }
 

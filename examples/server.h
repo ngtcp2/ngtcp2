@@ -57,14 +57,16 @@ struct FileEntry;
 struct Stream {
   Stream(int64_t stream_id, Handler *handler);
 
-  int start_response(nghttp3_conn *conn);
-  std::pair<FileEntry, int> open_file(const std::string &path);
+  std::expected<void, Error> start_response(nghttp3_conn *conn);
+  std::expected<FileEntry, Error> open_file(const std::string &path);
   void map_file(const FileEntry &fe);
-  int send_status_response(nghttp3_conn *conn, unsigned int status_code,
-                           const std::vector<HTTPHeader> &extra_headers = {});
-  int send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
-                             std::string_view path);
-  int64_t find_dyn_length(std::string_view path);
+  std::expected<void, Error>
+  send_status_response(nghttp3_conn *conn, unsigned int status_code,
+                       const std::vector<HTTPHeader> &extra_headers = {});
+  std::expected<void, Error> send_redirect_response(nghttp3_conn *conn,
+                                                    unsigned int status_code,
+                                                    std::string_view path);
+  std::expected<uint64_t, Error> find_dyn_length(std::string_view path);
   void http_acked_stream_data(uint64_t datalen);
 
   int64_t stream_id;
@@ -148,9 +150,9 @@ public:
   void http_begin_request_headers(int64_t stream_id);
   void http_recv_request_header(Stream *stream, int32_t token,
                                 nghttp3_rcbuf *name, nghttp3_rcbuf *value);
-  int http_end_request_headers(Stream *stream);
-  int http_end_stream(Stream *stream);
-  int start_response(Stream *stream);
+  std::expected<void, Error> http_end_request_headers(Stream *stream);
+  std::expected<void, Error> http_end_stream(Stream *stream);
+  std::expected<void, Error> start_response(Stream *stream);
   int on_stream_reset(int64_t stream_id);
   int on_stream_stop_sending(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
