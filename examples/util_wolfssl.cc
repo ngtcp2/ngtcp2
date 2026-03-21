@@ -84,7 +84,7 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
   if (type != pem_type) {
     std::cerr << name << " file " << filename << " contains unexpected type"
               << std::endl;
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   return {{data, data + datalen}};
