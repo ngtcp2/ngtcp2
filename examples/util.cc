@@ -344,7 +344,7 @@ std::string straddr(const sockaddr *sa, socklen_t salen) {
   auto rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
                         port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
   if (rv != 0) {
-    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
+    std::println(stderr, "getnameinfo: {}", gai_strerror(rv));
     return "";
   }
   std::string res = "[";

@@ -61,7 +61,7 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
                                                     std::string_view type) {
   auto f = std::ifstream(filename.data());
   if (!f) {
-    std::cerr << "Could not read " << name << " file " << filename << std::endl;
+    std::println(stderr, "Could not read {} file {}", name, filename);
     return std::unexpected{Error::IO};
   }
 
@@ -77,7 +77,7 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
 
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_decode2(type.data(), &s, &d); rv < 0) {
-    std::cerr << "Could not read " << name << " file " << filename << std::endl;
+    std::println(stderr, "Could not read {} file {}", name, filename);
     return std::unexpected{Error::IO};
   }
 
@@ -94,7 +94,7 @@ std::expected<void, Error> write_pem(std::string_view filename,
                                      std::span<const uint8_t> data) {
   auto f = std::ofstream(filename.data());
   if (!f) {
-    std::cerr << "Could not write " << name << " in " << filename << std::endl;
+    std::println(stderr, "Could not write {} to {}", name, filename);
     return std::unexpected{Error::IO};
   }
 
@@ -105,7 +105,7 @@ std::expected<void, Error> write_pem(std::string_view filename,
 
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_encode2(type.data(), &s, &d); rv < 0) {
-    std::cerr << "Could not encode " << name << " in " << filename << std::endl;
+    std::println(stderr, "Could not encode {} to {}", name, filename);
     return std::unexpected{Error::IO};
   }
 
