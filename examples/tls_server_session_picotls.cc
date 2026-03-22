@@ -41,7 +41,7 @@ std::expected<void, Error> TLSServerSession::init(TLSServerContext &tls_ctx,
                                                   HandlerBase *handler) {
   cptls_.ptls = ptls_server_new(tls_ctx.get_native_handle());
   if (!cptls_.ptls) {
-    std::cerr << "ptls_server_new failed" << std::endl;
+    std::println(stderr, "ptls_server_new failed");
     return std::unexpected{Error::CRYPTO};
   }
 
@@ -58,8 +58,8 @@ std::expected<void, Error> TLSServerSession::init(TLSServerContext &tls_ctx,
     };
 
   if (ngtcp2_crypto_picotls_configure_server_session(&cptls_) != 0) {
-    std::cerr << "ngtcp2_crypto_picotls_configure_server_session failed"
-              << std::endl;
+    std::println(stderr,
+                 "ngtcp2_crypto_picotls_configure_server_session failed");
     return std::unexpected{Error::CRYPTO};
   }
 
