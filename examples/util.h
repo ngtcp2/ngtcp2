@@ -613,4 +613,19 @@ inline bool operator==(const ngtcp2_cid &lhs, const ngtcp2_cid &rhs) {
   return ngtcp2_cid_eq(&lhs, &rhs);
 }
 
+template <>
+struct std::formatter<ngtcp2_cid> : public std::formatter<std::string_view> {
+  auto format(ngtcp2_cid cid, format_context &ctx) const {
+    std::array<char, NGTCP2_MAX_CIDLEN * 2 + 2> buf;
+    buf[0] = '0';
+    buf[1] = 'x';
+
+    auto end = ngtcp2::util::format_hex(std::span{cid.data, cid.datalen},
+                                        std::ranges::begin(buf) + 2);
+
+    return std::formatter<std::string_view>::format(
+      {std::ranges::begin(buf), end}, ctx);
+  }
+};
+
 #endif // !defined(UTIL_H)
