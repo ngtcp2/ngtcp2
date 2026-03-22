@@ -2344,18 +2344,20 @@ std::expected<void, Error> run(Client &c, const char *addr, const char *port,
 } // namespace
 
 namespace {
-int parse_uri(Request &req, std::string_view uri) {
+std::expected<Request, Error> parse_uri(std::string_view uri) {
   urlparse_url u;
 
   if (urlparse_parse_url(uri.data(), uri.size(), /* is_connect = */ 0, &u) !=
       0) {
-    return -1;
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   if (!(u.field_set & (1 << URLPARSE_SCHEMA)) ||
       !(u.field_set & (1 << URLPARSE_HOST))) {
-    return -1;
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
+
+  Request req;
 
   req.scheme = util::get_string(uri, u, URLPARSE_SCHEMA);
 
@@ -2384,22 +2386,22 @@ int parse_uri(Request &req, std::string_view uri) {
     req.path += util::get_string(uri, u, URLPARSE_QUERY);
   }
 
-  return 0;
+  return req;
 }
 } // namespace
 
 namespace {
-int parse_requests(char **argv, size_t argvlen) {
+std::expected<void, Error> parse_requests(char **argv, size_t argvlen) {
   for (size_t i = 0; i < argvlen; ++i) {
     auto uri = std::string_view{argv[i]};
-    Request req;
-    if (parse_uri(req, uri) != 0) {
+    auto maybe_req = parse_uri(uri);
+    if (!maybe_req) {
       std::println(stderr, "Could not parse URI: {}", uri);
-      return -1;
+      return std::unexpected{maybe_req.error()};
     }
-    config.requests.emplace_back(std::move(req));
+    config.requests.emplace_back(std::move(*maybe_req));
   }
-  return 0;
+  return {};
 }
 } // namespace
 
@@ -3283,7 +3285,7 @@ int main(int argc, char **argv) {
   auto addr = argv[optind++];
   auto port = argv[optind++];
 
-  if (parse_requests(&argv[optind], static_cast<size_t>(argc - optind)) != 0) {
+  if (!parse_requests(&argv[optind], static_cast<size_t>(argc - optind))) {
     exit(EXIT_FAILURE);
   }
 
