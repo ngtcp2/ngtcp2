@@ -3093,7 +3093,7 @@ int main(int argc, char **argv) {
           } else if (*n <= NGTCP2_MAX_UDP_PAYLOAD_SIZE ||
                      *n > NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE) {
             std::println(
-              stderr, "pmtud-probes: must be in range [{},{}], inclusive.",
+              stderr, "pmtud-probes: must be in range [{}, {}], inclusive.",
               NGTCP2_MAX_UDP_PAYLOAD_SIZE + 1, NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE);
             exit(EXIT_FAILURE);
           } else {
