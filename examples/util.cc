@@ -613,12 +613,17 @@ template <typename InputIt> InputIt eat_dir(InputIt first, InputIt last) {
 }
 } // namespace
 
-std::string normalize_path(std::string_view path) {
-  assert(path.size() <= 1024);
+std::expected<std::string, Error> normalize_path(std::string_view path) {
+  constexpr size_t max_path = 1024;
+
+  if (path.size() > max_path) {
+    return std::unexpected{Error::INVALID_ARGUMENT};
+  }
+
   assert(path.size() > 0);
   assert(path[0] == '/');
 
-  std::array<char, 1024> res;
+  std::array<char, max_path> res;
   auto p = res.data();
 
   auto first = std::ranges::begin(path);

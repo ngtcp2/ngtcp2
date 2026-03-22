@@ -442,7 +442,7 @@ std::expected<void, Error> generate_secure_random(std::span<uint8_t> data);
 // normalize_path removes ".." by consuming a previous path component.
 // It also removes ".".  It assumes that |path| starts with "/".  If
 // it cannot consume a previous path component, it just removes "..".
-std::string normalize_path(std::string_view path);
+std::expected<std::string, Error> normalize_path(std::string_view path);
 
 template <std::predicate<size_t> Pred>
 consteval auto pred_tbl_gen256(Pred pred) {
