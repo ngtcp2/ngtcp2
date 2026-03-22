@@ -141,12 +141,14 @@ std::expected<Request, Error> request_path(std::string_view uri,
     if (req.path.back() == '/') {
       req.path += "index.html";
     }
-  } else {
-    req.path = "/index.html";
-  }
 
-  req.path = util::normalize_path(req.path);
-  if (req.path == "/") {
+    auto maybe_norm_path = util::normalize_path(req.path);
+    if (!maybe_norm_path) {
+      return std::unexpected{maybe_norm_path.error()};
+    }
+
+    req.path = std::move(*maybe_norm_path);
+  } else {
     req.path = "/index.html";
   }
 

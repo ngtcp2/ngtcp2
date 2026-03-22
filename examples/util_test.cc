@@ -279,19 +279,109 @@ void test_util_parse_duration() {
 }
 
 void test_util_normalize_path() {
-  assert_stdstring_equal("/", util::normalize_path("/"));
-  assert_stdstring_equal("/", util::normalize_path("//"));
-  assert_stdstring_equal("/foo", util::normalize_path("/foo"));
-  assert_stdstring_equal("/foo/bar/", util::normalize_path("/foo/bar/"));
-  assert_stdstring_equal("/foo/bar/", util::normalize_path("/foo/abc/../bar/"));
-  assert_stdstring_equal("/foo/bar/",
-                         util::normalize_path("/../foo/abc/../bar/"));
-  assert_stdstring_equal("/foo/bar/",
-                         util::normalize_path("/./foo/././abc///.././bar/./"));
-  assert_stdstring_equal("/foo/", util::normalize_path("/foo/."));
-  assert_stdstring_equal("/foo/bar", util::normalize_path("/foo/./bar"));
-  assert_stdstring_equal("/bar", util::normalize_path("/foo/./../bar"));
-  assert_stdstring_equal("/bar", util::normalize_path("/../../bar"));
+  {
+    auto rv = util::normalize_path("/");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("//");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo/bar/");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/bar/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo/abc/../bar/");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/bar/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/../foo/abc/../bar/");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/bar/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/./foo/././abc///.././bar/./");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/bar/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo/.");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo/./bar");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/bar", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo/./../bar");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/bar", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/../../bar");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/bar", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path(std::string(1024, '/'));
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path(std::string(1025, '/'));
+
+    assert_false(rv);
+  }
+
+  {
+    auto rv = util::normalize_path("/..");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/../../index.html");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/index.html", rv.value());
+  }
 }
 
 void test_util_hexdump() {
