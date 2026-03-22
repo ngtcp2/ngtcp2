@@ -286,7 +286,7 @@ void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
 }
 
 void print_http_settings(const nghttp3_proto_settings *settings) {
-  std::println(outfile, R"(http: remote settings");
+  std::println(outfile, R"(http: remote settings
 http: SETTINGS_MAX_FIELD_SECTION_SIZE={}
 http: SETTINGS_QPACK_MAX_TABLE_CAPACITY={}
 http: SETTINGS_QPACK_BLOCKED_STREAMS={}
