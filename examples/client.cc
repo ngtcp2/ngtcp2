@@ -84,7 +84,7 @@ std::expected<void, Error> Stream::open_file(std::string_view path) {
   } else {
     filename = std::string_view{it, std::ranges::end(path)};
     if (filename == ".."sv || filename == "."sv) {
-      std::cerr << "Invalid file name: " << filename << std::endl;
+      std::println(stderr, "Invalid file name: {}", filename);
       return std::unexpected{Error::INVALID_ARGUMENT};
     }
   }
@@ -96,8 +96,8 @@ std::expected<void, Error> Stream::open_file(std::string_view path) {
   fd = open(fname.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (fd == -1) {
-    std::cerr << "open: Could not open file " << fname << ": "
-              << strerror(errno) << std::endl;
+    std::println(stderr, "open: Could not open file {}: {}", fname,
+                 strerror(errno));
     return std::unexpected{Error::IO};
   }
 
@@ -295,7 +295,7 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 std::expected<void, Error> Client::handshake_completed() {
   if (early_data_ && !tls_session_.get_early_data_accepted()) {
     if (!config.quiet) {
-      std::cerr << "Early data was rejected by server" << std::endl;
+      std::println(stderr, "Early data was rejected by server");
     }
 
     // Some TLS backends only report early data rejection after
@@ -303,8 +303,8 @@ std::expected<void, Error> Client::handshake_completed() {
     // report it early (e.g., BoringSSL and PicoTLS), the following
     // functions are noop.
     if (auto rv = ngtcp2_conn_tls_early_data_rejected(conn_); rv != 0) {
-      std::cerr << "ngtcp2_conn_tls_early_data_rejected: "
-                << ngtcp2_strerror(rv) << std::endl;
+      std::println(stderr, "ngtcp2_conn_tls_early_data_rejected: {}",
+                   ngtcp2_strerror(rv));
       return std::unexpected{Error::QUIC};
     }
 
@@ -314,16 +314,16 @@ std::expected<void, Error> Client::handshake_completed() {
   }
 
   if (!config.quiet) {
-    std::cerr << "Negotiated cipher suite is " << tls_session_.get_cipher_name()
-              << std::endl;
+    std::println(stderr, "Negotiated cipher suite is {}",
+                 tls_session_.get_cipher_name());
     if (auto group = tls_session_.get_negotiated_group(); !group.empty()) {
-      std::cerr << "Negotiated group is " << group << std::endl;
+      std::println(stderr, "Negotiated group is {}", group);
     }
-    std::cerr << "Negotiated ALPN is " << tls_session_.get_selected_alpn()
-              << std::endl;
+    std::println(stderr, "Negotiated ALPN is {}",
+                 tls_session_.get_selected_alpn());
 
     if (!config.ech_config_list.empty() && tls_session_.get_ech_accepted()) {
-      std::cerr << "ECH was accepted" << std::endl;
+      std::println(stderr, "ECH was accepted");
     }
   }
 
@@ -332,12 +332,12 @@ std::expected<void, Error> Client::handshake_completed() {
     auto datalen =
       ngtcp2_conn_encode_0rtt_transport_params(conn_, data.data(), data.size());
     if (datalen < 0) {
-      std::cerr << "Could not encode 0-RTT transport parameters: "
-                << ngtcp2_strerror(static_cast<int>(datalen)) << std::endl;
+      std::println(stderr, "Could not encode 0-RTT transport parameters: {}",
+                   ngtcp2_strerror(static_cast<int>(datalen)));
     } else if (!util::write_transport_params(
                  config.tp_file, {data.data(), static_cast<size_t>(datalen)})) {
-      std::cerr << "Could not write transport parameters in " << config.tp_file
-                << std::endl;
+      std::println(stderr, "Could not write transport parameters to {}",
+                   config.tp_file);
     }
   }
 
@@ -593,8 +593,8 @@ int extend_max_stream_data(ngtcp2_conn *conn, int64_t stream_id,
 std::expected<void, Error> Client::extend_max_stream_data(int64_t stream_id,
                                                           uint64_t max_data) {
   if (auto rv = nghttp3_conn_unblock_stream(httpconn_, stream_id); rv != 0) {
-    std::cerr << "nghttp3_conn_unblock_stream: " << nghttp3_strerror(rv)
-              << std::endl;
+    std::println(stderr, "nghttp3_conn_unblock_stream: {}",
+                 nghttp3_strerror(rv));
     return std::unexpected{Error::HTTP3};
   }
   return {};
@@ -703,7 +703,7 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
     scid.datalen = 17;
     if (auto rv = util::generate_secure_random({scid.data, scid.datalen});
         !rv) {
-      std::cerr << "Could not generate source connection ID" << std::endl;
+      std::println(stderr, "Could not generate source connection ID");
       return rv;
     }
   }
@@ -711,7 +711,7 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
     dcid.datalen = 18;
     if (auto rv = util::generate_secure_random({dcid.data, dcid.datalen});
         !rv) {
-      std::cerr << "Could not generate destination connection ID" << std::endl;
+      std::println(stderr, "Could not generate destination connection ID");
       return rv;
     }
   } else {
@@ -733,8 +733,8 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
     }
     qlog_ = fopen(path.c_str(), "w");
     if (qlog_ == nullptr) {
-      std::cerr << "Could not open qlog file " << std::quoted(path) << ": "
-                << strerror(errno) << std::endl;
+      std::println(stderr, "Could not open qlog file {}: {}", path,
+                   strerror(errno));
       return std::unexpected{Error::IO};
     }
     settings.qlog_write = qlog_write_cb;
@@ -762,7 +762,7 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
   std::vector<uint8_t> token;
 
   if (!config.token_file.empty()) {
-    std::cerr << "Reading token file " << config.token_file << std::endl;
+    std::println(stderr, "Reading token file {}", config.token_file);
 
     auto t = util::read_token(config.token_file);
     if (t) {
@@ -817,7 +817,7 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
                            &callbacks, &settings, &params, nullptr, this);
 
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
+    std::println(stderr, "ngtcp2_conn_client_new: {}", ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
@@ -837,8 +837,9 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
       auto rv = ngtcp2_conn_decode_and_set_0rtt_transport_params(
         conn_, params->data(), params->size());
       if (rv != 0) {
-        std::cerr << "ngtcp2_conn_decode_and_set_0rtt_transport_params: "
-                  << ngtcp2_strerror(rv) << std::endl;
+        std::println(stderr,
+                     "ngtcp2_conn_decode_and_set_0rtt_transport_params: {}",
+                     ngtcp2_strerror(rv));
         early_data_ = false;
       } else if (auto rv = make_stream_early(); !rv) {
         return rv;
@@ -867,7 +868,7 @@ Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data.data(), data.size(),
                                      util::timestamp());
       rv != 0) {
-    std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
+    std::println(stderr, "ngtcp2_conn_read_pkt: {}", ngtcp2_strerror(rv));
     if (!last_error_.error_code) {
       if (rv == NGTCP2_ERR_CRYPTO) {
         auto alert = ngtcp2_conn_get_tls_alert(conn_);
@@ -875,8 +876,8 @@ Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
 
         if (alert == TLS_ALERT_ECH_REQUIRED && config.ech_config_list_file &&
             !tls_session_.write_ech_config_list(config.ech_config_list_file)) {
-          std::cerr << "Could not write ECH retry configs in "
-                    << config.ech_config_list_file << std::endl;
+          std::println(stderr, "Could not write ECH retry configs in {}",
+                       config.ech_config_list_file);
         }
       } else {
         ngtcp2_ccerr_set_liberr(&last_error_, rv, nullptr, 0);
@@ -923,7 +924,7 @@ std::expected<void, Error> Client::on_read(const Endpoint &ep) {
 
     if (nread == -1) {
       if (errno != EAGAIN && errno != EWOULDBLOCK) {
-        std::cerr << "recvmsg: " << strerror(errno) << std::endl;
+        std::println(stderr, "recvmsg: {}", strerror(errno));
       }
       break;
     }
@@ -949,12 +950,12 @@ std::expected<void, Error> Client::on_read(const Endpoint &ep) {
       ++pktcnt;
 
       if (!config.quiet) {
-        std::cerr << "Received packet: local=" << util::straddr(ep.addr)
-                  << " remote="
-                  << util::straddr(reinterpret_cast<const sockaddr *>(&ss),
-                                   msg.msg_namelen)
-                  << " ecn=0x" << std::hex << static_cast<uint32_t>(pi.ecn)
-                  << std::dec << " " << datalen << " bytes" << std::endl;
+        std::println(stderr,
+                     "Received packet: local={} remote={} ecn={:#x} {} bytes",
+                     util::straddr(ep.addr),
+                     util::straddr(reinterpret_cast<const sockaddr *>(&ss),
+                                   msg.msg_namelen),
+                     pi.ecn, datalen);
       }
 
       // Packets less than 21 bytes never be a valid QUIC packet.
@@ -964,7 +965,7 @@ std::expected<void, Error> Client::on_read(const Endpoint &ep) {
 
       if (debug::packet_lost(config.rx_loss_prob)) {
         if (!config.quiet) {
-          std::cerr << "** Simulated incoming packet loss **" << std::endl;
+          std::println(stderr, "** Simulated incoming packet loss **");
         }
       } else if (auto rv =
                    feed_data(ep, reinterpret_cast<const sockaddr *>(&ss),
@@ -996,8 +997,7 @@ std::expected<void, Error> Client::on_read(const Endpoint &ep) {
 std::expected<void, Error> Client::handle_expiry() {
   auto now = util::timestamp();
   if (auto rv = ngtcp2_conn_handle_expiry(conn_, now); rv != 0) {
-    std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_handle_expiry: {}", ngtcp2_strerror(rv));
     ngtcp2_ccerr_set_liberr(&last_error_, rv, nullptr, 0);
     disconnect();
     return std::unexpected{Error::QUIC};
@@ -1056,8 +1056,8 @@ ngtcp2_ssize Client::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
       sveccnt = nghttp3_conn_writev_stream(httpconn_, &stream_id, &fin,
                                            vec.data(), vec.size());
       if (sveccnt < 0) {
-        std::cerr << "nghttp3_conn_writev_stream: "
-                  << nghttp3_strerror(static_cast<int>(sveccnt)) << std::endl;
+        std::println(stderr, "nghttp3_conn_writev_stream: {}",
+                     nghttp3_strerror(static_cast<int>(sveccnt)));
         ngtcp2_ccerr_set_application_error(
           &last_error_,
           nghttp3_err_infer_quic_app_error_code(static_cast<int>(sveccnt)),
@@ -1093,8 +1093,8 @@ ngtcp2_ssize Client::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
         if (auto rv = nghttp3_conn_add_write_offset(httpconn_, stream_id,
                                                     as_unsigned(ndatalen));
             rv != 0) {
-          std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
-                    << std::endl;
+          std::println(stderr, "nghttp3_conn_add_write_offset: {}",
+                       nghttp3_strerror(rv));
           ngtcp2_ccerr_set_application_error(
             &last_error_, nghttp3_err_infer_quic_app_error_code(rv), nullptr,
             0);
@@ -1105,8 +1105,8 @@ ngtcp2_ssize Client::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
 
       assert(ndatalen == -1);
 
-      std::cerr << "ngtcp2_conn_write_stream: "
-                << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
+      std::println(stderr, "ngtcp2_conn_write_stream: {}",
+                   ngtcp2_strerror(static_cast<int>(nwrite)));
       ngtcp2_ccerr_set_liberr(&last_error_, static_cast<int>(nwrite), nullptr,
                               0);
 
@@ -1117,8 +1117,8 @@ ngtcp2_ssize Client::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
       if (auto rv = nghttp3_conn_add_write_offset(httpconn_, stream_id,
                                                   as_unsigned(ndatalen));
           rv != 0) {
-        std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
-                  << std::endl;
+        std::println(stderr, "nghttp3_conn_add_write_offset: {}",
+                     nghttp3_strerror(rv));
         ngtcp2_ccerr_set_application_error(
           &last_error_, nghttp3_err_infer_quic_app_error_code(rv), nullptr, 0);
 
@@ -1182,8 +1182,7 @@ void Client::update_timer() {
   if (expiry <= now) {
     if (!config.quiet) {
       auto t = static_cast<ev_tstamp>(now - expiry) / NGTCP2_SECONDS;
-      std::cerr << "Timer has already expired: " << std::fixed << t << "s"
-                << std::defaultfloat << std::endl;
+      std::println(stderr, "Timer has already expired: {:.9f}s", t);
     }
 
     ev_feed_event(loop_, &timer_, EV_TIMER);
@@ -1193,8 +1192,7 @@ void Client::update_timer() {
 
   auto t = static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;
   if (!config.quiet) {
-    std::cerr << "Set timer=" << std::fixed << t << "s" << std::defaultfloat
-              << std::endl;
+    std::println(stderr, "Set timer={:.9f}s", t);
   }
   timer_.repeat = t;
   ev_timer_again(loop_, &timer_);
@@ -1218,7 +1216,7 @@ std::expected<void, Error> bind_addr(Address &local_addr, int fd,
   } else {
     if (inet_ntop(family, in_addr_get_ptr(ia), nodebuf.data(),
                   nodebuf.size()) == nullptr) {
-      std::cerr << "inet_ntop: " << strerror(errno) << std::endl;
+      std::println(stderr, "inet_ntop: {}", strerror(errno));
       return std::unexpected{Error::LIBC};
     }
 
@@ -1226,7 +1224,7 @@ std::expected<void, Error> bind_addr(Address &local_addr, int fd,
   }
 
   if (auto rv = getaddrinfo(node, "0", &hints, &res); rv != 0) {
-    std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
+    std::println(stderr, "getaddrinfo: {}", gai_strerror(rv));
     return std::unexpected{Error::LIBC};
   }
 
@@ -1239,14 +1237,14 @@ std::expected<void, Error> bind_addr(Address &local_addr, int fd,
   }
 
   if (!rp) {
-    std::cerr << "Could not bind" << std::endl;
+    std::println(stderr, "Could not bind");
     return std::unexpected{Error::SYSCALL};
   }
 
   sockaddr_storage ss;
   socklen_t len = sizeof(ss);
   if (getsockname(fd, reinterpret_cast<sockaddr *>(&ss), &len) == -1) {
-    std::cerr << "getsockname: " << strerror(errno) << std::endl;
+    std::println(stderr, "getsockname: {}", strerror(errno));
     return std::unexpected{Error::SYSCALL};
   }
 
@@ -1262,14 +1260,14 @@ namespace {
 std::expected<void, Error> connect_sock(Address &local_addr, int fd,
                                         const Address &remote_addr) {
   if (connect(fd, remote_addr.as_sockaddr(), remote_addr.size()) != 0) {
-    std::cerr << "connect: " << strerror(errno) << std::endl;
+    std::println(stderr, "connect: {}", strerror(errno));
     return std::unexpected{Error::SYSCALL};
   }
 
   sockaddr_storage ss;
   socklen_t len = sizeof(ss);
   if (getsockname(fd, reinterpret_cast<sockaddr *>(&ss), &len) == -1) {
-    std::cerr << "getsockname: " << strerror(errno) << std::endl;
+    std::println(stderr, "getsockname: {}", strerror(errno));
     return std::unexpected{Error::SYSCALL};
   }
 
@@ -1308,7 +1306,7 @@ std::expected<int, Error> create_sock(Address &remote_addr, const char *addr,
   addrinfo *res, *rp;
 
   if (auto rv = getaddrinfo(addr, port, &hints, &res); rv != 0) {
-    std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
+    std::println(stderr, "getaddrinfo: {}", gai_strerror(rv));
     return std::unexpected{Error::LIBC};
   }
 
@@ -1328,7 +1326,7 @@ std::expected<int, Error> create_sock(Address &remote_addr, const char *addr,
   }
 
   if (!rp) {
-    std::cerr << "Could not create socket" << std::endl;
+    std::println(stderr, "Could not create socket");
     return std::unexpected{Error::SYSCALL};
   }
 
@@ -1343,8 +1341,8 @@ Client::endpoint_for(const Address &remote_addr) {
 #ifdef HAVE_LINUX_RTNETLINK_H
   auto maybe_ia = get_local_addr(remote_addr);
   if (!maybe_ia) {
-    std::cerr << "Could not get local address for a selected preferred address"
-              << std::endl;
+    std::println(
+      stderr, "Could not get local address for a selected preferred address");
     return std::unexpected{maybe_ia.error()};
   }
 
@@ -1401,7 +1399,7 @@ std::expected<void, Error> Client::change_local_addr() {
   Address local_addr;
 
   if (!config.quiet) {
-    std::cerr << "Changing local address" << std::endl;
+    std::println(stderr, "Changing local address");
   }
 
   auto family = remote_addr_.family();
@@ -1416,7 +1414,7 @@ std::expected<void, Error> Client::change_local_addr() {
 #ifdef HAVE_LINUX_RTNETLINK_H
   auto maybe_ia = get_local_addr(remote_addr_);
   if (!maybe_ia) {
-    std::cerr << "Could not get local address" << std::endl;
+    std::println(stderr, "Could not get local address");
     close(nfd);
     return std::unexpected{maybe_ia.error()};
   }
@@ -1433,8 +1431,7 @@ std::expected<void, Error> Client::change_local_addr() {
 #endif // !defined(HAVE_LINUX_RTNETLINK_H)
 
   if (!config.quiet) {
-    std::cerr << "Local address is now " << util::straddr(local_addr)
-              << std::endl;
+    std::println(stderr, "Local address is now {}", util::straddr(local_addr));
   }
 
   endpoints_.emplace_back();
@@ -1459,8 +1456,8 @@ std::expected<void, Error> Client::change_local_addr() {
     if (auto rv = ngtcp2_conn_initiate_immediate_migration(conn_, &path,
                                                            util::timestamp());
         rv != 0) {
-      std::cerr << "ngtcp2_conn_initiate_immediate_migration: "
-                << ngtcp2_strerror(rv) << std::endl;
+      std::println(stderr, "ngtcp2_conn_initiate_immediate_migration: {}",
+                   ngtcp2_strerror(rv));
     }
   }
 
@@ -1480,7 +1477,7 @@ Client::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
                    const uint8_t *current_rx_secret,
                    const uint8_t *current_tx_secret, size_t secretlen) {
   if (!config.quiet) {
-    std::cerr << "Updating traffic key" << std::endl;
+    std::println(stderr, "Updating traffic key");
   }
 
   auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
@@ -1500,10 +1497,10 @@ Client::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
   }
 
   if (!config.quiet && config.show_secret) {
-    std::cerr << "application_traffic rx secret " << nkey_update_ << std::endl;
+    std::println(stderr, "application_traffic rx secret {}", nkey_update_);
     debug::print_secrets({rx_secret, secretlen}, {rx_key.data(), keylen},
                          {rx_iv, ivlen});
-    std::cerr << "application_traffic tx secret " << nkey_update_ << std::endl;
+    std::println(stderr, "application_traffic tx secret {}", nkey_update_);
     debug::print_secrets({tx_secret, secretlen}, {tx_key.data(), keylen},
                          {tx_iv, ivlen});
   }
@@ -1513,13 +1510,13 @@ Client::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
 
 std::expected<void, Error> Client::initiate_key_update() {
   if (!config.quiet) {
-    std::cerr << "Initiate key update" << std::endl;
+    std::println(stderr, "Initiate key update");
   }
 
   if (auto rv = ngtcp2_conn_initiate_key_update(conn_, util::timestamp());
       rv != 0) {
-    std::cerr << "ngtcp2_conn_initiate_key_update: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_initiate_key_update: {}",
+                 ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
@@ -1551,7 +1548,7 @@ std::span<const uint8_t> Client::send_packet(const Endpoint &ep,
 
   if (debug::packet_lost(config.tx_loss_prob)) {
     if (!config.quiet) {
-      std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+      std::println(stderr, "** Simulated outgoing packet loss **");
     }
     return {};
   }
@@ -1650,8 +1647,8 @@ std::span<const uint8_t> Client::send_packet(const Endpoint &ep,
     case EIO:
       if (data.size() > gso_size) {
         // GSO failure; send each packet in a separate sendmsg call.
-        std::cerr << "sendmsg: disabling GSO due to " << strerror(errno)
-                  << std::endl;
+        std::println(stderr, "sendmsg: disabling GSO due to {}",
+                     strerror(errno));
 
         no_gso_ = true;
 
@@ -1661,7 +1658,7 @@ std::span<const uint8_t> Client::send_packet(const Endpoint &ep,
 #endif // defined(UDP_SEGMENT)
     }
 
-    std::cerr << "sendmsg: " << strerror(errno) << std::endl;
+    std::println(stderr, "sendmsg: {}", strerror(errno));
 
     // TODO We have packet which is expected to fail to send (e.g.,
     // path validation to old path).
@@ -1671,10 +1668,10 @@ std::span<const uint8_t> Client::send_packet(const Endpoint &ep,
   assert(static_cast<size_t>(nwrite) == data.size());
 
   if (!config.quiet) {
-    std::cerr << "Sent packet: local=" << util::straddr(ep.addr) << " remote="
-              << util::straddr(remote_addr.addr, remote_addr.addrlen)
-              << " ecn=0x" << std::hex << ecn << std::dec << " " << nwrite
-              << " bytes" << std::endl;
+    std::println(stderr, "Sent packet: local={} remote={} ecn={:#x} {} bytes",
+                 util::straddr(ep.addr),
+                 util::straddr(remote_addr.addr, remote_addr.addrlen), ecn,
+                 nwrite);
   }
 
   return {};
@@ -1751,8 +1748,8 @@ std::expected<void, Error> Client::handle_error() {
     conn_, &ps.path, &pi, buf.data(), buf.size(), &last_error_,
     util::timestamp());
   if (nwrite < 0) {
-    std::cerr << "ngtcp2_conn_write_connection_close: "
-              << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
+    std::println(stderr, "ngtcp2_conn_write_connection_close: {}",
+                 ngtcp2_strerror(static_cast<int>(nwrite)));
     return std::unexpected{Error::QUIC};
   }
 
@@ -1786,8 +1783,8 @@ std::expected<void, Error> Client::on_stream_close(int64_t stream_id,
       }
       break;
     default:
-      std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
-                << std::endl;
+      std::println(stderr, "nghttp3_conn_close_stream: {}",
+                   nghttp3_strerror(rv));
       ngtcp2_ccerr_set_application_error(
         &last_error_, nghttp3_err_infer_quic_app_error_code(rv), nullptr, 0);
       return std::unexpected{Error::HTTP3};
@@ -1801,8 +1798,8 @@ std::expected<void, Error> Client::on_stream_reset(int64_t stream_id) {
   if (httpconn_) {
     if (auto rv = nghttp3_conn_shutdown_stream_read(httpconn_, stream_id);
         rv != 0) {
-      std::cerr << "nghttp3_conn_shutdown_stream_read: " << nghttp3_strerror(rv)
-                << std::endl;
+      std::println(stderr, "nghttp3_conn_shutdown_stream_read: {}",
+                   nghttp3_strerror(rv));
       return std::unexpected{Error::HTTP3};
     }
   }
@@ -1816,8 +1813,8 @@ std::expected<void, Error> Client::on_stream_stop_sending(int64_t stream_id) {
 
   if (auto rv = nghttp3_conn_shutdown_stream_read(httpconn_, stream_id);
       rv != 0) {
-    std::cerr << "nghttp3_conn_shutdown_stream_read: " << nghttp3_strerror(rv)
-              << std::endl;
+    std::println(stderr, "nghttp3_conn_shutdown_stream_read: {}",
+                 nghttp3_strerror(rv));
     return std::unexpected{Error::HTTP3};
   }
 
@@ -1905,8 +1902,8 @@ std::expected<void, Error> Client::submit_http_request(const Stream *stream) {
         httpconn_, stream->stream_id, nva.data(), nvlen,
         config.fd == -1 ? nullptr : &dr, nullptr);
       rv != 0) {
-    std::cerr << "nghttp3_conn_submit_request: " << nghttp3_strerror(rv)
-              << std::endl;
+    std::println(stderr, "nghttp3_conn_submit_request: {}",
+                 nghttp3_strerror(rv));
     return std::unexpected{Error::HTTP3};
   }
 
@@ -1920,8 +1917,8 @@ Client::recv_stream_data(uint32_t flags, int64_t stream_id,
     httpconn_, stream_id, data.data(), data.size(),
     flags & NGTCP2_STREAM_DATA_FLAG_FIN, ngtcp2_conn_get_timestamp(conn_));
   if (nconsumed < 0) {
-    std::cerr << "nghttp3_conn_read_stream2: "
-              << nghttp3_strerror(static_cast<int>(nconsumed)) << std::endl;
+    std::println(stderr, "nghttp3_conn_read_stream2: {}",
+                 nghttp3_strerror(static_cast<int>(nconsumed)));
     ngtcp2_ccerr_set_application_error(
       &last_error_,
       nghttp3_err_infer_quic_app_error_code(static_cast<int>(nconsumed)),
@@ -1940,8 +1937,8 @@ std::expected<void, Error> Client::acked_stream_data_offset(int64_t stream_id,
                                                             uint64_t datalen) {
   if (auto rv = nghttp3_conn_add_ack_offset(httpconn_, stream_id, datalen);
       rv != 0) {
-    std::cerr << "nghttp3_conn_add_ack_offset: " << nghttp3_strerror(rv)
-              << std::endl;
+    std::println(stderr, "nghttp3_conn_add_ack_offset: {}",
+                 nghttp3_strerror(rv));
     return std::unexpected{Error::HTTP3};
   }
 
@@ -1976,12 +1973,12 @@ Client::select_preferred_address(Address &selected_addr,
                               host, sizeof(host), service, sizeof(service),
                               NI_NUMERICHOST | NI_NUMERICSERV);
         rv != 0) {
-      std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
+      std::println(stderr, "getnameinfo: {}", gai_strerror(rv));
       return std::unexpected{Error::LIBC};
     }
 
-    std::cerr << "selected server preferred_address is [" << host
-              << "]:" << service << std::endl;
+    std::println(stderr, "selected server preferred_address is [{}]:{}", host,
+                 service);
   }
 
   return {};
@@ -2112,8 +2109,8 @@ std::expected<void, Error> Client::stop_sending(int64_t stream_id,
   if (auto rv =
         ngtcp2_conn_shutdown_stream_read(conn_, 0, stream_id, app_error_code);
       rv != 0) {
-    std::cerr << "ngtcp2_conn_shutdown_stream_read: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_shutdown_stream_read: {}",
+                 ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
   return {};
@@ -2136,8 +2133,8 @@ std::expected<void, Error> Client::reset_stream(int64_t stream_id,
   if (auto rv =
         ngtcp2_conn_shutdown_stream_write(conn_, 0, stream_id, app_error_code);
       rv != 0) {
-    std::cerr << "ngtcp2_conn_shutdown_stream_write: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_shutdown_stream_write: {}",
+                 ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
   return {};
@@ -2158,8 +2155,8 @@ void Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
   }
 
   if (!config.quiet) {
-    std::cerr << "HTTP stream " << stream_id << " closed with error code "
-              << app_error_code << std::endl;
+    std::println(stderr, "HTTP stream {:#x} closed with error code {:#x}",
+                 stream_id, app_error_code);
   }
 
   streams_.erase(it);
@@ -2204,8 +2201,8 @@ std::expected<void, Error> Client::setup_httpconn() {
   }
 
   if (ngtcp2_conn_get_streams_uni_left(conn_) < 3) {
-    std::cerr << "peer does not allow at least 3 unidirectional streams."
-              << std::endl;
+    std::println(stderr,
+                 "peer does not allow at least 3 unidirectional streams.");
     return std::unexpected{Error::QUIC};
   }
 
@@ -2235,8 +2232,7 @@ std::expected<void, Error> Client::setup_httpconn() {
   if (auto rv =
         nghttp3_conn_client_new(&httpconn_, &callbacks, &settings, mem, this);
       rv != 0) {
-    std::cerr << "nghttp3_conn_client_new: " << nghttp3_strerror(rv)
-              << std::endl;
+    std::println(stderr, "nghttp3_conn_client_new: {}", nghttp3_strerror(rv));
     return std::unexpected{Error::HTTP3};
   }
 
@@ -2244,20 +2240,20 @@ std::expected<void, Error> Client::setup_httpconn() {
 
   if (auto rv = ngtcp2_conn_open_uni_stream(conn_, &ctrl_stream_id, nullptr);
       rv != 0) {
-    std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_open_uni_stream: {}",
+                 ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
   if (auto rv = nghttp3_conn_bind_control_stream(httpconn_, ctrl_stream_id);
       rv != 0) {
-    std::cerr << "nghttp3_conn_bind_control_stream: " << nghttp3_strerror(rv)
-              << std::endl;
+    std::println(stderr, "nghttp3_conn_bind_control_stream: {}",
+                 nghttp3_strerror(rv));
     return std::unexpected{Error::HTTP3};
   }
 
   if (!config.quiet) {
-    fprintf(stderr, "http: control stream=%" PRIx64 "\n", ctrl_stream_id);
+    std::println(stderr, "http: control stream={:#x}", ctrl_stream_id);
   }
 
   int64_t qpack_enc_stream_id, qpack_dec_stream_id;
@@ -2265,31 +2261,30 @@ std::expected<void, Error> Client::setup_httpconn() {
   if (auto rv =
         ngtcp2_conn_open_uni_stream(conn_, &qpack_enc_stream_id, nullptr);
       rv != 0) {
-    std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_open_uni_stream: {}",
+                 ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
   if (auto rv =
         ngtcp2_conn_open_uni_stream(conn_, &qpack_dec_stream_id, nullptr);
       rv != 0) {
-    std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_open_uni_stream: {}",
+                 ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
   if (auto rv = nghttp3_conn_bind_qpack_streams(httpconn_, qpack_enc_stream_id,
                                                 qpack_dec_stream_id);
       rv != 0) {
-    std::cerr << "nghttp3_conn_bind_qpack_streams: " << nghttp3_strerror(rv)
-              << std::endl;
+    std::println(stderr, "nghttp3_conn_bind_qpack_streams: {}",
+                 nghttp3_strerror(rv));
     return std::unexpected{Error::HTTP3};
   }
 
   if (!config.quiet) {
-    fprintf(stderr,
-            "http: QPACK streams encoder=%" PRIx64 " decoder=%" PRIx64 "\n",
-            qpack_enc_stream_id, qpack_dec_stream_id);
+    std::println(stderr, "http: QPACK streams encoder={:#x} decoder={:#x}",
+                 qpack_enc_stream_id, qpack_dec_stream_id);
   }
 
   return {};
@@ -2316,7 +2311,7 @@ std::expected<void, Error> run(Client &c, const char *addr, const char *port,
 #ifdef HAVE_LINUX_RTNETLINK_H
   auto maybe_ia = get_local_addr(remote_addr);
   if (!maybe_ia) {
-    std::cerr << "Could not get local address" << std::endl;
+    std::println(stderr, "Could not get local address");
     close(fd);
     return std::unexpected{maybe_ia.error()};
   }
@@ -2399,7 +2394,7 @@ int parse_requests(char **argv, size_t argvlen) {
     auto uri = std::string_view{argv[i]};
     Request req;
     if (parse_uri(req, uri) != 0) {
-      std::cerr << "Could not parse URI: " << uri << std::endl;
+      std::println(stderr, "Could not parse URI: {}", uri);
       return -1;
     }
     config.requests.emplace_back(std::move(req));
@@ -2415,15 +2410,14 @@ const char *prog = "client";
 } // namespace
 
 namespace {
-void print_usage() {
-  std::cerr << "Usage: " << prog << " [OPTIONS] <HOST> <PORT> [<URI>...]"
-            << std::endl;
+void print_usage(FILE *out) {
+  std::println(out, "Usage: {} [OPTIONS] <HOST> <PORT> [<URI>...]", prog);
 }
 } // namespace
 
 namespace {
 void print_help() {
-  print_usage();
+  print_usage(stdout);
 
   Config config;
 
@@ -2758,11 +2752,10 @@ int main(int argc, char **argv) {
     case 'n':
       // --streams
       if (auto n = util::parse_uint(optarg); !n) {
-        std::cerr << "streams: invalid argument" << std::endl;
+        std::println(stderr, "streams: invalid argument");
         exit(EXIT_FAILURE);
       } else if (*n > NGTCP2_MAX_VARINT) {
-        std::cerr << "streams: must not exceed " << NGTCP2_MAX_VARINT
-                  << std::endl;
+        std::println(stderr, "streams: must not exceed {}", NGTCP2_MAX_VARINT);
         exit(EXIT_FAILURE);
       } else {
         config.nstreams = *n;
@@ -2796,22 +2789,21 @@ int main(int argc, char **argv) {
       }
       auto rv = util::parse_version(optarg);
       if (!rv) {
-        std::cerr << "version: invalid version " << std::quoted(optarg)
-                  << std::endl;
+        std::println(stderr, "version: invalid version {}", optarg);
         exit(EXIT_FAILURE);
       }
       config.version = *rv;
       break;
     }
     case '?':
-      print_usage();
+      print_usage(stderr);
       exit(EXIT_FAILURE);
     case 0:
       switch (flag) {
       case 1:
         // --ciphers
         if (util::crypto_default_ciphers()[0] == '\0') {
-          std::cerr << "ciphers: not supported" << std::endl;
+          std::println(stderr, "ciphers: not supported");
           exit(EXIT_FAILURE);
         }
         config.ciphers = optarg;
@@ -2823,7 +2815,7 @@ int main(int argc, char **argv) {
       case 3:
         // --timeout
         if (auto t = util::parse_duration(optarg); !t) {
-          std::cerr << "timeout: invalid argument" << std::endl;
+          std::println(stderr, "timeout: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.timeout = *t;
@@ -2842,12 +2834,12 @@ int main(int argc, char **argv) {
         auto hexcid = std::string_view{optarg};
         if (hexcid.size() < NGTCP2_MIN_INITIAL_DCIDLEN * 2 ||
             hexcid.size() > NGTCP2_MAX_CIDLEN * 2) {
-          std::cerr << "dcid: wrong length" << std::endl;
+          std::println(stderr, "dcid: wrong length");
           exit(EXIT_FAILURE);
         }
 
         if (!util::is_hex_string(hexcid)) {
-          std::cerr << "dcid: not hex string" << std::endl;
+          std::println(stderr, "dcid: not hex string");
           exit(EXIT_FAILURE);
         }
 
@@ -2860,7 +2852,7 @@ int main(int argc, char **argv) {
       case 7:
         // --change-local-addr
         if (auto t = util::parse_duration(optarg); !t) {
-          std::cerr << "change-local-addr: invalid argument" << std::endl;
+          std::println(stderr, "change-local-addr: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.change_local_addr = *t;
@@ -2869,7 +2861,7 @@ int main(int argc, char **argv) {
       case 8:
         // --key-update
         if (auto t = util::parse_duration(optarg); !t) {
-          std::cerr << "key-update: invalid argument" << std::endl;
+          std::println(stderr, "key-update: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.key_update = *t;
@@ -2882,7 +2874,7 @@ int main(int argc, char **argv) {
       case 10:
         // --delay-stream
         if (auto t = util::parse_duration(optarg); !t) {
-          std::cerr << "delay-stream: invalid argument" << std::endl;
+          std::println(stderr, "delay-stream: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.delay_stream = *t;
@@ -2919,7 +2911,7 @@ int main(int argc, char **argv) {
       case 18:
         // --max-data
         if (auto n = util::parse_uint_iec(optarg); !n) {
-          std::cerr << "max-data: invalid argument" << std::endl;
+          std::println(stderr, "max-data: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.max_data = *n;
@@ -2928,8 +2920,7 @@ int main(int argc, char **argv) {
       case 19:
         // --max-stream-data-bidi-local
         if (auto n = util::parse_uint_iec(optarg); !n) {
-          std::cerr << "max-stream-data-bidi-local: invalid argument"
-                    << std::endl;
+          std::println(stderr, "max-stream-data-bidi-local: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.max_stream_data_bidi_local = *n;
@@ -2938,8 +2929,7 @@ int main(int argc, char **argv) {
       case 20:
         // --max-stream-data-bidi-remote
         if (auto n = util::parse_uint_iec(optarg); !n) {
-          std::cerr << "max-stream-data-bidi-remote: invalid argument"
-                    << std::endl;
+          std::println(stderr, "max-stream-data-bidi-remote: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.max_stream_data_bidi_remote = *n;
@@ -2948,7 +2938,7 @@ int main(int argc, char **argv) {
       case 21:
         // --max-stream-data-uni
         if (auto n = util::parse_uint_iec(optarg); !n) {
-          std::cerr << "max-stream-data-uni: invalid argument" << std::endl;
+          std::println(stderr, "max-stream-data-uni: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.max_stream_data_uni = *n;
@@ -2957,7 +2947,7 @@ int main(int argc, char **argv) {
       case 22:
         // --max-streams-bidi
         if (auto n = util::parse_uint(optarg); !n) {
-          std::cerr << "max-streams-bidi: invalid argument" << std::endl;
+          std::println(stderr, "max-streams-bidi: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.max_streams_bidi = *n;
@@ -2966,7 +2956,7 @@ int main(int argc, char **argv) {
       case 23:
         // --max-streams-uni
         if (auto n = util::parse_uint(optarg); !n) {
-          std::cerr << "max-streams-uni: invalid argument" << std::endl;
+          std::println(stderr, "max-streams-uni: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.max_streams_uni = *n;
@@ -2998,7 +2988,7 @@ int main(int argc, char **argv) {
           config.cc_algo = NGTCP2_CC_ALGO_BBR;
           break;
         }
-        std::cerr << "cc: specify cubic, reno, or bbr" << std::endl;
+        std::println(stderr, "cc: specify cubic, reno, or bbr");
         exit(EXIT_FAILURE);
       case 28:
         // --exit-on-all-streams-close
@@ -3015,7 +3005,7 @@ int main(int argc, char **argv) {
       case 31:
         // --initial-rtt
         if (auto t = util::parse_duration(optarg); !t) {
-          std::cerr << "initial-rtt: invalid argument" << std::endl;
+          std::println(stderr, "initial-rtt: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.initial_rtt = *t;
@@ -3024,7 +3014,7 @@ int main(int argc, char **argv) {
       case 32:
         // --max-window
         if (auto n = util::parse_uint_iec(optarg); !n) {
-          std::cerr << "max-window: invalid argument" << std::endl;
+          std::println(stderr, "max-window: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.max_window = *n;
@@ -3033,7 +3023,7 @@ int main(int argc, char **argv) {
       case 33:
         // --max-stream-window
         if (auto n = util::parse_uint_iec(optarg); !n) {
-          std::cerr << "max-stream-window: invalid argument" << std::endl;
+          std::println(stderr, "max-stream-window: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.max_stream_window = *n;
@@ -3043,12 +3033,12 @@ int main(int argc, char **argv) {
         // --scid
         auto hexcid = std::string_view{optarg};
         if (hexcid.size() > NGTCP2_MAX_CIDLEN * 2) {
-          std::cerr << "scid: wrong length" << std::endl;
+          std::println(stderr, "scid: wrong length");
           exit(EXIT_FAILURE);
         }
 
         if (!util::is_hex_string(hexcid)) {
-          std::cerr << "scid: not hex string" << std::endl;
+          std::println(stderr, "scid: not hex string");
           exit(EXIT_FAILURE);
         }
 
@@ -3062,14 +3052,14 @@ int main(int argc, char **argv) {
       case 35:
         // --max-udp-payload-size
         if (auto n = util::parse_uint_iec(optarg); !n) {
-          std::cerr << "max-udp-payload-size: invalid argument" << std::endl;
+          std::println(stderr, "max-udp-payload-size: invalid argument");
           exit(EXIT_FAILURE);
         } else if (*n > NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE) {
-          std::cerr << "max-udp-payload-size: must not exceed "
-                    << NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE << std::endl;
+          std::println(stderr, "max-udp-payload-size: must not exceed {}",
+                       NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE);
           exit(EXIT_FAILURE);
         } else if (*n == 0) {
-          std::cerr << "max-udp-payload-size: must not be 0" << std::endl;
+          std::println(stderr, "max-udp-payload-size: must not be 0");
         } else {
           config.max_udp_payload_size = *n;
         }
@@ -3077,7 +3067,7 @@ int main(int argc, char **argv) {
       case 36:
         // --handshake-timeout
         if (auto t = util::parse_duration(optarg); !t) {
-          std::cerr << "handshake-timeout: invalid argument" << std::endl;
+          std::println(stderr, "handshake-timeout: invalid argument");
           exit(EXIT_FAILURE);
         } else {
           config.handshake_timeout = *t;
@@ -3103,8 +3093,7 @@ int main(int argc, char **argv) {
           }
           auto rv = util::parse_version(k);
           if (!rv) {
-            std::cerr << "available-versions: invalid version "
-                      << std::quoted(k) << std::endl;
+            std::println(stderr, "available-versions: invalid version {}", k);
             exit(EXIT_FAILURE);
           }
           *it++ = *rv;
@@ -3119,8 +3108,8 @@ int main(int argc, char **argv) {
         // --preferred-versions
         auto l = util::split_str(optarg);
         if (l.size() > max_preferred_versionslen) {
-          std::cerr << "preferred-versions: too many versions > "
-                    << max_preferred_versionslen << std::endl;
+          std::println(stderr, "preferred-versions: too many versions > {}",
+                       max_preferred_versionslen);
           exit(EXIT_FAILURE);
         }
         config.preferred_versions.resize(l.size());
@@ -3136,13 +3125,12 @@ int main(int argc, char **argv) {
           }
           auto rv = util::parse_version(k);
           if (!rv) {
-            std::cerr << "preferred-versions: invalid version "
-                      << std::quoted(k) << std::endl;
+            std::println(stderr, "preferred-versions: invalid version {}", k);
             exit(EXIT_FAILURE);
           }
           if (!ngtcp2_is_supported_version(*rv)) {
-            std::cerr << "preferred-versions: unsupported version "
-                      << std::quoted(k) << std::endl;
+            std::println(stderr, "preferred-versions: unsupported version {}",
+                         k);
             exit(EXIT_FAILURE);
           }
           *it++ = *rv;
@@ -3152,10 +3140,10 @@ int main(int argc, char **argv) {
       case 40:
         // --ack-thresh
         if (auto n = util::parse_uint(optarg); !n) {
-          std::cerr << "ack-thresh: invalid argument" << std::endl;
+          std::println(stderr, "ack-thresh: invalid argument");
           exit(EXIT_FAILURE);
         } else if (*n > 100) {
-          std::cerr << "ack-thresh: must not exceed 100" << std::endl;
+          std::println(stderr, "ack-thresh: must not exceed 100");
           exit(EXIT_FAILURE);
         } else {
           config.ack_thresh = *n;
@@ -3168,11 +3156,11 @@ int main(int argc, char **argv) {
       case 42:
         // --initial-pkt-num
         if (auto n = util::parse_uint(optarg); !n) {
-          std::cerr << "initial-pkt-num: invalid argument" << std::endl;
+          std::println(stderr, "initial-pkt-num: invalid argument");
           exit(EXIT_FAILURE);
         } else if (*n > INT32_MAX) {
-          std::cerr << "initial-pkt-num: must not exceed (1 << 31) - 1"
-                    << std::endl;
+          std::println(stderr,
+                       "initial-pkt-num: must not exceed (1 << 31) - 1");
           exit(EXIT_FAILURE);
         } else {
           config.initial_pkt_num = static_cast<uint32_t>(*n);
@@ -3183,14 +3171,13 @@ int main(int argc, char **argv) {
         auto l = util::split_str(optarg);
         for (auto &s : l) {
           if (auto n = util::parse_uint_iec(s); !n) {
-            std::cerr << "pmtud-probes: invalid argument" << std::endl;
+            std::println(stderr, "pmtud-probes: invalid argument");
             exit(EXIT_FAILURE);
           } else if (*n <= NGTCP2_MAX_UDP_PAYLOAD_SIZE ||
                      *n > NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE) {
-            std::cerr << "pmtud-probes: must be in range ["
-                      << NGTCP2_MAX_UDP_PAYLOAD_SIZE + 1 << ", "
-                      << NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE << "], inclusive."
-                      << std::endl;
+            std::println(
+              stderr, "pmtud-probes: must be in range [{}, {}], inclusive.",
+              NGTCP2_MAX_UDP_PAYLOAD_SIZE + 1, NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE);
             exit(EXIT_FAILURE);
           } else {
             config.pmtud_probes.push_back(static_cast<uint16_t>(*n));
@@ -3214,13 +3201,13 @@ int main(int argc, char **argv) {
         // --gso-burst
         auto n = util::parse_uint(optarg);
         if (!n) {
-          std::cerr << "gso-burst: invalid argument" << std::endl;
+          std::println(stderr, "gso-burst: invalid argument");
           exit(EXIT_FAILURE);
         }
 
         if (*n > 64) {
-          std::cerr << "gso-burst: must be in range [0, 64], inclusive."
-                    << std::endl;
+          std::println(stderr,
+                       "gso-burst: must be in range [0, 64], inclusive.");
           exit(EXIT_FAILURE);
         }
 
@@ -3236,39 +3223,38 @@ int main(int argc, char **argv) {
   }
 
   if (argc - optind < 2) {
-    std::cerr << "Too few arguments" << std::endl;
-    print_usage();
+    std::println(stderr, "Too few arguments");
+    print_usage(stderr);
     exit(EXIT_FAILURE);
   }
 
   if (!config.qlog_file.empty() && !config.qlog_dir.empty()) {
-    std::cerr << "qlog-file and qlog-dir are mutually exclusive" << std::endl;
+    std::println(stderr, "qlog-file and qlog-dir are mutually exclusive");
     exit(EXIT_FAILURE);
   }
 
   if (config.exit_on_first_stream_close && config.exit_on_all_streams_close) {
-    std::cerr << "exit-on-first-stream-close and exit-on-all-streams-close are "
-                 "mutually exclusive"
-              << std::endl;
+    std::println(stderr, "exit-on-first-stream-close and "
+                         "exit-on-all-streams-close are mutually exclusive");
     exit(EXIT_FAILURE);
   }
 
   if (config.wait_for_ticket && !config.session_file) {
-    std::cerr << "wait-for-ticket: session-file must be specified" << std::endl;
+    std::println(stderr, "wait-for-ticket: session-file must be specified");
     exit(EXIT_FAILURE);
   }
 
   if (data_path) {
     auto fd = open(data_path, O_RDONLY);
     if (fd == -1) {
-      std::cerr << "data: Could not open file " << data_path << ": "
-                << strerror(errno) << std::endl;
+      std::println(stderr, "data: Could not open file {}: {}", data_path,
+                   strerror(errno));
       exit(EXIT_FAILURE);
     }
     struct stat st;
     if (fstat(fd, &st) != 0) {
-      std::cerr << "data: Could not stat file " << data_path << ": "
-                << strerror(errno) << std::endl;
+      std::println(stderr, "data: Could not stat file {}: {}", data_path,
+                   strerror(errno));
       exit(EXIT_FAILURE);
     }
     config.fd = fd;
@@ -3276,8 +3262,8 @@ int main(int argc, char **argv) {
     if (config.datalen) {
       auto addr = mmap(nullptr, config.datalen, PROT_READ, MAP_SHARED, fd, 0);
       if (addr == MAP_FAILED) {
-        std::cerr << "data: Could not mmap file " << data_path << ": "
-                  << strerror(errno) << std::endl;
+        std::println(stderr, "data: Could not mmap file {}: {}", data_path,
+                     strerror(errno));
         exit(EXIT_FAILURE);
       }
       config.data = static_cast<uint8_t *>(addr);
@@ -3287,8 +3273,8 @@ int main(int argc, char **argv) {
   if (config.ech_config_list_file) {
     auto ech_config = util::read_file(config.ech_config_list_file);
     if (!ech_config) {
-      std::cerr << "ech-config-list-file: Could not read ECHConfigList"
-                << std::endl;
+      std::println(stderr,
+                   "ech-config-list-file: Could not read ECHConfigList");
     } else {
       config.ech_config_list = std::move(*ech_config);
     }
@@ -3305,16 +3291,16 @@ int main(int argc, char **argv) {
     if (!config.preferred_versions.empty() &&
         std::ranges::find(config.preferred_versions, config.version) ==
           std::ranges::end(config.preferred_versions)) {
-      std::cerr << "preferred-version: must include version " << std::hex
-                << "0x" << config.version << std::dec << std::endl;
+      std::println(stderr, "preferred-version: must include version {:#x}",
+                   config.version);
       exit(EXIT_FAILURE);
     }
 
     if (!config.available_versions.empty() &&
         std::ranges::find(config.available_versions, config.version) ==
           std::ranges::end(config.available_versions)) {
-      std::cerr << "available-versions: must include version " << std::hex
-                << "0x" << config.version << std::dec << std::endl;
+      std::println(stderr, "available-versions: must include version {:#x}",
+                   config.version);
       exit(EXIT_FAILURE);
     }
   }
@@ -3339,7 +3325,7 @@ int main(int argc, char **argv) {
   }
 
   if (!util::generate_secure_random(config.static_secret)) {
-    std::cerr << "Unable to generate static secret" << std::endl;
+    std::println(stderr, "Unable to generate static secret");
     exit(EXIT_FAILURE);
   }
 
@@ -3366,13 +3352,13 @@ int main(int argc, char **argv) {
       offered_versions.data(), offered_versions.size());
 
     if (client_chosen_version == 0) {
-      std::cerr << "Unable to select a version" << std::endl;
+      std::println(stderr, "Unable to select a version");
       exit(EXIT_FAILURE);
     }
 
     if (!config.quiet) {
-      std::cerr << "Client selected version " << std::hex << "0x"
-                << client_chosen_version << std::dec << std::endl;
+      std::println(stderr, "Client selected version {:#x}",
+                   client_chosen_version);
     }
   }
 
