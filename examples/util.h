@@ -476,7 +476,7 @@ constexpr bool is_hex_digit(char c) noexcept {
 // is_hex_string returns true if the length of |s| is even, and |s|
 // does not contain a character other than [0-9A-Fa-f].  It returns
 // false otherwise.
-template <std::ranges::input_range R>
+template <std::ranges::sized_range R>
 requires(!std::is_array_v<std::remove_cvref_t<R>>)
 constexpr bool is_hex_string(R &&r) {
   return !(std::ranges::size(r) & 1) && std::ranges::all_of(r, is_hex_digit);
