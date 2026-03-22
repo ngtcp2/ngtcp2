@@ -37,8 +37,8 @@ TLSServerSession::init(const TLSServerContext &tls_ctx, HandlerBase *handler) {
 
   ssl_ = SSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
+    std::println(stderr, "SSL_new: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
     return std::unexpected{Error::CRYPTO};
   }
 

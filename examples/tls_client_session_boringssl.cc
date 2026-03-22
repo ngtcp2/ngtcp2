@@ -46,8 +46,8 @@ TLSClientSession::init(bool &early_data_enabled,
 
   ssl_ = SSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
+    std::println(stderr, "SSL_new: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
     return std::unexpected{Error::CRYPTO};
   }
 
@@ -76,17 +76,17 @@ TLSClientSession::init(bool &early_data_enabled,
   if (config.session_file) {
     auto f = BIO_new_file(config.session_file, "r");
     if (f == nullptr) {
-      std::cerr << "Could not read TLS session file " << config.session_file
-                << std::endl;
+      std::println(stderr, "Could not read TLS session file {}",
+                   config.session_file);
     } else {
       auto session = PEM_read_bio_SSL_SESSION(f, nullptr, 0, nullptr);
       BIO_free(f);
       if (session == nullptr) {
-        std::cerr << "Could not read TLS session file " << config.session_file
-                  << std::endl;
+        std::println(stderr, "Could not read TLS session file {}",
+                     config.session_file);
       } else {
         if (!SSL_set_session(ssl_, session)) {
-          std::cerr << "Could not set session" << std::endl;
+          std::println(stderr, "Could not set session");
         } else if (!config.disable_early_data &&
                    SSL_SESSION_early_data_capable(session)) {
           early_data_enabled = true;
@@ -100,8 +100,8 @@ TLSClientSession::init(bool &early_data_enabled,
   if (!config.ech_config_list.empty() &&
       SSL_set1_ech_config_list(ssl_, config.ech_config_list.data(),
                                config.ech_config_list.size()) != 1) {
-    std::cerr << "Could not set ECHConfigList: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    std::println(stderr, "Could not set ECHConfigList: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
     return std::unexpected{Error::CRYPTO};
   }
 
@@ -123,7 +123,7 @@ TLSClientSession::write_ech_config_list(const char *path) const {
 
   SSL_get0_ech_retry_configs(ssl_, &retry_configs, &retry_configslen);
   if (retry_configslen == 0) {
-    std::cerr << "No ECH retry configs found" << std::endl;
+    std::println(stderr, "No ECH retry configs found");
     return std::unexpected{Error::CRYPTO};
   }
 

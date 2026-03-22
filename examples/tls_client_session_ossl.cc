@@ -47,16 +47,15 @@ TLSClientSession::init(bool &early_data_enabled,
 
   auto ssl = SSL_new(ssl_ctx);
   if (!ssl) {
-    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
+    std::println(stderr, "SSL_new: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
     return std::unexpected{Error::CRYPTO};
   }
 
   ngtcp2_crypto_ossl_ctx_set_ssl(ossl_ctx_, ssl);
 
   if (ngtcp2_crypto_ossl_configure_client_session(ssl) != 0) {
-    std::cerr << "ngtcp2_crypto_ossl_configure_client_session failed"
-              << std::endl;
+    std::println(stderr, "ngtcp2_crypto_ossl_configure_client_session failed");
     return std::unexpected{Error::CRYPTO};
   }
 
@@ -85,17 +84,17 @@ TLSClientSession::init(bool &early_data_enabled,
   if (config.session_file) {
     auto f = BIO_new_file(config.session_file, "r");
     if (f == nullptr) {
-      std::cerr << "Could not read TLS session file " << config.session_file
-                << std::endl;
+      std::println(stderr, "Could not read TLS session file {}",
+                   config.session_file);
     } else {
       auto session = PEM_read_bio_SSL_SESSION(f, nullptr, 0, nullptr);
       BIO_free(f);
       if (session == nullptr) {
-        std::cerr << "Could not read TLS session file " << config.session_file
-                  << std::endl;
+        std::println(stderr, "Could not read TLS session file {}",
+                     config.session_file);
       } else {
         if (!SSL_set_session(ssl, session)) {
-          std::cerr << "Could not set session" << std::endl;
+          std::println(stderr, "Could not set session");
         } else if (!config.disable_early_data &&
                    SSL_SESSION_get_max_early_data(session)) {
           early_data_enabled = true;

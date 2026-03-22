@@ -72,7 +72,7 @@ TLSServerSession::init(const TLSServerContext &tls_ctx, HandlerBase *handler) {
         &session_, GNUTLS_SERVER | GNUTLS_ENABLE_EARLY_DATA |
                      GNUTLS_NO_AUTO_SEND_TICKET | GNUTLS_NO_END_OF_EARLY_DATA);
       rv != 0) {
-    std::cerr << "gnutls_init failed: " << gnutls_strerror(rv) << std::endl;
+    std::println(stderr, "gnutls_init failed: {}", gnutls_strerror(rv));
     return std::unexpected{Error::CRYPTO};
   }
 
@@ -83,16 +83,16 @@ TLSServerSession::init(const TLSServerContext &tls_ctx, HandlerBase *handler) {
 
   if (auto rv = gnutls_priority_set_direct(session_, priority.c_str(), nullptr);
       rv != 0) {
-    std::cerr << "gnutls_priority_set_direct failed: " << gnutls_strerror(rv)
-              << std::endl;
+    std::println(stderr, "gnutls_priority_set_direct failed: {}",
+                 gnutls_strerror(rv));
     return std::unexpected{Error::CRYPTO};
   }
 
   auto rv = gnutls_session_ticket_enable_server(
     session_, tls_ctx.get_session_ticket_key());
   if (rv != 0) {
-    std::cerr << "gnutls_session_ticket_enable_server failed: "
-              << gnutls_strerror(rv) << std::endl;
+    std::println(stderr, "gnutls_session_ticket_enable_server failed: {}",
+                 gnutls_strerror(rv));
     return std::unexpected{Error::CRYPTO};
   }
 
@@ -100,8 +100,8 @@ TLSServerSession::init(const TLSServerContext &tls_ctx, HandlerBase *handler) {
                                      GNUTLS_HOOK_POST, client_hello_cb);
 
   if (ngtcp2_crypto_gnutls_configure_server_session(session_) != 0) {
-    std::cerr << "ngtcp2_crypto_gnutls_configure_server_session failed"
-              << std::endl;
+    std::println(stderr,
+                 "ngtcp2_crypto_gnutls_configure_server_session failed");
     return std::unexpected{Error::CRYPTO};
   }
 
@@ -114,8 +114,8 @@ TLSServerSession::init(const TLSServerContext &tls_ctx, HandlerBase *handler) {
   if (auto rv = gnutls_credentials_set(session_, GNUTLS_CRD_CERTIFICATE,
                                        tls_ctx.get_certificate_credentials());
       rv != 0) {
-    std::cerr << "gnutls_credentials_set failed: " << gnutls_strerror(rv)
-              << std::endl;
+    std::println(stderr, "gnutls_credentials_set failed: {}",
+                 gnutls_strerror(rv));
     return std::unexpected{Error::CRYPTO};
   }
 
@@ -139,8 +139,8 @@ TLSServerSession::init(const TLSServerContext &tls_ctx, HandlerBase *handler) {
 
 std::expected<void, Error> TLSServerSession::send_session_ticket() {
   if (auto rv = gnutls_session_ticket_send(session_, 1, 0); rv != 0) {
-    std::cerr << "gnutls_session_ticket_send failed: " << gnutls_strerror(rv)
-              << std::endl;
+    std::println(stderr, "gnutls_session_ticket_send failed: {}",
+                 gnutls_strerror(rv));
     return std::unexpected{Error::CRYPTO};
   }
 
