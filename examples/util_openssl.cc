@@ -61,7 +61,7 @@ std::expected<HPKEPrivateKey, Error>
 read_hpke_private_key_pem(std::string_view filename) {
   auto f = BIO_new_file(filename.data(), "r");
   if (f == nullptr) {
-    std::cerr << "Could not open file " << filename << std::endl;
+    std::println(stderr, "Could not open file {}", filename);
     return std::unexpected{Error::IO};
   }
 
@@ -103,7 +103,7 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
                                                     std::string_view type) {
   auto f = BIO_new_file(filename.data(), "r");
   if (f == nullptr) {
-    std::cerr << "Could not open " << name << " file " << filename << std::endl;
+    std::println(stderr, "Could not open {} file {}", name, filename);
     return std::unexpected{Error::IO};
   }
 
@@ -115,8 +115,7 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
     long datalen;
 
     if (PEM_read_bio(f, &pem_type, &header, &data, &datalen) != 1) {
-      std::cerr << "Could not read " << name << " file " << filename
-                << std::endl;
+      std::println(stderr, "Could not read {} file {}", name, filename);
       return std::unexpected{Error::IO};
     }
 
@@ -140,7 +139,7 @@ std::expected<void, Error> write_pem(std::string_view filename,
                                      std::span<const uint8_t> data) {
   auto f = BIO_new_file(filename.data(), "w");
   if (f == nullptr) {
-    std::cerr << "Could not write " << name << " in " << filename << std::endl;
+    std::println(stderr, "Could not write {} in {}", name, filename);
     return std::unexpected{Error::IO};
   }
 

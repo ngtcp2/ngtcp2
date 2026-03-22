@@ -60,7 +60,7 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
                                                     std::string_view type) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "r");
   if (f == nullptr) {
-    std::cerr << "Could not open " << name << " file " << filename << std::endl;
+    std::println(stderr, "Could not open {} file {}", name, filename);
     return std::unexpected{Error::IO};
   }
 
@@ -71,7 +71,7 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
   long datalen;
 
   if (wolfSSL_PEM_read_bio(f, &pem_type, &header, &data, &datalen) != 1) {
-    std::cerr << "Could not read " << name << " file " << filename << std::endl;
+    std::println(stderr, "Could not read {} file {}", name, filename);
     return std::unexpected{Error::IO};
   }
 
@@ -82,8 +82,7 @@ std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
   });
 
   if (type != pem_type) {
-    std::cerr << name << " file " << filename << " contains unexpected type"
-              << std::endl;
+    std::println(stderr, "{} file {} contains unexpected type", name, filename);
     return std::unexpected{Error::IO};
   }
 
@@ -96,7 +95,7 @@ std::expected<void, Error> write_pem(std::string_view filename,
                                      std::span<const uint8_t> data) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "w");
   if (f == nullptr) {
-    std::cerr << "Could not write " << name << " in " << filename << std::endl;
+    std::println(stderr, "Could not write {} to {}", name, filename);
     return std::unexpected{Error::IO};
   }
 
