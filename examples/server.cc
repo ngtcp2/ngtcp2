@@ -3739,6 +3739,7 @@ int main(int argc, char **argv) {
         if (l.size() > max_preferred_versionslen) {
           std::println(stderr, "preferred-versions: too many versions > {}",
                        max_preferred_versionslen);
+          exit(EXIT_FAILURE);
         }
         config.preferred_versions.resize(l.size());
         auto it = std::ranges::begin(config.preferred_versions);
