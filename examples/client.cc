@@ -1105,7 +1105,7 @@ ngtcp2_ssize Client::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
 
       assert(ndatalen == -1);
 
-      std::println(stderr, "ngtcp2_conn_write_stream: {}",
+      std::println(stderr, "ngtcp2_conn_writev_stream: {}",
                    ngtcp2_strerror(static_cast<int>(nwrite)));
       ngtcp2_ccerr_set_liberr(&last_error_, static_cast<int>(nwrite), nullptr,
                               0);
@@ -2025,9 +2025,20 @@ void Client::http_write_data(int64_t stream_id, std::span<const uint8_t> data) {
   }
 
   ssize_t nwrite;
-  do {
-    nwrite = write(stream->fd, data.data(), data.size());
-  } while (nwrite == -1 && errno == EINTR);
+
+  for (; !data.empty();) {
+    do {
+      nwrite = write(stream->fd, data.data(), data.size());
+    } while (nwrite == -1 && errno == EINTR);
+
+    if (nwrite < 0) {
+      std::println(stderr, "Could not write data to file: {}", strerror(errno));
+
+      return;
+    }
+
+    data = data.subspan(static_cast<size_t>(nwrite));
+  }
 }
 
 namespace {

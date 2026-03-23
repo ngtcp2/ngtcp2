@@ -1747,9 +1747,20 @@ void Client::recv_stream_data(uint32_t flags, int64_t stream_id,
   }
 
   ssize_t nwrite;
-  do {
-    nwrite = write(stream->fd, data.data(), data.size());
-  } while (nwrite == -1 && errno == EINTR);
+
+  for (; !data.empty();) {
+    do {
+      nwrite = write(stream->fd, data.data(), data.size());
+    } while (nwrite == -1 && errno == EINTR);
+
+    if (nwrite < 0) {
+      std::println(stderr, "Could not write data to file: {}", strerror(errno));
+
+      return;
+    }
+
+    data = data.subspan(static_cast<size_t>(nwrite));
+  }
 }
 
 void Client::acked_stream_data_offset(int64_t stream_id, uint64_t offset,
