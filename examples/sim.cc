@@ -155,7 +155,7 @@ ngtcp2_settings default_client_settings() {
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
 
-  settings.log_printf = debug::log_printf;
+  settings.log_write = debug::log_write;
 
   return settings;
 }
@@ -164,7 +164,7 @@ ngtcp2_settings default_server_settings() {
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
 
-  settings.log_printf = debug::log_printf;
+  settings.log_write = debug::log_write;
 
   return settings;
 }

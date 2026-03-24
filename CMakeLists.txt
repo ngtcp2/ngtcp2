@@ -96,6 +96,9 @@ include(CMakeDependentOption)
 
 include(CMakeOptions.txt)
 
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
 # Do not disable assertions based on CMAKE_BUILD_TYPE.
 foreach(_build_type "Release" "MinSizeRel" "RelWithDebInfo")
   foreach(_lang C CXX)

@@ -72,6 +72,7 @@ set(ngtcp2_SOURCES
   ngtcp2_pcg.c
   ngtcp2_ratelim.c
   ngtcp2_conn_info.c
+  ngtcp2_fmt.c
 )
 
 set(ngtcp2_INCLUDE_DIRS

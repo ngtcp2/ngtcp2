@@ -56,7 +56,7 @@ void test_ngtcp2_pv_add_entry(void) {
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
 
   ngtcp2_dcid_init(&dcid, 1000000007, &cid, &token);
-  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+  ngtcp2_log_init(&log, NULL, NULL, NULL, NULL, 0, NULL);
 
   rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_NONE, &log, mem);
 
@@ -117,7 +117,7 @@ void test_ngtcp2_pv_validate(void) {
   path_init(&path, 1, 0, 2, 0);
   ngtcp2_dcid_init(&dcid, 1000000007, &cid, &token);
   ngtcp2_path_copy(&dcid.ps.path, &path.path);
-  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+  ngtcp2_log_init(&log, NULL, NULL, NULL, NULL, 0, NULL);
 
   rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_NONE, &log, mem);
 
@@ -164,7 +164,7 @@ void test_ngtcp2_pv_cancel_expired_timer(void) {
   int rv;
 
   ngtcp2_dcid_init(&dcid, 9, &cid, &token);
-  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+  ngtcp2_log_init(&log, NULL, NULL, NULL, NULL, 0, NULL);
 
   rv = ngtcp2_pv_new(&pv, &dcid, 3 * NGTCP2_SECONDS, NGTCP2_PV_FLAG_NONE, &log,
                      mem);
