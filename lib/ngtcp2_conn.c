@@ -10588,8 +10588,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       }
     }
 
-    if (conn->remote.transport_params->stateless_reset_token_present) {
-      assert(conn->dcid.current.seq == 0);
+    if (conn->remote.transport_params->stateless_reset_token_present &&
+        conn->dcid.current.seq == 0) {
       assert(!(conn->dcid.current.flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT));
       memcpy(token.data, conn->remote.transport_params->stateless_reset_token,
              sizeof(token.data));
