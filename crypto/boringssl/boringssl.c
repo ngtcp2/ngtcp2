@@ -436,7 +436,8 @@ int ngtcp2_crypto_read_write_crypto_data(
   int rv;
   int err;
 
-  if (SSL_provide_quic_data(
+  if (datalen &&
+      SSL_provide_quic_data(
         ssl,
         ngtcp2_crypto_boringssl_from_ngtcp2_encryption_level(encryption_level),
         data, datalen) != 1) {
@@ -465,6 +466,14 @@ int ngtcp2_crypto_read_write_crypto_data(
         }
 
         goto retry;
+      case SSL_ERROR_WANT_PRIVATE_KEY_OPERATION:
+        /* It might be better to return this error, but ngtcp2 does
+           not need to know whether handshake has been interrupted or
+           not.  We expect that necessary plumbing should be done by
+           application when handshake is interrupted (e.g., via
+           SSL_PRIVATE_KEY_METHOD).  If it does not work, we will
+           reconsider this. */
+        return 0;
       default:
         return -1;
       }

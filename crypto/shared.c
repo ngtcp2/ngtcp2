@@ -1729,8 +1729,21 @@ int ngtcp2_crypto_recv_crypto_data_cb(ngtcp2_conn *conn,
   (void)offset;
   (void)user_data;
 
-  if (ngtcp2_crypto_read_write_crypto_data(conn, encryption_level, data,
-                                           datalen) != 0) {
+  rv =
+    ngtcp2_crypto_read_write_crypto_data(conn, encryption_level, data, datalen);
+  if (rv != 0) {
+    switch (rv) {
+    case /* NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_CLIENT_HELLO_CB */ -10001:
+    case /* NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_X509_LOOKUP */ -10002:
+      /* These errors are not unrecoverable error, and they just
+         indicate that handshake has been interrupted.  ngtcp2 does
+         not mind whether handshake is interrupted or not.  Just
+         return 0 in this case.  There are OSSL version and they have
+         the same enum value, therefore we cannot enumerate them
+         here. */
+      return 0;
+    }
+
     rv = ngtcp2_conn_get_tls_error(conn);
     if (rv) {
       return rv;

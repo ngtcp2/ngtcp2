@@ -152,15 +152,17 @@ static size_t write_short_pkt(uint8_t *out, size_t outlen, uint8_t flags,
 
 /*
  * write_long_pkt writes a QUIC long header packet containing |frlen|
- * frames pointed by |fr| into |out| whose capacity is |outlen|.  This
- * function returns the number of bytes written.
+ * frames pointed by |fr| into |out| whose capacity is |outlen|.  If
+ * |padding| is nonzero, this function adds padding to fill the
+ * remaining space.  This function returns the number of bytes
+ * written.
  */
 static size_t write_long_pkt(uint8_t *out, size_t outlen, uint8_t flags,
                              uint8_t pkt_type, const ngtcp2_cid *dcid,
                              const ngtcp2_cid *scid, int64_t pkt_num,
                              uint32_t version, const uint8_t *token,
                              size_t tokenlen, ngtcp2_frame *fr, size_t frlen,
-                             ngtcp2_crypto_km *ckm) {
+                             ngtcp2_crypto_km *ckm, int padding) {
   ngtcp2_crypto_cc cc = {
     .encrypt = null_encrypt,
     .hp_mask = null_hp_mask,
@@ -205,6 +207,10 @@ static size_t write_long_pkt(uint8_t *out, size_t outlen, uint8_t flags,
   for (i = 0; i < frlen; ++i, ++fr) {
     rv = ngtcp2_ppe_encode_frame(&ppe, fr);
     assert(0 == rv);
+  }
+
+  if (padding) {
+    ngtcp2_ppe_dgram_padding(&ppe);
   }
 
   n = ngtcp2_ppe_final(&ppe, NULL);
@@ -400,25 +406,41 @@ void ngtcp2_tpe_init_conn_handshake_server(ngtcp2_tpe *tpe, ngtcp2_conn *conn,
   tpe->initial.ckm = ckm;
 }
 
-size_t ngtcp2_tpe_write_initial(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
-                                ngtcp2_frame *fr, size_t frlen) {
+static size_t tpe_write_initial_padding(ngtcp2_tpe *tpe, uint8_t *out,
+                                        size_t outlen, ngtcp2_frame *fr,
+                                        size_t frlen, int padding) {
   return write_long_pkt(out, outlen, tpe->flags, NGTCP2_PKT_INITIAL, &tpe->dcid,
                         &tpe->scid, ++tpe->initial.last_pkt_num, tpe->version,
-                        tpe->token, tpe->tokenlen, fr, frlen, tpe->initial.ckm);
+                        tpe->token, tpe->tokenlen, fr, frlen, tpe->initial.ckm,
+                        padding);
+}
+
+size_t ngtcp2_tpe_write_initial(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
+                                ngtcp2_frame *fr, size_t frlen) {
+  return tpe_write_initial_padding(tpe, out, outlen, fr, frlen,
+                                   /* padding = */ 0);
+}
+
+size_t ngtcp2_tpe_write_initial_padding(ngtcp2_tpe *tpe, uint8_t *out,
+                                        size_t outlen, ngtcp2_frame *fr,
+                                        size_t frlen) {
+  return tpe_write_initial_padding(tpe, out, outlen, fr, frlen,
+                                   /* padding = */ 1);
 }
 
 size_t ngtcp2_tpe_write_handshake(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
                                   ngtcp2_frame *fr, size_t frlen) {
   return write_long_pkt(out, outlen, tpe->flags, NGTCP2_PKT_HANDSHAKE,
                         &tpe->dcid, &tpe->scid, ++tpe->handshake.last_pkt_num,
-                        tpe->version, NULL, 0, fr, frlen, tpe->handshake.ckm);
+                        tpe->version, NULL, 0, fr, frlen, tpe->handshake.ckm,
+                        /* padding = */ 0);
 }
 
 size_t ngtcp2_tpe_write_0rtt(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
                              ngtcp2_frame *fr, size_t frlen) {
   return write_long_pkt(out, outlen, tpe->flags, NGTCP2_PKT_0RTT, &tpe->dcid,
                         &tpe->scid, ++tpe->app.last_pkt_num, tpe->version, NULL,
-                        0, fr, frlen, tpe->early.ckm);
+                        0, fr, frlen, tpe->early.ckm, /* padding = */ 0);
 }
 
 size_t ngtcp2_tpe_write_1rtt(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
