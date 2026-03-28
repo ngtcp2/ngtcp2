@@ -10356,6 +10356,7 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
 
 int ngtcp2_conn_continue_handshake(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv;
+  ngtcp2_encryption_level encryption_level;
   uint64_t offset;
 
   conn_update_timestamp(conn, ts);
@@ -10370,14 +10371,17 @@ int ngtcp2_conn_continue_handshake(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
        the TLS stack and its functionality and where interruption
        occurs.  After all, we do not need to support all kinds of
        interruptions. */
-    if (!conn->in_pktns) {
+    if (conn->in_pktns) {
+      encryption_level = NGTCP2_ENCRYPTION_LEVEL_INITIAL;
+      offset = ngtcp2_strm_rx_offset(&conn->in_pktns->crypto.strm);
+    } else if (conn->hs_pktns) {
+      encryption_level = NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
+      offset = ngtcp2_strm_rx_offset(&conn->hs_pktns->crypto.strm);
+    } else {
       return 0;
     }
 
-    offset = ngtcp2_strm_rx_offset(&conn->in_pktns->crypto.strm);
-
-    rv = conn_call_recv_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
-                                    offset, NULL, 0);
+    rv = conn_call_recv_crypto_data(conn, encryption_level, offset, NULL, 0);
     if (rv != 0) {
       return rv;
     }

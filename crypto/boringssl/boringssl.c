@@ -466,7 +466,9 @@ int ngtcp2_crypto_read_write_crypto_data(
         }
 
         goto retry;
+      case SSL_ERROR_WANT_X509_LOOKUP:
       case SSL_ERROR_WANT_PRIVATE_KEY_OPERATION:
+      case SSL_ERROR_WANT_CERTIFICATE_VERIFY:
         /* It might be better to return this error, but ngtcp2 does
            not need to know whether handshake has been interrupted or
            not.  We expect that necessary plumbing should be done by
