@@ -4073,6 +4073,21 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_pkt_versioned(
 /**
  * @function
  *
+ * `ngtcp2_conn_continue_handshake` resumes handshake interrupted by
+ * TLS stack routine (e.g., private key operation offloading,
+ * certificate lookup, etc).
+ *
+ * This function returns 0 if it succeeds.  In general, this function
+ * returns the same set of error codes from `ngtcp2_conn_read_pkt`.
+ *
+ * This function has been available since v1.22.0.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_continue_handshake(ngtcp2_conn *conn,
+                                                 ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_tls_handshake_completed` tells |conn| that the TLS
  * stack declares TLS handshake completion.  This does not mean QUIC
  * handshake has completed.  The library needs extra conditions to be

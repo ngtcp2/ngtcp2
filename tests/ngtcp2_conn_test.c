@@ -66,6 +66,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_recv_max_streams),
   munit_void_test(test_ngtcp2_conn_handshake),
   munit_void_test(test_ngtcp2_conn_handshake_error),
+  munit_void_test(test_ngtcp2_conn_continue_handshake),
   munit_void_test(test_ngtcp2_conn_retransmit_protected),
   munit_void_test(test_ngtcp2_conn_cancel_retransmission),
   munit_void_test(test_ngtcp2_conn_send_max_stream_data),
@@ -5300,6 +5301,46 @@ void test_ngtcp2_conn_handshake_error(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(NGTCP2_ERR_DROP_CONN, ==, rv);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_continue_handshake(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[1200];
+  ngtcp2_tpe tpe;
+  ngtcp2_vec datav;
+  size_t pktlen;
+  ngtcp2_frame fr;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_ssize spktlen;
+  int rv;
+
+  setup_handshake_server(&conn);
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data = &datav,
+  };
+  datav = (ngtcp2_vec){
+    .len = 33,
+    .base = null_data,
+  };
+
+  pktlen = ngtcp2_tpe_write_initial_padding(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+
+  rv = ngtcp2_conn_continue_handshake(conn, ++t);
+
+  assert_int(0, ==, rv);
 
   ngtcp2_conn_del(conn);
 }

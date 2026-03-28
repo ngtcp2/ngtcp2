@@ -816,7 +816,8 @@ int ngtcp2_crypto_read_write_crypto_data(
   int rv;
   int err;
 
-  if (SSL_provide_quic_data(
+  if (datalen &&
+      SSL_provide_quic_data(
         ssl,
         ngtcp2_crypto_quictls_from_ngtcp2_encryption_level(encryption_level),
         data, datalen) != 1) {

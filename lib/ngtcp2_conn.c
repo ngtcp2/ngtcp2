@@ -6995,6 +6995,10 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
   const uint8_t *origpkt = pkt;
   uint32_t version;
 
+  if (pktlen == 0) {
+    return 0;
+  }
+
   if (ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
     conn->dcid.current.bytes_recv += dgramlen;
   }
@@ -10348,6 +10352,45 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   return conn_recv_cpkt(conn, path, pi, pkt, pktlen, ts);
+}
+
+int ngtcp2_conn_continue_handshake(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  int rv;
+  uint64_t offset;
+
+  conn_update_timestamp(conn, ts);
+
+  switch (conn->state) {
+  case NGTCP2_CS_CLIENT_INITIAL:
+  case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
+  case NGTCP2_CS_SERVER_INITIAL:
+  case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
+    /* Most of the handshake interruption happens in Initial
+       encryption level, but this might not be the case depending on
+       the TLS stack and its functionality and where interruption
+       occurs.  After all, we do not need to support all kinds of
+       interruptions. */
+    if (!conn->in_pktns) {
+      return 0;
+    }
+
+    offset = ngtcp2_strm_rx_offset(&conn->in_pktns->crypto.strm);
+
+    rv = conn_call_recv_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                    offset, NULL, 0);
+    if (rv != 0) {
+      return rv;
+    }
+
+    return (int)conn_read_handshake(conn, /* path = */ NULL, /* pi = */ NULL,
+                                    /* pkt = */ NULL, 0, ts);
+  case NGTCP2_CS_CLOSING:
+    return NGTCP2_ERR_CLOSING;
+  case NGTCP2_CS_DRAINING:
+    return NGTCP2_ERR_DRAINING;
+  default:
+    return 0;
+  }
 }
 
 /*
