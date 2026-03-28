@@ -22,7 +22,7 @@ case "$TARGETPLATFORM" in
         ;;
 esac
 
-git clone --depth 1 -b v5.8.4-stable https://github.com/wolfSSL/wolfssl
+git clone --depth 1 -b v5.9.0-stable https://github.com/wolfSSL/wolfssl
 cd wolfssl
 autoreconf -i
 ./configure --disable-dependency-tracking --enable-static --enable-all \
