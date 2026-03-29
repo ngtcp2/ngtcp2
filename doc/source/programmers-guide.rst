@@ -153,6 +153,8 @@ path.  An application must provide actual path to the API function to
 tell the library where a packet comes from.  The "write" API function
 takes path parameter and fills it to which the packet should be sent.
 
+.. _tls-integration:
+
 TLS integration
 ---------------
 
@@ -189,6 +191,13 @@ using `ngtcp2_conn_set_tls_native_handle`.
 :type:`ngtcp2_crypto_conn_ref` must be set as a user data in ``SSL``
 object via ``SSL_set_app_data``.
 
+`ngtcp2_crypto_recv_crypto_data_cb` treats the following errors from
+`ngtcp2_crypto_read_write_crypto_data` as success:
+
+- :macro:`NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_X509_LOOKUP`
+- :macro:`NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_CLIENT_HELLO_CB`
+
+To continue the handshake, call `ngtcp2_conn_continue_handshake`.
 
 BoringSSL and aws-lc
 ~~~~~~~~~~~~~~~~~~~~
@@ -204,6 +213,16 @@ using `ngtcp2_conn_set_tls_native_handle`.
 
 :type:`ngtcp2_crypto_conn_ref` must be set as a user data in ``SSL``
 object via ``SSL_set_app_data``.
+
+`ngtcp2_crypto_read_write_crypto_data` treats the following errors
+from ``SSL_do_handshake`` as success in order to support the
+asynchronous operations:
+
+- ``SSL_ERROR_WANT_X509_LOOKUP``
+- ``SSL_ERROR_WANT_PRIVATE_KEY_OPERATION``
+- ``SSL_ERROR_WANT_CERTIFICATE_VERIFY``
+
+To continue the handshake, call `ngtcp2_conn_continue_handshake`.
 
 GnuTLS
 ~~~~~~
@@ -278,6 +297,14 @@ The application must make sure that :type:`ngtcp2_conn` is kept alive
 until the ``SSL`` object is freed by ``SSL_free``, or it must call
 ``SSL_set_app_data(ssl, NULL)`` before calling ``SSL_free``.
 
+`ngtcp2_crypto_recv_crypto_data_cb` treats the following errors from
+`ngtcp2_crypto_read_write_crypto_data` as success:
+
+- :macro:`NGTCP2_CRYPTO_OSSL_ERR_TLS_WANT_X509_LOOKUP`
+- :macro:`NGTCP2_CRYPTO_OSSL_ERR_TLS_WANT_CLIENT_HELLO_CB`
+
+To continue the handshake, call `ngtcp2_conn_continue_handshake`.
+
 Configuring TLS stack yourself
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -289,6 +316,21 @@ they have to be installed to :type:`ngtcp2_conn` by calling
 `ngtcp2_crypto_derive_and_install_tx_key()`.  When TLS stack generates
 new crypto data to send, they must be passed to :type:`ngtcp2_conn` by
 calling `ngtcp2_conn_submit_crypto_data()`.
+
+Continue the interrupted TLS handshake
+--------------------------------------
+
+Some TLS stacks offer the capability to interrupt TLS handshake to
+perform certain operations asynchronously (e.g., private key signing,
+certificate lookup).  In general, ngtcp2 does not need to know whether
+the TLS handshake is interrupted or not.  In most cases, if the
+interruption happens, the TLS handshake function returns the special
+error codes.  For supported operations, ngtcp2 crypto helper library
+treats them as success (see the above `TLS integration`_ section,
+`ngtcp2_crypto_read_write_crypto_data`, and
+`ngtcp2_crypto_recv_crypto_data_cb`).  The interrupted handshake is
+not restarted automatically.  To continue the handshake, application
+should call `ngtcp2_conn_continue_handshake`.
 
 QUIC handshake completion
 -------------------------
