@@ -473,7 +473,7 @@ std::expected<void, Error> Endpoint::on_read(const NetworkPath &path,
   auto rv =
     ngtcp2_conn_read_pkt(conn_, &cpath, nullptr, pkt.data(), pkt.size(), ts);
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
+    std::println(stderr, "ngtcp2_conn_read_pkt: {}", ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
@@ -500,8 +500,7 @@ std::expected<void, Error> Endpoint::on_write(const Context &ctx) {
 std::expected<void, Error> Endpoint::on_timeout(const Context &ctx) {
   auto rv = ngtcp2_conn_handle_expiry(conn_, to_ngtcp2_tstamp(ctx.ts));
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_handle_expiry: {}", ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
@@ -838,8 +837,8 @@ void HandshakeApp::configure(EndpointConfig &config) {
     auto nwrite = ngtcp2_conn_write_pkt(conn, &ps.path, nullptr, buf.data(),
                                         buf.size(), ts);
     if (nwrite < 0) {
-      std::cerr << "ngtcp2_conn_write_pkt: "
-                << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
+      std::println(stderr, "ngtcp2_conn_write_pkt: {}",
+                   ngtcp2_strerror(static_cast<int>(nwrite)));
       return std::unexpected{Error::QUIC};
     }
 
@@ -924,8 +923,8 @@ UniStreamApp::extend_max_local_streams_uni(ngtcp2_conn *conn) {
 
   auto rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, nullptr);
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
-              << std::endl;
+    std::println(stderr, "ngtcp2_conn_open_uni_stream: {}",
+                 ngtcp2_strerror(rv));
     return std::unexpected{Error::QUIC};
   }
 
@@ -974,8 +973,8 @@ std::expected<void, Error> UniStreamApp::on_write(ngtcp2_conn *conn,
       return {};
     }
 
-    std::cerr << "ngtcp2_conn_writev_stream: "
-              << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
+    std::println(stderr, "ngtcp2_conn_writev_stream: {}",
+                 ngtcp2_strerror(static_cast<int>(nwrite)));
 
     return std::unexpected{Error::QUIC};
   }
