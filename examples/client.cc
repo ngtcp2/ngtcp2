@@ -3086,70 +3086,80 @@ int main(int argc, char **argv) {
           config.handshake_timeout = *t;
         }
         break;
-      case 37: {
+      case 37:
         // --available-versions
         if (strlen(optarg) == 0) {
           config.available_versions.resize(0);
+
           break;
         }
-        auto l = util::split_str(optarg);
-        config.available_versions.resize(l.size());
-        auto it = std::ranges::begin(config.available_versions);
-        for (const auto &k : l) {
-          if (k == "v1"sv) {
-            *it++ = NGTCP2_PROTO_VER_V1;
-            continue;
-          }
-          if (k == "v2"sv) {
-            *it++ = NGTCP2_PROTO_VER_V2;
-            continue;
-          }
-          auto rv = util::parse_version(k);
-          if (!rv) {
-            std::println(stderr, "available-versions: invalid version {}", k);
-            exit(EXIT_FAILURE);
-          }
-          *it++ = *rv;
-        }
+
+        config.available_versions =
+          util::split_str(optarg) | std::ranges::views::transform([](auto &&k) {
+            if (k == "v1"sv) {
+              return NGTCP2_PROTO_VER_V1;
+            }
+
+            if (k == "v2"sv) {
+              return NGTCP2_PROTO_VER_V2;
+            }
+
+            auto rv = util::parse_version(k);
+            if (!rv) {
+              std::println(stderr, "available-versions: invalid version {}", k);
+              exit(EXIT_FAILURE);
+            }
+
+            return *rv;
+          }) |
+          std::ranges::to<std::vector>();
+
         break;
-      }
       case 38:
         // --no-pmtud
         config.no_pmtud = true;
         break;
-      case 39: {
+      case 39:
         // --preferred-versions
-        auto l = util::split_str(optarg);
-        if (l.size() > max_preferred_versionslen) {
+        if (strlen(optarg) == 0) {
+          config.preferred_versions.resize(0);
+
+          break;
+        }
+
+        config.preferred_versions =
+          util::split_str(optarg) | std::ranges::views::transform([](auto &&k) {
+            if (k == "v1"sv) {
+              return NGTCP2_PROTO_VER_V1;
+            }
+
+            if (k == "v2"sv) {
+              return NGTCP2_PROTO_VER_V2;
+            }
+
+            auto rv = util::parse_version(k);
+            if (!rv) {
+              std::println(stderr, "preferred-versions: invalid version {}", k);
+              exit(EXIT_FAILURE);
+            }
+
+            if (!ngtcp2_is_supported_version(*rv)) {
+              std::println(stderr, "preferred-versions: unsupported version {}",
+                           k);
+              exit(EXIT_FAILURE);
+            }
+
+            return *rv;
+          }) |
+          std::ranges::to<std::vector>();
+
+        if (config.preferred_versions.size() > max_preferred_versionslen) {
           std::println(stderr, "preferred-versions: too many versions > {}",
                        max_preferred_versionslen);
           exit(EXIT_FAILURE);
         }
-        config.preferred_versions.resize(l.size());
-        auto it = std::ranges::begin(config.preferred_versions);
-        for (const auto &k : l) {
-          if (k == "v1"sv) {
-            *it++ = NGTCP2_PROTO_VER_V1;
-            continue;
-          }
-          if (k == "v2"sv) {
-            *it++ = NGTCP2_PROTO_VER_V2;
-            continue;
-          }
-          auto rv = util::parse_version(k);
-          if (!rv) {
-            std::println(stderr, "preferred-versions: invalid version {}", k);
-            exit(EXIT_FAILURE);
-          }
-          if (!ngtcp2_is_supported_version(*rv)) {
-            std::println(stderr, "preferred-versions: unsupported version {}",
-                         k);
-            exit(EXIT_FAILURE);
-          }
-          *it++ = *rv;
-        }
+
         break;
-      }
       case 40:
         // --ack-thresh
         if (auto n = util::parse_uint(optarg); !n) {
@@ -3179,25 +3189,36 @@ int main(int argc, char **argv) {
           config.initial_pkt_num = static_cast<uint32_t>(*n);
         }
         break;
-      case 43: {
+      case 43:
         // --pmtud-probes
-        auto l = util::split_str(optarg);
-        for (auto &s : l) {
-          if (auto n = util::parse_uint_iec(s); !n) {
-            std::println(stderr, "pmtud-probes: invalid argument");
-            exit(EXIT_FAILURE);
-          } else if (*n <= NGTCP2_MAX_UDP_PAYLOAD_SIZE ||
-                     *n > NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE) {
-            std::println(
-              stderr, "pmtud-probes: must be in range [{}, {}], inclusive.",
-              NGTCP2_MAX_UDP_PAYLOAD_SIZE + 1, NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE);
-            exit(EXIT_FAILURE);
-          } else {
-            config.pmtud_probes.push_back(static_cast<uint16_t>(*n));
-          }
+        if (strlen(optarg) == 0) {
+          config.pmtud_probes.resize(0);
+
+          break;
         }
+
+        config.pmtud_probes =
+          util::split_str(optarg) | std::ranges::views::transform([](auto &&s) {
+            auto n = util::parse_uint_iec(s);
+            if (!n) {
+              std::println(stderr, "pmtud-probes: invalid argument");
+              exit(EXIT_FAILURE);
+            }
+
+            if (*n <= NGTCP2_MAX_UDP_PAYLOAD_SIZE ||
+                *n > NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE) {
+              std::println(
+                stderr, "pmtud-probes: must be in range [{}, {}], inclusive.",
+                NGTCP2_MAX_UDP_PAYLOAD_SIZE + 1,
+                NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE);
+              exit(EXIT_FAILURE);
+            }
+
+            return static_cast<uint16_t>(*n);
+          }) |
+          std::ranges::to<std::vector>();
+
         break;
-      }
       case 44:
         // --ech-config-list-file
         config.ech_config_list_file = optarg;

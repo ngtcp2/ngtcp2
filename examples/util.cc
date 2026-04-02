@@ -710,30 +710,6 @@ std::expected<int, Error> create_nonblock_socket(int domain, int type,
   return fd;
 }
 
-std::vector<std::string_view> split_str(std::string_view s, char delim) {
-  size_t len = 1;
-  auto last = std::ranges::end(s);
-  std::string_view::const_iterator d;
-  for (auto first = std::ranges::begin(s);
-       (d = std::ranges::find(first, last, delim)) != last;
-       ++len, first = d + 1)
-    ;
-
-  auto list = std::vector<std::string_view>(len);
-
-  len = 0;
-  for (auto first = std::ranges::begin(s);; ++len) {
-    auto stop = std::ranges::find(first, last, delim);
-    // xcode clang does not understand std::string_view{first, stop}.
-    list[len] = std::string_view{first, static_cast<size_t>(stop - first)};
-    if (stop == last) {
-      break;
-    }
-    first = stop + 1;
-  }
-  return list;
-}
-
 std::expected<uint32_t, Error> parse_version(std::string_view s) {
   if (!util::istarts_with(s, "0x"sv)) {
     return std::unexpected{Error::INVALID_ARGUMENT};
