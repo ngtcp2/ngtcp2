@@ -39,6 +39,7 @@
 #include <string_view>
 #include <span>
 #include <expected>
+#include <ranges>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -532,8 +533,13 @@ const char *crypto_default_groups();
 
 // split_str parses delimited strings in |s| and returns substrings
 // delimited by |delim|.  The any white spaces around substring are
-// treated as a part of substring.
-std::vector<std::string_view> split_str(std::string_view s, char delim = ',');
+// treated as a part of substring.  If |s| is an empty string, this
+// function returns an empty view.
+inline auto split_str(std::string_view s, char delim = ',') {
+  return s | std::ranges::views::split(delim) |
+         std::ranges::views::transform(
+           [](auto &&r) { return std::string_view{r}; });
+}
 
 // parse_version parses |s| to get 4 byte QUIC version.  |s| must be a
 // hex string and must start with "0x" (e.g., 0x00000001).

@@ -49,6 +49,7 @@ const MunitTest tests[]{
   munit_void_test(test_util_format_hex),
   munit_void_test(test_util_decode_hex),
   munit_void_test(test_util_is_hex_string),
+  munit_void_test(test_util_split_str),
   munit_test_end(),
 };
 } // namespace
@@ -577,6 +578,23 @@ void test_util_is_hex_string() {
   assert_false(util::is_hex_string("zzz"sv));
   assert_false(util::is_hex_string("zz"sv));
   assert_false(util::is_hex_string("z"sv));
+}
+
+void test_util_split_str() {
+  assert_true((std::vector{"alpha"sv, "bravo"sv, "charlie"sv} ==
+               (util::split_str("alpha,bravo,charlie"sv) |
+                std::ranges::to<std::vector>())));
+  assert_true((std::vector{"alpha"sv, "bravo"sv, "charlie"sv} ==
+               (util::split_str("alpha bravo charlie"sv, ' ') |
+                std::ranges::to<std::vector>())));
+  assert_true((std::vector<std::string_view>{} ==
+               (util::split_str(""sv, ' ') | std::ranges::to<std::vector>())));
+  assert_true((std::vector{""sv, ""sv} ==
+               (util::split_str(","sv) | std::ranges::to<std::vector>())));
+  assert_true(
+    (std::vector{""sv, "alpha"sv, ""sv, ""sv, "bravo"sv, "charlie"sv, ""sv,
+                 ""sv} == (util::split_str(" alpha   bravo charlie  "sv, ' ') |
+                           std::ranges::to<std::vector>())));
 }
 
 } // namespace ngtcp2
