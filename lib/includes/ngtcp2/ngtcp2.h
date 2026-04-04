@@ -6367,8 +6367,8 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  * `ngtcp2_conn_read_pkt_versioned` to set the correct struct version.
  */
 #define ngtcp2_conn_read_pkt(CONN, PATH, PI, PKT, PKTLEN, TS)                  \
-  ngtcp2_conn_read_pkt_versioned((CONN), (PATH), NGTCP2_PKT_INFO_VERSION,      \
-                                 (PI), (PKT), (PKTLEN), (TS))
+  ngtcp2_conn_read_pkt_versioned(CONN, PATH, NGTCP2_PKT_INFO_VERSION, PI, PKT, \
+                                 PKTLEN, TS)
 
 /*
  * `ngtcp2_conn_write_pkt` is a wrapper around
@@ -6376,8 +6376,8 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  * version.
  */
 #define ngtcp2_conn_write_pkt(CONN, PATH, PI, DEST, DESTLEN, TS)               \
-  ngtcp2_conn_write_pkt_versioned((CONN), (PATH), NGTCP2_PKT_INFO_VERSION,     \
-                                  (PI), (DEST), (DESTLEN), (TS))
+  ngtcp2_conn_write_pkt_versioned(CONN, PATH, NGTCP2_PKT_INFO_VERSION, PI,     \
+                                  DEST, DESTLEN, TS)
 
 /*
  * `ngtcp2_conn_write_stream` is a wrapper around
@@ -6386,9 +6386,9 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_conn_write_stream(CONN, PATH, PI, DEST, DESTLEN, PDATALEN,      \
                                  FLAGS, STREAM_ID, DATA, DATALEN, TS)          \
-  ngtcp2_conn_write_stream_versioned(                                          \
-    (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),          \
-    (PDATALEN), (FLAGS), (STREAM_ID), (DATA), (DATALEN), (TS))
+  ngtcp2_conn_write_stream_versioned(CONN, PATH, NGTCP2_PKT_INFO_VERSION, PI,  \
+                                     DEST, DESTLEN, PDATALEN, FLAGS,           \
+                                     STREAM_ID, DATA, DATALEN, TS)
 
 /*
  * `ngtcp2_conn_writev_stream` is a wrapper around
@@ -6397,9 +6397,9 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_conn_writev_stream(CONN, PATH, PI, DEST, DESTLEN, PDATALEN,     \
                                   FLAGS, STREAM_ID, DATAV, DATAVCNT, TS)       \
-  ngtcp2_conn_writev_stream_versioned(                                         \
-    (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),          \
-    (PDATALEN), (FLAGS), (STREAM_ID), (DATAV), (DATAVCNT), (TS))
+  ngtcp2_conn_writev_stream_versioned(CONN, PATH, NGTCP2_PKT_INFO_VERSION, PI, \
+                                      DEST, DESTLEN, PDATALEN, FLAGS,          \
+                                      STREAM_ID, DATAV, DATAVCNT, TS)
 
 /*
  * `ngtcp2_conn_write_datagram` is a wrapper around
@@ -6408,9 +6408,9 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_conn_write_datagram(CONN, PATH, PI, DEST, DESTLEN, PACCEPTED,   \
                                    FLAGS, DGRAM_ID, DATA, DATALEN, TS)         \
-  ngtcp2_conn_write_datagram_versioned(                                        \
-    (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),          \
-    (PACCEPTED), (FLAGS), (DGRAM_ID), (DATA), (DATALEN), (TS))
+  ngtcp2_conn_write_datagram_versioned(CONN, PATH, NGTCP2_PKT_INFO_VERSION,    \
+                                       PI, DEST, DESTLEN, PACCEPTED, FLAGS,    \
+                                       DGRAM_ID, DATA, DATALEN, TS)
 
 /*
  * `ngtcp2_conn_writev_datagram` is a wrapper around
@@ -6419,9 +6419,9 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_conn_writev_datagram(CONN, PATH, PI, DEST, DESTLEN, PACCEPTED,  \
                                     FLAGS, DGRAM_ID, DATAV, DATAVCNT, TS)      \
-  ngtcp2_conn_writev_datagram_versioned(                                       \
-    (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),          \
-    (PACCEPTED), (FLAGS), (DGRAM_ID), (DATAV), (DATAVCNT), (TS))
+  ngtcp2_conn_writev_datagram_versioned(CONN, PATH, NGTCP2_PKT_INFO_VERSION,   \
+                                        PI, DEST, DESTLEN, PACCEPTED, FLAGS,   \
+                                        DGRAM_ID, DATAV, DATAVCNT, TS)
 
 /*
  * `ngtcp2_conn_write_connection_close` is a wrapper around
@@ -6431,8 +6431,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
 #define ngtcp2_conn_write_connection_close(CONN, PATH, PI, DEST, DESTLEN,      \
                                            CCERR, TS)                          \
   ngtcp2_conn_write_connection_close_versioned(                                \
-    (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN), (CCERR), \
-    (TS))
+    CONN, PATH, NGTCP2_PKT_INFO_VERSION, PI, DEST, DESTLEN, CCERR, TS)
 
 /*
  * `ngtcp2_transport_params_encode` is a wrapper around
@@ -6441,7 +6440,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_transport_params_encode(DEST, DESTLEN, PARAMS)                  \
   ngtcp2_transport_params_encode_versioned(                                    \
-    (DEST), (DESTLEN), NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS))
+    DEST, DESTLEN, NGTCP2_TRANSPORT_PARAMS_VERSION, PARAMS)
 
 /*
  * `ngtcp2_transport_params_decode` is a wrapper around
@@ -6450,7 +6449,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_transport_params_decode(PARAMS, DATA, DATALEN)                  \
   ngtcp2_transport_params_decode_versioned(NGTCP2_TRANSPORT_PARAMS_VERSION,    \
-                                           (PARAMS), (DATA), (DATALEN))
+                                           PARAMS, DATA, DATALEN)
 
 /*
  * `ngtcp2_conn_client_new` is a wrapper around
@@ -6460,9 +6459,9 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
 #define ngtcp2_conn_client_new(PCONN, DCID, SCID, PATH, VERSION, CALLBACKS,    \
                                SETTINGS, PARAMS, MEM, USER_DATA)               \
   ngtcp2_conn_client_new_versioned(                                            \
-    (PCONN), (DCID), (SCID), (PATH), (VERSION), NGTCP2_CALLBACKS_VERSION,      \
-    (CALLBACKS), NGTCP2_SETTINGS_VERSION, (SETTINGS),                          \
-    NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS), (MEM), (USER_DATA))
+    PCONN, DCID, SCID, PATH, VERSION, NGTCP2_CALLBACKS_VERSION, CALLBACKS,     \
+    NGTCP2_SETTINGS_VERSION, SETTINGS, NGTCP2_TRANSPORT_PARAMS_VERSION,        \
+    PARAMS, MEM, USER_DATA)
 
 /*
  * `ngtcp2_conn_server_new` is a wrapper around
@@ -6472,9 +6471,9 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
 #define ngtcp2_conn_server_new(PCONN, DCID, SCID, PATH, VERSION, CALLBACKS,    \
                                SETTINGS, PARAMS, MEM, USER_DATA)               \
   ngtcp2_conn_server_new_versioned(                                            \
-    (PCONN), (DCID), (SCID), (PATH), (VERSION), NGTCP2_CALLBACKS_VERSION,      \
-    (CALLBACKS), NGTCP2_SETTINGS_VERSION, (SETTINGS),                          \
-    NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS), (MEM), (USER_DATA))
+    PCONN, DCID, SCID, PATH, VERSION, NGTCP2_CALLBACKS_VERSION, CALLBACKS,     \
+    NGTCP2_SETTINGS_VERSION, SETTINGS, NGTCP2_TRANSPORT_PARAMS_VERSION,        \
+    PARAMS, MEM, USER_DATA)
 
 /*
  * `ngtcp2_conn_set_local_transport_params` is a wrapper around
@@ -6483,7 +6482,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_conn_set_local_transport_params(CONN, PARAMS)                   \
   ngtcp2_conn_set_local_transport_params_versioned(                            \
-    (CONN), NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS))
+    CONN, NGTCP2_TRANSPORT_PARAMS_VERSION, PARAMS)
 
 /*
  * `ngtcp2_transport_params_default` is a wrapper around
@@ -6492,7 +6491,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_transport_params_default(PARAMS)                                \
   ngtcp2_transport_params_default_versioned(NGTCP2_TRANSPORT_PARAMS_VERSION,   \
-                                            (PARAMS))
+                                            PARAMS)
 
 /*
  * `ngtcp2_conn_get_conn_info` is a wrapper around
@@ -6500,7 +6499,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  * version.
  */
 #define ngtcp2_conn_get_conn_info(CONN, CINFO)                                 \
-  ngtcp2_conn_get_conn_info_versioned((CONN), NGTCP2_CONN_INFO_VERSION, (CINFO))
+  ngtcp2_conn_get_conn_info_versioned(CONN, NGTCP2_CONN_INFO_VERSION, CINFO)
 
 /*
  * `ngtcp2_conn_write_aggregate_pkt` is a wrapper around
@@ -6509,9 +6508,9 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_conn_write_aggregate_pkt(CONN, PATH, PI, BUF, BUFLEN, PGSOLEN,  \
                                         WRITE_PKT, TS)                         \
-  ngtcp2_conn_write_aggregate_pkt_versioned(                                   \
-    (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (BUF), (BUFLEN), (PGSOLEN), \
-    (WRITE_PKT), (TS))
+  ngtcp2_conn_write_aggregate_pkt_versioned(CONN, PATH,                        \
+                                            NGTCP2_PKT_INFO_VERSION, PI, BUF,  \
+                                            BUFLEN, PGSOLEN, WRITE_PKT, TS)
 
 /*
  * `ngtcp2_conn_write_aggregate_pkt2` is a wrapper around
@@ -6521,8 +6520,8 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
 #define ngtcp2_conn_write_aggregate_pkt2(CONN, PATH, PI, BUF, BUFLEN, PGSOLEN, \
                                          WRITE_PKT, NUM_PKTS, TS)              \
   ngtcp2_conn_write_aggregate_pkt2_versioned(                                  \
-    (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (BUF), (BUFLEN), (PGSOLEN), \
-    (WRITE_PKT), (NUM_PKTS), (TS))
+    CONN, PATH, NGTCP2_PKT_INFO_VERSION, PI, BUF, BUFLEN, PGSOLEN, WRITE_PKT,  \
+    NUM_PKTS, TS)
 
 /*
  * `ngtcp2_settings_default` is a wrapper around
@@ -6530,7 +6529,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  * version.
  */
 #define ngtcp2_settings_default(SETTINGS)                                      \
-  ngtcp2_settings_default_versioned(NGTCP2_SETTINGS_VERSION, (SETTINGS))
+  ngtcp2_settings_default_versioned(NGTCP2_SETTINGS_VERSION, SETTINGS)
 
 #ifdef _MSC_VER
 #  pragma warning(pop)
