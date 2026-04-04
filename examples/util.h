@@ -621,7 +621,8 @@ inline bool operator==(const ngtcp2_cid &lhs, const ngtcp2_cid &rhs) {
 
 template <>
 struct std::formatter<ngtcp2_cid> : public std::formatter<std::string_view> {
-  auto format(ngtcp2_cid cid, format_context &ctx) const {
+  template <typename FormatContext>
+  auto format(const ngtcp2_cid &cid, FormatContext &ctx) const {
     std::array<char, NGTCP2_MAX_CIDLEN * 2 + 2> buf;
     buf[0] = '0';
     buf[1] = 'x';
