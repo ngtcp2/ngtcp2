@@ -187,7 +187,8 @@ void sockaddr_set(Sockaddr &skaddr, const sockaddr *sa);
 
 template <>
 struct std::formatter<ngtcp2::Error> : public std::formatter<std::string_view> {
-  auto format(ngtcp2::Error e, format_context &ctx) const {
+  template <typename FormatContext>
+  auto format(ngtcp2::Error e, FormatContext &ctx) const {
     auto s = "unknown"sv;
 
     switch (e) {
