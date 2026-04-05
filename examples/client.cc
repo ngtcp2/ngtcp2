@@ -720,7 +720,7 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
 
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
-  settings.log_printf = config.quiet ? nullptr : debug::log_printf;
+  settings.log_write = config.quiet ? nullptr : debug::log_write;
   if (!config.qlog_file.empty() || !config.qlog_dir.empty()) {
     std::string path;
     if (!config.qlog_file.empty()) {

@@ -1353,11 +1353,27 @@ typedef struct sockaddr_in ngtcp2_sockaddr_in;
 /**
  * @typedef
  *
+ * :type:`ngtcp2_in_addr` is typedefed to struct in_addr.  If
+ * :macro:`NGTCP2_USE_GENERIC_SOCKADDR` is defined, it is typedefed to
+ * the generic struct in_addr defined in ngtcp2.h.
+ */
+typedef struct in_addr ngtcp2_in_addr;
+/**
+ * @typedef
+ *
  * :type:`ngtcp2_sockaddr_in6` is typedefed to struct sockaddr_in6.
  * If :macro:`NGTCP2_USE_GENERIC_SOCKADDR` is defined, it is typedefed
  * to the generic struct sockaddr_in6 defined in ngtcp2.h.
  */
 typedef struct sockaddr_in6 ngtcp2_sockaddr_in6;
+/**
+ * @typedef
+ *
+ * :type:`ngtcp2_in6_addr` is typedefed to struct in6_addr.  If
+ * :macro:`NGTCP2_USE_GENERIC_SOCKADDR` is defined, it is typedefed to
+ * the generic struct in6_addr defined in ngtcp2.h.
+ */
+typedef struct in6_addr ngtcp2_in6_addr;
 /**
  * @typedef
  *
@@ -1726,8 +1742,25 @@ typedef enum ngtcp2_cc_algo {
  * :type:`ngtcp2_printf` is a callback function for logging.
  * |user_data| is the same object passed to `ngtcp2_conn_client_new`
  * or `ngtcp2_conn_server_new`.
+ *
+ * Deprecated since v1.23.0.  Use :type:`ngtcp2_log_write` instead.
  */
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_log_write` is a callback function for logging.
+ * |user_data| is the same object passed to `ngtcp2_conn_client_new`
+ * or `ngtcp2_conn_server_new`.  The caller guarantees that the memory
+ * region [|msg|, |msg| + |len|], inclusive, are writable, and
+ * |msg|[|len|] == '\0'.  If application needs to emit a single line
+ * with a line terminator, one can do msg[len] = '\n', and write |len|
+ * + 1 bytes from |msg|.
+ *
+ * This type has been available since v1.23.0.
+ */
+typedef void (*ngtcp2_log_write)(void *user_data, char *msg, size_t len);
 
 /**
  * @macrosection
@@ -1803,7 +1836,8 @@ typedef enum ngtcp2_token_type {
 #define NGTCP2_SETTINGS_V1 1
 #define NGTCP2_SETTINGS_V2 2
 #define NGTCP2_SETTINGS_V3 3
-#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V3
+#define NGTCP2_SETTINGS_V4 4
+#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V4
 
 /**
  * @struct
@@ -1833,6 +1867,8 @@ typedef struct ngtcp2_settings {
    * :member:`log_printf` is a function that the library uses to write
    * logs.  ``NULL`` means no logging output.  It is nothing to do
    * with qlog.
+   *
+   * Deprecated since v1.23.0.  Use :member:`log_write` instead.
    */
   ngtcp2_printf log_printf;
   /**
@@ -2036,6 +2072,17 @@ typedef struct ngtcp2_settings {
    * limiter.  This field has been available since v1.15.0.
    */
   uint64_t glitch_ratelim_rate;
+  /* The following fields have been added since NGTCP2_SETTINGS_V4. */
+  /**
+   * :member:`log_write` is the callback function when a single log
+   * message is emitted.  If both :member:`log_write` and
+   * :member:`log_printf` are specified, the former has precedence.
+   * If both :member:`log_write` and :member:`log_printf` are
+   * ``NULL``, logging is disabled.  For qlog, see
+   * :member:`qlog_write`.  This field has been available since
+   * v1.23.0.
+   */
+  ngtcp2_log_write log_write;
 } ngtcp2_settings;
 
 /**

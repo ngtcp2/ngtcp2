@@ -53,6 +53,12 @@ static void log_printf(void *user_data, const char *format, ...) {
   (void)format;
 }
 
+static void log_write(void *user_data, char *msg, size_t len) {
+  (void)user_data;
+  (void)msg;
+  (void)len;
+}
+
 static const uint8_t token[] = "token";
 static const int rand_ctx;
 static const uint32_t preferred_versions[] = {518522897, 103325514, 932403068};
@@ -61,7 +67,7 @@ static const uint32_t available_versions[] = {534114833, 797700084, 96134021,
 static const uint16_t pmtud_probes[] = {65466, 47820, 27776};
 
 void test_ngtcp2_settings_convert_to_latest(void) {
-  const int srcver = NGTCP2_SETTINGS_V2;
+  const int srcver = NGTCP2_SETTINGS_V3;
   ngtcp2_settings *src, srcbuf, settingsbuf;
   const ngtcp2_settings *dest;
   size_t srclen;
@@ -92,6 +98,8 @@ void test_ngtcp2_settings_convert_to_latest(void) {
   srcbuf.initial_pkt_num = 918608434;
   srcbuf.pmtud_probes = pmtud_probes;
   srcbuf.pmtud_probeslen = ngtcp2_arraylen(pmtud_probes);
+  srcbuf.glitch_ratelim_burst = 1000000007;
+  srcbuf.glitch_ratelim_rate = 1000000009;
 
   srclen = ngtcp2_settingslen_version(srcver);
 
@@ -130,14 +138,13 @@ void test_ngtcp2_settings_convert_to_latest(void) {
   assert_uint32(srcbuf.initial_pkt_num, ==, dest->initial_pkt_num);
   assert_ptr_equal(srcbuf.pmtud_probes, dest->pmtud_probes);
   assert_size(srcbuf.pmtud_probeslen, ==, dest->pmtud_probeslen);
-  assert_uint64(NGTCP2_DEFAULT_GLITCH_RATELIM_BURST, ==,
-                dest->glitch_ratelim_burst);
-  assert_uint64(NGTCP2_DEFAULT_GLITCH_RATELIM_RATE, ==,
-                dest->glitch_ratelim_rate);
+  assert_uint64(srcbuf.glitch_ratelim_burst, ==, dest->glitch_ratelim_burst);
+  assert_uint64(srcbuf.glitch_ratelim_rate, ==, dest->glitch_ratelim_rate);
+  assert_null(dest->log_write);
 }
 
 void test_ngtcp2_settings_convert_to_old(void) {
-  const int destver = NGTCP2_SETTINGS_V2;
+  const int destver = NGTCP2_SETTINGS_V3;
   ngtcp2_settings src, *dest, destbuf = {0};
   size_t destlen;
 
@@ -172,6 +179,7 @@ void test_ngtcp2_settings_convert_to_old(void) {
   src.pmtud_probeslen = ngtcp2_arraylen(pmtud_probes);
   src.glitch_ratelim_burst = 1999;
   src.glitch_ratelim_rate = 78;
+  src.log_write = log_write;
 
   ngtcp2_settings_convert_to_old(destver, dest, &src);
 
@@ -204,6 +212,7 @@ void test_ngtcp2_settings_convert_to_old(void) {
   assert_uint32(src.initial_pkt_num, ==, destbuf.initial_pkt_num);
   assert_ptr_equal(src.pmtud_probes, destbuf.pmtud_probes);
   assert_size(src.pmtud_probeslen, ==, destbuf.pmtud_probeslen);
-  assert_uint64(0, ==, destbuf.glitch_ratelim_burst);
-  assert_uint64(0, ==, destbuf.glitch_ratelim_rate);
+  assert_uint64(1999, ==, destbuf.glitch_ratelim_burst);
+  assert_uint64(78, ==, destbuf.glitch_ratelim_rate);
+  assert_null(destbuf.log_write);
 }

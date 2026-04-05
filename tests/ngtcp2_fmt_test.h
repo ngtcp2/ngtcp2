@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2026 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_STR_TEST_H
-#define NGTCP2_STR_TEST_H
+#ifndef NGTCP2_FMT_TEST_H
+#define NGTCP2_FMT_TEST_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -33,14 +33,8 @@
 
 #include "munit.h"
 
-extern const MunitSuite str_suite;
+extern const MunitSuite fmt_suite;
 
-munit_void_test_decl(test_ngtcp2_encode_ipv4)
-munit_void_test_decl(test_ngtcp2_encode_ipv6)
-munit_void_test_decl(test_ngtcp2_get_bytes)
-munit_void_test_decl(test_ngtcp2_encode_uint)
-munit_void_test_decl(test_ngtcp2_encode_hex)
-munit_void_test_decl(test_ngtcp2_encode_uint_hex)
-munit_void_test_decl(test_ngtcp2_encode_uint_hexlen)
+munit_void_test_decl(test_ngtcp2_fmt_format)
 
-#endif /* !defined(NGTCP2_STR_TEST_H) */
+#endif /* !defined(NGTCP2_FMT_TEST_H) */

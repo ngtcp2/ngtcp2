@@ -556,6 +556,10 @@ void init_path(ngtcp2_path_storage *ps) {
 } // namespace
 
 namespace {
+void log_write(void *user_data, char *msg, size_t len) {}
+} // namespace
+
+namespace {
 void qlog_write(void *user_data, uint32_t flags, const void *data,
                 size_t datalen) {}
 } // namespace
@@ -675,6 +679,7 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
 
   ngtcp2_settings_default(&settings);
 
+  settings.log_write = log_write;
   settings.qlog_write = qlog_write;
   settings.cc_algo = fuzzed_data_provider.PickValueInArray(
     {NGTCP2_CC_ALGO_RENO, NGTCP2_CC_ALGO_CUBIC, NGTCP2_CC_ALGO_BBR});
