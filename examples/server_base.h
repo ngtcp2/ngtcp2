@@ -201,6 +201,8 @@ struct Buffer {
   uint8_t *tail;
 };
 
+constexpr auto NGTCP2_SERVER = "ngtcp2 server"sv;
+
 class HandlerBase {
 public:
   HandlerBase();

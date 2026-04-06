@@ -66,7 +66,7 @@ autoreconf -i
     --with-wolfssl
 make -j$(nproc)
 cp examples/wsslclient examples/wsslserver \
-   examples/h09wsslclient examples/h09wsslserver /usr/local/bin
+   examples/wsslhqclient examples/wsslhqserver /usr/local/bin
 cd ..
 rm -rf ngtcp2
 EOF
@@ -74,7 +74,7 @@ EOF
 FROM martenseemann/quic-network-simulator-endpoint:latest
 
 COPY --from=build --link /usr/local/bin/wsslclient /usr/local/bin/wsslserver \
-    /usr/local/bin/h09wsslclient /usr/local/bin/h09wsslserver /usr/local/bin/
+    /usr/local/bin/wsslhqclient /usr/local/bin/wsslhqserver /usr/local/bin/
 COPY --from=build --link /etc/mime.types /etc/
 COPY --link --chmod=0775 run_endpoint.sh .
 

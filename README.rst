@@ -224,15 +224,15 @@ The notable options are:
 
 - ``-V``, ``--validate-addr``: Enforce stateless address validation.
 
-H09wsslclient/H09wsslserver
----------------------------
+wsslhqclient/wsslhqserver
+-------------------------
 
-There are h09wsslclient and h09wsslserver which speak HTTP/0.9.  They
-are written just for `quic-interop-runner
+There are wsslhqclient and wsslhqserver which speak HQ protocol, which
+is specifically tailored for `quic-interop-runner
 <https://github.com/marten-seemann/quic-interop-runner>`_.  They share
 the basic functionalities with HTTP/3 client and server but have less
-functions (e.g., h09wsslclient does not have a capability to send
-request body, and h09wsslserver does not understand numeric request
+functions (e.g., wsslhqclient does not have a capability to send
+request body, and wsslhqserver does not understand numeric request
 path, like /1000).
 
 Resumption and 0-RTT
