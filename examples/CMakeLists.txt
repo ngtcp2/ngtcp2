@@ -25,6 +25,7 @@ if(LIBEV_FOUND AND (HAVE_QUICTLS OR HAVE_LIBRESSL) AND LIBNGHTTP3_FOUND)
   set(qtlsclient_SOURCES
     client.cc
     client_base.cc
+    http3_client_proto_codec.cc
     debug.cc
     util.cc
     shared.cc
@@ -37,6 +38,7 @@ if(LIBEV_FOUND AND (HAVE_QUICTLS OR HAVE_LIBRESSL) AND LIBNGHTTP3_FOUND)
   set(qtlsserver_SOURCES
     server.cc
     server_base.cc
+    http3_server_proto_codec.cc
     debug.cc
     util.cc
     http.cc
@@ -82,12 +84,12 @@ if(LIBEV_FOUND AND (HAVE_QUICTLS OR HAVE_LIBRESSL) AND LIBNGHTTP3_FOUND)
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(qtlsclient PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_QUICTLS"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_QUICTLS -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
   set_target_properties(qtlsserver PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_QUICTLS"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_QUICTLS -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
@@ -103,6 +105,7 @@ if(LIBEV_FOUND AND HAVE_GNUTLS AND LIBNGHTTP3_FOUND)
   set(gtlsclient_SOURCES
     client.cc
     client_base.cc
+    http3_client_proto_codec.cc
     debug.cc
     util.cc
     shared.cc
@@ -115,6 +118,7 @@ if(LIBEV_FOUND AND HAVE_GNUTLS AND LIBNGHTTP3_FOUND)
   set(gtlsserver_SOURCES
     server.cc
     server_base.cc
+    http3_server_proto_codec.cc
     debug.cc
     util.cc
     http.cc
@@ -155,12 +159,12 @@ if(LIBEV_FOUND AND HAVE_GNUTLS AND LIBNGHTTP3_FOUND)
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(gtlsclient PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_GNUTLS"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_GNUTLS -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
   set_target_properties(gtlsserver PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_GNUTLS"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_GNUTLS -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
@@ -176,6 +180,7 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
   set(bsslclient_SOURCES
     client.cc
     client_base.cc
+    http3_client_proto_codec.cc
     debug.cc
     util.cc
     shared.cc
@@ -189,6 +194,7 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
   set(bsslserver_SOURCES
     server.cc
     server_base.cc
+    http3_server_proto_codec.cc
     debug.cc
     util.cc
     http.cc
@@ -234,12 +240,12 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(bsslclient PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_BORINGSSL"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_BORINGSSL -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
   set_target_properties(bsslserver PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_BORINGSSL"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_BORINGSSL -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
@@ -255,6 +261,7 @@ if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
   set(ptlsclient_SOURCES
     client.cc
     client_base.cc
+    http3_client_proto_codec.cc
     debug.cc
     util.cc
     shared.cc
@@ -268,6 +275,7 @@ if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
   set(ptlsserver_SOURCES
     server.cc
     server_base.cc
+    http3_server_proto_codec.cc
     debug.cc
     util.cc
     http.cc
@@ -311,12 +319,12 @@ if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(ptlsclient PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_PICOTLS"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_PICOTLS -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
   set_target_properties(ptlsserver PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_PICOTLS"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_PICOTLS -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
@@ -332,6 +340,7 @@ if(LIBEV_FOUND AND HAVE_WOLFSSL AND LIBNGHTTP3_FOUND)
   set(wsslclient_SOURCES
     client.cc
     client_base.cc
+    http3_client_proto_codec.cc
     debug.cc
     util.cc
     shared.cc
@@ -344,6 +353,7 @@ if(LIBEV_FOUND AND HAVE_WOLFSSL AND LIBNGHTTP3_FOUND)
   set(wsslserver_SOURCES
     server.cc
     server_base.cc
+    http3_server_proto_codec.cc
     debug.cc
     util.cc
     http.cc
@@ -384,12 +394,12 @@ if(LIBEV_FOUND AND HAVE_WOLFSSL AND LIBNGHTTP3_FOUND)
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(wsslclient PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_WOLFSSL"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_WOLFSSL -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
   set_target_properties(wsslserver PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_WOLFSSL"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_WOLFSSL -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
@@ -405,6 +415,7 @@ if(LIBEV_FOUND AND HAVE_OSSL AND LIBNGHTTP3_FOUND)
   set(osslclient_SOURCES
     client.cc
     client_base.cc
+    http3_client_proto_codec.cc
     debug.cc
     util.cc
     shared.cc
@@ -417,6 +428,7 @@ if(LIBEV_FOUND AND HAVE_OSSL AND LIBNGHTTP3_FOUND)
   set(osslserver_SOURCES
     server.cc
     server_base.cc
+    http3_server_proto_codec.cc
     debug.cc
     util.cc
     http.cc
@@ -457,12 +469,12 @@ if(LIBEV_FOUND AND HAVE_OSSL AND LIBNGHTTP3_FOUND)
     $<TARGET_OBJECTS:urlparse>
   )
   set_target_properties(osslclient PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_OSSL"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_OSSL -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
   set_target_properties(osslserver PROPERTIES
-    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_OSSL"
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DWITH_EXAMPLE_OSSL -DWITH_EXAMPLE_HTTP3_PROTO_CODEC"
     CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
   )
