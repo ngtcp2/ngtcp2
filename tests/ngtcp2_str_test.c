@@ -280,7 +280,7 @@ void test_ngtcp2_encode_uint_hex(void) {
   }
 
   {
-    *ngtcp2_encode_uint_hex(dest, 0xDEADBEEFBAADCACELLU) = '\0';
+    *ngtcp2_encode_uint_hex(dest, 0xDEADBEEFBAADCACEULL) = '\0';
 
     assert_string_equal("deadbeefbaadcace", (const char *)dest);
   }
@@ -293,5 +293,5 @@ void test_ngtcp2_encode_uint_hexlen(void) {
   assert_size(2, ==, ngtcp2_encode_uint_hexlen(0x1F));
   assert_size(3, ==, ngtcp2_encode_uint_hexlen(0xE0F));
   assert_size(7, ==, ngtcp2_encode_uint_hexlen(0xBADCACE));
-  assert_size(16, ==, ngtcp2_encode_uint_hexlen(0xDEADBEEFBAADCACELLU));
+  assert_size(16, ==, ngtcp2_encode_uint_hexlen(0xDEADBEEFBAADCACEULL));
 }
