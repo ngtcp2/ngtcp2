@@ -2490,22 +2490,24 @@ int main(int argc, char **argv) {
         // --qlog-dir
         config.qlog_dir = optarg;
         break;
-      case 27:
+      case 27: {
         // --cc
-        if (strcmp("cubic", optarg) == 0) {
+        auto cc = std::string_view{optarg};
+        if (cc == "cubic"sv) {
           config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
           break;
         }
-        if (strcmp("reno", optarg) == 0) {
+        if (cc == "reno"sv) {
           config.cc_algo = NGTCP2_CC_ALGO_RENO;
           break;
         }
-        if (strcmp("bbr", optarg) == 0) {
+        if (cc == "bbr"sv) {
           config.cc_algo = NGTCP2_CC_ALGO_BBR;
           break;
         }
         std::println(stderr, "cc: specify cubic, reno, or bbr");
         exit(EXIT_FAILURE);
+      }
       case 28:
         // --exit-on-all-streams-close
         config.exit_on_all_streams_close = true;
