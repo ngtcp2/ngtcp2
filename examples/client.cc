@@ -646,7 +646,7 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
   addr_ = addr;
   port_ = port;
 
-  auto callbacks = ngtcp2_callbacks{
+  static constexpr auto callbacks = ngtcp2_callbacks{
     .client_initial = ngtcp2_crypto_client_initial_cb,
     .recv_crypto_data = ::recv_crypto_data,
     .handshake_completed = ::handshake_completed,
