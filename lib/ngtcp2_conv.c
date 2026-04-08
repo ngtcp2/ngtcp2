@@ -166,7 +166,7 @@ uint8_t *ngtcp2_put_uvarint(uint8_t *p, uint64_t n) {
     *p |= 0x80;
     return rv;
   }
-  if (n >= 4611686018427387904ULL) {
+  if (n > NGTCP2_MAX_VARINT) {
     ngtcp2_unreachable();
   }
   rv = ngtcp2_put_uint64be(p, n);
@@ -215,7 +215,7 @@ size_t ngtcp2_put_uvarintlen(uint64_t n) {
   if (n < 1073741824) {
     return 4;
   }
-  if (n >= 4611686018427387904ULL) {
+  if (n > NGTCP2_MAX_VARINT) {
     ngtcp2_unreachable();
   }
   return 8;
