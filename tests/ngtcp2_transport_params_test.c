@@ -38,6 +38,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_transport_params_decode_new),
   munit_void_test(test_ngtcp2_transport_params_convert_to_latest),
   munit_void_test(test_ngtcp2_transport_params_convert_to_old),
+  munit_void_test(test_ngtcp2_transport_params_decode_max_idle_timeout_overflow),
   munit_test_end(),
 };
 
@@ -583,3 +584,25 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
 }
 
 void test_ngtcp2_transport_params_convert_to_old(void) {}
+
+void test_ngtcp2_transport_params_decode_max_idle_timeout_overflow(void) {
+  ngtcp2_transport_params params;
+  uint8_t buf[32];
+  uint8_t *p = buf;
+  int rv;
+
+  /* Encode max_idle_timeout transport param (ID=0x01) with value
+     4611686018427387903 (max varint), which overflows when multiplied
+     by NGTCP2_MILLISECONDS (1000000). */
+
+  /* param ID = 0x01 (1 byte varint) */
+  *p++ = 0x01;
+  /* param length = 8 bytes (1 byte varint for length 8) */
+  *p++ = 0x08;
+  /* value = 4611686018427387903 = (1<<62)-1 as 8-byte varint */
+  p = ngtcp2_put_uvarint(p, 4611686018427387903ULL);
+
+  rv = ngtcp2_transport_params_decode(&params, buf, (size_t)(p - buf));
+
+  assert_int(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM, ==, rv);
+}
