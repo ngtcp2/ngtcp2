@@ -108,6 +108,24 @@ void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem) {
 #endif /* defined(HAVE_MEMSET_S) */
   }
 
+  if (ckm->iv.len) {
+#ifdef WIN32
+    SecureZeroMemory(ckm->iv.base, ckm->iv.len);
+#elif defined(HAVE_EXPLICIT_BZERO)
+    explicit_bzero(ckm->iv.base, ckm->iv.len);
+#elif defined(HAVE_MEMSET_S)
+    memset_s(ckm->iv.base, ckm->iv.len, 0, ckm->iv.len);
+#else
+    {
+      volatile unsigned char *p = (volatile unsigned char *)ckm->iv.base;
+      size_t n = ckm->iv.len;
+      while (n--) {
+        *p++ = 0;
+      }
+    }
+#endif /* defined(HAVE_MEMSET_S) */
+  }
+
   ngtcp2_mem_free(mem, ckm);
 }
 

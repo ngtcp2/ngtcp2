@@ -24,6 +24,7 @@
  */
 #include "ngtcp2_crypto_test.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "ngtcp2_crypto.h"
@@ -40,35 +41,65 @@ const MunitSuite crypto_suite = {
   .tests = tests,
 };
 
+static void *nofree_malloc(size_t size, void *user_data) {
+  (void)user_data;
+  return malloc(size);
+}
+
+static void nofree_free(void *ptr, void *user_data) {
+  (void)ptr;
+  (void)user_data;
+}
+
+static void *nofree_calloc(size_t nmemb, size_t size, void *user_data) {
+  (void)user_data;
+  return calloc(nmemb, size);
+}
+
+static void *nofree_realloc(void *ptr, size_t size, void *user_data) {
+  (void)user_data;
+  return realloc(ptr, size);
+}
+
 void test_ngtcp2_crypto_km_secret_zeroed(void) {
-  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_mem nofree_mem = {
+    .user_data = NULL,
+    .malloc = nofree_malloc,
+    .free = nofree_free,
+    .calloc = nofree_calloc,
+    .realloc = nofree_realloc,
+  };
   ngtcp2_crypto_km *ckm;
   uint8_t secret[32];
   uint8_t iv[12];
-  uint8_t zero[32];
+  uint8_t zero_secret[32];
+  uint8_t zero_iv[12];
   uint8_t *secret_base;
+  uint8_t *iv_base;
   int rv;
 
   memset(secret, 0xAB, sizeof(secret));
   memset(iv, 0xCD, sizeof(iv));
-  memset(zero, 0, sizeof(zero));
+  memset(zero_secret, 0, sizeof(zero_secret));
+  memset(zero_iv, 0, sizeof(zero_iv));
 
   rv = ngtcp2_crypto_km_new(&ckm, secret, sizeof(secret), NULL, iv,
-                             sizeof(iv), mem);
+                             sizeof(iv), &nofree_mem);
 
   assert_int(0, ==, rv);
   assert_memory_equal(sizeof(secret), ckm->secret.base, secret);
+  assert_memory_equal(sizeof(iv), ckm->iv.base, iv);
 
-  /* Save the pointer to the secret data region before freeing.
-     After ngtcp2_crypto_km_del, the secret region should be zeroed. */
   secret_base = ckm->secret.base;
+  iv_base = ckm->iv.base;
 
-  ngtcp2_crypto_km_del(ckm, mem);
+  ngtcp2_crypto_km_del(ckm, &nofree_mem);
 
-  /* Verify that the secret was zeroed before freeing.  Note: This
-     accesses freed memory which is technically undefined behavior, but
-     in practice the allocator does not immediately overwrite freed
-     memory in test environments, so this check is a reasonable
-     heuristic. */
-  assert_memory_equal(sizeof(secret), secret_base, zero);
+  /* The nofree allocator does not actually free memory, so we can
+     safely inspect the buffer contents after ngtcp2_crypto_km_del. */
+  assert_memory_equal(sizeof(secret), secret_base, zero_secret);
+  assert_memory_equal(sizeof(iv), iv_base, zero_iv);
+
+  /* Now actually free the allocation. */
+  free(ckm);
 }
