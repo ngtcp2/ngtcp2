@@ -13185,6 +13185,7 @@ void test_ngtcp2_conn_write_application_close(void) {
                                                sizeof(buf), &ccerr, 0);
 
   assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, <=, spktlen);
+  assert_enum(ngtcp2_conn_state, NGTCP2_CS_CLOSING, ==, conn->state);
 
   shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
 
