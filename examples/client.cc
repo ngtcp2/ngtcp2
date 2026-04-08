@@ -58,9 +58,7 @@ namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
-namespace {
 constexpr size_t max_preferred_versionslen = 4;
-} // namespace
 
 Config config;
 
