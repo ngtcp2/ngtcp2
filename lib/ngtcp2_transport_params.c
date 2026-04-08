@@ -592,6 +592,9 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       if (decode_varint_param(&params->max_udp_payload_size, &p, end) != 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
+      if (params->max_udp_payload_size < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
       break;
     case NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN:
       if (decode_varint(&valuelen, &p, end) != 0) {
@@ -712,6 +715,9 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
     case NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT:
       if (decode_varint_param(&params->active_connection_id_limit, &p, end) !=
           0) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      if (params->active_connection_id_limit < 2) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       break;

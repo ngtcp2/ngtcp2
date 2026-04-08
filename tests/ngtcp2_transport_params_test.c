@@ -38,6 +38,8 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_transport_params_decode_new),
   munit_void_test(test_ngtcp2_transport_params_convert_to_latest),
   munit_void_test(test_ngtcp2_transport_params_convert_to_old),
+  munit_void_test(test_ngtcp2_transport_params_decode_max_udp_payload_too_small),
+  munit_void_test(test_ngtcp2_transport_params_decode_active_cid_limit_too_small),
   munit_test_end(),
 };
 
@@ -583,3 +585,35 @@ void test_ngtcp2_transport_params_convert_to_latest(void) {
 }
 
 void test_ngtcp2_transport_params_convert_to_old(void) {}
+
+void test_ngtcp2_transport_params_decode_max_udp_payload_too_small(void) {
+  ngtcp2_transport_params params;
+  uint8_t buf[16];
+  uint8_t *p = buf;
+  int rv;
+
+  /* Encode max_udp_payload_size (ID=0x03) with value 1199 (< 1200) */
+  *p++ = 0x03;
+  *p++ = 0x02;
+  p = ngtcp2_put_uvarint(p, 1199);
+
+  rv = ngtcp2_transport_params_decode(&params, buf, (size_t)(p - buf));
+
+  assert_int(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM, ==, rv);
+}
+
+void test_ngtcp2_transport_params_decode_active_cid_limit_too_small(void) {
+  ngtcp2_transport_params params;
+  uint8_t buf[16];
+  uint8_t *p = buf;
+  int rv;
+
+  /* Encode active_connection_id_limit (ID=0x0e) with value 1 (< 2) */
+  *p++ = 0x0e;
+  *p++ = 0x01;
+  p = ngtcp2_put_uvarint(p, 1);
+
+  rv = ngtcp2_transport_params_decode(&params, buf, (size_t)(p - buf));
+
+  assert_int(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM, ==, rv);
+}
