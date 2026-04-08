@@ -124,7 +124,7 @@ STIN uint32_t ngtcp2_ntohl(uint32_t netlong) {
 STIN uint16_t ngtcp2_ntohs(uint16_t netshort) {
   uint16_t res;
   unsigned char *p = (unsigned char *)&netshort;
-  res = (uint16_t)(((uint16_t)*p++) << 8);
+  res = (uint16_t)((uint32_t)*p++ << 8);
   res += *p;
   return res;
 }
