@@ -114,6 +114,7 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
 
   if (ngtcp2_crypto_hkdf_extract(initial_secret, &ctx.md, client_dcid->data,
                                  client_dcid->datalen, salt, saltlen) != 0) {
+    ngtcp2_crypto_secure_zero(initial_secret_buf, sizeof(initial_secret_buf));
     return -1;
   }
 
@@ -305,7 +306,7 @@ int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
 
   if (ngtcp2_crypto_derive_packet_protection_key(key, iv, hp_key, version, aead,
                                                  md, secret, secretlen) != 0) {
-    return -1;
+    goto fail;
   }
 
   if (ngtcp2_crypto_aead_ctx_decrypt_init(&aead_ctx, aead, key, ivlen) != 0) {
@@ -463,7 +464,7 @@ int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
 
   if (ngtcp2_crypto_derive_packet_protection_key(key, iv, hp_key, version, aead,
                                                  md, secret, secretlen) != 0) {
-    return -1;
+    goto fail;
   }
 
   if (ngtcp2_crypto_aead_ctx_encrypt_init(&aead_ctx, aead, key, ivlen) != 0) {
@@ -587,19 +588,19 @@ int ngtcp2_crypto_derive_and_install_initial_key(
   if (ngtcp2_crypto_derive_initial_secrets(
         rx_secret, tx_secret, initial_secret, version, client_dcid,
         server ? NGTCP2_CRYPTO_SIDE_SERVER : NGTCP2_CRYPTO_SIDE_CLIENT) != 0) {
-    return -1;
+    goto fail;
   }
 
   if (ngtcp2_crypto_derive_packet_protection_key(
         rx_key, rx_iv, rx_hp_key, version, &ctx.aead, &ctx.md, rx_secret,
         NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
-    return -1;
+    goto fail;
   }
 
   if (ngtcp2_crypto_derive_packet_protection_key(
         tx_key, tx_iv, tx_hp_key, version, &ctx.aead, &ctx.md, tx_secret,
         NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
-    return -1;
+    goto fail;
   }
 
   if (ngtcp2_crypto_aead_ctx_decrypt_init(&rx_aead_ctx, &ctx.aead, rx_key,
@@ -740,19 +741,19 @@ int ngtcp2_crypto_derive_and_install_vneg_initial_key(
   if (ngtcp2_crypto_derive_initial_secrets(
         rx_secret, tx_secret, initial_secret, version, client_dcid,
         server ? NGTCP2_CRYPTO_SIDE_SERVER : NGTCP2_CRYPTO_SIDE_CLIENT) != 0) {
-    return -1;
+    goto fail;
   }
 
   if (ngtcp2_crypto_derive_packet_protection_key(
         rx_key, rx_iv, rx_hp_key, version, &ctx->aead, &ctx->md, rx_secret,
         NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
-    return -1;
+    goto fail;
   }
 
   if (ngtcp2_crypto_derive_packet_protection_key(
         tx_key, tx_iv, tx_hp_key, version, &ctx->aead, &ctx->md, tx_secret,
         NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
-    return -1;
+    goto fail;
   }
 
   if (ngtcp2_crypto_aead_ctx_decrypt_init(&rx_aead_ctx, &ctx->aead, rx_key,
@@ -953,6 +954,7 @@ static int crypto_derive_token_key(uint8_t *key, size_t keylen, uint8_t *iv,
 
   if (ngtcp2_crypto_hkdf_extract(intsecret, md, secret, secretlen, salt,
                                  saltlen) != 0) {
+    ngtcp2_crypto_secure_zero(intsecret, sizeof(intsecret));
     return -1;
   }
 
@@ -964,6 +966,7 @@ static int crypto_derive_token_key(uint8_t *key, size_t keylen, uint8_t *iv,
 
   if (ngtcp2_crypto_hkdf_expand(key, keylen, md, intsecret, sizeof(intsecret),
                                 info, (size_t)(p - info)) != 0) {
+    ngtcp2_crypto_secure_zero(intsecret, sizeof(intsecret));
     return -1;
   }
 
@@ -1051,6 +1054,8 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
         key, keylen, iv, ivlen, &md, secret, secretlen, rand_data,
         sizeof(rand_data), retry_token_info_prefix,
         ngtcp2_strlen_lit(retry_token_info_prefix)) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return -1;
   }
 
@@ -1061,6 +1066,8 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   *p++ = NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY;
 
   if (ngtcp2_crypto_aead_ctx_encrypt_init(&aead_ctx, &aead, key, ivlen) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return -1;
   }
 
@@ -1068,6 +1075,9 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
                              ivlen, aad, aadlen);
 
   ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  ngtcp2_crypto_secure_zero(key, sizeof(key));
+  ngtcp2_crypto_secure_zero(iv, sizeof(iv));
 
   if (rv != 0) {
     return -1;
@@ -1128,6 +1138,8 @@ int ngtcp2_crypto_verify_retry_token(
         key, keylen, iv, ivlen, &md, secret, secretlen, rand_data,
         NGTCP2_CRYPTO_TOKEN_RAND_DATALEN, retry_token_info_prefix,
         ngtcp2_strlen_lit(retry_token_info_prefix)) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return -1;
   }
 
@@ -1135,6 +1147,8 @@ int ngtcp2_crypto_verify_retry_token(
                                            remote_addrlen, dcid);
 
   if (ngtcp2_crypto_aead_ctx_decrypt_init(&aead_ctx, &aead, key, ivlen) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return -1;
   }
 
@@ -1142,6 +1156,9 @@ int ngtcp2_crypto_verify_retry_token(
                              ciphertextlen, iv, ivlen, aad, aadlen);
 
   ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  ngtcp2_crypto_secure_zero(key, sizeof(key));
+  ngtcp2_crypto_secure_zero(iv, sizeof(iv));
 
   if (rv != 0) {
     return -1;
@@ -1229,6 +1246,8 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token2(
         key, keylen, iv, ivlen, &md, secret, secretlen, rand_data,
         sizeof(rand_data), retry_token_info_prefix2,
         ngtcp2_strlen_lit(retry_token_info_prefix2)) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return -1;
   }
 
@@ -1238,6 +1257,8 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token2(
   *p++ = NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY2;
 
   if (ngtcp2_crypto_aead_ctx_encrypt_init(&aead_ctx, &aead, key, ivlen) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return -1;
   }
 
@@ -1245,6 +1266,9 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token2(
                              iv, ivlen, aad, aadlen);
 
   ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  ngtcp2_crypto_secure_zero(key, sizeof(key));
+  ngtcp2_crypto_secure_zero(iv, sizeof(iv));
 
   if (rv != 0) {
     return -1;
@@ -1307,12 +1331,16 @@ int ngtcp2_crypto_verify_retry_token2(
         key, keylen, iv, ivlen, &md, secret, secretlen, rand_data,
         NGTCP2_CRYPTO_TOKEN_RAND_DATALEN, retry_token_info_prefix2,
         ngtcp2_strlen_lit(retry_token_info_prefix2)) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return NGTCP2_CRYPTO_ERR_INTERNAL;
   }
 
   aadlen = crypto_generate_retry_token_aad2(aad, version, dcid);
 
   if (ngtcp2_crypto_aead_ctx_decrypt_init(&aead_ctx, &aead, key, ivlen) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return NGTCP2_CRYPTO_ERR_INTERNAL;
   }
 
@@ -1320,6 +1348,9 @@ int ngtcp2_crypto_verify_retry_token2(
                              ciphertextlen, iv, ivlen, aad, aadlen);
 
   ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  ngtcp2_crypto_secure_zero(key, sizeof(key));
+  ngtcp2_crypto_secure_zero(iv, sizeof(iv));
 
   if (rv != 0) {
     return NGTCP2_CRYPTO_ERR_UNREADABLE_TOKEN;
@@ -1452,6 +1483,8 @@ static ngtcp2_ssize crypto_generate_regular_token(
         key, keylen, iv, ivlen, &md, secret, secretlen, rand_data,
         sizeof(rand_data), regular_token_info_prefix,
         ngtcp2_strlen_lit(regular_token_info_prefix)) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return -1;
   }
 
@@ -1461,6 +1494,8 @@ static ngtcp2_ssize crypto_generate_regular_token(
   *p++ = NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR;
 
   if (ngtcp2_crypto_aead_ctx_encrypt_init(&aead_ctx, &aead, key, ivlen) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return -1;
   }
 
@@ -1468,6 +1503,9 @@ static ngtcp2_ssize crypto_generate_regular_token(
                              ivlen, aad, aadlen);
 
   ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  ngtcp2_crypto_secure_zero(key, sizeof(key));
+  ngtcp2_crypto_secure_zero(iv, sizeof(iv));
 
   if (rv != 0) {
     return -1;
@@ -1528,12 +1566,16 @@ static ngtcp2_ssize crypto_verify_regular_token(
         key, keylen, iv, ivlen, &md, secret, secretlen, rand_data,
         NGTCP2_CRYPTO_TOKEN_RAND_DATALEN, regular_token_info_prefix,
         ngtcp2_strlen_lit(regular_token_info_prefix)) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return NGTCP2_CRYPTO_ERR_INTERNAL;
   }
 
   aadlen = crypto_generate_regular_token_aad(aad, remote_addr);
 
   if (ngtcp2_crypto_aead_ctx_decrypt_init(&aead_ctx, &aead, key, ivlen) != 0) {
+    ngtcp2_crypto_secure_zero(key, sizeof(key));
+    ngtcp2_crypto_secure_zero(iv, sizeof(iv));
     return NGTCP2_CRYPTO_ERR_INTERNAL;
   }
 
@@ -1541,6 +1583,9 @@ static ngtcp2_ssize crypto_verify_regular_token(
                              ciphertextlen, iv, ivlen, aad, aadlen);
 
   ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  ngtcp2_crypto_secure_zero(key, sizeof(key));
+  ngtcp2_crypto_secure_zero(iv, sizeof(iv));
 
   if (rv != 0) {
     return NGTCP2_CRYPTO_ERR_UNREADABLE_TOKEN;
@@ -1631,13 +1676,15 @@ ngtcp2_ssize ngtcp2_crypto_write_connection_close(
   if (ngtcp2_crypto_derive_initial_secrets(rx_secret, tx_secret, initial_secret,
                                            version, scid,
                                            NGTCP2_CRYPTO_SIDE_SERVER) != 0) {
-    return -1;
+    spktlen = -1;
+    goto end;
   }
 
   if (ngtcp2_crypto_derive_packet_protection_key(
         tx_key, tx_iv, tx_hp_key, version, &ctx.aead, &ctx.md, tx_secret,
         NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
-    return -1;
+    spktlen = -1;
+    goto end;
   }
 
   if (ngtcp2_crypto_aead_ctx_encrypt_init(&aead_ctx, &ctx.aead, tx_key,
