@@ -36,6 +36,7 @@
 #include <string_view>
 #include <functional>
 #include <span>
+#include <filesystem>
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
@@ -59,11 +60,11 @@ struct Config {
   // groups is the list of supported groups.
   const char *groups{util::crypto_default_groups()};
   // htdocs is a root directory to serve documents.
-  std::string htdocs{util::realpath(".")};
+  std::filesystem::path htdocs{util::realpath(".")};
   // mime_types_file is a path to "MIME media types and the
   // extensions" file.  Ubuntu mime-support package includes it in
   // /etc/mime/types.
-  std::string_view mime_types_file{"/etc/mime.types"sv};
+  std::filesystem::path mime_types_file{"/etc/mime.types"sv};
   // mime_types maps file extension to MIME media type.
   std::unordered_map<std::string, std::string> mime_types;
   // port is the port number which server listens on for incoming
@@ -87,7 +88,7 @@ struct Config {
   // certificate based authentication.
   bool verify_client{};
   // qlog_dir is the path to directory where qlog is stored.
-  std::string_view qlog_dir;
+  std::filesystem::path qlog_dir;
   // no_quic_dump is true if hexdump of QUIC STREAM and CRYPTO data
   // should be disabled.
   bool no_quic_dump{};

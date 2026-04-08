@@ -28,6 +28,7 @@
 #include <array>
 #include <iterator>
 #include <expected>
+#include <filesystem>
 
 #include "util.h"
 
@@ -61,21 +62,21 @@ const MunitSuite util_suite{
 
 namespace util {
 std::expected<HPKEPrivateKey, Error>
-read_hpke_private_key_pem(std::string_view filename) {
+read_hpke_private_key_pem(const std::filesystem::path &path) {
   return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 } // namespace util
 
 namespace util {
-std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
-                                                    std::string_view name,
-                                                    std::string_view type) {
+std::expected<std::vector<uint8_t>, Error>
+read_pem(const std::filesystem::path &path, std::string_view name,
+         std::string_view type) {
   return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 } // namespace util
 
 namespace util {
-std::expected<void, Error> write_pem(std::string_view filename,
+std::expected<void, Error> write_pem(const std::filesystem::path &path,
                                      std::string_view name,
                                      std::string_view type,
                                      std::span<const uint8_t> data) {

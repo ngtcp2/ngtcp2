@@ -87,7 +87,7 @@ struct Stream {
   Stream(int64_t stream_id, Handler *handler);
 
   std::expected<void, Error> start_response();
-  std::expected<FileEntry, Error> open_file(const std::string &path);
+  std::expected<FileEntry, Error> open_file(const std::filesystem::path &path);
   void map_file(const FileEntry &fe);
   std::expected<void, Error>
   send_status_response(ProtoCodec *pc, unsigned int status_code,
