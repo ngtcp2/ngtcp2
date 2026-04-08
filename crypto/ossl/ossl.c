@@ -160,13 +160,13 @@ static EVP_KDF *crypto_kdf_hkdf(void) {
     return crypto_hkdf;
   }
 
-  return EVP_KDF_fetch(NULL, "hkdf", NULL);
+  crypto_hkdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
+
+  return crypto_hkdf;
 }
 
 static void crypto_kdf_hkdf_free(EVP_KDF *kdf) {
-  if (kdf && crypto_hkdf != kdf) {
-    EVP_KDF_free(kdf);
-  }
+  (void)kdf;
 }
 
 static size_t crypto_aead_max_overhead(const EVP_CIPHER *aead) {
