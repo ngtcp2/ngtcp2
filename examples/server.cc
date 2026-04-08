@@ -2902,22 +2902,24 @@ int main(int argc, char **argv) {
           config.max_dyn_length = *n;
         }
         break;
-      case 19:
+      case 19: {
         // --cc
-        if (strcmp("cubic", optarg) == 0) {
+        auto cc = std::string_view{optarg};
+        if (cc == "cubic"sv) {
           config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
           break;
         }
-        if (strcmp("reno", optarg) == 0) {
+        if (cc == "reno"sv) {
           config.cc_algo = NGTCP2_CC_ALGO_RENO;
           break;
         }
-        if (strcmp("bbr", optarg) == 0) {
+        if (cc == "bbr"sv) {
           config.cc_algo = NGTCP2_CC_ALGO_BBR;
           break;
         }
         std::println(stderr, "cc: specify cubic, reno, or bbr");
         exit(EXIT_FAILURE);
+      }
       case 20:
         // --initial-rtt
         if (auto t = util::parse_duration(optarg); !t) {
