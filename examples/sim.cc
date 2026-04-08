@@ -42,11 +42,11 @@ using namespace std::literals;
 
 namespace ngtcp2 {
 
-namespace {
 constexpr auto ALPN_LIST = "ngtcp2-sim"sv;
 constexpr size_t CIDLEN = 10;
 constexpr uint8_t SERVER_SECRET[] = "server_secret";
 
+namespace {
 std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
   if (wolfSSL_RAND_bytes(data.data(), static_cast<int>(data.size())) != 1) {
     return std::unexpected{Error::CRYPTO};
@@ -301,7 +301,6 @@ Endpoint &Endpoint::operator=(Endpoint &&other) noexcept {
   return *this;
 }
 
-namespace {
 constexpr auto tls_key = R"(-----BEGIN PRIVATE KEY-----
 MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgwEvkGGgXAcRaG7Z8
 gA7C6+W2RsW9gcjV9e5ybr0ikaahRANCAASCo35bDi+Q/q/CzHI1e5QaBrbqbFhW
@@ -323,7 +322,6 @@ MAMBAf8wCgYIKoZIzj0EAwIDSAAwRQIhAO4tnDNRAcooz62vf2m7vTyDqFCjcaIv
 SJ9Gq0lvEXEcAiBwWBNUASBqLaje3hmtgwxcF7EIqqiGo5j8f9Ufgu6SRg==
 -----END CERTIFICATE-----
 )"sv;
-} // namespace
 
 std::expected<void, Error>
 Endpoint::setup_server(std::span<const uint8_t> original_dcid,

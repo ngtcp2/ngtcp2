@@ -57,13 +57,9 @@
 using namespace ngtcp2;
 using namespace std::literals;
 
-namespace {
 constexpr size_t NGTCP2_SV_SCIDLEN = 18;
-} // namespace
 
-namespace {
 constexpr size_t max_preferred_versionslen = 4;
-} // namespace
 
 namespace {
 auto randgen = util::make_mt19937();
