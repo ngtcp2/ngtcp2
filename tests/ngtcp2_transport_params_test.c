@@ -591,16 +591,11 @@ void test_ngtcp2_transport_params_decode_max_idle_timeout_overflow(void) {
   uint8_t *p = buf;
   int rv;
 
-  /* Encode max_idle_timeout transport param (ID=0x01) with value
-     4611686018427387903 (max varint), which overflows when multiplied
-     by NGTCP2_MILLISECONDS (1000000). */
-
-  /* param ID = 0x01 (1 byte varint) */
-  *p++ = 0x01;
-  /* param length = 8 bytes (1 byte varint for length 8) */
-  *p++ = 0x08;
-  /* value = 4611686018427387903 = (1<<62)-1 as 8-byte varint */
-  p = ngtcp2_put_uvarint(p, 4611686018427387903ULL);
+  /* Encode max_idle_timeout transport param with value NGTCP2_MAX_VARINT,
+     which overflows when multiplied by NGTCP2_MILLISECONDS. */
+  p = ngtcp2_put_uvarint(p, NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT);
+  p = ngtcp2_put_uvarint(p, ngtcp2_put_uvarintlen(NGTCP2_MAX_VARINT));
+  p = ngtcp2_put_uvarint(p, NGTCP2_MAX_VARINT);
 
   rv = ngtcp2_transport_params_decode(&params, buf, (size_t)(p - buf));
 
