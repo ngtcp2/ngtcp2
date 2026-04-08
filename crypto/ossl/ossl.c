@@ -74,7 +74,9 @@ int ngtcp2_crypto_ossl_init(void) {
 #endif /* !defined(NGTCP2_NO_CHACHA_POLY1305) */
   crypto_sha256 = EVP_MD_fetch(NULL, "sha256", NULL);
   crypto_sha384 = EVP_MD_fetch(NULL, "sha384", NULL);
-  crypto_hkdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
+  if (!crypto_hkdf) {
+    crypto_hkdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
+  }
 
   return 0;
 }
@@ -160,13 +162,13 @@ static EVP_KDF *crypto_kdf_hkdf(void) {
     return crypto_hkdf;
   }
 
-  crypto_hkdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
-
-  return crypto_hkdf;
+  return EVP_KDF_fetch(NULL, "hkdf", NULL);
 }
 
 static void crypto_kdf_hkdf_free(EVP_KDF *kdf) {
-  (void)kdf;
+  if (kdf != crypto_hkdf) {
+    EVP_KDF_free(kdf);
+  }
 }
 
 static size_t crypto_aead_max_overhead(const EVP_CIPHER *aead) {
