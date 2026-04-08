@@ -883,8 +883,7 @@ static int crypto_derive_token_key(uint8_t *key, size_t keylen, uint8_t *iv,
   uint8_t *p;
 
   if (ngtcp2_crypto_md_hashlen(md) != sizeof(intsecret) ||
-      info_prefixlen + ngtcp2_strlen_lit(key_info_suffix) > sizeof(info) ||
-      info_prefixlen + ngtcp2_strlen_lit(iv_info_suffix) > sizeof(info)) {
+      info_prefixlen > sizeof(info) - ngtcp2_strlen_lit(key_info_suffix)) {
     return -1;
   }
 
