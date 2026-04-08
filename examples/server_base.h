@@ -178,7 +178,7 @@ struct HTTPHeader {
   std::string_view value;
 };
 
-inline constexpr size_t NGTCP2_STATELESS_RESET_BURST = 100;
+inline constexpr auto NGTCP2_STATELESS_RESET_BURST = 100UZ;
 
 struct Buffer {
   Buffer(const uint8_t *data, size_t datalen);

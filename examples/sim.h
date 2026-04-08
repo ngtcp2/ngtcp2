@@ -45,7 +45,7 @@
 #include "shared.h"
 
 namespace ngtcp2 {
-inline constexpr size_t MAX_UDP_PAYLOAD_SIZE = 1500;
+inline constexpr auto MAX_UDP_PAYLOAD_SIZE = 1500UZ;
 
 using Timestamp =
   std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds>;

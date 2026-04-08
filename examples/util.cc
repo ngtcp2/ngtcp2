@@ -270,7 +270,7 @@ std::expected<void, Error> hexdump(FILE *out, std::span<const uint8_t> data) {
   // accept, which is the size of a single full line output + one
   // repeat line marker ("*\n").  If the remaining buffer size is less
   // than that, flush the buffer and reset.
-  constexpr size_t min_space = 79 + 2;
+  constexpr auto min_space = 79UZ + 2UZ;
 
   auto fd = fileno(out);
   std::array<uint8_t, 4096> buf;
@@ -614,7 +614,7 @@ template <typename InputIt> InputIt eat_dir(InputIt first, InputIt last) {
 } // namespace
 
 std::expected<std::string, Error> normalize_path(std::string_view path) {
-  constexpr size_t max_path = 1024;
+  constexpr auto max_path = 1024UZ;
 
   if (path.size() > max_path) {
     return std::unexpected{Error::INVALID_ARGUMENT};
