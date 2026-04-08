@@ -882,9 +882,11 @@ static int crypto_derive_token_key(uint8_t *key, size_t keylen, uint8_t *iv,
   uint8_t info[32];
   uint8_t *p;
 
-  assert(ngtcp2_crypto_md_hashlen(md) == sizeof(intsecret));
-  assert(info_prefixlen + ngtcp2_strlen_lit(key_info_suffix) <= sizeof(info));
-  assert(info_prefixlen + ngtcp2_strlen_lit(iv_info_suffix) <= sizeof(info));
+  if (ngtcp2_crypto_md_hashlen(md) != sizeof(intsecret) ||
+      info_prefixlen + ngtcp2_strlen_lit(key_info_suffix) > sizeof(info) ||
+      info_prefixlen + ngtcp2_strlen_lit(iv_info_suffix) > sizeof(info)) {
+    return -1;
+  }
 
   if (ngtcp2_crypto_hkdf_extract(intsecret, md, secret, secretlen, salt,
                                  saltlen) != 0) {
