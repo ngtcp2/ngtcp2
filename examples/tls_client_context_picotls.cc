@@ -45,10 +45,10 @@ int save_ticket_cb(ptls_save_ticket_t *self, ptls_t *ptls, ptls_iovec_t input) {
 
   c->ticket_received();
 
-  auto f = BIO_new_file(config.session_file, "w");
+  auto f = BIO_new_file(config.session_file.c_str(), "w");
   if (f == nullptr) {
     std::println(stderr, "Could not write TLS session in {}",
-                 config.session_file);
+                 config.session_file.native());
     return 0;
   }
 
@@ -121,7 +121,7 @@ std::expected<void, Error> TLSClientContext::init(const char *private_key_file,
     return std::unexpected{Error::CRYPTO};
   }
 
-  if (config.session_file) {
+  if (!config.session_file.empty()) {
     ctx_.save_ticket = &save_ticket;
   }
 

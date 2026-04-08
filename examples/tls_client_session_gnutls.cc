@@ -45,7 +45,8 @@ extern Config config;
 namespace {
 int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
               unsigned int incoming, const gnutls_datum_t *msg) {
-  if (config.session_file && htype == GNUTLS_HANDSHAKE_NEW_SESSION_TICKET) {
+  if (!config.session_file.empty() &&
+      htype == GNUTLS_HANDSHAKE_NEW_SESSION_TICKET) {
     auto conn_ref =
       static_cast<ngtcp2_crypto_conn_ref *>(gnutls_session_get_ptr(session));
     auto c = static_cast<ClientBase *>(conn_ref->user_data);
@@ -68,7 +69,7 @@ int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
           gnutls_pem_base64_encode2("GNUTLS SESSION PARAMETERS", &data, &d);
         rv < 0) {
       std::println(stderr, "Could not encode session in {}",
-                   config.session_file);
+                   config.session_file.native());
       return -1;
     }
 
@@ -120,7 +121,7 @@ TLSClientSession::init(bool &early_data_enabled,
     return std::unexpected{Error::CRYPTO};
   }
 
-  if (config.session_file) {
+  if (!config.session_file.empty()) {
     auto f = std::ifstream(config.session_file);
     if (f) {
       f.seekg(0, std::ios::end);
@@ -139,7 +140,7 @@ TLSClientSession::init(bool &early_data_enabled,
             gnutls_pem_base64_decode2("GNUTLS SESSION PARAMETERS", &s, &d);
           rv < 0) {
         std::println(stderr, "Could not read session in {}",
-                     config.session_file);
+                     config.session_file.native());
         return std::unexpected{Error::IO};
       }
 

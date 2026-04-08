@@ -191,8 +191,9 @@ namespace {
 std::unordered_map<std::string, FileEntry> file_cache;
 } // namespace
 
-std::expected<FileEntry, Error> Stream::open_file(const std::string &path) {
-  auto it = file_cache.find(path);
+std::expected<FileEntry, Error>
+Stream::open_file(const std::filesystem::path &path) {
+  auto it = file_cache.find(path.native());
   if (it != std::ranges::end(file_cache)) {
     return (*it).second;
   }
@@ -226,7 +227,7 @@ std::expected<FileEntry, Error> Stream::open_file(const std::string &path) {
     }
   }
 
-  file_cache.emplace(path, fe);
+  file_cache.emplace(path.native(), fe);
 
   return fe;
 }
@@ -770,13 +771,12 @@ Handler::init(const Endpoint &ep, const Address &local_addr,
     settings.no_tx_udp_payload_size_shaping = 1;
   }
   if (!config.qlog_dir.empty()) {
-    auto path = std::string{config.qlog_dir};
-    path += '/';
-    path += util::format_hex(scid_.data, as_signed(scid_.datalen));
+    auto path = config.qlog_dir;
+    path /= util::format_hex(scid_.data, as_signed(scid_.datalen));
     path += ".sqlog";
     qlog_ = fopen(path.c_str(), "w");
     if (qlog_ == nullptr) {
-      std::println(stderr, "Could not open qlog file {}: {}", path,
+      std::println(stderr, "Could not open qlog file {}: {}", path.native(),
                    strerror(errno));
       return std::unexpected{Error::IO};
     }
@@ -2518,7 +2518,7 @@ Options:
               Path  to file  that contains  MIME media  types and  the
               extensions.
               Default: )"
-            << config.mime_types_file << R"(
+            << config.mime_types_file.native() << R"(
   --early-response
               Start  sending response  when  it  receives HTTP  header
               fields  without  waiting  for  request  body.   If  HTTP
@@ -2673,7 +2673,7 @@ int main(int argc, char **argv) {
     prog = basename(argv[0]);
   }
 
-  std::string_view ech_config_file;
+  std::filesystem::path ech_config_file;
 
   for (;;) {
     static int flag = 0;
@@ -3183,7 +3183,7 @@ int main(int argc, char **argv) {
   if (auto mt = util::read_mime_types(config.mime_types_file); !mt) {
     std::println(stderr,
                  "mime-types-file: Could not read MIME media types file {}",
-                 config.mime_types_file);
+                 config.mime_types_file.native());
   } else {
     config.mime_types = std::move(*mt);
   }
@@ -3205,11 +3205,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  if (config.htdocs.back() != '/') {
-    config.htdocs += '/';
-  }
-
-  std::println(stderr, "Using document root {}", config.htdocs);
+  std::println(stderr, "Using document root {}", config.htdocs.native());
 
   auto ev_loop_d = defer([] { ev_loop_destroy(EV_DEFAULT); });
 

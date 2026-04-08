@@ -545,7 +545,9 @@ std::expected<void, Error> ProtoCodec::start_response(Stream *stream) {
 
   auto maybe_dyn_len = stream->find_dyn_length(req.path);
   if (!maybe_dyn_len) {
-    auto path = config.htdocs + req.path;
+    auto path = config.htdocs;
+    path /= std::filesystem::path{req.path}.relative_path();
+
     auto maybe_fe = stream->open_file(path);
     if (!maybe_fe) {
       return send_status_response(stream, 404);
@@ -554,8 +556,7 @@ std::expected<void, Error> ProtoCodec::start_response(Stream *stream) {
     const auto &fe = *maybe_fe;
 
     if (fe.flags & FILE_ENTRY_TYPE_DIR) {
-      return send_redirect_response(
-        stream, 308, path.substr(config.htdocs.size() - 1) + '/');
+      return send_redirect_response(stream, 308, req.path + '/');
     }
 
     content_length = fe.len;
@@ -566,14 +567,9 @@ std::expected<void, Error> ProtoCodec::start_response(Stream *stream) {
 
     dr.read_data = read_data;
 
-    auto ext = std::ranges::end(req.path) - 1;
-    for (; ext != std::ranges::begin(req.path) && *ext != '.' && *ext != '/';
-         --ext)
-      ;
-    if (*ext == '.') {
-      ++ext;
-      auto it =
-        config.mime_types.find(std::string{ext, std::ranges::end(req.path)});
+    auto ext = path.extension();
+    if (!ext.empty() && ext != ".") {
+      auto it = config.mime_types.find(ext.native());
       if (it != std::ranges::end(config.mime_types)) {
         content_type = (*it).second;
       }

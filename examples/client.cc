@@ -87,14 +87,13 @@ std::expected<void, Error> Stream::open_file(std::string_view path) {
     }
   }
 
-  auto fname = std::string{config.download};
-  fname += '/';
-  fname += filename;
+  auto fpath = config.download;
+  fpath /= filename;
 
-  fd = open(fname.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
+  fd = open(fpath.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (fd == -1) {
-    std::println(stderr, "open: Could not open file {}: {}", fname,
+    std::println(stderr, "open: Could not open file {}: {}", fpath.native(),
                  strerror(errno));
     return std::unexpected{Error::IO};
   }
@@ -318,7 +317,7 @@ std::expected<void, Error> Client::handshake_completed() {
     }
   }
 
-  if (config.tp_file) {
+  if (!config.tp_file.empty()) {
     std::array<uint8_t, 256> data;
     auto datalen =
       ngtcp2_conn_encode_0rtt_transport_params(conn_, data.data(), data.size());
@@ -328,7 +327,7 @@ std::expected<void, Error> Client::handshake_completed() {
     } else if (!util::write_transport_params(
                  config.tp_file, {data.data(), static_cast<size_t>(datalen)})) {
       std::println(stderr, "Could not write transport parameters to {}",
-                   config.tp_file);
+                   config.tp_file.native());
     }
   }
 
@@ -703,18 +702,17 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
   ngtcp2_settings_default(&settings);
   settings.log_write = config.quiet ? nullptr : debug::log_write;
   if (!config.qlog_file.empty() || !config.qlog_dir.empty()) {
-    std::string path;
+    std::filesystem::path path;
     if (!config.qlog_file.empty()) {
       path = config.qlog_file;
     } else {
-      path = std::string{config.qlog_dir};
-      path += '/';
-      path += util::format_hex(scid.data, as_signed(scid.datalen));
+      path = config.qlog_dir;
+      path /= util::format_hex(scid.data, as_signed(scid.datalen));
       path += ".sqlog";
     }
     qlog_ = fopen(path.c_str(), "w");
     if (qlog_ == nullptr) {
-      std::println(stderr, "Could not open qlog file {}: {}", path,
+      std::println(stderr, "Could not open qlog file {}: {}", path.native(),
                    strerror(errno));
       return std::unexpected{Error::IO};
     }
@@ -743,7 +741,7 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
   std::vector<uint8_t> token;
 
   if (!config.token_file.empty()) {
-    std::println(stderr, "Reading token file {}", config.token_file);
+    std::println(stderr, "Reading token file {}", config.token_file.native());
 
     auto t = util::read_token(config.token_file);
     if (t) {
@@ -812,7 +810,7 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
 
   ngtcp2_conn_set_tls_native_handle(conn_, tls_session_.get_native_handle());
 
-  if (early_data_ && config.tp_file) {
+  if (early_data_ && !config.tp_file.empty()) {
     auto params = util::read_transport_params(config.tp_file);
     if (!params) {
       early_data_ = false;
@@ -857,10 +855,11 @@ Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
         auto alert = ngtcp2_conn_get_tls_alert(conn_);
         ngtcp2_ccerr_set_tls_alert(&last_error_, alert, nullptr, 0);
 
-        if (alert == TLS_ALERT_ECH_REQUIRED && config.ech_config_list_file &&
+        if (alert == TLS_ALERT_ECH_REQUIRED &&
+            !config.ech_config_list_file.empty() &&
             !tls_session_.write_ech_config_list(config.ech_config_list_file)) {
           std::println(stderr, "Could not write ECH retry configs in {}",
-                       config.ech_config_list_file);
+                       config.ech_config_list_file.native());
         }
       } else {
         ngtcp2_ccerr_set_liberr(&last_error_, rv, nullptr, 0);
@@ -2778,7 +2777,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  if (config.wait_for_ticket && !config.session_file) {
+  if (config.wait_for_ticket && config.session_file.empty()) {
     std::println(stderr, "wait-for-ticket: session-file must be specified");
     exit(EXIT_FAILURE);
   }
@@ -2809,7 +2808,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (config.ech_config_list_file) {
+  if (!config.ech_config_list_file.empty()) {
     auto ech_config = util::read_file(config.ech_config_list_file);
     if (!ech_config) {
       std::println(stderr,

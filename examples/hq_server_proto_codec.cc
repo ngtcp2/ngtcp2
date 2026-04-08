@@ -226,7 +226,9 @@ std::expected<void, Error> ProtoCodec::start_response(Stream *stream) {
 
   const auto &req = *maybe_req;
 
-  auto path = config.htdocs + req.path;
+  auto path = config.htdocs;
+  path /= std::filesystem::path{req.path}.relative_path();
+
   auto maybe_fe = stream->open_file(path);
   if (!maybe_fe) {
     send_status_response(stream, 404);

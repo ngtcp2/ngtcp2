@@ -58,13 +58,13 @@ namespace ngtcp2 {
 namespace util {
 
 std::expected<HPKEPrivateKey, Error>
-read_hpke_private_key_pem(std::string_view filename);
+read_hpke_private_key_pem(const std::filesystem::path &path);
 
-std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
-                                                    std::string_view name,
-                                                    std::string_view type);
+std::expected<std::vector<uint8_t>, Error>
+read_pem(const std::filesystem::path &path, std::string_view name,
+         std::string_view type);
 
-std::expected<void, Error> write_pem(std::string_view filename,
+std::expected<void, Error> write_pem(const std::filesystem::path &path,
                                      std::string_view name,
                                      std::string_view type,
                                      std::span<const uint8_t> data);
@@ -390,8 +390,8 @@ constexpr bool rws(char c) { return c == '\t' || c == ' '; }
 } // namespace
 
 std::expected<std::unordered_map<std::string, std::string>, Error>
-read_mime_types(std::string_view filename) {
-  std::ifstream f(filename.data());
+read_mime_types(const std::filesystem::path &filename) {
+  std::ifstream f(filename);
   if (!f) {
     return std::unexpected{Error::IO};
   }
@@ -417,7 +417,9 @@ read_mime_types(std::string_view filename) {
       }
 
       p = std::ranges::find_if(ext, std::ranges::end(line), rws);
-      dest.emplace(std::string{ext, p}, media_type);
+      auto key = "."s;
+      key += std::string{ext, p};
+      dest.emplace(key, media_type);
     }
   }
 
@@ -726,25 +728,25 @@ std::expected<uint32_t, Error> parse_version(std::string_view s) {
 }
 
 std::expected<std::vector<uint8_t>, Error>
-read_token(std::string_view filename) {
-  return read_pem(filename, "token"sv, "QUIC TOKEN"sv);
+read_token(const std::filesystem::path &path) {
+  return read_pem(path, "token"sv, "QUIC TOKEN"sv);
 }
 
-std::expected<void, Error> write_token(std::string_view filename,
+std::expected<void, Error> write_token(const std::filesystem::path &path,
                                        std::span<const uint8_t> token) {
-  return write_pem(filename, "token"sv, "QUIC TOKEN"sv, token);
+  return write_pem(path, "token"sv, "QUIC TOKEN"sv, token);
 }
 
 std::expected<std::vector<uint8_t>, Error>
-read_transport_params(std::string_view filename) {
-  return read_pem(filename, "transport parameters"sv,
+read_transport_params(const std::filesystem::path &path) {
+  return read_pem(path, "transport parameters"sv,
                   "QUIC TRANSPORT PARAMETERS"sv);
 }
 
 std::expected<void, Error>
-write_transport_params(std::string_view filename,
+write_transport_params(const std::filesystem::path &path,
                        std::span<const uint8_t> data) {
-  return write_pem(filename, "transport parameters"sv,
+  return write_pem(path, "transport parameters"sv,
                    "QUIC TRANSPORT PARAMETERS"sv, data);
 }
 
@@ -778,8 +780,9 @@ std::string percent_decode(std::string_view s) {
   return result;
 }
 
-std::expected<std::vector<uint8_t>, Error> read_file(std::string_view path) {
-  auto fd = open(path.data(), O_RDONLY);
+std::expected<std::vector<uint8_t>, Error>
+read_file(const std::filesystem::path &path) {
+  auto fd = open(path.c_str(), O_RDONLY);
   if (fd == -1) {
     return std::unexpected{Error::IO};
   }
@@ -820,7 +823,7 @@ bool recv_pkt_time_threshold_exceeded(bool time_sensitive, ngtcp2_tstamp start,
 }
 
 std::expected<ECHServerConfig, Error>
-read_ech_server_config(std::string_view path) {
+read_ech_server_config(const std::filesystem::path &path) {
   auto pkey = read_hpke_private_key_pem(path);
   if (!pkey) {
     return std::unexpected{pkey.error()};
@@ -854,16 +857,17 @@ std::span<uint64_t, 2> generate_siphash_key() {
   return key;
 }
 
-std::string realpath(const char *path) {
-  auto cpath = ::realpath(path, nullptr);
-  if (!cpath) {
-    assert(0);
+std::filesystem::path realpath(const std::filesystem::path &path) {
+  std::error_code ec;
+
+  auto abspath = std::filesystem::canonical(path, ec);
+  if (ec) {
+    std::println(stderr, "Could not get canonical path for {}: {}",
+                 path.native(), ec.message());
     abort();
   }
 
-  auto cpath_d = defer([cpath] { free(cpath); });
-
-  return cpath;
+  return abspath;
 }
 
 } // namespace util
