@@ -440,7 +440,7 @@ static int crypto_ossl_ctx_write_crypto_data(ngtcp2_crypto_ossl_ctx *ossl_ctx,
       left = crypto_buf_left(ossl_ctx->crypto_write);
     }
 
-    n = ngtcp2_min_size((size_t)(end - data), left);
+    n = ngtcp2_min((size_t)(end - data), left);
     crypto_buf_write(ossl_ctx->crypto_write, data, n);
     data += n;
   }

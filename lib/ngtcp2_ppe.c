@@ -189,7 +189,7 @@ size_t ngtcp2_ppe_padding_size(ngtcp2_ppe *ppe, size_t n) {
   size_t len = 0;
   size_t max_samplelen;
 
-  n = ngtcp2_min_size(n, ngtcp2_buf_cap(buf));
+  n = ngtcp2_min(n, ngtcp2_buf_cap(buf));
   if (pktlen < n) {
     len = n - pktlen;
   }
@@ -199,7 +199,7 @@ size_t ngtcp2_ppe_padding_size(ngtcp2_ppe *ppe, size_t n) {
     ngtcp2_buf_len(buf) + cc->aead.max_overhead - ppe_sample_offset(ppe);
 
   if (max_samplelen < NGTCP2_HP_SAMPLELEN) {
-    len = ngtcp2_max_size(len, NGTCP2_HP_SAMPLELEN - max_samplelen);
+    len = ngtcp2_max(len, NGTCP2_HP_SAMPLELEN - max_samplelen);
   }
 
   assert(ngtcp2_buf_left(buf) >= len + cc->aead.max_overhead);
@@ -224,7 +224,7 @@ size_t ngtcp2_ppe_dgram_padding_size(ngtcp2_ppe *ppe, size_t n) {
     ppe->dgram_offset + ngtcp2_buf_len(buf) + cc->aead.max_overhead;
   size_t len;
 
-  n = ngtcp2_min_size(n, ppe->dgram_offset + ngtcp2_buf_cap(buf));
+  n = ngtcp2_min(n, ppe->dgram_offset + ngtcp2_buf_cap(buf));
 
   if (dgramlen >= n) {
     return 0;

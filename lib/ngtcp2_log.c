@@ -238,7 +238,7 @@ static void log_fr_reset_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                     const ngtcp2_connection_close *fr,
                                     const char *dir) {
-  size_t reasonlen = ngtcp2_min_size(255, fr->reasonlen);
+  size_t reasonlen = ngtcp2_min(255, fr->reasonlen);
 
   ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_FRM, NGTCP2_LOG_PKT(dir, hd),
                        " CONNECTION_CLOSE(0x", hex(fr->type), ") error_code=",
@@ -353,7 +353,7 @@ static void log_fr_new_token(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   /* Show at most first NGTCP2_LOG_MAX_TOKENLEN bytes of token.  If
      token is longer than that, log first those bytes and then append
      "*" */
-  size_t tokenlen = ngtcp2_min_size(fr->tokenlen, NGTCP2_LOG_MAX_TOKENLEN);
+  size_t tokenlen = ngtcp2_min(fr->tokenlen, NGTCP2_LOG_MAX_TOKENLEN);
 
   ngtcp2_log_infof_raw(
     log, NGTCP2_LOG_EVENT_FRM, NGTCP2_LOG_PKT(dir, hd), " NEW_TOKEN(0x",
