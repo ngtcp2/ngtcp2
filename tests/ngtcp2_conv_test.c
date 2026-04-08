@@ -250,6 +250,28 @@ void test_ngtcp2_get_uint32be(void) {
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
   assert_uint64(4294967295UL, ==, n);
+
+  /* 0xFF808080 - high bits set to exercise signed shift UB */
+  n = 0;
+  p = ngtcp2_put_uint32be(buf, 0xFF808080UL);
+
+  assert_ptrdiff(sizeof(n), ==, p - buf);
+
+  p = ngtcp2_get_uint32be(&n, buf);
+
+  assert_ptrdiff(sizeof(n), ==, p - buf);
+  assert_uint64(0xFF808080UL, ==, n);
+
+  /* 0x80000000 - MSB set */
+  n = 0;
+  p = ngtcp2_put_uint32be(buf, 0x80000000UL);
+
+  assert_ptrdiff(sizeof(n), ==, p - buf);
+
+  p = ngtcp2_get_uint32be(&n, buf);
+
+  assert_ptrdiff(sizeof(n), ==, p - buf);
+  assert_uint64(0x80000000UL, ==, n);
 }
 
 void test_ngtcp2_get_uint24be(void) {
@@ -328,6 +350,28 @@ void test_ngtcp2_get_uint16be(void) {
 
   assert_ptrdiff(sizeof(n), ==, p - buf);
   assert_uint64(65535, ==, n);
+
+  /* 0xFF80 - high bits set to exercise signed shift UB */
+  n = 0;
+  p = ngtcp2_put_uint16be(buf, 0xFF80);
+
+  assert_ptrdiff(sizeof(n), ==, p - buf);
+
+  p = ngtcp2_get_uint16be(&n, buf);
+
+  assert_ptrdiff(sizeof(n), ==, p - buf);
+  assert_uint64(0xFF80, ==, n);
+
+  /* 0x8000 - MSB set */
+  n = 0;
+  p = ngtcp2_put_uint16be(buf, 0x8000);
+
+  assert_ptrdiff(sizeof(n), ==, p - buf);
+
+  p = ngtcp2_get_uint16be(&n, buf);
+
+  assert_ptrdiff(sizeof(n), ==, p - buf);
+  assert_uint64(0x8000, ==, n);
 }
 
 void test_ngtcp2_get_uint16(void) {
