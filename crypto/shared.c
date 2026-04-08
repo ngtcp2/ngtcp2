@@ -67,7 +67,7 @@ int ngtcp2_crypto_hkdf_expand_label(uint8_t *dest, size_t destlen,
   uint8_t info[256];
   uint8_t *p = info;
 
-  if (3 + ngtcp2_strlen_lit(LABEL) + labellen + 1 > sizeof(info)) {
+  if (labellen > sizeof(info) - 3 - ngtcp2_strlen_lit(LABEL) - 1) {
     return -1;
   }
 
