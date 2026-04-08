@@ -592,6 +592,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       if (decode_varint_param(&params->max_udp_payload_size, &p, end) != 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
+      /* RFC 9000 Section 18.2: "Values below 1200 are invalid." */
       if (params->max_udp_payload_size < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }

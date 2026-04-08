@@ -592,10 +592,12 @@ void test_ngtcp2_transport_params_decode_max_udp_payload_too_small(void) {
   uint8_t *p = buf;
   int rv;
 
-  /* Encode max_udp_payload_size (ID=0x03) with value 1199 (< 1200) */
-  *p++ = 0x03;
-  *p++ = 0x02;
-  p = ngtcp2_put_uvarint(p, 1199);
+  /* Encode max_udp_payload_size with value NGTCP2_MAX_UDP_PAYLOAD_SIZE - 1,
+     which is below the minimum allowed. */
+  p = ngtcp2_put_uvarint(p, NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE);
+  p = ngtcp2_put_uvarint(p,
+                         ngtcp2_put_uvarintlen(NGTCP2_MAX_UDP_PAYLOAD_SIZE - 1));
+  p = ngtcp2_put_uvarint(p, NGTCP2_MAX_UDP_PAYLOAD_SIZE - 1);
 
   rv = ngtcp2_transport_params_decode(&params, buf, (size_t)(p - buf));
 
@@ -608,10 +610,14 @@ void test_ngtcp2_transport_params_decode_active_cid_limit_too_small(void) {
   uint8_t *p = buf;
   int rv;
 
-  /* Encode active_connection_id_limit (ID=0x0e) with value 1 (< 2) */
-  *p++ = 0x0e;
-  *p++ = 0x01;
-  p = ngtcp2_put_uvarint(p, 1);
+  /* Encode active_connection_id_limit with value
+     NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT - 1, which is below the
+     minimum allowed. */
+  p = ngtcp2_put_uvarint(p, NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT);
+  p = ngtcp2_put_uvarint(
+    p,
+    ngtcp2_put_uvarintlen(NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT - 1));
+  p = ngtcp2_put_uvarint(p, NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT - 1);
 
   rv = ngtcp2_transport_params_decode(&params, buf, (size_t)(p - buf));
 
