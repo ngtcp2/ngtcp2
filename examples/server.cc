@@ -2677,7 +2677,7 @@ int main(int argc, char **argv) {
 
   for (;;) {
     static int flag = 0;
-    constexpr static option long_opts[] = {
+    static constexpr option long_opts[] = {
       {"help", no_argument, nullptr, 'h'},
       {"tx-loss", required_argument, nullptr, 't'},
       {"rx-loss", required_argument, nullptr, 'r'},
