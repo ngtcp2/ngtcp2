@@ -43,7 +43,7 @@ using namespace std::literals;
 namespace ngtcp2 {
 
 constexpr auto ALPN_LIST = "ngtcp2-sim"sv;
-constexpr size_t CIDLEN = 10;
+constexpr auto CIDLEN = 10UZ;
 constexpr uint8_t SERVER_SECRET[] = "server_secret";
 
 namespace {
