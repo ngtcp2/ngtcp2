@@ -133,8 +133,11 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
         server_secret, NGTCP2_CRYPTO_INITIAL_SECRETLEN, &ctx.md, initial_secret,
         NGTCP2_CRYPTO_INITIAL_SECRETLEN, SLABEL,
         ngtcp2_strlen_lit(SLABEL)) != 0) {
+    ngtcp2_crypto_secure_zero(initial_secret_buf, sizeof(initial_secret_buf));
     return -1;
   }
+
+  ngtcp2_crypto_secure_zero(initial_secret_buf, sizeof(initial_secret_buf));
 
   return 0;
 }
@@ -346,11 +349,19 @@ int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
     goto fail;
   }
 
+  ngtcp2_crypto_secure_zero(keybuf, sizeof(keybuf));
+  ngtcp2_crypto_secure_zero(ivbuf, sizeof(ivbuf));
+  ngtcp2_crypto_secure_zero(hp_keybuf, sizeof(hp_keybuf));
+
   return 0;
 
 fail:
   ngtcp2_crypto_cipher_ctx_free(&hp_ctx);
   ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  ngtcp2_crypto_secure_zero(keybuf, sizeof(keybuf));
+  ngtcp2_crypto_secure_zero(ivbuf, sizeof(ivbuf));
+  ngtcp2_crypto_secure_zero(hp_keybuf, sizeof(hp_keybuf));
 
   return -1;
 }
@@ -497,11 +508,19 @@ int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
     goto fail;
   }
 
+  ngtcp2_crypto_secure_zero(keybuf, sizeof(keybuf));
+  ngtcp2_crypto_secure_zero(ivbuf, sizeof(ivbuf));
+  ngtcp2_crypto_secure_zero(hp_keybuf, sizeof(hp_keybuf));
+
   return 0;
 
 fail:
   ngtcp2_crypto_cipher_ctx_free(&hp_ctx);
   ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  ngtcp2_crypto_secure_zero(keybuf, sizeof(keybuf));
+  ngtcp2_crypto_secure_zero(ivbuf, sizeof(ivbuf));
+  ngtcp2_crypto_secure_zero(hp_keybuf, sizeof(hp_keybuf));
 
   return -1;
 }
@@ -635,6 +654,16 @@ int ngtcp2_crypto_derive_and_install_initial_key(
     ngtcp2_conn_set_retry_aead(conn, &retry_aead, &retry_aead_ctx);
   }
 
+  ngtcp2_crypto_secure_zero(rx_secretbuf, sizeof(rx_secretbuf));
+  ngtcp2_crypto_secure_zero(tx_secretbuf, sizeof(tx_secretbuf));
+  ngtcp2_crypto_secure_zero(initial_secretbuf, sizeof(initial_secretbuf));
+  ngtcp2_crypto_secure_zero(rx_keybuf, sizeof(rx_keybuf));
+  ngtcp2_crypto_secure_zero(rx_ivbuf, sizeof(rx_ivbuf));
+  ngtcp2_crypto_secure_zero(rx_hp_keybuf, sizeof(rx_hp_keybuf));
+  ngtcp2_crypto_secure_zero(tx_keybuf, sizeof(tx_keybuf));
+  ngtcp2_crypto_secure_zero(tx_ivbuf, sizeof(tx_ivbuf));
+  ngtcp2_crypto_secure_zero(tx_hp_keybuf, sizeof(tx_hp_keybuf));
+
   return 0;
 
 fail:
@@ -643,6 +672,16 @@ fail:
   ngtcp2_crypto_aead_ctx_free(&tx_aead_ctx);
   ngtcp2_crypto_cipher_ctx_free(&rx_hp_ctx);
   ngtcp2_crypto_aead_ctx_free(&rx_aead_ctx);
+
+  ngtcp2_crypto_secure_zero(rx_secretbuf, sizeof(rx_secretbuf));
+  ngtcp2_crypto_secure_zero(tx_secretbuf, sizeof(tx_secretbuf));
+  ngtcp2_crypto_secure_zero(initial_secretbuf, sizeof(initial_secretbuf));
+  ngtcp2_crypto_secure_zero(rx_keybuf, sizeof(rx_keybuf));
+  ngtcp2_crypto_secure_zero(rx_ivbuf, sizeof(rx_ivbuf));
+  ngtcp2_crypto_secure_zero(rx_hp_keybuf, sizeof(rx_hp_keybuf));
+  ngtcp2_crypto_secure_zero(tx_keybuf, sizeof(tx_keybuf));
+  ngtcp2_crypto_secure_zero(tx_ivbuf, sizeof(tx_ivbuf));
+  ngtcp2_crypto_secure_zero(tx_hp_keybuf, sizeof(tx_hp_keybuf));
 
   return -1;
 }
@@ -743,6 +782,16 @@ int ngtcp2_crypto_derive_and_install_vneg_initial_key(
     goto fail;
   }
 
+  ngtcp2_crypto_secure_zero(rx_secretbuf, sizeof(rx_secretbuf));
+  ngtcp2_crypto_secure_zero(tx_secretbuf, sizeof(tx_secretbuf));
+  ngtcp2_crypto_secure_zero(initial_secretbuf, sizeof(initial_secretbuf));
+  ngtcp2_crypto_secure_zero(rx_keybuf, sizeof(rx_keybuf));
+  ngtcp2_crypto_secure_zero(rx_ivbuf, sizeof(rx_ivbuf));
+  ngtcp2_crypto_secure_zero(rx_hp_keybuf, sizeof(rx_hp_keybuf));
+  ngtcp2_crypto_secure_zero(tx_keybuf, sizeof(tx_keybuf));
+  ngtcp2_crypto_secure_zero(tx_ivbuf, sizeof(tx_ivbuf));
+  ngtcp2_crypto_secure_zero(tx_hp_keybuf, sizeof(tx_hp_keybuf));
+
   return 0;
 
 fail:
@@ -750,6 +799,16 @@ fail:
   ngtcp2_crypto_aead_ctx_free(&tx_aead_ctx);
   ngtcp2_crypto_cipher_ctx_free(&rx_hp_ctx);
   ngtcp2_crypto_aead_ctx_free(&rx_aead_ctx);
+
+  ngtcp2_crypto_secure_zero(rx_secretbuf, sizeof(rx_secretbuf));
+  ngtcp2_crypto_secure_zero(tx_secretbuf, sizeof(tx_secretbuf));
+  ngtcp2_crypto_secure_zero(initial_secretbuf, sizeof(initial_secretbuf));
+  ngtcp2_crypto_secure_zero(rx_keybuf, sizeof(rx_keybuf));
+  ngtcp2_crypto_secure_zero(rx_ivbuf, sizeof(rx_ivbuf));
+  ngtcp2_crypto_secure_zero(rx_hp_keybuf, sizeof(rx_hp_keybuf));
+  ngtcp2_crypto_secure_zero(tx_keybuf, sizeof(tx_keybuf));
+  ngtcp2_crypto_secure_zero(tx_ivbuf, sizeof(tx_ivbuf));
+  ngtcp2_crypto_secure_zero(tx_hp_keybuf, sizeof(tx_hp_keybuf));
 
   return -1;
 }
@@ -848,8 +907,14 @@ int ngtcp2_crypto_update_key_cb(
   if (ngtcp2_crypto_update_key(
         conn, rx_secret, tx_secret, rx_aead_ctx, rx_key, rx_iv, tx_aead_ctx,
         tx_key, tx_iv, current_rx_secret, current_tx_secret, secretlen) != 0) {
+    ngtcp2_crypto_secure_zero(rx_key, sizeof(rx_key));
+    ngtcp2_crypto_secure_zero(tx_key, sizeof(tx_key));
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
+
+  ngtcp2_crypto_secure_zero(rx_key, sizeof(rx_key));
+  ngtcp2_crypto_secure_zero(tx_key, sizeof(tx_key));
+
   return 0;
 }
 
@@ -909,8 +974,11 @@ static int crypto_derive_token_key(uint8_t *key, size_t keylen, uint8_t *iv,
 
   if (ngtcp2_crypto_hkdf_expand(iv, ivlen, md, intsecret, sizeof(intsecret),
                                 info, (size_t)(p - info)) != 0) {
+    ngtcp2_crypto_secure_zero(intsecret, sizeof(intsecret));
     return -1;
   }
+
+  ngtcp2_crypto_secure_zero(intsecret, sizeof(intsecret));
 
   return 0;
 }
@@ -1595,6 +1663,13 @@ end:
   ngtcp2_crypto_cipher_ctx_free(&hp_ctx);
   ngtcp2_crypto_aead_ctx_free(&aead_ctx);
 
+  ngtcp2_crypto_secure_zero(rx_secret, sizeof(rx_secret));
+  ngtcp2_crypto_secure_zero(tx_secret, sizeof(tx_secret));
+  ngtcp2_crypto_secure_zero(initial_secret, sizeof(initial_secret));
+  ngtcp2_crypto_secure_zero(tx_key, sizeof(tx_key));
+  ngtcp2_crypto_secure_zero(tx_iv, sizeof(tx_iv));
+  ngtcp2_crypto_secure_zero(tx_hp_key, sizeof(tx_hp_key));
+
   return spktlen;
 }
 
@@ -1752,4 +1827,24 @@ int ngtcp2_crypto_recv_crypto_data_cb(ngtcp2_conn *conn,
   }
 
   return 0;
+}
+
+void ngtcp2_crypto_secure_zero(void *p, size_t len) {
+  if (len == 0) {
+    return;
+  }
+#ifdef WIN32
+  SecureZeroMemory(p, len);
+#elif defined(HAVE_EXPLICIT_BZERO)
+  explicit_bzero(p, len);
+#elif defined(HAVE_MEMSET_S)
+  memset_s(p, len, 0, len);
+#else
+  {
+    volatile unsigned char *vp = (volatile unsigned char *)p;
+    while (len--) {
+      *vp++ = 0;
+    }
+  }
+#endif
 }

@@ -374,4 +374,11 @@ int ngtcp2_crypto_hkdf_expand_label(uint8_t *dest, size_t destlen,
                                     const uint8_t *secret, size_t secretlen,
                                     const uint8_t *label, size_t labellen);
 
+/*
+ * ngtcp2_crypto_secure_zero securely zeroes |len| bytes of memory
+ * starting at |p|.  This function is guaranteed not to be optimized
+ * away by the compiler.
+ */
+void ngtcp2_crypto_secure_zero(void *p, size_t len);
+
 #endif /* !defined(SHARED_H) */
