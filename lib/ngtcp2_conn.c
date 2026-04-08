@@ -12697,7 +12697,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
 
   if (conn->state != NGTCP2_CS_POST_HANDSHAKE &&
       (!conn->server || !conn->pktns.crypto.tx.ckm)) {
-    return res;
+    goto fin;
   }
 
   assert(conn->pktns.crypto.tx.ckm);
@@ -12723,6 +12723,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
     return NGTCP2_ERR_NOBUF;
   }
 
+fin:
   conn->state = NGTCP2_CS_CLOSING;
 
   return res;
