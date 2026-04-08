@@ -60,9 +60,6 @@ static EVP_MD *crypto_sha384;
 static EVP_KDF *crypto_hkdf;
 
 int ngtcp2_crypto_ossl_init(void) {
-  /* We do not care whether the pre-fetch succeeds or not.  If it
-     fails, it returns NULL, which is still the default value, and our
-     code should still work with it. */
   crypto_aes_128_gcm = EVP_CIPHER_fetch(NULL, "AES-128-GCM", NULL);
   crypto_aes_256_gcm = EVP_CIPHER_fetch(NULL, "AES-256-GCM", NULL);
   crypto_aes_128_ccm = EVP_CIPHER_fetch(NULL, "AES-128-CCM", NULL);
@@ -75,6 +72,14 @@ int ngtcp2_crypto_ossl_init(void) {
   crypto_sha256 = EVP_MD_fetch(NULL, "sha256", NULL);
   crypto_sha384 = EVP_MD_fetch(NULL, "sha384", NULL);
   crypto_hkdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
+
+  if (!crypto_aes_128_gcm && !EVP_aes_128_gcm()) {
+    return -1;
+  }
+
+  if (!crypto_sha256 && !EVP_sha256()) {
+    return -1;
+  }
 
   return 0;
 }
