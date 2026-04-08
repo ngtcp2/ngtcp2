@@ -63,6 +63,7 @@
 #include "ngtcp2_cid_test.h"
 #include "ngtcp2_log_test.h"
 #include "ngtcp2_fmt_test.h"
+#include "ngtcp2_crypto_test.h"
 
 int main(int argc, char *argv[]) {
   const MunitSuite suites[] = {
@@ -82,7 +83,8 @@ int main(int argc, char *argv[]) {
     addr_suite,     pcg_suite,
     ratelim_suite,  conn_info_suite,
     cid_suite,      log_suite,
-    fmt_suite,      {0},
+    fmt_suite,      crypto_suite,
+    {0},
   };
   const MunitSuite suite = {
     .prefix = "",

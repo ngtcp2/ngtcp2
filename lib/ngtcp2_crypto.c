@@ -96,6 +96,15 @@ void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem) {
     explicit_bzero(ckm->secret.base, ckm->secret.len);
 #elif defined(HAVE_MEMSET_S)
     memset_s(ckm->secret.base, ckm->secret.len, 0, ckm->secret.len);
+#else
+    {
+      volatile unsigned char *p =
+        (volatile unsigned char *)ckm->secret.base;
+      size_t n = ckm->secret.len;
+      while (n--) {
+        *p++ = 0;
+      }
+    }
 #endif /* defined(HAVE_MEMSET_S) */
   }
 
