@@ -956,7 +956,9 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   ngtcp2_tstamp ts_be = ngtcp2_htonl64(ts);
   int rv;
 
-  assert((size_t)remote_addrlen <= sizeof(ngtcp2_sockaddr_union));
+  if ((size_t)remote_addrlen > sizeof(ngtcp2_sockaddr_union)) {
+    return -1;
+  }
 
   *p++ = (uint8_t)odcid->datalen;
   memcpy(p, odcid->data, odcid->datalen);
@@ -1036,7 +1038,9 @@ int ngtcp2_crypto_verify_retry_token(
   int rv;
   ngtcp2_tstamp gen_ts;
 
-  assert((size_t)remote_addrlen <= sizeof(ngtcp2_sockaddr_union));
+  if ((size_t)remote_addrlen > sizeof(ngtcp2_sockaddr_union)) {
+    return -1;
+  }
 
   if (tokenlen != NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN ||
       token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY) {
@@ -1133,7 +1137,9 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token2(
   ngtcp2_tstamp ts_be = ngtcp2_htonl64(ts);
   int rv;
 
-  assert((size_t)remote_addrlen <= sizeof(ngtcp2_sockaddr_union));
+  if ((size_t)remote_addrlen > sizeof(ngtcp2_sockaddr_union)) {
+    return -1;
+  }
 
   memcpy(p, remote_addr, (size_t)remote_addrlen);
   p += sizeof(ngtcp2_sockaddr_union);
@@ -1215,7 +1221,9 @@ int ngtcp2_crypto_verify_retry_token2(
   size_t addrlen;
   uint8_t *p;
 
-  assert((size_t)remote_addrlen <= sizeof(ngtcp2_sockaddr_union));
+  if ((size_t)remote_addrlen > sizeof(ngtcp2_sockaddr_union)) {
+    return NGTCP2_CRYPTO_ERR_INTERNAL;
+  }
 
   if (tokenlen != NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN2 ||
       token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY2) {
