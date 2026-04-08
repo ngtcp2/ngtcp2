@@ -65,7 +65,7 @@ int on_msg_complete(http_parser *htp) {
 }
 } // namespace
 
-auto htp_settings = http_parser_settings{
+constexpr auto htp_settings = http_parser_settings{
   .on_message_begin = on_msg_begin,
   .on_url = on_url_cb,
   .on_message_complete = on_msg_complete,

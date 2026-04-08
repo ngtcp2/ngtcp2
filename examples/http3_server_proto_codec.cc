@@ -740,7 +740,7 @@ std::expected<void, Error> ProtoCodec::setup_httpconn() {
     return std::unexpected{Error::QUIC};
   }
 
-  nghttp3_callbacks callbacks{
+  static constexpr auto callbacks = nghttp3_callbacks{
     .acked_stream_data = ::http_acked_stream_data,
     .recv_data = ::http_recv_data,
     .deferred_consume = ::http_deferred_consume,

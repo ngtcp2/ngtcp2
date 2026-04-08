@@ -717,7 +717,7 @@ Handler::init(const Endpoint &ep, const Address &local_addr,
               const ngtcp2_cid *scid, const ngtcp2_cid *ocid,
               std::span<const uint8_t> token, ngtcp2_token_type token_type,
               uint32_t version, TLSServerContext &tls_ctx) {
-  auto callbacks = ngtcp2_callbacks{
+  static constexpr auto callbacks = ngtcp2_callbacks{
     .recv_client_initial = ngtcp2_crypto_recv_client_initial_cb,
     .recv_crypto_data = ::recv_crypto_data,
     .handshake_completed = ::handshake_completed,

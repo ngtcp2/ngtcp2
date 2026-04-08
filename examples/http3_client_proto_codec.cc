@@ -519,7 +519,7 @@ std::expected<void, Error> ProtoCodec::setup_codec() {
     return std::unexpected{Error::QUIC};
   }
 
-  nghttp3_callbacks callbacks{
+  static constexpr auto callbacks = nghttp3_callbacks{
     .recv_data = ::http_recv_data,
     .deferred_consume = ::http_deferred_consume,
     .begin_headers = ::http_begin_headers,
