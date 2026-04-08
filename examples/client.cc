@@ -1734,7 +1734,10 @@ void Client::on_extend_max_streams() {
       stream->open_file(stream->req.path);
     }
 
-    streams_.emplace(stream_id, std::move(stream));
+    if (auto [_, rv] = streams_.try_emplace(stream_id, std::move(stream));
+        !rv) {
+      assert(0);
+    }
   }
 }
 
