@@ -136,7 +136,7 @@ int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
 std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
                                                   const char *cert_file,
                                                   AppProtocol app_proto) {
-  constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
+  static constexpr unsigned char sid_ctx[] = "ngtcp2 server";
 
 #ifdef DEBUG_WOLFSSL
   if (!config.quiet) {
