@@ -902,8 +902,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   }
 
   if (cc_ack.largest_pkt_sent_ts != UINT64_MAX && ack_eliciting_pkt_acked) {
-    cc_ack.rtt = ngtcp2_max_uint64(pkt_ts - cc_ack.largest_pkt_sent_ts,
-                                   NGTCP2_NANOSECONDS);
+    cc_ack.rtt =
+      ngtcp2_max(pkt_ts - cc_ack.largest_pkt_sent_ts, NGTCP2_NANOSECONDS);
 
     ngtcp2_conn_update_rtt(conn, cc_ack.rtt, fr->ack_delay_unscaled, ts);
   }
@@ -998,7 +998,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
   if (loss_time == UINT64_MAX) {
     loss_time = ent->ts + loss_delay;
   } else {
-    loss_time = ngtcp2_min_uint64(loss_time, ent->ts + loss_delay);
+    loss_time = ngtcp2_min(loss_time, ent->ts + loss_delay);
   }
 
   cstat->loss_time[pktns->id] = loss_time;
@@ -1012,8 +1012,8 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
 static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_conn_stat *cstat) {
   /* 9/8 is kTimeThreshold */
   ngtcp2_duration loss_delay =
-    ngtcp2_max_uint64(cstat->latest_rtt, cstat->smoothed_rtt) * 9 / 8;
-  return ngtcp2_max_uint64(loss_delay, NGTCP2_GRANULARITY);
+    ngtcp2_max(cstat->latest_rtt, cstat->smoothed_rtt) * 9 / 8;
+  return ngtcp2_max(loss_delay, NGTCP2_GRANULARITY);
 }
 
 /*
@@ -1055,8 +1055,8 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_cc_ack *cc_ack,
   uint64_t bytes_lost = 0;
   ngtcp2_duration max_ack_delay;
 
-  pkt_thres = ngtcp2_max_uint64(pkt_thres, NGTCP2_PKT_THRESHOLD);
-  pkt_thres = ngtcp2_min_uint64(pkt_thres, 256);
+  pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
+  pkt_thres = ngtcp2_min(pkt_thres, 256);
   cstat->loss_time[pktns->id] = UINT64_MAX;
   loss_delay = compute_pkt_loss_delay(cstat);
 
@@ -1081,12 +1081,11 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_cc_ack *cc_ack,
 
       congestion_period =
         (cstat->smoothed_rtt +
-         ngtcp2_max_uint64(4 * cstat->rttvar, NGTCP2_GRANULARITY) +
-         max_ack_delay) *
+         ngtcp2_max(4 * cstat->rttvar, NGTCP2_GRANULARITY) + max_ack_delay) *
         NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
-      start_ts = ngtcp2_max_uint64(conn->handshake_confirmed_ts,
-                                   cstat->first_rtt_sample_ts);
+      start_ts =
+        ngtcp2_max(conn->handshake_confirmed_ts, cstat->first_rtt_sample_ts);
 
       for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
         ent = ngtcp2_ksl_it_get(&it);

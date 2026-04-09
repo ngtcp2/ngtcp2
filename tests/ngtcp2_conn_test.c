@@ -499,17 +499,17 @@ static int recv_crypto_data_client_handshake(
       .max_udp_payload_size = 1200,
       .initial_max_stream_data_bidi_local =
         early_params->initial_max_stream_data_bidi_local,
-      .initial_max_stream_data_bidi_remote = ngtcp2_max_uint64(
+      .initial_max_stream_data_bidi_remote = ngtcp2_max(
         100 * 1024, early_params->initial_max_stream_data_bidi_remote),
       .initial_max_stream_data_uni = early_params->initial_max_stream_data_uni,
       .initial_max_streams_bidi =
-        ngtcp2_max_uint64(1, early_params->initial_max_streams_bidi),
+        ngtcp2_max(1, early_params->initial_max_streams_bidi),
       .initial_max_streams_uni =
-        ngtcp2_max_uint64(1, early_params->initial_max_streams_uni),
+        ngtcp2_max(1, early_params->initial_max_streams_uni),
       .initial_max_data =
-        ngtcp2_max_uint64(100 * 1024, early_params->initial_max_data),
+        ngtcp2_max(100 * 1024, early_params->initial_max_data),
       .active_connection_id_limit =
-        ngtcp2_max_uint64(2, early_params->active_connection_id_limit),
+        ngtcp2_max(2, early_params->active_connection_id_limit),
       .max_datagram_frame_size = early_params->max_datagram_frame_size,
       .stateless_reset_token = raw_stateless_reset_token(),
       .stateless_reset_token_present = 1,
@@ -17272,7 +17272,7 @@ void test_ngtcp2_conn_persistent_congestion(void) {
   assert_ptrdiff(0, <, spktlen);
 
   t += (conn->cstat.smoothed_rtt +
-        ngtcp2_max_uint64(4 * conn->cstat.rttvar, NGTCP2_GRANULARITY) +
+        ngtcp2_max(4 * conn->cstat.rttvar, NGTCP2_GRANULARITY) +
         25 * NGTCP2_MILLISECONDS) *
        NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
@@ -17997,7 +17997,7 @@ void test_ngtcp2_conn_crumble_initial_pkt(void) {
     assert_ptrdiff(0, <, slen);
 
     if (fr.hd.type == NGTCP2_FRAME_CRYPTO) {
-      offset = ngtcp2_max_uint64(offset, fr.stream.offset);
+      offset = ngtcp2_max(offset, fr.stream.offset);
     }
 
     p += slen;
