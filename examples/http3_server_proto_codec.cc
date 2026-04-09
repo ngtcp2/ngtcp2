@@ -580,7 +580,6 @@ std::expected<void, Error> ProtoCodec::start_response(Stream *stream) {
     dr.read_data = dyn_read_data;
 
     if (stream->method != "HEAD") {
-      //      stream->datalen = content_length;
       stream->dyndataleft = content_length;
     }
 

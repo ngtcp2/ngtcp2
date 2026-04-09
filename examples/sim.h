@@ -297,4 +297,4 @@ private:
 
 } // namespace ngtcp2
 
-#endif // SIM_H
+#endif // !defined(SIM_H)

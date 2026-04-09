@@ -92,4 +92,4 @@ private:
 
 } // namespace ngtcp2
 
-#endif // HQ_CLIENT_PROTO_CODEC_H
+#endif // !defined(HQ_CLIENT_PROTO_CODEC_H)

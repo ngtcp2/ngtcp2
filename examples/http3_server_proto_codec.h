@@ -117,4 +117,4 @@ private:
 
 } // namespace ngtcp2
 
-#endif // HTTP3_SERVER_PROTO_CODEC_H
+#endif // !defined(HTTP3_SERVER_PROTO_CODEC_H)
