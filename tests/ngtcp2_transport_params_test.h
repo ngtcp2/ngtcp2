@@ -40,6 +40,7 @@ munit_void_test_decl(test_ngtcp2_transport_params_decode)
 munit_void_test_decl(test_ngtcp2_transport_params_decode_new)
 munit_void_test_decl(test_ngtcp2_transport_params_convert_to_latest)
 munit_void_test_decl(test_ngtcp2_transport_params_convert_to_old)
-munit_void_test_decl(test_ngtcp2_transport_params_decode_max_idle_timeout_overflow)
+munit_void_test_decl(
+  test_ngtcp2_transport_params_decode_max_idle_timeout_overflow)
 
 #endif /* !defined(NGTCP2_TRANSPORT_PARAMS_TEST_H) */
