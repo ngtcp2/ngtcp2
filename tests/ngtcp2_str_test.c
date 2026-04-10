@@ -38,6 +38,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_encode_hex),
   munit_void_test(test_ngtcp2_encode_uint_hex),
   munit_void_test(test_ngtcp2_encode_uint_hexlen),
+  munit_void_test(test_ngtcp2_secure_clear),
   munit_test_end(),
 };
 
@@ -294,4 +295,13 @@ void test_ngtcp2_encode_uint_hexlen(void) {
   assert_size(3, ==, ngtcp2_encode_uint_hexlen(0xE0F));
   assert_size(7, ==, ngtcp2_encode_uint_hexlen(0xBADCACE));
   assert_size(16, ==, ngtcp2_encode_uint_hexlen(0xDEADBEEFBAADCACEULL));
+}
+
+void test_ngtcp2_secure_clear(void) {
+  uint8_t a[] = {0xBA, 0xAD, 0xF0, 0x0D};
+  static const uint8_t b[sizeof(a)] = {0};
+
+  ngtcp2_secure_clear(a, sizeof(a));
+
+  assert_memory_equal(sizeof(b), b, a);
 }

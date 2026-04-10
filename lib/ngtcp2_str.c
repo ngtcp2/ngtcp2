@@ -40,6 +40,22 @@ uint8_t *ngtcp2_setmem(uint8_t *dest, uint8_t b, size_t n) {
   return dest + n;
 }
 
+void ngtcp2_secure_clear(void *data, size_t len) {
+#ifdef WIN32
+  SecureZeroMemory(data, len);
+#elif defined(HAVE_EXPLICIT_BZERO)
+  explicit_bzero(data, len);
+#elif defined(HAVE_MEMSET_S)
+  memset_s(data, len, 0, len);
+#else  /* !defined(WIN32) && !defined(HAVE_EXPLICIT_BZERO) &&                  \
+          !defined(HAVE_MEMSET_S) */
+  static void *(*volatile memset_ptr)(void *, int, size_t) = memset;
+
+  memset_ptr(data, 0, len);
+#endif /* !defined(WIN32) && !defined(HAVE_EXPLICIT_BZERO) &&                  \
+          !defined(HAVE_MEMSET_S) */
+}
+
 const void *ngtcp2_get_bytes(void *dest, const void *src, size_t n) {
   memcpy(dest, src, n);
   return (uint8_t *)src + n;
