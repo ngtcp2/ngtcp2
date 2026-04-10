@@ -6405,6 +6405,25 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
                                              const uint32_t *offered_versions,
                                              size_t offered_versionslen);
 
+/**
+ * @function
+ *
+ * `ngtcp2_secure_clear` writes |len| bytes of zeros into the buffer
+ * pointed by |data|.  It does that by avoiding compiler
+ * optimizations.  If the following functions are available, one of
+ * them is used:
+ *
+ * - ``SecureZeroMemory``
+ * - ``explicit_bzero``
+ * - ``memset_s``
+ *
+ * Otherwise, it uses volatile function pointer to ``memset`` to fill
+ * zeros.
+ *
+ * This function has been available since v1.23.0.
+ */
+NGTCP2_EXTERN void ngtcp2_secure_clear(void *data, size_t len);
+
 /*
  * Versioned function wrappers
  */
