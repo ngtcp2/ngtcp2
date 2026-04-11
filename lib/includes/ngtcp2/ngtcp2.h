@@ -4666,8 +4666,8 @@ ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params(ngtcp2_conn *conn,
  *
  * If |conn| is initialized as client, these parameters are
  * synthesized from the remote transport parameters received from
- * server.  Otherwise, it is the local transport parameters that are
- * set by the local endpoint.
+ * server.  Otherwise, they are the local transport parameters that
+ * are set by the local endpoint.
  *
  * This function returns the number of bytes written, or one of the
  * following negative error codes:
@@ -5458,7 +5458,7 @@ ngtcp2_conn_get_client_initial_dcid2(const ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_get_scid` writes the all Source Connection IDs which a
+ * `ngtcp2_conn_get_scid` writes all Source Connection IDs which a
  * local endpoint has provided to a remote endpoint, and are not
  * retired in |dest|.  If |dest| is NULL, this function does not write
  * anything, and returns the number of Source Connection IDs that
@@ -5474,8 +5474,8 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest);
 /**
  * @function
  *
- * `ngtcp2_conn_get_scid2` writes the all Source Connection IDs which
- * a local endpoint has provided to a remote endpoint, and are not
+ * `ngtcp2_conn_get_scid2` writes all Source Connection IDs which a
+ * local endpoint has provided to a remote endpoint, and are not
  * retired in |dest|.  If |dest| is NULL, this function does not write
  * anything, and returns the number of Source Connection IDs that
  * would otherwise be written to the provided buffer.  The buffer
@@ -5525,7 +5525,7 @@ typedef struct ngtcp2_cid_token {
 /**
  * @function
  *
- * `ngtcp2_conn_get_active_dcid` writes the all active Destination
+ * `ngtcp2_conn_get_active_dcid` writes all active Destination
  * Connection IDs and their tokens to |dest|.  Before handshake
  * completes, this function returns 0.  If |dest| is NULL, this
  * function does not write anything, and returns the number of
@@ -5578,7 +5578,7 @@ typedef struct ngtcp2_cid_token2 {
 /**
  * @function
  *
- * `ngtcp2_conn_get_active_dcid2` writes the all active Destination
+ * `ngtcp2_conn_get_active_dcid2` writes all active Destination
  * Connection IDs and their tokens to |dest|.  Before handshake
  * completes, this function returns 0.  If |dest| is NULL, this
  * function does not write anything, and returns the number of
@@ -5597,7 +5597,7 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid2(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_active_dcid3` writes the all active Destination
+ * `ngtcp2_conn_get_active_dcid3` writes the active Destination
  * Connection IDs and their tokens to |dest|.  Before handshake
  * completes, this function returns 0.  If |dest| is NULL, this
  * function does not write anything, and returns the number of
