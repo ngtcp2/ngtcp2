@@ -310,7 +310,7 @@ std::string_view secret_title(ngtcp2_encryption_level level) {
 void print_conn_info(ngtcp2_conn *conn) {
   ngtcp2_conn_info cinfo;
 
-  ngtcp2_conn_get_conn_info(conn, &cinfo);
+  ngtcp2_conn_get_conn_info2(conn, &cinfo);
 
   std::println(
     R"(# Connection Statistics (see ngtcp2_conn_info for details)

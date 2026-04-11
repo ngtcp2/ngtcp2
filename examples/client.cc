@@ -319,8 +319,8 @@ std::expected<void, Error> Client::handshake_completed() {
 
   if (!config.tp_file.empty()) {
     std::array<uint8_t, 256> data;
-    auto datalen =
-      ngtcp2_conn_encode_0rtt_transport_params(conn_, data.data(), data.size());
+    auto datalen = ngtcp2_conn_encode_0rtt_transport_params2(conn_, data.data(),
+                                                             data.size());
     if (datalen < 0) {
       std::println(stderr, "Could not encode 0-RTT transport parameters: {}",
                    ngtcp2_strerror(static_cast<int>(datalen)));
@@ -852,7 +852,7 @@ Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     std::println(stderr, "ngtcp2_conn_read_pkt: {}", ngtcp2_strerror(rv));
     if (!last_error_.error_code) {
       if (rv == NGTCP2_ERR_CRYPTO) {
-        auto alert = ngtcp2_conn_get_tls_alert(conn_);
+        auto alert = ngtcp2_conn_get_tls_alert2(conn_);
         ngtcp2_ccerr_set_tls_alert(&last_error_, alert, nullptr, 0);
 
         if (alert == TLS_ALERT_ECH_REQUIRED &&
@@ -1076,7 +1076,7 @@ Client::send_packet_or_blocked(const ngtcp2_path &path, unsigned int ecn,
 }
 
 void Client::update_timer() {
-  auto expiry = ngtcp2_conn_get_expiry(conn_);
+  auto expiry = ngtcp2_conn_get_expiry2(conn_);
   auto now = util::timestamp();
 
   if (expiry <= now) {
@@ -1248,7 +1248,7 @@ Client::endpoint_for(const Address &remote_addr) {
 
   const auto &ia = *maybe_ia;
 
-  auto current_path = ngtcp2_conn_get_path(conn_);
+  auto current_path = ngtcp2_conn_get_path2(conn_);
   auto current_ep = static_cast<Endpoint *>(current_path->user_data);
   if (addreq(current_ep->addr, ia)) {
     return current_ep;
@@ -1380,7 +1380,7 @@ Client::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
     std::println(stderr, "Updating traffic key");
   }
 
-  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
+  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx2(conn_);
   auto aead = &crypto_ctx->aead;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
@@ -1631,8 +1631,8 @@ void Client::send_blocked_packet() {
 }
 
 std::expected<void, Error> Client::handle_error() {
-  if (!conn_ || ngtcp2_conn_in_closing_period(conn_) ||
-      ngtcp2_conn_in_draining_period(conn_)) {
+  if (!conn_ || ngtcp2_conn_in_closing_period2(conn_) ||
+      ngtcp2_conn_in_draining_period2(conn_)) {
     return {};
   }
 
@@ -1672,7 +1672,7 @@ std::expected<void, Error> Client::on_stream_close(int64_t stream_id,
     return rv;
   }
 
-  if (!ngtcp2_conn_is_local_stream(conn_, stream_id)) {
+  if (!ngtcp2_conn_is_local_stream2(conn_, stream_id)) {
     // TODO We might later add bidi stream extension here.
     if (!ngtcp2_is_bidi_stream(stream_id)) {
       ngtcp2_conn_extend_max_streams_uni(conn_, 1);
@@ -1754,7 +1754,7 @@ std::expected<void, Error> Client::acked_stream_data_offset(int64_t stream_id,
 std::expected<void, Error>
 Client::select_preferred_address(Address &selected_addr,
                                  const ngtcp2_preferred_addr *paddr) {
-  auto path = ngtcp2_conn_get_path(conn_);
+  auto path = ngtcp2_conn_get_path2(conn_);
 
   switch (path->local.addr->sa_family) {
   case AF_INET:

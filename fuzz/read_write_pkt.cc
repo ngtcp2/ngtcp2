@@ -835,7 +835,7 @@ int read_write(ngtcp2_conn *conn, FuzzedDataProvider &fuzzed_data_provider,
       }
     }
 
-    if (!ngtcp2_conn_is_server(conn) && fuzzed_data_provider.ConsumeBool()) {
+    if (!ngtcp2_conn_is_server2(conn) && fuzzed_data_provider.ConsumeBool()) {
       auto rv = ngtcp2_conn_initiate_migration(conn, path, ts);
       if (rv != 0) {
         return -1;
@@ -988,7 +988,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   read_write(conn, fuzzed_data_provider, &ps.path, ts);
 
-  auto ccerr = ngtcp2_conn_get_ccerr(conn);
+  auto ccerr = ngtcp2_conn_get_ccerr2(conn);
 
   ngtcp2_pkt_info pi{};
 

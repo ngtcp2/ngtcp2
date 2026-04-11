@@ -508,7 +508,7 @@ ngtcp2_crypto_gnutls_from_ngtcp2_encryption_level(
 int ngtcp2_crypto_read_write_crypto_data(
   ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
   const uint8_t *data, size_t datalen) {
-  gnutls_session_t session = ngtcp2_conn_get_tls_native_handle(conn);
+  gnutls_session_t session = ngtcp2_conn_get_tls_native_handle2(conn);
   int rv;
 
   if (datalen > 0) {
@@ -525,7 +525,7 @@ int ngtcp2_crypto_read_write_crypto_data(
     }
   }
 
-  if (!ngtcp2_conn_get_handshake_completed(conn)) {
+  if (!ngtcp2_conn_get_handshake_completed2(conn)) {
     rv = gnutls_handshake(session);
     if (rv < 0) {
       if (!gnutls_error_is_fatal(rv)) {
@@ -678,7 +678,7 @@ static int tp_send_func(gnutls_session_t session, gnutls_buffer_t extdata) {
   ngtcp2_ssize nwrite;
   int rv;
 
-  nwrite = ngtcp2_conn_encode_local_transport_params(conn, buf, sizeof(buf));
+  nwrite = ngtcp2_conn_encode_local_transport_params2(conn, buf, sizeof(buf));
   if (nwrite < 0) {
     return -1;
   }

@@ -290,7 +290,7 @@ void close_waitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto s = h->server();
   auto conn = h->conn();
 
-  if (ngtcp2_conn_in_closing_period(conn)) {
+  if (ngtcp2_conn_in_closing_period2(conn)) {
     if (!config.quiet) {
       std::println(stderr, "Closing Period is over");
     }
@@ -298,7 +298,7 @@ void close_waitcb(struct ev_loop *loop, ev_timer *w, int revents) {
     s->remove(h);
     return;
   }
-  if (ngtcp2_conn_in_draining_period(conn)) {
+  if (ngtcp2_conn_in_draining_period2(conn)) {
     if (!config.quiet) {
       std::println(stderr, "Draining Period is over");
     }
@@ -396,7 +396,7 @@ std::expected<void, Error> Handler::handshake_completed() {
 
   std::array<uint8_t, NGTCP2_CRYPTO_MAX_REGULAR_TOKENLEN> token;
 
-  auto path = ngtcp2_conn_get_path(conn_);
+  auto path = ngtcp2_conn_get_path2(conn_);
   auto t = util::system_clock_now();
 
   auto tokenlen = ngtcp2_crypto_generate_regular_token(
@@ -925,7 +925,7 @@ std::expected<void, Error> Handler::feed_data(const Endpoint &ep,
     case NGTCP2_ERR_CRYPTO:
       if (!last_error_.error_code) {
         ngtcp2_ccerr_set_tls_alert(
-          &last_error_, ngtcp2_conn_get_tls_alert(conn_), nullptr, 0);
+          &last_error_, ngtcp2_conn_get_tls_alert2(conn_), nullptr, 0);
       }
       break;
     default:
@@ -965,8 +965,8 @@ std::expected<void, Error> Handler::handle_expiry() {
 }
 
 std::expected<void, Error> Handler::on_write() {
-  if (ngtcp2_conn_in_closing_period(conn_) ||
-      ngtcp2_conn_in_draining_period(conn_)) {
+  if (ngtcp2_conn_in_closing_period2(conn_) ||
+      ngtcp2_conn_in_draining_period2(conn_)) {
     return {};
   }
 
@@ -1110,7 +1110,7 @@ void Handler::start_draining_period() {
 
   ev_set_cb(&timer_, close_waitcb);
   timer_.repeat =
-    static_cast<ev_tstamp>(ngtcp2_conn_get_pto(conn_)) / NGTCP2_SECONDS * 3;
+    static_cast<ev_tstamp>(ngtcp2_conn_get_pto2(conn_)) / NGTCP2_SECONDS * 3;
   ev_timer_again(loop_, &timer_);
 
   if (!config.quiet) {
@@ -1120,8 +1120,8 @@ void Handler::start_draining_period() {
 }
 
 std::expected<void, Error> Handler::start_closing_period() {
-  if (!conn_ || ngtcp2_conn_in_closing_period(conn_) ||
-      ngtcp2_conn_in_draining_period(conn_)) {
+  if (!conn_ || ngtcp2_conn_in_closing_period2(conn_) ||
+      ngtcp2_conn_in_draining_period2(conn_)) {
     return {};
   }
 
@@ -1129,7 +1129,7 @@ std::expected<void, Error> Handler::start_closing_period() {
 
   ev_set_cb(&timer_, close_waitcb);
   timer_.repeat =
-    static_cast<ev_tstamp>(ngtcp2_conn_get_pto(conn_)) / NGTCP2_SECONDS * 3;
+    static_cast<ev_tstamp>(ngtcp2_conn_get_pto2(conn_)) / NGTCP2_SECONDS * 3;
   ev_timer_again(loop_, &timer_);
 
   if (!config.quiet) {
@@ -1171,7 +1171,7 @@ std::expected<void, Error> Handler::handle_error() {
     return rv;
   }
 
-  if (ngtcp2_conn_in_draining_period(conn_)) {
+  if (ngtcp2_conn_in_draining_period2(conn_)) {
     return std::unexpected{Error::CLOSE_WAIT};
   }
 
@@ -1189,9 +1189,9 @@ std::expected<void, Error> Handler::send_conn_close() {
 
   assert(conn_closebuf_ && conn_closebuf_->size());
   assert(conn_);
-  assert(!ngtcp2_conn_in_draining_period(conn_));
+  assert(!ngtcp2_conn_in_draining_period2(conn_));
 
-  auto path = ngtcp2_conn_get_path(conn_);
+  auto path = ngtcp2_conn_get_path2(conn_);
 
   return server_->send_packet(*static_cast<Endpoint *>(path->user_data),
                               path->local, path->remote,
@@ -1227,7 +1227,7 @@ Handler::send_conn_close(const Endpoint &ep, const Address &local_addr,
 }
 
 void Handler::update_timer() {
-  auto expiry = ngtcp2_conn_get_expiry(conn_);
+  auto expiry = ngtcp2_conn_get_expiry2(conn_);
   auto now = util::timestamp();
 
   if (expiry <= now) {
@@ -1265,7 +1265,7 @@ Handler::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
                     ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
                     const uint8_t *current_rx_secret,
                     const uint8_t *current_tx_secret, size_t secretlen) {
-  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
+  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx2(conn_);
   auto aead = &crypto_ctx->aead;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
@@ -1305,7 +1305,7 @@ std::expected<void, Error> Handler::on_stream_close(int64_t stream_id,
     return rv;
   }
 
-  if (!ngtcp2_conn_is_local_stream(conn_, stream_id)) {
+  if (!ngtcp2_conn_is_local_stream2(conn_, stream_id)) {
     if (ngtcp2_is_bidi_stream(stream_id)) {
       ngtcp2_conn_extend_max_streams_bidi(conn_, 1);
     }
@@ -1842,11 +1842,11 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
     std::array<ngtcp2_cid, 8> scids;
     auto conn = h->conn();
 
-    auto num_scid = ngtcp2_conn_get_scid(conn, nullptr);
+    auto num_scid = ngtcp2_conn_get_scid2(conn, nullptr);
 
     assert(num_scid <= scids.size());
 
-    ngtcp2_conn_get_scid(conn, scids.data());
+    ngtcp2_conn_get_scid2(conn, scids.data());
 
     for (size_t i = 0; i < num_scid; ++i) {
       associate_cid(&scids[i], h.get());
@@ -1859,13 +1859,13 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
 
   auto h = (*handler_it).second;
   auto conn = h->conn();
-  if (ngtcp2_conn_in_closing_period(conn)) {
+  if (ngtcp2_conn_in_closing_period2(conn)) {
     if (!h->send_conn_close(ep, local_addr, remote_addr, pi, data)) {
       remove(h);
     }
     return;
   }
-  if (ngtcp2_conn_in_draining_period(conn)) {
+  if (ngtcp2_conn_in_draining_period2(conn)) {
     return;
   }
 
@@ -2368,10 +2368,10 @@ void Server::dissociate_cid(const ngtcp2_cid *cid) { handlers_.erase(*cid); }
 void Server::remove(const Handler *h) {
   auto conn = h->conn();
 
-  dissociate_cid(ngtcp2_conn_get_client_initial_dcid(conn));
+  dissociate_cid(ngtcp2_conn_get_client_initial_dcid2(conn));
 
-  std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_scid(conn, nullptr));
-  ngtcp2_conn_get_scid(conn, cids.data());
+  std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_scid2(conn, nullptr));
+  ngtcp2_conn_get_scid2(conn, cids.data());
 
   for (auto &cid : cids) {
     dissociate_cid(&cid);

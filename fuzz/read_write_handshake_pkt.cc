@@ -410,7 +410,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
   }
 
-  auto ccerr = ngtcp2_conn_get_ccerr(conn);
+  auto ccerr = ngtcp2_conn_get_ccerr2(conn);
 
   ngtcp2_conn_write_connection_close(conn, &ps.path, &pi, pkt.data(),
                                      pkt.size(), ccerr, ts);

@@ -810,8 +810,8 @@ read_file(const std::filesystem::path &path) {
 
 size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst) {
   return std::min(gso_burst == 0
-                    ? ngtcp2_conn_get_send_quantum(conn)
-                    : ngtcp2_conn_get_path_max_tx_udp_payload_size(conn) *
+                    ? ngtcp2_conn_get_send_quantum2(conn)
+                    : ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn) *
                         gso_burst,
                   buflen);
 }
