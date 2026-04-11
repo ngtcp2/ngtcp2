@@ -52,4 +52,20 @@ libngtcp2_crypto_quictls_la_LIBADD = $(top_builddir)/lib/libngtcp2.la \
 	@OPENSSL_LIBS@
 endif
 
+check_PROGRAMS = cryptotest
+
+cryptotest_SOURCES = \
+	../cryptotest.c \
+	../shared_test.c ../shared_test.h \
+	$(top_srcdir)/tests/munit/munit.c $(top_srcdir)/tests/munit/munit.h
+cryptotest_CPPFLAGS = ${AM_CPPFLAGS} -I$(top_srcdir)/tests/munit
+if HAVE_LIBRESSL
+cryptotest_LDADD = libngtcp2_crypto_libressl.la
+else # !HAVE_LIBRESSL
+cryptotest_LDADD = libngtcp2_crypto_quictls.la
+endif # !HAVE_LIBRESSL
+cryptotest_LDADD += $(top_builddir)/lib/libngtcp2.la
+
+TESTS = cryptotest
+
 DISTCLEANFILES = $(pkgconfig_DATA)
