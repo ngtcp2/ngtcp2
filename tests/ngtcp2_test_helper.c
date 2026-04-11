@@ -383,7 +383,7 @@ void ngtcp2_tpe_init(ngtcp2_tpe *tpe, const ngtcp2_cid *dcid,
 }
 
 void ngtcp2_tpe_init_conn(ngtcp2_tpe *tpe, ngtcp2_conn *conn) {
-  ngtcp2_tpe_init(tpe, &conn->oscid, ngtcp2_conn_get_dcid(conn),
+  ngtcp2_tpe_init(tpe, &conn->oscid, ngtcp2_conn_get_dcid2(conn),
                   conn->client_chosen_version);
 
   if (conn->in_pktns) {

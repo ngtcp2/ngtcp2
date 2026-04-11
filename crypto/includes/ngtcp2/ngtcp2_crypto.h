@@ -338,16 +338,16 @@ ngtcp2_crypto_hp_mask_cb(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
  * set negotiated AEAD and message digest algorithm.  After the
  * successful call of this function, application can use
- * `ngtcp2_conn_get_crypto_ctx` (or `ngtcp2_conn_get_0rtt_crypto_ctx`
- * if |level| ==
+ * `ngtcp2_conn_get_crypto_ctx2` (or
+ * `ngtcp2_conn_get_0rtt_crypto_ctx2` if |level| ==
  * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
  * get :type:`ngtcp2_crypto_ctx`.
  *
  * If |conn| is initialized as client, and |level| is
  * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_1RTT`, this
  * function retrieves a remote QUIC transport parameters extension
- * from an object obtained by `ngtcp2_conn_get_tls_native_handle`, and
- * sets it to |conn| by calling
+ * from an object obtained by `ngtcp2_conn_get_tls_native_handle2`,
+ * and sets it to |conn| by calling
  * `ngtcp2_conn_decode_and_set_remote_transport_params`.
  *
  * This function returns 0 if it succeeds, or -1.
@@ -385,16 +385,16 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
  * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
  * set negotiated AEAD and message digest algorithm.  After the
  * successful call of this function, application can use
- * `ngtcp2_conn_get_crypto_ctx` (or `ngtcp2_conn_get_0rtt_crypto_ctx`
- * if |level| ==
+ * `ngtcp2_conn_get_crypto_ctx2` (or
+ * `ngtcp2_conn_get_0rtt_crypto_ctx2` if |level| ==
  * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
  * get :type:`ngtcp2_crypto_ctx`.
  *
  * If |conn| is initialized as server, and |level| is
  * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_1RTT`, this
  * function retrieves a remote QUIC transport parameters extension
- * from an object obtained by `ngtcp2_conn_get_tls_native_handle`, and
- * sets it to |conn| by calling
+ * from an object obtained by `ngtcp2_conn_get_tls_native_handle2`,
+ * and sets it to |conn| by calling
  * `ngtcp2_conn_decode_and_set_remote_transport_params`.
  *
  * This function returns 0 if it succeeds, or -1.

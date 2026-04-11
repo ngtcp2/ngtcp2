@@ -222,7 +222,7 @@ ngtcp2_ssize ProtoCodec::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
     int fin = 0;
     nghttp3_ssize sveccnt = 0;
 
-    if (httpconn_ && ngtcp2_conn_get_max_data_left(conn_)) {
+    if (httpconn_ && ngtcp2_conn_get_max_data_left2(conn_)) {
       sveccnt = nghttp3_conn_writev_stream(httpconn_, &stream_id, &fin,
                                            vec.data(), vec.size());
       if (sveccnt < 0) {
@@ -513,7 +513,7 @@ std::expected<void, Error> ProtoCodec::setup_codec() {
     return {};
   }
 
-  if (ngtcp2_conn_get_streams_uni_left(conn_) < 3) {
+  if (ngtcp2_conn_get_streams_uni_left2(conn_) < 3) {
     std::println(stderr,
                  "peer does not allow at least 3 unidirectional streams.");
     return std::unexpected{Error::QUIC};

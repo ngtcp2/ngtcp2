@@ -485,7 +485,7 @@ std::expected<void, Error> Endpoint::on_write(const Context &ctx) {
     return rv;
   }
 
-  auto next_expiry_ts = ngtcp2_conn_get_expiry(conn_);
+  auto next_expiry_ts = ngtcp2_conn_get_expiry2(conn_);
   if (next_expiry_ts == UINT64_MAX) {
     return {};
   }

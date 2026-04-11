@@ -131,7 +131,7 @@ ngtcp2_ssize ProtoCodec::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
       NGTCP2_WRITE_STREAM_FLAG_MORE | NGTCP2_WRITE_STREAM_FLAG_PADDING;
     Stream *stream = nullptr;
 
-    if (!sendq_.empty() && ngtcp2_conn_get_max_data_left(conn_)) {
+    if (!sendq_.empty() && ngtcp2_conn_get_max_data_left2(conn_)) {
       stream = *std::ranges::begin(sendq_);
 
       stream_id = stream->stream_id;

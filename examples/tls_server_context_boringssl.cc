@@ -56,7 +56,7 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   // This should be the negotiated version, but we have not set the
   // negotiated version when this callback is called.
-  auto version = ngtcp2_conn_get_client_chosen_version(h->conn());
+  auto version = ngtcp2_conn_get_client_chosen_version2(h->conn());
 
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
@@ -95,7 +95,7 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
   auto h = static_cast<HandlerBase *>(conn_ref->user_data);
   // This should be the negotiated version, but we have not set the
   // negotiated version when this callback is called.
-  auto version = ngtcp2_conn_get_client_chosen_version(h->conn());
+  auto version = ngtcp2_conn_get_client_chosen_version2(h->conn());
 
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
