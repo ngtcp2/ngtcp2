@@ -829,14 +829,54 @@ read_ech_server_config(const std::filesystem::path &path) {
     return std::unexpected{pkey.error()};
   }
 
-  auto ech_config = read_pem(path, "ECH config"sv, "ECHCONFIG"sv);
-  if (!ech_config) {
-    return std::unexpected{ech_config.error()};
+  auto maybe_ech_config_list = read_pem(path, "ECH config"sv, "ECHCONFIG"sv);
+  if (!maybe_ech_config_list) {
+    return std::unexpected{maybe_ech_config_list.error()};
+  }
+
+  auto ech_config_list = std::span{*maybe_ech_config_list};
+  if (ech_config_list.size() < 2) {
+    return std::unexpected{Error::INVALID_ARGUMENT};
+  }
+
+  auto data = ech_config_list.subspan(2);
+
+  if (auto len =
+        static_cast<size_t>((ech_config_list[0] << 8) + ech_config_list[1]);
+      len != data.size()) {
+    return std::unexpected{Error::INVALID_ARGUMENT};
+  }
+
+  std::vector<std::vector<uint8_t>> ech_configs;
+
+  for (; !data.empty();) {
+    // version and length, each 2 bytes
+    if (data.size() < 4) {
+      return std::unexpected{Error::INVALID_ARGUMENT};
+    }
+
+    auto version = (data[0] << 8) + data[1];
+
+    auto conflen = static_cast<size_t>(4 + (data[2] << 8) + data[3]);
+    if (data.size() < conflen) {
+      return std::unexpected{Error::INVALID_ARGUMENT};
+    }
+
+    if (version == 0xFE0D) {
+      auto conf = data.first(conflen);
+      ech_configs.emplace_back(std::ranges::begin(conf),
+                               std::ranges::end(conf));
+    } else {
+      std::println(stderr, "Skipping the unsupported ECH version {:#x}",
+                   version);
+    }
+
+    data = data.subspan(conflen);
   }
 
   return ECHServerConfig{
     .private_key = std::move(*pkey),
-    .ech_config = std::move(*ech_config),
+    .ech_config_list = std::move(ech_configs),
   };
 }
 
