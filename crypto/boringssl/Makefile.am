@@ -37,3 +37,20 @@ DISTCLEANFILES = $(pkgconfig_DATA)
 lib_LIBRARIES = libngtcp2_crypto_boringssl.a
 
 libngtcp2_crypto_boringssl_a_SOURCES = boringssl.c ../shared.c ../shared.h
+
+if HAVE_BORINGSSL_STDCXXLIB
+check_PROGRAMS = cryptotest
+
+cryptotest_SOURCES = \
+	../cryptotest.c \
+	../shared_test.c ../shared_test.h \
+	$(top_srcdir)/tests/munit/munit.c $(top_srcdir)/tests/munit/munit.h
+cryptotest_CPPFLAGS = ${AM_CPPFLAGS} -I$(top_srcdir)/tests/munit
+cryptotest_LDADD = \
+	libngtcp2_crypto_boringssl.a \
+	$(top_builddir)/lib/libngtcp2.la \
+	@BORINGSSL_LIBS@ \
+	@BORINGSSL_STDCXXLIB@
+
+TESTS = cryptotest
+endif # HAVE_BORINGSSL_STDCXXLIB

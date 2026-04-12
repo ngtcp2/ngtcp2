@@ -537,20 +537,24 @@ jobs:
         BORINGSSL_INCLUDE_DIR="$PWD/boringssl/include/"
         BORINGSSL_CFLAGS="-I$BORINGSSL_INCLUDE_DIR"
         BORINGSSL_LIBS="-L$PWD/boringssl/build -lssl -lcrypto"
+        BORINGSSL_STDCXXLIB="-lstdc++"
 
         echo 'BORINGSSL_CFLAGS='"$BORINGSSL_CFLAGS" >> $GITHUB_ENV
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
         echo 'BORINGSSL_INCLUDE_DIR='"$BORINGSSL_INCLUDE_DIR" >> $GITHUB_ENV
+        echo 'BORINGSSL_STDCXXLIB='"$BORINGSSL_STDCXXLIB" >> $GITHUB_ENV
     - name: Setup aws-lc environment variables
       if: matrix.tls.boringssl == 'aws-lc'
       run: |
         BORINGSSL_INCLUDE_DIR="$PWD/aws-lc/include/"
         BORINGSSL_CFLAGS="-I$BORINGSSL_INCLUDE_DIR"
         BORINGSSL_LIBS="-L$PWD/aws-lc/build/ssl -lssl -L$PWD/aws-lc/build/crypto -lcrypto"
+        BORINGSSL_STDCXXLIB="-lstdc++"
 
         echo 'BORINGSSL_CFLAGS='"$BORINGSSL_CFLAGS" >> $GITHUB_ENV
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
         echo 'BORINGSSL_INCLUDE_DIR='"$BORINGSSL_INCLUDE_DIR" >> $GITHUB_ENV
+        echo 'BORINGSSL_STDCXXLIB='"$BORINGSSL_STDCXXLIB" >> $GITHUB_ENV
     - name: Setup libev environment variables
       if: runner.os == 'macOS'
       run: |
@@ -621,6 +625,19 @@ jobs:
       run: |
         cd tests
         ./main
+    - name: Run crypto tests
+      if: matrix.buildtool == 'autotools'
+      run: |
+        tests=(crypto/*/cryptotest)
+        [ -e "${tests[0]}" ] || exit 0
+
+        for f in crypto/*/cryptotest; do
+          echo "Executing $f"
+          pushd . > /dev/null
+          cd "$(dirname $f)"
+          ./cryptotest
+          popd > /dev/null
+        done
     - name: Run examples tests
       if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr'
       run: |

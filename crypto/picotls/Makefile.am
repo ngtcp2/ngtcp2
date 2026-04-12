@@ -37,3 +37,17 @@ DISTCLEANFILES = $(pkgconfig_DATA)
 lib_LIBRARIES = libngtcp2_crypto_picotls.a
 
 libngtcp2_crypto_picotls_a_SOURCES = picotls.c ../shared.c ../shared.h
+
+check_PROGRAMS = cryptotest
+
+cryptotest_SOURCES = \
+	../cryptotest.c \
+	../shared_test.c ../shared_test.h \
+	$(top_srcdir)/tests/munit/munit.c $(top_srcdir)/tests/munit/munit.h
+cryptotest_CPPFLAGS = ${AM_CPPFLAGS} -I$(top_srcdir)/tests/munit
+cryptotest_LDADD = \
+	libngtcp2_crypto_picotls.a \
+	$(top_builddir)/lib/libngtcp2.la \
+	@PICOTLS_LIBS@ @VANILLA_OPENSSL_LIBS@
+
+TESTS = cryptotest

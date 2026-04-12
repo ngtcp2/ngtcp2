@@ -162,6 +162,8 @@ AC_ARG_WITH([libbrotlidec],
 
 AC_ARG_VAR([BORINGSSL_CFLAGS], [C compiler flags for BORINGSSL])
 AC_ARG_VAR([BORINGSSL_LIBS], [linker flags for BORINGSSL])
+AC_ARG_VAR([BORINGSSL_STDCXXLIB],
+           [C++ standard library used to build BORINGSSL (e.g., -lstdc++)])
 
 AC_ARG_VAR([PICOTLS_CFLAGS], [C compiler flags for PICOTLS])
 AC_ARG_VAR([PICOTLS_LIBS], [linker flags for PICOTLS])
@@ -350,7 +352,14 @@ if test "x${request_boringssl}" != "xno"; then
   LIBS="$save_LIBS"
 
   AC_LANG_POP()
+
+  if test "x${BORINGSSL_STDCXXLIB}" = "x"; then
+    AC_MSG_NOTICE([BORINGSSL_STDCXXLIB is not defined.  cryptotest will not run for BORINGSSL])
+  fi
 fi
+
+AM_CONDITIONAL([HAVE_BORINGSSL_STDCXXLIB],
+               [ test "x${BORINGSSL_STDCXXLIB}" != "x" ])
 
 if test "x${request_boringssl}" = "xyes" &&
    test "x${have_boringssl}" != "xyes"; then

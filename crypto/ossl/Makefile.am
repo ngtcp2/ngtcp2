@@ -41,3 +41,16 @@ libngtcp2_crypto_ossl_la_LDFLAGS = -no-undefined \
 	-version-info $(CRYPTO_OSSL_LT_CURRENT):$(CRYPTO_OSSL_LT_REVISION):$(CRYPTO_OSSL_LT_AGE)
 libngtcp2_crypto_ossl_la_LIBADD = $(top_builddir)/lib/libngtcp2.la \
 	@OPENSSL_LIBS@
+
+check_PROGRAMS = cryptotest
+
+cryptotest_SOURCES = \
+	../cryptotest.c \
+	../shared_test.c ../shared_test.h \
+	$(top_srcdir)/tests/munit/munit.c $(top_srcdir)/tests/munit/munit.h
+cryptotest_CPPFLAGS = ${AM_CPPFLAGS} -I$(top_srcdir)/tests/munit
+cryptotest_LDADD = \
+	libngtcp2_crypto_ossl.la \
+	$(top_builddir)/lib/libngtcp2.la
+
+TESTS = cryptotest
