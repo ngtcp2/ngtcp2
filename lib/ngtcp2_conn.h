@@ -861,7 +861,7 @@ ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(const ngtcp2_conn *conn);
  */
 void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
-uint64_t ngtcp2_conn_tx_strmq_first_cycle(ngtcp2_conn *conn);
+uint64_t ngtcp2_conn_tx_strmq_first_cycle(const ngtcp2_conn *conn);
 
 /**
  * @function
@@ -904,7 +904,11 @@ ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(const ngtcp2_conn *conn);
  */
 ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(const ngtcp2_conn *conn);
 
-ngtcp2_duration ngtcp2_conn_compute_pto(ngtcp2_conn *conn, ngtcp2_pktns *pktns);
+/*
+ * ngtcp2_conn_compute_pto computes the current PTO.
+ */
+ngtcp2_duration ngtcp2_conn_compute_pto(const ngtcp2_conn *conn,
+                                        const ngtcp2_pktns *pktns);
 
 /*
  * ngtcp2_conn_track_retired_dcid_seq tracks the sequence number |seq|
@@ -929,7 +933,8 @@ void ngtcp2_conn_untrack_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
  * ngtcp2_conn_check_retired_dcid_tracked returns nonzero if |seq| has
  * already been tracked.
  */
-int ngtcp2_conn_check_retired_dcid_tracked(ngtcp2_conn *conn, uint64_t seq);
+int ngtcp2_conn_check_retired_dcid_tracked(const ngtcp2_conn *conn,
+                                           uint64_t seq);
 
 /*
  * ngtcp2_conn_server_negotiate_version negotiates QUIC version.  It
@@ -1108,7 +1113,7 @@ void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
                                   ngtcp2_tstamp ts);
 
 const ngtcp2_path_history_entry *
-ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
+ngtcp2_conn_find_path_history(const ngtcp2_conn *conn, const ngtcp2_path *path,
                               ngtcp2_tstamp ts);
 
 #endif /* !defined(NGTCP2_CONN_H) */
