@@ -1059,6 +1059,11 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   return p - token;
 }
 
+static int crypto_token_expired(ngtcp2_tstamp gen_ts, ngtcp2_duration timeout,
+                                ngtcp2_tstamp ts) {
+  return ts >= timeout && gen_ts <= ts - timeout;
+}
+
 int ngtcp2_crypto_verify_retry_token(
   ngtcp2_cid *odcid, const uint8_t *token, size_t tokenlen,
   const uint8_t *secret, size_t secretlen, uint32_t version,
@@ -1136,7 +1141,7 @@ int ngtcp2_crypto_verify_retry_token(
          sizeof(gen_ts));
 
   gen_ts = ngtcp2_ntohl64(gen_ts);
-  if (gen_ts + timeout <= ts) {
+  if (crypto_token_expired(gen_ts, timeout, ts)) {
     return -1;
   }
 
@@ -1334,7 +1339,7 @@ int ngtcp2_crypto_verify_retry_token2(
   memcpy(&gen_ts, p + NGTCP2_MAX_CIDLEN, sizeof(gen_ts));
 
   gen_ts = ngtcp2_ntohl64(gen_ts);
-  if (gen_ts + timeout <= ts) {
+  if (crypto_token_expired(gen_ts, timeout, ts)) {
     return NGTCP2_CRYPTO_ERR_VERIFY_TOKEN;
   }
 
@@ -1528,7 +1533,7 @@ static ngtcp2_ssize crypto_verify_regular_token(
   memcpy(&gen_ts, plaintext, sizeof(gen_ts));
 
   gen_ts = ngtcp2_ntohl64(gen_ts);
-  if (gen_ts + timeout <= ts) {
+  if (crypto_token_expired(gen_ts, timeout, ts)) {
     return NGTCP2_CRYPTO_ERR_VERIFY_TOKEN;
   }
 
