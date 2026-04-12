@@ -911,32 +911,6 @@ ngtcp2_duration ngtcp2_conn_compute_pto(const ngtcp2_conn *conn,
                                         const ngtcp2_pktns *pktns);
 
 /*
- * ngtcp2_conn_track_retired_dcid_seq tracks the sequence number |seq|
- * of unacknowledged retiring Destination Connection ID.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_CONNECTION_ID_LIMIT
- *     The number of unacknowledged retirement exceeds the limit.
- */
-int ngtcp2_conn_track_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
-
-/*
- * ngtcp2_conn_untrack_retired_dcid_seq deletes the sequence number
- * |seq| of unacknowledged retiring Destination Connection ID.  It is
- * fine if such sequence number is not found.
- */
-void ngtcp2_conn_untrack_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
-
-/*
- * ngtcp2_conn_check_retired_dcid_tracked returns nonzero if |seq| has
- * already been tracked.
- */
-int ngtcp2_conn_check_retired_dcid_tracked(const ngtcp2_conn *conn,
-                                           uint64_t seq);
-
-/*
  * ngtcp2_conn_server_negotiate_version negotiates QUIC version.  It
  * is compatible version negotiation.  It returns the negotiated QUIC
  * version.  This function must not be called by client.
