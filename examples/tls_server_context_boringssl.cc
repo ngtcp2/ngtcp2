@@ -213,7 +213,7 @@ std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
   }
 #endif // defined(HAVE_LIBBROTLI)
 
-  if (!config.ech_config.ech_config.empty()) {
+  if (!config.ech_config.ech_config_list.empty()) {
     const auto &echconf = config.ech_config;
 
     auto pkey = EVP_HPKE_KEY_new();
@@ -232,11 +232,13 @@ std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
     auto keys = SSL_ECH_KEYS_new();
     auto keys_d = defer([keys] { SSL_ECH_KEYS_free(keys); });
 
-    if (SSL_ECH_KEYS_add(keys, 1, echconf.ech_config.data(),
-                         echconf.ech_config.size(), pkey) != 1) {
-      std::println(stderr, "SSL_ECH_KEYS_add failed: {}",
-                   ERR_error_string(ERR_get_error(), nullptr));
-      return std::unexpected{Error::CRYPTO};
+    for (const auto &ech_config : echconf.ech_config_list) {
+      if (SSL_ECH_KEYS_add(keys, 1, ech_config.data(), ech_config.size(),
+                           pkey) != 1) {
+        std::println(stderr, "SSL_ECH_KEYS_add failed: {}",
+                     ERR_error_string(ERR_get_error(), nullptr));
+        return std::unexpected{Error::CRYPTO};
+      }
     }
 
     if (SSL_CTX_set1_ech_keys(ssl_ctx_, keys) != 1) {

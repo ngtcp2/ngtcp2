@@ -2630,11 +2630,10 @@ Options:
               Discovery.  <SIZE> must be strictly larger than 1200.
   --ech-config-file=<PATH>
               Read private  key and  ECHConfig from <PATH>.   The file
-              denoted by <PATH> must contain private key and ECHConfig
-              as                      described                     in
-              https://datatracker.ietf.org/doc/html/draft-farrell-tls-pemesni.
-              ECH configuration  is only applied if  an underlying TLS
-              stack supports it.
+              denoted  by   <PATH>  must   contain  private   key  and
+              ECHConfigList   as   described   in   RFC   9934.    ECH
+              configuration is only applied if an underlying TLS stack
+              supports it.
   --origin=<ORIGIN>
               Specify the origin to send in ORIGIN frame.  Repeat to
               add multiple origins.

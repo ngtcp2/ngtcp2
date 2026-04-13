@@ -572,8 +572,8 @@ struct ECHServerConfig {
   // private_key contains a private key used for decrypting encrypted
   // Client Hello.
   HPKEPrivateKey private_key;
-  // ech_config contains a serialized ECHConfig.
-  std::vector<uint8_t> ech_config;
+  // ech_config_list contains list of a serialized ECHConfig.
+  std::vector<std::vector<uint8_t>> ech_config_list;
 };
 
 // read_ech_server_config reads server-side ECH configuration from a
