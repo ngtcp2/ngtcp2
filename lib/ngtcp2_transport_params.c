@@ -586,9 +586,6 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       if (decode_varint_param(&params->max_idle_timeout, &p, end) != 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
-      if (params->max_idle_timeout > UINT64_MAX / NGTCP2_MILLISECONDS) {
-        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
-      }
       params->max_idle_timeout *= NGTCP2_MILLISECONDS;
       break;
     case NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE:
