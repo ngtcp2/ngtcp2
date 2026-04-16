@@ -148,6 +148,40 @@ void test_ngtcp2_fmt_format(void) {
     assert_size(strlen(buf), ==, nwrite);
   }
 
+  /* ngtcp2_stateless_reset_token */
+  {
+    ngtcp2_stateless_reset_token token = make_stateless_reset_token();
+
+    ngtcp2_fmt_format(buf, &nwrite, "[", &token, "]");
+
+    assert_string_equal("[70c070c070c070c070c070c070c070c0]", buf);
+    assert_size(strlen(buf), ==, nwrite);
+
+    ngtcp2_fmt_format(buf, &nwrite, "[",
+                      (const ngtcp2_stateless_reset_token *)&token, "]");
+
+    assert_string_equal("[70c070c070c070c070c070c070c070c0]", buf);
+    assert_size(strlen(buf), ==, nwrite);
+  }
+
+  /* ngtcp2_path_challenge_data */
+  {
+    ngtcp2_path_challenge_data data = {
+      .data = {0xBA, 0xAD, 0xCA, 0xCE, 0xCA, 0xFE, 0xF0, 0x0D},
+    };
+
+    ngtcp2_fmt_format(buf, &nwrite, "[", &data, "]");
+
+    assert_string_equal("[baadcacecafef00d]", buf);
+    assert_size(strlen(buf), ==, nwrite);
+
+    ngtcp2_fmt_format(buf, &nwrite, "[",
+                      (const ngtcp2_path_challenge_data *)&data, "]");
+
+    assert_string_equal("[baadcacecafef00d]", buf);
+    assert_size(strlen(buf), ==, nwrite);
+  }
+
   /* ngtcp2_in_addr */
   {
     ngtcp2_in_addr addr = {
