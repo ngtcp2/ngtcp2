@@ -27,10 +27,17 @@
 #include <stdio.h>
 
 #include "ngtcp2_qlog.h"
+#include "ngtcp2_net.h"
 #include "ngtcp2_test_helper.h"
 
 static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_qlog_write_frame),
+  munit_void_test(test_ngtcp2_qlog_parameters_set_transport_params),
+  munit_void_test(test_ngtcp2_qlog_metrics_updated),
+  munit_void_test(test_ngtcp2_qlog_pkt_lost),
+  munit_void_test(test_ngtcp2_qlog_retry_pkt_received),
+  munit_void_test(test_ngtcp2_qlog_stateless_reset_pkt_received),
+  munit_void_test(test_ngtcp2_qlog_version_negotiation_pkt_received),
   munit_test_end(),
 };
 
@@ -39,12 +46,13 @@ const MunitSuite qlog_suite = {
   .tests = tests,
 };
 
-static void null_qlog_write(void *user_data, uint32_t flags, const void *data,
-                            size_t datalen) {
-  (void)user_data;
+static void qlog_write(void *user_data, uint32_t flags, const void *data,
+                       size_t datalen) {
+  uint8_t *buf = user_data;
   (void)flags;
-  (void)data;
-  (void)datalen;
+
+  memcpy(buf, data, datalen);
+  buf[datalen] = '\0';
 }
 
 void test_ngtcp2_qlog_write_frame(void) {
@@ -54,7 +62,7 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_vec datav;
   ngtcp2_frame fr;
 
-  ngtcp2_qlog_init(&qlog, null_qlog_write, 0, NULL);
+  ngtcp2_qlog_init(&qlog, qlog_write, 0, NULL);
   ngtcp2_buf_init(&qlog.buf, buf, sizeof(buf));
 
   {
@@ -578,4 +586,249 @@ void test_ngtcp2_qlog_write_frame(void) {
     assert_string_equal("{\"frame_type\":\"datagram\",\"length\":1301458},",
                         (const char *)qlog.buf.begin);
   }
+}
+
+void test_ngtcp2_qlog_parameters_set_transport_params(void) {
+  ngtcp2_qlog qlog;
+  uint8_t buf[4096];
+  ngtcp2_transport_params params;
+  ngtcp2_in6_addr v6addr;
+
+  memcpy(&v6addr,
+         (uint8_t[]){0x5F, 0x6E, 0xEF, 0x1A, 0xDA, 0x56, 0x4F, 0x62, 0xE4, 0xDE,
+                     0xA0, 0x76, 0x9B, 0x21, 0xC6, 0x2B},
+         sizeof(v6addr));
+
+  ngtcp2_qlog_init(&qlog, qlog_write, 0, buf);
+  qlog.last_ts = 18446744073709551615ULL;
+
+  params = (ngtcp2_transport_params){
+    .preferred_addr =
+      {
+        .cid =
+          {
+            .data = {0xFF, 0xFE, 0xC0, 0x98},
+            .datalen = NGTCP2_MAX_CIDLEN,
+          },
+        .ipv4 =
+          {
+            .sin_port = ngtcp2_htons(UINT16_MAX),
+            .sin_addr.s_addr = ngtcp2_htonl(0xDEADF00D),
+          },
+        .ipv6 =
+          {
+            .sin6_port = ngtcp2_htons(UINT16_MAX),
+            .sin6_addr = v6addr,
+          },
+        .ipv4_present = 1,
+        .ipv6_present = 1,
+        .stateless_reset_token = {0xDD, 0xC1, 0xB9, 0x91, 0xDA, 0xB6, 0x00,
+                                  0x67, 0xE5, 0x91, 0x49, 0xEF, 0x0E, 0x2F,
+                                  0x53, 0x23},
+      },
+    .original_dcid =
+      {
+        .data = {0x17, 0x42, 0xB4, 0x90, 0x37, 0x00, 0x95, 0x0A},
+        .datalen = NGTCP2_MAX_CIDLEN,
+      },
+    .initial_scid =
+      {
+        .data = {0x78, 0x7E, 0x47, 0xB6, 0xF2, 0xAE, 0x4B, 0xB6},
+        .datalen = NGTCP2_MAX_CIDLEN,
+      },
+    .retry_scid =
+      {
+        .data = {0x14, 0x13, 0x21, 0xA0, 0x88, 0x65, 0x2A, 0x0C},
+        .datalen = NGTCP2_MAX_CIDLEN,
+      },
+    .initial_max_stream_data_bidi_local = NGTCP2_MAX_VARINT,
+    .initial_max_stream_data_bidi_remote = NGTCP2_MAX_VARINT,
+    .initial_max_stream_data_uni = NGTCP2_MAX_VARINT,
+    .initial_max_data = NGTCP2_MAX_VARINT,
+    .initial_max_streams_bidi = NGTCP2_MAX_VARINT,
+    .initial_max_streams_uni = NGTCP2_MAX_VARINT,
+    .max_idle_timeout = NGTCP2_MAX_VARINT,
+    .max_udp_payload_size = NGTCP2_MAX_VARINT,
+    .active_connection_id_limit = NGTCP2_MAX_VARINT,
+    .ack_delay_exponent = NGTCP2_MAX_VARINT,
+    .max_ack_delay = NGTCP2_MAX_VARINT,
+    .max_datagram_frame_size = NGTCP2_MAX_VARINT,
+    .stateless_reset_token_present = 1,
+    .disable_active_migration = 1,
+    .original_dcid_present = 1,
+    .initial_scid_present = 1,
+    .retry_scid_present = 1,
+    .preferred_addr_present = 1,
+    .stateless_reset_token = {0xEE, 0x58, 0x92, 0x91, 0x6F, 0xDE, 0x87, 0xDC,
+                              0x64, 0xC1, 0x04, 0xAB, 0x32, 0xFE, 0xC6, 0x25},
+    .grease_quic_bit = 1,
+  };
+
+  ngtcp2_qlog_parameters_set_transport_params(&qlog, &params, /* server = */ 0,
+                                              NGTCP2_QLOG_SIDE_REMOTE);
+
+  assert_string_equal(
+    "\x1E{\"time\":18446744073709,\"name\":\"transport:parameters_set\","
+    "\"data\":{\"owner\":\"remote\","
+    "\"initial_source_connection_id\":"
+    "\"787e47b6f2ae4bb6000000000000000000000000\","
+    "\"original_destination_connection_id\":"
+    "\"1742b4903700950a000000000000000000000000\","
+    "\"retry_source_connection_id\":"
+    "\"141321a088652a0c000000000000000000000000\","
+    "\"stateless_reset_token\":{\"data\":\"ee5892916fde87dc64c104ab32fec625\"},"
+    "\"disable_active_migration\":true,"
+    "\"max_idle_timeout\":4611686018427,"
+    "\"max_udp_payload_size\":4611686018427387903,"
+    "\"ack_delay_exponent\":4611686018427387903,"
+    "\"max_ack_delay\":4611686018427,"
+    "\"active_connection_id_limit\":4611686018427387903,"
+    "\"initial_max_data\":4611686018427387903,"
+    "\"initial_max_stream_data_bidi_local\":4611686018427387903,"
+    "\"initial_max_stream_data_bidi_remote\":4611686018427387903,"
+    "\"initial_max_stream_data_uni\":4611686018427387903,"
+    "\"initial_max_streams_bidi\":4611686018427387903,"
+    "\"initial_max_streams_uni\":4611686018427387903,"
+    "\"preferred_address\":{"
+    "\"ip_v4\":\"deadf00d\","
+    "\"port_v4\":65535,"
+    "\"ip_v6\":\"5f6eef1ada564f62e4dea0769b21c62b\","
+    "\"port_v6\":65535,"
+    "\"connection_id\":\"fffec09800000000000000000000000000000000\","
+    "\"stateless_reset_token\":{\"data\":\"ddc1b991dab60067e59149ef0e2f5323\"}}"
+    ","
+    "\"max_datagram_frame_size\":4611686018427387903,"
+    "\"grease_quic_bit\":true}}\n",
+    (const char *)buf);
+}
+
+void test_ngtcp2_qlog_metrics_updated(void) {
+  ngtcp2_qlog qlog;
+  uint8_t buf[1024];
+  ngtcp2_conn_stat cstat = {
+    .latest_rtt = UINT64_MAX,
+    .min_rtt = UINT64_MAX - 1,
+    .smoothed_rtt = UINT64_MAX,
+    .rttvar = UINT64_MAX,
+    /* To fit size_t in 32 bit systems */
+    .pto_count = UINT32_MAX,
+    .cwnd = UINT64_MAX,
+    .ssthresh = UINT64_MAX - 1,
+    .bytes_in_flight = UINT64_MAX,
+  };
+
+  ngtcp2_qlog_init(&qlog, qlog_write, 0, buf);
+  qlog.last_ts = 18446744073709551615ULL;
+
+  ngtcp2_qlog_metrics_updated(&qlog, &cstat);
+  assert_string_equal(
+    "\x1E{\"time\":18446744073709,"
+    "\"name\":\"recovery:metrics_updated\",\"data\":{"
+    "\"min_rtt\":18446744073709,\"smoothed_rtt\":18446744073709,"
+    "\"latest_rtt\":18446744073709,\"rtt_variance\":18446744073709,"
+    "\"pto_count\":4294967295,"
+    "\"congestion_window\":18446744073709551615,"
+    "\"bytes_in_flight\":18446744073709551615,"
+    "\"ssthresh\":18446744073709551614}}\n",
+    (const char *)buf);
+}
+
+void test_ngtcp2_qlog_pkt_lost(void) {
+  ngtcp2_qlog qlog;
+  uint8_t buf[2048];
+  ngtcp2_rtb_entry ent = {
+    .hd =
+      {
+        .pkt_num = NGTCP2_MAX_VARINT,
+        .type = NGTCP2_PKT_HANDSHAKE,
+        .flags = NGTCP2_PKT_FLAG_LONG_FORM,
+      },
+  };
+
+  ngtcp2_qlog_init(&qlog, qlog_write, 0, buf);
+  qlog.last_ts = 18446744073709551615ULL;
+
+  ngtcp2_qlog_pkt_lost(&qlog, &ent);
+
+  assert_string_equal(
+    "\x1E{\"time\":18446744073709,\"name\":\"recovery:packet_lost\","
+    "\"data\":{\"header\":{"
+    "\"packet_type\":\"handshake\",\"packet_number\":4611686018427387903}}}\n",
+    (const char *)buf);
+}
+
+void test_ngtcp2_qlog_retry_pkt_received(void) {
+  ngtcp2_qlog qlog;
+  uint8_t buf[1024];
+  ngtcp2_pkt_hd hd = {
+    .type = NGTCP2_PKT_RETRY,
+    .flags = NGTCP2_PKT_FLAG_LONG_FORM,
+  };
+  ngtcp2_pkt_retry retry = {
+    .token = (uint8_t *)"\xDE\xAD\xBE\xEF",
+    .tokenlen = 4,
+  };
+
+  ngtcp2_qlog_init(&qlog, qlog_write, 0, buf);
+  qlog.last_ts = 18446744073709551615ULL;
+
+  ngtcp2_qlog_retry_pkt_received(&qlog, &hd, &retry);
+
+  assert_string_equal(
+    "\x1E{\"time\":18446744073709,\"name\":\"transport:packet_received\","
+    "\"data\":{\"header\":{\"packet_type\":\"retry\",\"packet_number\":0},"
+    "\"retry_token\":{\"data\":\"deadbeef\"}}}\n",
+    (const char *)buf);
+}
+
+void test_ngtcp2_qlog_stateless_reset_pkt_received(void) {
+  ngtcp2_qlog qlog;
+  uint8_t buf[256];
+  ngtcp2_pkt_stateless_reset2 sr = {
+    .token =
+      {
+        .data = {0xF1, 0xE2, 0xD3, 0xC4, 0xB5, 0xA6, 0x07, 0x98, 0x89, 0x70,
+                 0x6A, 0x5B, 0x4C, 0x3D, 0x2E, 0x1F},
+      },
+  };
+
+  ngtcp2_qlog_init(&qlog, qlog_write, 0, buf);
+  qlog.last_ts = 18446744073709551615ULL;
+
+  ngtcp2_qlog_stateless_reset_pkt_received(&qlog, &sr);
+
+  assert_string_equal(
+    "\x1E{\"time\":18446744073709,\"name\":\"transport:packet_received\","
+    "\"data\":{\"header\":{"
+    "\"packet_type\":\"stateless_reset\",\"packet_number\":0},"
+    "\"stateless_reset_token\":\"f1e2d3c4b5a6079889706a5b4c3d2e1f\"}}\n",
+    (const char *)buf);
+}
+
+void test_ngtcp2_qlog_version_negotiation_pkt_received(void) {
+  ngtcp2_qlog qlog;
+  uint8_t buf[512];
+  ngtcp2_pkt_hd hd = {
+    .type = NGTCP2_PKT_VERSION_NEGOTIATION,
+  };
+  uint32_t versions[] = {
+    0xBADDCAFE,
+    0xDEADBEEF,
+    0xFACEFEED,
+    0xBAADF00D,
+  };
+
+  ngtcp2_qlog_init(&qlog, qlog_write, 0, buf);
+  qlog.last_ts = 18446744073709551615ULL;
+
+  ngtcp2_qlog_version_negotiation_pkt_received(&qlog, &hd, versions,
+                                               ngtcp2_arraylen(versions));
+
+  assert_string_equal(
+    "\x1E{\"time\":18446744073709,\"name\":\"transport:packet_received\","
+    "\"data\":{\"header\":{"
+    "\"packet_type\":\"version_negotiation\",\"packet_number\":0},"
+    "\"supported_versions\":["
+    "\"baddcafe\",\"deadbeef\",\"facefeed\",\"baadf00d\"]}}\n",
+    (const char *)buf);
 }
