@@ -238,7 +238,7 @@ static void log_fr_reset_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                     const ngtcp2_connection_close *fr,
                                     const char *dir) {
-  size_t reasonlen = ngtcp2_min(255, fr->reasonlen);
+  size_t reasonlen = ngtcp2_min(64, fr->reasonlen);
 
   ngtcp2_log_infof_raw(log, NGTCP2_LOG_EVENT_FRM, NGTCP2_LOG_PKT(dir, hd),
                        " CONNECTION_CLOSE(0x", hex(fr->type), ") error_code=",

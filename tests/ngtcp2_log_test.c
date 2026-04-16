@@ -375,7 +375,7 @@ void test_ngtcp2_log_fr(void) {
     0x33, 0x99, 0xAA, 0x11, 0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99, 0xAA,
     0x11, 0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99, 0xAA, 0x11, 0xFF,
   };
-  uint8_t reason[257] = {0};
+  uint8_t reason[66] = {0};
 
   memcpy(reason + sizeof(reason) - ngtcp2_strlen_lit("this is the reason") - 2,
          "this is the reason", ngtcp2_strlen_lit("this is the reason"));
@@ -588,12 +588,9 @@ void test_ngtcp2_log_fr(void) {
     .expected =
       {
         "I00001123 0xdeadbeef frm rx 778 1RTT CONNECTION_CLOSE(0x1c) "
-        "error_code=CONNECTION_REFUSED(0x2) frame_type=0x4 reason_len=257 "
-        "reason=[.."
-        "......................................................................"
-        "......................................................................"
-        "......................................................................"
-        ".........................this is the reason]",
+        "error_code=CONNECTION_REFUSED(0x2) frame_type=0x4 reason_len=66 "
+        "reason=[.............................................."
+        "this is the reason]",
       },
   };
 
