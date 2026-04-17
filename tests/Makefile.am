@@ -59,6 +59,8 @@ OBJECTS = \
 	ngtcp2_conn_info_test.c \
 	ngtcp2_cid_test.c \
 	ngtcp2_log_test.c \
+	ngtcp2_fmt_test.c \
+	ngtcp2_macro_test.c \
 	ngtcp2_test_helper.c \
 	munit/munit.c
 
@@ -95,6 +97,8 @@ HFILES= \
 	ngtcp2_conn_info_test.h \
 	ngtcp2_cid_test.h \
 	ngtcp2_log_test.h \
+	ngtcp2_fmt_test.h \
+	ngtcp2_macro_test.h \
 	ngtcp2_test_helper.h \
 	munit/munit.h
 

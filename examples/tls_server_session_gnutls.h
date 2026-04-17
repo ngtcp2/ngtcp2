@@ -30,6 +30,9 @@
 #endif // defined(HAVE_CONFIG_H)
 
 #include "tls_session_base_gnutls.h"
+#include "shared.h"
+
+using namespace ngtcp2;
 
 class TLSServerContext;
 class HandlerBase;
@@ -38,8 +41,9 @@ class TLSServerSession : public TLSSessionBase {
 public:
   TLSServerSession() = default;
 
-  int init(const TLSServerContext &tls_ctx, HandlerBase *handler);
-  int send_session_ticket();
+  std::expected<void, Error> init(const TLSServerContext &tls_ctx,
+                                  HandlerBase *handler);
+  std::expected<void, Error> send_session_ticket();
 };
 
 #endif // !defined(TLS_SERVER_SESSION_GNUTLS_H)

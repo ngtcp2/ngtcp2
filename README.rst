@@ -30,9 +30,9 @@ Requirements
 ------------
 
 The libngtcp2 C library itself does not depend on any external
-libraries.  The example client, and server are written in C++20, and
-should compile with the modern C++ compilers (e.g., clang >= 11.0, or
-gcc >= 11.0).
+libraries.  The example client, and server are written in C++23, and
+should compile with the modern C++ compilers (e.g., clang >= 19, or
+gcc >= 15).
 
 The following packages are required to configure the build system:
 
@@ -62,9 +62,9 @@ directory require at least one of the following TLS backends:
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1w+quic>`_
   (deprecated)
 - GnuTLS >= 3.7.5
-- BoringSSL (commit 7d88bb1bf3372bda1134ad8bf624b25b88e0db86);
+- BoringSSL (commit 664a985707470a62f436cca862ccec9524c561ca);
   or aws-lc >= 1.39.0
-- Picotls (commit 34d4d6496cec80bc3b56dbdab45f21bd9fbc17aa)
+- Picotls (commit b84869f41414b6d0148db7728f1cf12f5b544874)
 - wolfSSL >= 5.5.0
 - LibreSSL >= v3.9.2
 - OpenSSL >= 3.5.0 (experimental)
@@ -83,7 +83,7 @@ Build with wolfSSL
 
 .. code-block:: shell
 
-   $ git clone --depth 1 -b v5.8.4-stable https://github.com/wolfSSL/wolfssl
+   $ git clone --depth 1 -b v5.9.0-stable https://github.com/wolfSSL/wolfssl
    $ cd wolfssl
    $ autoreconf -i
    $ # For wolfSSL < v5.6.6, append --enable-quic.
@@ -116,7 +116,7 @@ Build with BoringSSL
 
    $ git clone https://boringssl.googlesource.com/boringssl
    $ cd boringssl
-   $ git checkout 7d88bb1bf3372bda1134ad8bf624b25b88e0db86
+   $ git checkout 664a985707470a62f436cca862ccec9524c561ca
    $ cmake -B build -DCMAKE_POSITION_INDEPENDENT_CODE=ON
    $ make -j$(nproc) -C build
    $ cd ..
@@ -143,7 +143,7 @@ Build with aws-lc
 
 .. code-block:: shell
 
-   $ git clone --depth 1 -b v1.68.0 https://github.com/aws/aws-lc
+   $ git clone --depth 1 -b v1.71.0 https://github.com/aws/aws-lc
    $ cd aws-lc
    $ cmake -B build -DDISABLE_GO=ON
    $ make -j$(nproc) -C build
@@ -224,15 +224,15 @@ The notable options are:
 
 - ``-V``, ``--validate-addr``: Enforce stateless address validation.
 
-H09wsslclient/H09wsslserver
----------------------------
+wsslhqclient/wsslhqserver
+-------------------------
 
-There are h09wsslclient and h09wsslserver which speak HTTP/0.9.  They
-are written just for `quic-interop-runner
+There are wsslhqclient and wsslhqserver which speak HQ protocol, which
+is specifically tailored for `quic-interop-runner
 <https://github.com/marten-seemann/quic-interop-runner>`_.  They share
 the basic functionalities with HTTP/3 client and server but have less
-functions (e.g., h09wsslclient does not have a capability to send
-request body, and h09wsslserver does not understand numeric request
+functions (e.g., wsslhqclient does not have a capability to send
+request body, and wsslhqserver does not understand numeric request
 path, like /1000).
 
 Resumption and 0-RTT

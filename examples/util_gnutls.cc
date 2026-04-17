@@ -29,6 +29,8 @@
 #include <fstream>
 #include <array>
 #include <algorithm>
+#include <expected>
+#include <filesystem>
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
@@ -42,41 +44,26 @@ namespace ngtcp2 {
 
 namespace util {
 
-int generate_secure_random(std::span<uint8_t> data) {
+std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
   if (gnutls_rnd(GNUTLS_RND_RANDOM, data.data(), data.size()) != 0) {
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
-}
-
-int generate_secret(std::span<uint8_t> secret) {
-  std::array<uint8_t, 16> rand;
-
-  if (generate_secure_random(rand) != 0) {
-    return -1;
-  }
-
-  if (gnutls_hash_fast(GNUTLS_DIG_SHA256, rand.data(), rand.size(),
-                       secret.data()) != 0) {
-    return -1;
-  }
-
-  return 0;
-}
-
-std::optional<HPKEPrivateKey>
-read_hpke_private_key_pem(const std::string_view &filename) {
   return {};
 }
 
-std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
-                                             const std::string_view &name,
-                                             const std::string_view &type) {
-  auto f = std::ifstream(filename.data());
+std::expected<HPKEPrivateKey, Error>
+read_hpke_private_key_pem(const std::filesystem::path &path) {
+  return std::unexpected{Error::NOT_IMPLEMENTED};
+}
+
+std::expected<std::vector<uint8_t>, Error>
+read_pem(const std::filesystem::path &path, std::string_view name,
+         std::string_view type) {
+  auto f = std::ifstream(path);
   if (!f) {
-    std::cerr << "Could not read " << name << " file " << filename << std::endl;
-    return {};
+    std::println(stderr, "Could not read {} file {}", name, path.native());
+    return std::unexpected{Error::IO};
   }
 
   f.seekg(0, std::ios::end);
@@ -91,8 +78,8 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
 
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_decode2(type.data(), &s, &d); rv < 0) {
-    std::cerr << "Could not read " << name << " file " << filename << std::endl;
-    return {};
+    std::println(stderr, "Could not read {} file {}", name, path.native());
+    return std::unexpected{Error::IO};
   }
 
   auto res = std::vector(d.data, d.data + d.size);
@@ -102,12 +89,14 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
   return res;
 }
 
-int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, std::span<const uint8_t> data) {
-  auto f = std::ofstream(filename.data());
+std::expected<void, Error> write_pem(const std::filesystem::path &path,
+                                     std::string_view name,
+                                     std::string_view type,
+                                     std::span<const uint8_t> data) {
+  auto f = std::ofstream(path);
   if (!f) {
-    std::cerr << "Could not write " << name << " in " << filename << std::endl;
-    return -1;
+    std::println(stderr, "Could not write {} to {}", name, path.native());
+    return std::unexpected{Error::IO};
   }
 
   gnutls_datum_t s{
@@ -117,14 +106,14 @@ int write_pem(const std::string_view &filename, const std::string_view &name,
 
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_encode2(type.data(), &s, &d); rv < 0) {
-    std::cerr << "Could not encode " << name << " in " << filename << std::endl;
-    return -1;
+    std::println(stderr, "Could not encode {} to {}", name, path.native());
+    return std::unexpected{Error::IO};
   }
 
   f.write(reinterpret_cast<const char *>(d.data), d.size);
   gnutls_free(d.data);
 
-  return 0;
+  return {};
 }
 
 const char *crypto_default_ciphers() {

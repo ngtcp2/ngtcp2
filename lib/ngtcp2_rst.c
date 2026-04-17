@@ -90,7 +90,7 @@ void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
     return;
   }
 
-  rs->interval = ngtcp2_max_uint64(rs->send_elapsed, rs->ack_elapsed);
+  rs->interval = ngtcp2_max(rs->send_elapsed, rs->ack_elapsed);
 
   rs->delivered = rst->delivered - rs->prior_delivered;
 

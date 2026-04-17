@@ -812,18 +812,19 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 int ngtcp2_crypto_read_write_crypto_data(
   ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
   const uint8_t *data, size_t datalen) {
-  SSL *ssl = ngtcp2_conn_get_tls_native_handle(conn);
+  SSL *ssl = ngtcp2_conn_get_tls_native_handle2(conn);
   int rv;
   int err;
 
-  if (SSL_provide_quic_data(
+  if (datalen &&
+      SSL_provide_quic_data(
         ssl,
         ngtcp2_crypto_quictls_from_ngtcp2_encryption_level(encryption_level),
         data, datalen) != 1) {
     return -1;
   }
 
-  if (!ngtcp2_conn_get_handshake_completed(conn)) {
+  if (!ngtcp2_conn_get_handshake_completed2(conn)) {
     rv = SSL_do_handshake(ssl);
     if (rv <= 0) {
       err = SSL_get_error(ssl, rv);

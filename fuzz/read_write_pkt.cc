@@ -556,6 +556,10 @@ void init_path(ngtcp2_path_storage *ps) {
 } // namespace
 
 namespace {
+void log_write(void *user_data, char *msg, size_t len) {}
+} // namespace
+
+namespace {
 void qlog_write(void *user_data, uint32_t flags, const void *data,
                 size_t datalen) {}
 } // namespace
@@ -675,6 +679,7 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
 
   ngtcp2_settings_default(&settings);
 
+  settings.log_write = log_write;
   settings.qlog_write = qlog_write;
   settings.cc_algo = fuzzed_data_provider.PickValueInArray(
     {NGTCP2_CC_ALGO_RENO, NGTCP2_CC_ALGO_CUBIC, NGTCP2_CC_ALGO_BBR});
@@ -830,7 +835,7 @@ int read_write(ngtcp2_conn *conn, FuzzedDataProvider &fuzzed_data_provider,
       }
     }
 
-    if (!ngtcp2_conn_is_server(conn) && fuzzed_data_provider.ConsumeBool()) {
+    if (!ngtcp2_conn_is_server2(conn) && fuzzed_data_provider.ConsumeBool()) {
       auto rv = ngtcp2_conn_initiate_migration(conn, path, ts);
       if (rv != 0) {
         return -1;
@@ -983,7 +988,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   read_write(conn, fuzzed_data_provider, &ps.path, ts);
 
-  auto ccerr = ngtcp2_conn_get_ccerr(conn);
+  auto ccerr = ngtcp2_conn_get_ccerr2(conn);
 
   ngtcp2_pkt_info pi{};
 

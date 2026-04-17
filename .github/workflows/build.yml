@@ -12,10 +12,10 @@ env:
   OPENSSL1_VERSION: 1_1_1w+quic
   OPENSSL3_VERSION: 3.1.7+quic
   OSSL_VERSION: 3.6.1
-  BORINGSSL_VERSION: 7d88bb1bf3372bda1134ad8bf624b25b88e0db86
-  AWSLC_VERSION: v1.68.0
-  PICOTLS_VERSION: 34d4d6496cec80bc3b56dbdab45f21bd9fbc17aa
-  WOLFSSL_VERSION: v5.8.4-stable
+  BORINGSSL_VERSION: 664a985707470a62f436cca862ccec9524c561ca
+  AWSLC_VERSION: v1.71.0
+  PICOTLS_VERSION: b84869f41414b6d0148db7728f1cf12f5b544874
+  WOLFSSL_VERSION: v5.9.0-stable
   LIBRESSL_VERSION: v4.2.1
   NGHTTP3_VERSION: head
 
@@ -28,7 +28,7 @@ jobs:
 
     steps:
     - id: nghttp3-version
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         result-encoding: string
         script: |
@@ -537,20 +537,24 @@ jobs:
         BORINGSSL_INCLUDE_DIR="$PWD/boringssl/include/"
         BORINGSSL_CFLAGS="-I$BORINGSSL_INCLUDE_DIR"
         BORINGSSL_LIBS="-L$PWD/boringssl/build -lssl -lcrypto"
+        BORINGSSL_STDCXXLIB="-lstdc++"
 
         echo 'BORINGSSL_CFLAGS='"$BORINGSSL_CFLAGS" >> $GITHUB_ENV
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
         echo 'BORINGSSL_INCLUDE_DIR='"$BORINGSSL_INCLUDE_DIR" >> $GITHUB_ENV
+        echo 'BORINGSSL_STDCXXLIB='"$BORINGSSL_STDCXXLIB" >> $GITHUB_ENV
     - name: Setup aws-lc environment variables
       if: matrix.tls.boringssl == 'aws-lc'
       run: |
         BORINGSSL_INCLUDE_DIR="$PWD/aws-lc/include/"
         BORINGSSL_CFLAGS="-I$BORINGSSL_INCLUDE_DIR"
         BORINGSSL_LIBS="-L$PWD/aws-lc/build/ssl -lssl -L$PWD/aws-lc/build/crypto -lcrypto"
+        BORINGSSL_STDCXXLIB="-lstdc++"
 
         echo 'BORINGSSL_CFLAGS='"$BORINGSSL_CFLAGS" >> $GITHUB_ENV
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
         echo 'BORINGSSL_INCLUDE_DIR='"$BORINGSSL_INCLUDE_DIR" >> $GITHUB_ENV
+        echo 'BORINGSSL_STDCXXLIB='"$BORINGSSL_STDCXXLIB" >> $GITHUB_ENV
     - name: Setup libev environment variables
       if: runner.os == 'macOS'
       run: |
@@ -621,6 +625,19 @@ jobs:
       run: |
         cd tests
         ./main
+    - name: Run crypto tests
+      if: matrix.buildtool == 'autotools'
+      run: |
+        tests=(crypto/*/cryptotest)
+        [ -e "${tests[0]}" ] || exit 0
+
+        for f in crypto/*/cryptotest; do
+          echo "Executing $f"
+          pushd . > /dev/null
+          cd "$(dirname $f)"
+          ./cryptotest
+          popd > /dev/null
+        done
     - name: Run examples tests
       if: matrix.buildtool == 'autotools' && matrix.sockaddr == 'native-sockaddr'
       run: |
@@ -776,7 +793,7 @@ jobs:
     - uses: actions/checkout@v6
       with:
         submodules: recursive
-    - uses: microsoft/setup-msbuild@v2
+    - uses: microsoft/setup-msbuild@v3
     - name: Configure cmake
       run: |
         cmake -B build -DENABLE_WERROR=ON -DENABLE_OPENSSL=OFF -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }} -DVCPKG_TARGET_TRIPLET=${{ matrix.arch}}-windows
@@ -816,7 +833,7 @@ jobs:
         GPG_KEY: ${{ secrets.GPG_KEY }}
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     - name: Make release
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           const fs = require('fs')

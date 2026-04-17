@@ -432,18 +432,19 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 int ngtcp2_crypto_read_write_crypto_data(
   ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
   const uint8_t *data, size_t datalen) {
-  SSL *ssl = ngtcp2_conn_get_tls_native_handle(conn);
+  SSL *ssl = ngtcp2_conn_get_tls_native_handle2(conn);
   int rv;
   int err;
 
-  if (SSL_provide_quic_data(
+  if (datalen &&
+      SSL_provide_quic_data(
         ssl,
         ngtcp2_crypto_boringssl_from_ngtcp2_encryption_level(encryption_level),
         data, datalen) != 1) {
     return -1;
   }
 
-  if (!ngtcp2_conn_get_handshake_completed(conn)) {
+  if (!ngtcp2_conn_get_handshake_completed2(conn)) {
   retry:
     rv = SSL_do_handshake(ssl);
     if (rv <= 0) {
@@ -455,7 +456,7 @@ int ngtcp2_crypto_read_write_crypto_data(
       case SSL_ERROR_SSL:
         return -1;
       case SSL_ERROR_EARLY_DATA_REJECTED:
-        assert(!ngtcp2_conn_is_server(conn));
+        assert(!ngtcp2_conn_is_server2(conn));
 
         SSL_reset_early_data_reject(ssl);
 
@@ -465,6 +466,16 @@ int ngtcp2_crypto_read_write_crypto_data(
         }
 
         goto retry;
+      case SSL_ERROR_WANT_X509_LOOKUP:
+      case SSL_ERROR_WANT_PRIVATE_KEY_OPERATION:
+      case SSL_ERROR_WANT_CERTIFICATE_VERIFY:
+        /* It might be better to return this error, but ngtcp2 does
+           not need to know whether handshake has been interrupted or
+           not.  We expect that necessary plumbing should be done by
+           application when handshake is interrupted (e.g., via
+           SSL_PRIVATE_KEY_METHOD).  If it does not work, we will
+           reconsider this. */
+        return 0;
       default:
         return -1;
       }

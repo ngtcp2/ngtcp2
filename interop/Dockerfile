@@ -8,7 +8,7 @@ set -e
 
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git clang-19 libclang-rt-19-dev \
+    git clang-19 libclang-rt-19-dev libstdc++-14-dev \
     make autoconf automake autotools-dev libtool \
     pkg-config ca-certificates \
     libev-dev libjemalloc-dev media-types
@@ -22,7 +22,7 @@ case "$TARGETPLATFORM" in
         ;;
 esac
 
-git clone --depth 1 -b v5.8.4-stable https://github.com/wolfSSL/wolfssl
+git clone --depth 1 -b v5.9.0-stable https://github.com/wolfSSL/wolfssl
 cd wolfssl
 autoreconf -i
 ./configure --disable-dependency-tracking --enable-static --enable-all \
@@ -66,7 +66,7 @@ autoreconf -i
     --with-wolfssl
 make -j$(nproc)
 cp examples/wsslclient examples/wsslserver \
-   examples/h09wsslclient examples/h09wsslserver /usr/local/bin
+   examples/wsslhqclient examples/wsslhqserver /usr/local/bin
 cd ..
 rm -rf ngtcp2
 EOF
@@ -74,7 +74,7 @@ EOF
 FROM martenseemann/quic-network-simulator-endpoint:latest
 
 COPY --from=build --link /usr/local/bin/wsslclient /usr/local/bin/wsslserver \
-    /usr/local/bin/h09wsslclient /usr/local/bin/h09wsslserver /usr/local/bin/
+    /usr/local/bin/wsslhqclient /usr/local/bin/wsslhqserver /usr/local/bin/
 COPY --from=build --link /etc/mime.types /etc/
 COPY --link --chmod=0775 run_endpoint.sh .
 

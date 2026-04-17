@@ -74,7 +74,7 @@ void test_ngtcp2_rtb_add(void) {
 
   conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
-  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+  ngtcp2_log_init(&log, NULL, NULL, NULL, NULL, 0, NULL);
   ngtcp2_cc_reno_init(&cc, &log, &cstat);
   ngtcp2_rtb_init(&rtb, &rst, &cc.cc, 0, &log, NULL, &rtb_entry_objalloc,
                   &frc_objalloc, mem);
@@ -198,7 +198,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_objalloc_init(&frc_objalloc, 1024, mem);
   ngtcp2_objalloc_init(&rtb_entry_objalloc, 1024, mem);
 
-  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+  ngtcp2_log_init(&log, NULL, NULL, NULL, NULL, 0, NULL);
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, NULL, NULL, 0,
                      1, NGTCP2_PROTO_VER_V1);
   pktns.id = NGTCP2_PKTNS_ID_HANDSHAKE;
@@ -383,7 +383,7 @@ void test_ngtcp2_rtb_lost_pkt_ts(void) {
   ngtcp2_objalloc_init(&frc_objalloc, 1024, mem);
   ngtcp2_objalloc_init(&rtb_entry_objalloc, 1024, mem);
 
-  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+  ngtcp2_log_init(&log, NULL, NULL, NULL, NULL, 0, NULL);
 
   conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
@@ -425,7 +425,7 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
   ngtcp2_objalloc_init(&frc_objalloc, 1024, mem);
   ngtcp2_objalloc_init(&rtb_entry_objalloc, 1024, mem);
 
-  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+  ngtcp2_log_init(&log, NULL, NULL, NULL, NULL, 0, NULL);
 
   conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
@@ -486,7 +486,7 @@ void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
   ngtcp2_objalloc_init(&frc_objalloc, 1024, mem);
   ngtcp2_objalloc_init(&rtb_entry_objalloc, 1024, mem);
 
-  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+  ngtcp2_log_init(&log, NULL, NULL, NULL, NULL, 0, NULL);
 
   conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);

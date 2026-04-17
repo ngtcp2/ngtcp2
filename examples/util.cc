@@ -57,17 +57,19 @@ namespace ngtcp2 {
 
 namespace util {
 
-std::optional<HPKEPrivateKey>
-read_hpke_private_key_pem(const std::string_view &filename);
+std::expected<HPKEPrivateKey, Error>
+read_hpke_private_key_pem(const std::filesystem::path &path);
 
-std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
-                                             const std::string_view &name,
-                                             const std::string_view &type);
+std::expected<std::vector<uint8_t>, Error>
+read_pem(const std::filesystem::path &path, std::string_view name,
+         std::string_view type);
 
-int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, std::span<const uint8_t> data);
+std::expected<void, Error> write_pem(const std::filesystem::path &path,
+                                     std::string_view name,
+                                     std::string_view type,
+                                     std::span<const uint8_t> data);
 
-std::string decode_hex(const std::string_view &s) {
+std::string decode_hex(std::string_view s) {
   assert(s.size() % 2 == 0);
   std::string res(s.size() / 2, '0');
   auto p = std::ranges::begin(res);
@@ -244,34 +246,35 @@ uint8_t *hexdump_line(uint8_t *dest, std::span<const uint8_t> data,
 } // namespace
 
 namespace {
-int hexdump_write(int fd, std::span<const uint8_t> data) {
+std::expected<void, Error> hexdump_write(int fd,
+                                         std::span<const uint8_t> data) {
   ssize_t nwrite;
 
   for (;
        (nwrite = write(fd, data.data(), data.size())) == -1 && errno == EINTR;)
     ;
   if (nwrite == -1) {
-    return -1;
+    return std::unexpected{Error::IO};
   }
 
-  return 0;
+  return {};
 }
 } // namespace
 
-int hexdump(FILE *out, const void *data, size_t datalen) {
-  if (datalen == 0) {
-    return 0;
+std::expected<void, Error> hexdump(FILE *out, std::span<const uint8_t> data) {
+  if (data.empty()) {
+    return {};
   }
 
   // min_space is the additional minimum space that the buffer must
   // accept, which is the size of a single full line output + one
   // repeat line marker ("*\n").  If the remaining buffer size is less
   // than that, flush the buffer and reset.
-  constexpr size_t min_space = 79 + 2;
+  constexpr auto min_space = 79UZ + 2UZ;
 
   auto fd = fileno(out);
   std::array<uint8_t, 4096> buf;
-  auto input = std::span{reinterpret_cast<const uint8_t *>(data), datalen};
+  auto input = data;
   auto last = buf.data();
   auto repeated = false;
   std::span<const uint8_t> s, last_s{};
@@ -298,22 +301,21 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
       repeated = false;
     }
 
-    last = hexdump_line(
-      last, s, as_unsigned(s.data() - reinterpret_cast<const uint8_t *>(data)));
+    last = hexdump_line(last, s, as_unsigned(s.data() - data.data()));
     *last++ = '\n';
     last_s = s;
 
     auto len = static_cast<size_t>(last - buf.data());
     if (len + min_space > buf.size()) {
-      if (hexdump_write(fd, {buf.data(), len}) != 0) {
-        return -1;
+      if (auto rv = hexdump_write(fd, {buf.data(), len}); !rv) {
+        return rv;
       }
 
       last = buf.data();
     }
   }
 
-  last = hexdump_addr(last, datalen);
+  last = hexdump_addr(last, data.size());
   *last++ = '\n';
 
   auto len = static_cast<size_t>(last - buf.data());
@@ -321,7 +323,7 @@ int hexdump(FILE *out, const void *data, size_t datalen) {
     return hexdump_write(fd, {buf.data(), len});
   }
 
-  return 0;
+  return {};
 }
 
 ngtcp2_cid make_cid_key(std::span<const uint8_t> cid) {
@@ -342,7 +344,7 @@ std::string straddr(const sockaddr *sa, socklen_t salen) {
   auto rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
                         port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
   if (rv != 0) {
-    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
+    std::println(stderr, "getnameinfo: {}", gai_strerror(rv));
     return "";
   }
   std::string res = "[";
@@ -387,11 +389,11 @@ namespace {
 constexpr bool rws(char c) { return c == '\t' || c == ' '; }
 } // namespace
 
-std::optional<std::unordered_map<std::string, std::string>>
-read_mime_types(const std::string_view &filename) {
-  std::ifstream f(filename.data());
+std::expected<std::unordered_map<std::string, std::string>, Error>
+read_mime_types(const std::filesystem::path &filename) {
+  std::ifstream f(filename);
   if (!f) {
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   std::unordered_map<std::string, std::string> dest;
@@ -415,7 +417,9 @@ read_mime_types(const std::string_view &filename) {
       }
 
       p = std::ranges::find_if(ext, std::ranges::end(line), rws);
-      dest.emplace(std::string{ext, p}, media_type);
+      auto key = "."s;
+      key += std::string{ext, p};
+      dest.emplace(key, media_type);
     }
   }
 
@@ -442,12 +446,12 @@ std::string format_duration(ngtcp2_duration n) {
 }
 
 namespace {
-std::optional<std::pair<uint64_t, size_t>>
-parse_uint_internal(const std::string_view &s) {
+std::expected<std::pair<uint64_t, size_t>, Error>
+parse_uint_internal(std::string_view s) {
   uint64_t res = 0;
 
   if (s.empty()) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   for (size_t i = 0; i < s.size(); ++i) {
@@ -458,7 +462,7 @@ parse_uint_internal(const std::string_view &s) {
 
     auto d = static_cast<uint64_t>(c - '0');
     if (res > (std::numeric_limits<uint64_t>::max() - d) / 10) {
-      return {};
+      return std::unexpected{Error::INTEGER_OVERFLOW};
     }
 
     res *= 10;
@@ -469,29 +473,29 @@ parse_uint_internal(const std::string_view &s) {
 }
 } // namespace
 
-std::optional<uint64_t> parse_uint(const std::string_view &s) {
+std::expected<uint64_t, Error> parse_uint(std::string_view s) {
   auto o = parse_uint_internal(s);
   if (!o) {
-    return {};
+    return std::unexpected{o.error()};
   }
   auto [res, idx] = *o;
   if (idx != s.size()) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
   return res;
 }
 
-std::optional<uint64_t> parse_uint_iec(const std::string_view &s) {
+std::expected<uint64_t, Error> parse_uint_iec(std::string_view s) {
   auto o = parse_uint_internal(s);
   if (!o) {
-    return {};
+    return std::unexpected{o.error()};
   }
   auto [res, idx] = *o;
   if (idx == s.size()) {
     return res;
   }
   if (idx + 1 != s.size()) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   uint64_t m;
@@ -509,20 +513,20 @@ std::optional<uint64_t> parse_uint_iec(const std::string_view &s) {
     m = 1 << 10;
     break;
   default:
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   if (res > std::numeric_limits<uint64_t>::max() / m) {
-    return {};
+    return std::unexpected{Error::INTEGER_OVERFLOW};
   }
 
   return res * m;
 }
 
-std::optional<uint64_t> parse_duration(const std::string_view &s) {
+std::expected<uint64_t, Error> parse_duration(std::string_view s) {
   auto o = parse_uint_internal(s);
   if (!o) {
-    return {};
+    return std::unexpected{o.error()};
   }
   auto [res, idx] = *o;
   if (idx == s.size()) {
@@ -545,7 +549,7 @@ std::optional<uint64_t> parse_duration(const std::string_view &s) {
       m = NGTCP2_SECONDS;
       break;
     default:
-      return {};
+      return std::unexpected{Error::INVALID_ARGUMENT};
     }
   } else if (idx + 2 == s.size() && (s[idx + 1] == 's' || s[idx + 1] == 'S')) {
     switch (s[idx]) {
@@ -561,14 +565,14 @@ std::optional<uint64_t> parse_duration(const std::string_view &s) {
     case 'n':
       return res;
     default:
-      return {};
+      return std::unexpected{Error::INVALID_ARGUMENT};
     }
   } else {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   if (res > std::numeric_limits<uint64_t>::max() / m) {
-    return {};
+    return std::unexpected{Error::INTEGER_OVERFLOW};
   }
 
   return res * m;
@@ -611,12 +615,17 @@ template <typename InputIt> InputIt eat_dir(InputIt first, InputIt last) {
 }
 } // namespace
 
-std::string normalize_path(const std::string_view &path) {
-  assert(path.size() <= 1024);
+std::expected<std::string, Error> normalize_path(std::string_view path) {
+  constexpr auto max_path = 1024UZ;
+
+  if (path.size() > max_path) {
+    return std::unexpected{Error::INVALID_ARGUMENT};
+  }
+
   assert(path.size() > 0);
   assert(path[0] == '/');
 
-  std::array<char, 1024> res;
+  std::array<char, max_path> res;
   auto p = res.data();
 
   auto first = std::ranges::begin(path);
@@ -664,32 +673,37 @@ std::string normalize_path(const std::string_view &path) {
   return std::string{res.data(), p};
 }
 
-int make_socket_nonblocking(int fd) {
+std::expected<void, Error> make_socket_nonblocking(int fd) {
   int rv;
   int flags;
 
   while ((flags = fcntl(fd, F_GETFL, 0)) == -1 && errno == EINTR)
     ;
   if (flags == -1) {
-    return -1;
+    return std::unexpected{Error::SYSCALL};
   }
 
   while ((rv = fcntl(fd, F_SETFL, flags | O_NONBLOCK)) == -1 && errno == EINTR)
     ;
 
-  return rv;
+  if (rv == -1) {
+    return std::unexpected{Error::SYSCALL};
+  }
+
+  return {};
 }
 
-int create_nonblock_socket(int domain, int type, int protocol) {
+std::expected<int, Error> create_nonblock_socket(int domain, int type,
+                                                 int protocol) {
 #ifdef SOCK_NONBLOCK
   auto fd = socket(domain, type | SOCK_NONBLOCK, protocol);
   if (fd == -1) {
-    return -1;
+    return std::unexpected{Error::SYSCALL};
   }
 #else  // !defined(SOCK_NONBLOCK)
   auto fd = socket(domain, type, protocol);
   if (fd == -1) {
-    return -1;
+    return std::unexpected{Error::SYSCALL};
   }
 
   make_socket_nonblocking(fd);
@@ -698,109 +712,92 @@ int create_nonblock_socket(int domain, int type, int protocol) {
   return fd;
 }
 
-std::vector<std::string_view> split_str(const std::string_view &s, char delim) {
-  size_t len = 1;
-  auto last = std::ranges::end(s);
-  std::string_view::const_iterator d;
-  for (auto first = std::ranges::begin(s);
-       (d = std::ranges::find(first, last, delim)) != last;
-       ++len, first = d + 1)
-    ;
-
-  auto list = std::vector<std::string_view>(len);
-
-  len = 0;
-  for (auto first = std::ranges::begin(s);; ++len) {
-    auto stop = std::ranges::find(first, last, delim);
-    // xcode clang does not understand std::string_view{first, stop}.
-    list[len] = std::string_view{first, static_cast<size_t>(stop - first)};
-    if (stop == last) {
-      break;
-    }
-    first = stop + 1;
-  }
-  return list;
-}
-
-std::optional<uint32_t> parse_version(const std::string_view &s) {
+std::expected<uint32_t, Error> parse_version(std::string_view s) {
   if (!util::istarts_with(s, "0x"sv)) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
   auto k = s.substr(2);
   auto k_last = k.data() + k.size();
   uint32_t v;
   auto rv = std::from_chars(k.data(), k_last, v, 16);
   if (rv.ptr != k_last || rv.ec != std::errc{}) {
-    return {};
+    return std::unexpected{Error::INVALID_ARGUMENT};
   }
 
   return v;
 }
 
-std::optional<std::vector<uint8_t>>
-read_token(const std::string_view &filename) {
-  return read_pem(filename, "token"sv, "QUIC TOKEN"sv);
+std::expected<std::vector<uint8_t>, Error>
+read_token(const std::filesystem::path &path) {
+  return read_pem(path, "token"sv, "QUIC TOKEN"sv);
 }
 
-int write_token(const std::string_view &filename,
-                std::span<const uint8_t> token) {
-  return write_pem(filename, "token"sv, "QUIC TOKEN"sv, token);
+std::expected<void, Error> write_token(const std::filesystem::path &path,
+                                       std::span<const uint8_t> token) {
+  return write_pem(path, "token"sv, "QUIC TOKEN"sv, token);
 }
 
-std::optional<std::vector<uint8_t>>
-read_transport_params(const std::string_view &filename) {
-  return read_pem(filename, "transport parameters"sv,
+std::expected<std::vector<uint8_t>, Error>
+read_transport_params(const std::filesystem::path &path) {
+  return read_pem(path, "transport parameters"sv,
                   "QUIC TRANSPORT PARAMETERS"sv);
 }
 
-int write_transport_params(const std::string_view &filename,
-                           std::span<const uint8_t> data) {
-  return write_pem(filename, "transport parameters"sv,
+std::expected<void, Error>
+write_transport_params(const std::filesystem::path &path,
+                       std::span<const uint8_t> data) {
+  return write_pem(path, "transport parameters"sv,
                    "QUIC TRANSPORT PARAMETERS"sv, data);
 }
 
-std::string percent_decode(const std::string_view &s) {
+std::string percent_decode(std::string_view s) {
   std::string result;
-  result.resize(s.size());
-  auto p = std::ranges::begin(result);
-  for (auto first = std::ranges::begin(s), last = std::ranges::end(s);
-       first != last; ++first) {
-    if (*first != '%') {
+
+  result.resize_and_overwrite(s.size(), [s](auto p, auto len) {
+    auto head = p;
+
+    for (auto first = std::ranges::begin(s), last = std::ranges::end(s);
+         first != last; ++first) {
+      if (*first != '%') {
+        *p++ = *first;
+        continue;
+      }
+
+      if (first + 1 != last && first + 2 != last &&
+          is_hex_digit(*(first + 1)) && is_hex_digit(*(first + 2))) {
+        *p++ = static_cast<char>((hex_to_uint(*(first + 1)) << 4) +
+                                 hex_to_uint(*(first + 2)));
+        first += 2;
+        continue;
+      }
+
       *p++ = *first;
-      continue;
     }
 
-    if (first + 1 != last && first + 2 != last && is_hex_digit(*(first + 1)) &&
-        is_hex_digit(*(first + 2))) {
-      *p++ = static_cast<char>((hex_to_uint(*(first + 1)) << 4) +
-                               hex_to_uint(*(first + 2)));
-      first += 2;
-      continue;
-    }
+    return p - head;
+  });
 
-    *p++ = *first;
-  }
-  result.resize(as_unsigned(p - std::ranges::begin(result)));
   return result;
 }
 
-std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
-  auto fd = open(path.data(), O_RDONLY);
+std::expected<std::vector<uint8_t>, Error>
+read_file(const std::filesystem::path &path) {
+  auto fd = open(path.c_str(), O_RDONLY);
   if (fd == -1) {
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   auto fd_d = defer([fd] { close(fd); });
 
   auto size = lseek(fd, 0, SEEK_END);
   if (size == static_cast<off_t>(-1)) {
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   auto addr =
     mmap(nullptr, static_cast<size_t>(size), PROT_READ, MAP_SHARED, fd, 0);
   if (addr == MAP_FAILED) {
-    return {};
+    return std::unexpected{Error::IO};
   }
 
   auto addr_d =
@@ -813,8 +810,8 @@ std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
 
 size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst) {
   return std::min(gso_burst == 0
-                    ? ngtcp2_conn_get_send_quantum(conn)
-                    : ngtcp2_conn_get_path_max_tx_udp_payload_size(conn) *
+                    ? ngtcp2_conn_get_send_quantum2(conn)
+                    : ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn) *
                         gso_burst,
                   buflen);
 }
@@ -825,21 +822,61 @@ bool recv_pkt_time_threshold_exceeded(bool time_sensitive, ngtcp2_tstamp start,
          util::timestamp() - start >= NGTCP2_MILLISECONDS;
 }
 
-std::optional<ECHServerConfig>
-read_ech_server_config(const std::string_view &path) {
+std::expected<ECHServerConfig, Error>
+read_ech_server_config(const std::filesystem::path &path) {
   auto pkey = read_hpke_private_key_pem(path);
   if (!pkey) {
-    return {};
+    return std::unexpected{pkey.error()};
   }
 
-  auto ech_config = read_pem(path, "ECH config"sv, "ECHCONFIG"sv);
-  if (!ech_config) {
-    return {};
+  auto maybe_ech_config_list = read_pem(path, "ECH config"sv, "ECHCONFIG"sv);
+  if (!maybe_ech_config_list) {
+    return std::unexpected{maybe_ech_config_list.error()};
+  }
+
+  auto ech_config_list = std::span{*maybe_ech_config_list};
+  if (ech_config_list.size() < 2) {
+    return std::unexpected{Error::INVALID_ARGUMENT};
+  }
+
+  auto data = ech_config_list.subspan(2);
+
+  if (auto len =
+        static_cast<size_t>((ech_config_list[0] << 8) + ech_config_list[1]);
+      len != data.size()) {
+    return std::unexpected{Error::INVALID_ARGUMENT};
+  }
+
+  std::vector<std::vector<uint8_t>> ech_configs;
+
+  for (; !data.empty();) {
+    // version and length, each 2 bytes
+    if (data.size() < 4) {
+      return std::unexpected{Error::INVALID_ARGUMENT};
+    }
+
+    auto version = (data[0] << 8) + data[1];
+
+    auto conflen = static_cast<size_t>(4 + (data[2] << 8) + data[3]);
+    if (data.size() < conflen) {
+      return std::unexpected{Error::INVALID_ARGUMENT};
+    }
+
+    if (version == 0xFE0D) {
+      auto conf = data.first(conflen);
+      ech_configs.emplace_back(std::ranges::begin(conf),
+                               std::ranges::end(conf));
+    } else {
+      std::println(stderr, "Skipping the unsupported ECH version {:#x}",
+                   version);
+    }
+
+    data = data.subspan(conflen);
   }
 
   return ECHServerConfig{
     .private_key = std::move(*pkey),
-    .ech_config = std::move(*ech_config),
+    .ech_config_list = std::move(ech_configs),
   };
 }
 
@@ -847,8 +884,7 @@ std::span<uint64_t, 2> generate_siphash_key() {
   static auto key = [] {
     std::array<uint64_t, 2> key;
 
-    auto rv = generate_secure_random(as_writable_uint8_span(std::span{key}));
-    if (rv != 0) {
+    if (!generate_secure_random(as_writable_uint8_span(std::span{key}))) {
       assert(0);
       abort();
     }
@@ -861,16 +897,17 @@ std::span<uint64_t, 2> generate_siphash_key() {
   return key;
 }
 
-std::string realpath(const char *path) {
-  auto cpath = ::realpath(path, nullptr);
-  if (!cpath) {
-    assert(0);
+std::filesystem::path realpath(const std::filesystem::path &path) {
+  std::error_code ec;
+
+  auto abspath = std::filesystem::canonical(path, ec);
+  if (ec) {
+    std::println(stderr, "Could not get canonical path for {}: {}",
+                 path.native(), ec.message());
     abort();
   }
 
-  auto cpath_d = defer([cpath] { free(cpath); });
-
-  return cpath;
+  return abspath;
 }
 
 } // namespace util

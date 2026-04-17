@@ -1,4 +1,4 @@
-FROM debian:13 as build
+FROM debian:13 AS build
 
 ARG NGTCP2_BRANCH=main
 
@@ -11,7 +11,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     pkg-config libev-dev libjemalloc-dev cmake cmake-data \
     ca-certificates media-types
 
-git clone --depth 1 -b v1.68.0 https://github.com/aws/aws-lc
+git clone --depth 1 -b v1.71.0 https://github.com/aws/aws-lc
 cd aws-lc
 cmake -Bbuild -DDISABLE_GO=ON \
     -DCMAKE_BUILD_TYPE=Release \

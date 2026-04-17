@@ -51,27 +51,18 @@ const MunitSuite log_suite = {
 static uint8_t null_data[4096];
 
 typedef struct log_data {
-  char buf[4096];
+  char buf[NGTCP2_LOG_BUFLEN];
   const char *expected[256];
   size_t idx;
 } log_data;
 
-static void log_printf(void *user_data, const char *format, ...) {
+static void log_write(void *user_data, char *msg, size_t len) {
   log_data *ld = user_data;
-  int nwrite;
-  va_list ap;
 
-  va_start(ap, format);
-
-  nwrite = vsnprintf(ld->buf, sizeof(ld->buf), format, ap);
-
-  va_end(ap);
-
-  assert_int(nwrite, >=, 0);
-  assert_size((size_t)nwrite, <, sizeof(ld->buf));
+  assert_size(len, ==, strlen(msg));
   assert_size(ngtcp2_arraylen(ld->expected), >, ld->idx);
   assert_not_null(ld->expected[ld->idx]);
-  assert_string_equal(ld->expected[ld->idx], ld->buf);
+  assert_string_equal(ld->expected[ld->idx], msg);
 
   ++ld->idx;
 }
@@ -82,7 +73,7 @@ static void log_init(ngtcp2_log *log, log_data *ld) {
     .data = {0xDE, 0xAD, 0xBE, 0xEF},
   };
 
-  ngtcp2_log_init(log, &scid, log_printf, 0, ld);
+  ngtcp2_log_init(log, &scid, log_write, NULL, ld->buf, 0, ld);
   log->last_ts = NGTCP2_SECONDS + 123 * NGTCP2_MILLISECONDS;
 }
 
@@ -99,8 +90,8 @@ void test_ngtcp2_log_info(void) {
 
   log_init(&log, &ld);
 
-  ngtcp2_log_info(&log, NGTCP2_LOG_EVENT_CON,
-                  "message without formatting directive");
+  ngtcp2_log_infof(&log, NGTCP2_LOG_EVENT_CON,
+                   "message without formatting directive");
 
   assert_null(ld.expected[ld.idx]);
 }
@@ -118,8 +109,8 @@ void test_ngtcp2_log_infof(void) {
 
   log_init(&log, &ld);
 
-  ngtcp2_log_infof(&log, NGTCP2_LOG_EVENT_CON, "message %s formatting %s %d",
-                   "with", "directive", 888);
+  ngtcp2_log_infof(&log, NGTCP2_LOG_EVENT_CON, "message ", "with",
+                   " formatting ", "directive", " ", 888);
 
   assert_null(ld.expected[ld.idx]);
 }
@@ -384,7 +375,7 @@ void test_ngtcp2_log_fr(void) {
     0x33, 0x99, 0xAA, 0x11, 0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99, 0xAA,
     0x11, 0xE1, 0xDD, 0xAA, 0x00, 0x33, 0x99, 0xAA, 0x11, 0xFF,
   };
-  uint8_t reason[257] = {0};
+  uint8_t reason[66] = {0};
 
   memcpy(reason + sizeof(reason) - ngtcp2_strlen_lit("this is the reason") - 2,
          "this is the reason", ngtcp2_strlen_lit("this is the reason"));
@@ -393,7 +384,7 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT STREAM(0x09) id=0x3b9aca07 fin=1 "
+        "I00001123 0xdeadbeef frm rx 778 1RTT STREAM(0x9) id=0x3b9aca07 fin=1 "
         "offset=4852383 len=123 uni=1",
       },
   };
@@ -417,7 +408,7 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm tx 778 1RTT STREAM(0x08) id=0x3b9aca09 fin=0 "
+        "I00001123 0xdeadbeef frm tx 778 1RTT STREAM(0x8) id=0x3b9aca09 fin=0 "
         "offset=4852383 len=123 uni=0",
       },
   };
@@ -439,9 +430,9 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x02) largest_ack=1000000007 "
+        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x2) largest_ack=1000000007 "
         "ack_delay=456(333) ack_range_count=0",
-        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x02) "
+        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x2) "
         "range=[1000000007..1000000006] len=1",
       },
   };
@@ -464,13 +455,13 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x02) largest_ack=1000000007 "
+        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x2) largest_ack=1000000007 "
         "ack_delay=456(333) ack_range_count=2",
-        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x02) "
+        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x2) "
         "range=[1000000007..1000000006] len=1",
-        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x02) "
+        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x2) "
         "range=[1000000004..1000000003] gap=0 len=1",
-        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x02) "
+        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x2) "
         "range=[1000000000..0] gap=1 len=1000000000",
       },
   };
@@ -495,11 +486,11 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x03) largest_ack=1000000007 "
+        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x3) largest_ack=1000000007 "
         "ack_delay=456(333) ack_range_count=0",
-        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x03) "
+        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x3) "
         "range=[1000000007..1000000006] len=1",
-        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x03) "
+        "I00001123 0xdeadbeef frm rx 778 1RTT ACK(0x3) "
         "ect0=1 ect1=0 ce=11223835",
       },
   };
@@ -527,7 +518,7 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT PADDING(0x00) len=99999",
+        "I00001123 0xdeadbeef frm rx 778 1RTT PADDING(0x0) len=99999",
       },
   };
 
@@ -548,7 +539,7 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT RESET_STREAM(0x04) id=0x3b9aca09 "
+        "I00001123 0xdeadbeef frm rx 778 1RTT RESET_STREAM(0x4) id=0x3b9aca09 "
         "app_error_code=(unknown)(0x66e2311a) final_size=1000000007",
       },
   };
@@ -597,12 +588,9 @@ void test_ngtcp2_log_fr(void) {
     .expected =
       {
         "I00001123 0xdeadbeef frm rx 778 1RTT CONNECTION_CLOSE(0x1c) "
-        "error_code=CONNECTION_REFUSED(0x2) frame_type=0x4 reason_len=257 "
-        "reason=[.."
-        "......................................................................"
-        "......................................................................"
-        "......................................................................"
-        ".........................this is the reason]",
+        "error_code=CONNECTION_REFUSED(0x2) frame_type=0x4 reason_len=66 "
+        "reason=[.............................................."
+        "this is the reason]",
       },
   };
 
@@ -738,7 +726,7 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT PING(0x01)",
+        "I00001123 0xdeadbeef frm rx 778 1RTT PING(0x1)",
       },
   };
 
@@ -882,7 +870,7 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT STOP_SENDING(0x05) "
+        "I00001123 0xdeadbeef frm rx 778 1RTT STOP_SENDING(0x5) "
         "id=0x3b9aca09 app_error_code=(unknown)(0xf)",
       },
   };
@@ -957,7 +945,7 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT CRYPTO(0x06) offset=352556 "
+        "I00001123 0xdeadbeef frm rx 778 1RTT CRYPTO(0x6) offset=352556 "
         "len=123",
       },
   };
@@ -978,7 +966,7 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT NEW_TOKEN(0x07) "
+        "I00001123 0xdeadbeef frm rx 778 1RTT NEW_TOKEN(0x7) "
         "token="
         "0xe1ddaa003399aa11e1ddaa003399aa11e1ddaa003399aa11e1ddaa003399aa11e1dd"
         "aa003399aa11e1ddaa003399aa11e1ddaa003399aa11e1ddaa003399aa11 len=64",
@@ -1000,7 +988,7 @@ void test_ngtcp2_log_fr(void) {
   ld = (log_data){
     .expected =
       {
-        "I00001123 0xdeadbeef frm rx 778 1RTT NEW_TOKEN(0x07) "
+        "I00001123 0xdeadbeef frm rx 778 1RTT NEW_TOKEN(0x7) "
         "token="
         "0xe1ddaa003399aa11e1ddaa003399aa11e1ddaa003399aa11e1ddaa003399aa11e1dd"
         "aa003399aa11e1ddaa003399aa11e1ddaa003399aa11e1ddaa003399aa11* len=65",

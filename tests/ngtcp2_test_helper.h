@@ -258,6 +258,13 @@ void ngtcp2_tpe_init_conn_handshake_server(ngtcp2_tpe *tpe, ngtcp2_conn *conn,
 size_t ngtcp2_tpe_write_initial(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
                                 ngtcp2_frame *fr, size_t frlen);
 
+/* ngtcp2_tpe_write_initial_padding behaves like
+   ngtcp2_tpe_write_initial, but it adds padding to fill the whole
+   buffer. */
+size_t ngtcp2_tpe_write_initial_padding(ngtcp2_tpe *tpe, uint8_t *out,
+                                        size_t outlen, ngtcp2_frame *fr,
+                                        size_t frlen);
+
 /* ngtcp2_tpe_write_handshake encodes Handshake packet which contains
    |frlen| frames pointed by |fr| to the buffer pointed by |out| of
    length |outlen|.  It returns the number of bytes written. */

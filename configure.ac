@@ -22,7 +22,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 AC_PREREQ(2.61)
-AC_INIT([ngtcp2], [1.22.0-DEV], [t-tujikawa@users.sourceforge.net])
+AC_INIT([ngtcp2], [1.23.0-DEV], [t-tujikawa@users.sourceforge.net])
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
@@ -41,29 +41,29 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # See versioning rule:
 #  https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
-AC_SUBST(LT_CURRENT, 23)
-AC_SUBST(LT_REVISION, 4)
-AC_SUBST(LT_AGE, 7)
+AC_SUBST(LT_CURRENT, 24)
+AC_SUBST(LT_REVISION, 1)
+AC_SUBST(LT_AGE, 8)
 
-AC_SUBST(CRYPTO_QUICTLS_LT_CURRENT, 6)
-AC_SUBST(CRYPTO_QUICTLS_LT_REVISION, 1)
-AC_SUBST(CRYPTO_QUICTLS_LT_AGE, 4)
+AC_SUBST(CRYPTO_QUICTLS_LT_CURRENT, 7)
+AC_SUBST(CRYPTO_QUICTLS_LT_REVISION, 0)
+AC_SUBST(CRYPTO_QUICTLS_LT_AGE, 5)
 
-AC_SUBST(CRYPTO_LIBRESSL_LT_CURRENT, 1)
-AC_SUBST(CRYPTO_LIBRESSL_LT_REVISION, 1)
-AC_SUBST(CRYPTO_LIBRESSL_LT_AGE, 1)
+AC_SUBST(CRYPTO_LIBRESSL_LT_CURRENT, 2)
+AC_SUBST(CRYPTO_LIBRESSL_LT_REVISION, 0)
+AC_SUBST(CRYPTO_LIBRESSL_LT_AGE, 2)
 
-AC_SUBST(CRYPTO_GNUTLS_LT_CURRENT, 11)
-AC_SUBST(CRYPTO_GNUTLS_LT_REVISION, 1)
-AC_SUBST(CRYPTO_GNUTLS_LT_AGE, 3)
+AC_SUBST(CRYPTO_GNUTLS_LT_CURRENT, 12)
+AC_SUBST(CRYPTO_GNUTLS_LT_REVISION, 0)
+AC_SUBST(CRYPTO_GNUTLS_LT_AGE, 4)
 
-AC_SUBST(CRYPTO_WOLFSSL_LT_CURRENT, 8)
-AC_SUBST(CRYPTO_WOLFSSL_LT_REVISION, 1)
-AC_SUBST(CRYPTO_WOLFSSL_LT_AGE, 3)
+AC_SUBST(CRYPTO_WOLFSSL_LT_CURRENT, 9)
+AC_SUBST(CRYPTO_WOLFSSL_LT_REVISION, 0)
+AC_SUBST(CRYPTO_WOLFSSL_LT_AGE, 4)
 
-AC_SUBST(CRYPTO_OSSL_LT_CURRENT, 1)
-AC_SUBST(CRYPTO_OSSL_LT_REVISION, 1)
-AC_SUBST(CRYPTO_OSSL_LT_AGE, 1)
+AC_SUBST(CRYPTO_OSSL_LT_CURRENT, 2)
+AC_SUBST(CRYPTO_OSSL_LT_REVISION, 0)
+AC_SUBST(CRYPTO_OSSL_LT_AGE, 2)
 
 # from nghttp2
 major=`echo $PACKAGE_VERSION |cut -d. -f1 | sed -e "s/[^0-9]//g"`
@@ -162,6 +162,8 @@ AC_ARG_WITH([libbrotlidec],
 
 AC_ARG_VAR([BORINGSSL_CFLAGS], [C compiler flags for BORINGSSL])
 AC_ARG_VAR([BORINGSSL_LIBS], [linker flags for BORINGSSL])
+AC_ARG_VAR([BORINGSSL_STDCXXLIB],
+           [C++ standard library used to build BORINGSSL (e.g., -lstdc++)])
 
 AC_ARG_VAR([PICOTLS_CFLAGS], [C compiler flags for PICOTLS])
 AC_ARG_VAR([PICOTLS_LIBS], [linker flags for PICOTLS])
@@ -190,7 +192,7 @@ AC_PROG_MKDIR_P
 
 PKG_PROG_PKG_CONFIG([0.20])
 
-AX_CXX_COMPILE_STDCXX([20], [], [optional])
+AX_CXX_COMPILE_STDCXX([23], [], [optional])
 
 case "${build}" in
   *-apple-darwin*)
@@ -350,7 +352,14 @@ if test "x${request_boringssl}" != "xno"; then
   LIBS="$save_LIBS"
 
   AC_LANG_POP()
+
+  if test "x${BORINGSSL_STDCXXLIB}" = "x"; then
+    AC_MSG_NOTICE([BORINGSSL_STDCXXLIB is not defined.  cryptotest will not run for BORINGSSL])
+  fi
 fi
+
+AM_CONDITIONAL([HAVE_BORINGSSL_STDCXXLIB],
+               [ test "x${BORINGSSL_STDCXXLIB}" != "x" ])
 
 if test "x${request_boringssl}" = "xyes" &&
    test "x${have_boringssl}" != "xyes"; then
@@ -540,8 +549,8 @@ if test "x${lib_only}" = "xno"; then
 fi
 
 if test "x${lib_only}" = "xno" &&
-   test "x${HAVE_CXX20}" != "x1"; then
-  AC_MSG_WARN([C++ compiler is not capable of C++20.  Examples will not be built.])
+   test "x${HAVE_CXX23}" != "x1"; then
+  AC_MSG_WARN([C++ compiler is not capable of C++23.  Examples will not be built.])
 fi
 
 enable_examples=no
@@ -549,7 +558,7 @@ if test "x${lib_only}" = "xno" &&
    test "x${have_libnghttp3}" = "xyes" &&
    test "x${have_crypto}" = "xyes" &&
    test "x${have_libev}" = "xyes" &&
-   test "x${HAVE_CXX20}" = "x1"; then
+   test "x${HAVE_CXX23}" = "x1"; then
   enable_examples=yes
 fi
 

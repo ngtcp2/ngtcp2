@@ -62,6 +62,8 @@
 #include "ngtcp2_conn_info_test.h"
 #include "ngtcp2_cid_test.h"
 #include "ngtcp2_log_test.h"
+#include "ngtcp2_fmt_test.h"
+#include "ngtcp2_macro_test.h"
 
 int main(int argc, char *argv[]) {
   const MunitSuite suites[] = {
@@ -97,6 +99,8 @@ int main(int argc, char *argv[]) {
     conn_info_suite,
     cid_suite,
     log_suite,
+    fmt_suite,
+    macro_suite,
     {0},
   };
   const MunitSuite suite = {

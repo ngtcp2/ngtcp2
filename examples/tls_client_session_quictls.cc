@@ -36,19 +36,20 @@
 
 extern Config config;
 
-int TLSClientSession::init(bool &early_data_enabled,
-                           const TLSClientContext &tls_ctx,
-                           const char *remote_addr, ClientBase *client,
-                           uint32_t quic_version, AppProtocol app_proto) {
+std::expected<void, Error>
+TLSClientSession::init(bool &early_data_enabled,
+                       const TLSClientContext &tls_ctx, const char *remote_addr,
+                       ClientBase *client, uint32_t quic_version,
+                       AppProtocol app_proto) {
   early_data_enabled = false;
 
   auto ssl_ctx = tls_ctx.get_native_handle();
 
   ssl_ = SSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
-    return -1;
+    std::println(stderr, "SSL_new: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
   SSL_set_app_data(ssl_, client->conn_ref());
@@ -73,20 +74,20 @@ int TLSClientSession::init(bool &early_data_enabled,
     SSL_set_tlsext_host_name(ssl_, remote_addr);
   }
 
-  if (config.session_file) {
-    auto f = BIO_new_file(config.session_file, "r");
+  if (!config.session_file.empty()) {
+    auto f = BIO_new_file(config.session_file.c_str(), "r");
     if (f == nullptr) {
-      std::cerr << "Could not read TLS session file " << config.session_file
-                << std::endl;
+      std::println(stderr, "Could not read TLS session file {}",
+                   config.session_file.native());
     } else {
       auto session = PEM_read_bio_SSL_SESSION(f, nullptr, 0, nullptr);
       BIO_free(f);
       if (session == nullptr) {
-        std::cerr << "Could not read TLS session file " << config.session_file
-                  << std::endl;
+        std::println(stderr, "Could not read TLS session file {}",
+                     config.session_file.native());
       } else {
         if (!SSL_set_session(ssl_, session)) {
-          std::cerr << "Could not set session" << std::endl;
+          std::println(stderr, "Could not set session");
         }
 #ifndef LIBRESSL_VERSION_NUMBER
         else if (!config.disable_early_data &&
@@ -100,7 +101,7 @@ int TLSClientSession::init(bool &early_data_enabled,
     }
   }
 
-  return 0;
+  return {};
 }
 
 bool TLSClientSession::get_early_data_accepted() const {

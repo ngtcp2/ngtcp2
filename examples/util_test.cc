@@ -26,6 +26,9 @@
 
 #include <limits>
 #include <array>
+#include <iterator>
+#include <expected>
+#include <filesystem>
 
 #include "util.h"
 
@@ -47,6 +50,7 @@ const MunitTest tests[]{
   munit_void_test(test_util_format_hex),
   munit_void_test(test_util_decode_hex),
   munit_void_test(test_util_is_hex_string),
+  munit_void_test(test_util_split_str),
   munit_test_end(),
 };
 } // namespace
@@ -57,29 +61,33 @@ const MunitSuite util_suite{
 };
 
 namespace util {
-std::optional<HPKEPrivateKey>
-read_hpke_private_key_pem(const std::string_view &filename) {
-  return {};
+std::expected<HPKEPrivateKey, Error>
+read_hpke_private_key_pem(const std::filesystem::path &path) {
+  return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 } // namespace util
 
 namespace util {
-std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
-                                             const std::string_view &name,
-                                             const std::string_view &type) {
-  return {};
+std::expected<std::vector<uint8_t>, Error>
+read_pem(const std::filesystem::path &path, std::string_view name,
+         std::string_view type) {
+  return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 } // namespace util
 
 namespace util {
-int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, std::span<const uint8_t> data) {
-  return -1;
+std::expected<void, Error> write_pem(const std::filesystem::path &path,
+                                     std::string_view name,
+                                     std::string_view type,
+                                     std::span<const uint8_t> data) {
+  return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 } // namespace util
 
 namespace util {
-int generate_secure_random(std::span<uint8_t> data) { return -1; }
+std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
+  return std::unexpected{Error::NOT_IMPLEMENTED};
+}
 } // namespace util
 
 void test_util_format_durationf() {
@@ -273,19 +281,109 @@ void test_util_parse_duration() {
 }
 
 void test_util_normalize_path() {
-  assert_stdstring_equal("/", util::normalize_path("/"));
-  assert_stdstring_equal("/", util::normalize_path("//"));
-  assert_stdstring_equal("/foo", util::normalize_path("/foo"));
-  assert_stdstring_equal("/foo/bar/", util::normalize_path("/foo/bar/"));
-  assert_stdstring_equal("/foo/bar/", util::normalize_path("/foo/abc/../bar/"));
-  assert_stdstring_equal("/foo/bar/",
-                         util::normalize_path("/../foo/abc/../bar/"));
-  assert_stdstring_equal("/foo/bar/",
-                         util::normalize_path("/./foo/././abc///.././bar/./"));
-  assert_stdstring_equal("/foo/", util::normalize_path("/foo/."));
-  assert_stdstring_equal("/foo/bar", util::normalize_path("/foo/./bar"));
-  assert_stdstring_equal("/bar", util::normalize_path("/foo/./../bar"));
-  assert_stdstring_equal("/bar", util::normalize_path("/../../bar"));
+  {
+    auto rv = util::normalize_path("/");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("//");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo/bar/");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/bar/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo/abc/../bar/");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/bar/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/../foo/abc/../bar/");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/bar/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/./foo/././abc///.././bar/./");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/bar/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo/.");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo/./bar");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/foo/bar", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/foo/./../bar");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/bar", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/../../bar");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/bar", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path(std::string(1024, '/'));
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path(std::string(1025, '/'));
+
+    assert_false(rv);
+  }
+
+  {
+    auto rv = util::normalize_path("/..");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/", rv.value());
+  }
+
+  {
+    auto rv = util::normalize_path("/../../index.html");
+
+    assert_true(rv.has_value());
+    assert_stdstring_equal("/index.html", rv.value());
+  }
 }
 
 void test_util_hexdump() {
@@ -399,9 +497,9 @@ void test_util_hexdump() {
     munit_log(MUNIT_LOG_INFO, t.title);
 
     auto f = tmpfile();
-    auto rv = util::hexdump(f, t.data.data(), t.data.size());
+    auto rv = util::hexdump(f, std::span{t.data});
 
-    assert_int(0, ==, rv);
+    assert_true(rv.has_value());
 
     fseek(f, 0, SEEK_SET);
     auto nread = fread(buf, 1, sizeof(buf), f);
@@ -481,6 +579,23 @@ void test_util_is_hex_string() {
   assert_false(util::is_hex_string("zzz"sv));
   assert_false(util::is_hex_string("zz"sv));
   assert_false(util::is_hex_string("z"sv));
+}
+
+void test_util_split_str() {
+  assert_true((std::vector{"alpha"sv, "bravo"sv, "charlie"sv} ==
+               (util::split_str("alpha,bravo,charlie"sv) |
+                std::ranges::to<std::vector>())));
+  assert_true((std::vector{"alpha"sv, "bravo"sv, "charlie"sv} ==
+               (util::split_str("alpha bravo charlie"sv, ' ') |
+                std::ranges::to<std::vector>())));
+  assert_true((std::vector<std::string_view>{} ==
+               (util::split_str(""sv, ' ') | std::ranges::to<std::vector>())));
+  assert_true((std::vector{""sv, ""sv} ==
+               (util::split_str(","sv) | std::ranges::to<std::vector>())));
+  assert_true(
+    (std::vector{""sv, "alpha"sv, ""sv, ""sv, "bravo"sv, "charlie"sv, ""sv,
+                 ""sv} == (util::split_str(" alpha   bravo charlie  "sv, ' ') |
+                           std::ranges::to<std::vector>())));
 }
 
 } // namespace ngtcp2
