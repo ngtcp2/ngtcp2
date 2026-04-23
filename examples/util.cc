@@ -457,6 +457,10 @@ parse_uint_internal(std::string_view s) {
   for (size_t i = 0; i < s.size(); ++i) {
     auto c = s[i];
     if (!is_digit(c)) {
+      if (i == 0) {
+        return std::unexpected{Error::INVALID_ARGUMENT};
+      }
+
       return {{res, i}};
     }
 

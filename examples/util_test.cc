@@ -164,6 +164,10 @@ void test_util_parse_uint() {
     auto res = util::parse_uint("1a");
     assert_false(res.has_value());
   }
+  {
+    auto res = util::parse_uint("");
+    assert_false(res.has_value());
+  }
 }
 
 void test_util_parse_uint_iec() {
@@ -207,6 +211,14 @@ void test_util_parse_uint_iec() {
   }
   {
     auto res = util::parse_uint_iec("1Gx");
+    assert_false(res.has_value());
+  }
+  {
+    auto res = util::parse_uint_iec("G");
+    assert_false(res.has_value());
+  }
+  {
+    auto res = util::parse_uint_iec("");
     assert_false(res.has_value());
   }
 }
@@ -276,6 +288,18 @@ void test_util_parse_duration() {
   }
   {
     auto res = util::parse_duration("1mxy");
+    assert_false(res.has_value());
+  }
+  {
+    auto res = util::parse_duration("s");
+    assert_false(res.has_value());
+  }
+  {
+    auto res = util::parse_duration("ms");
+    assert_false(res.has_value());
+  }
+  {
+    auto res = util::parse_duration("");
     assert_false(res.has_value());
   }
 }
