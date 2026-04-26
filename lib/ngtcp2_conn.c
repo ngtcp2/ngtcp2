@@ -13763,6 +13763,292 @@ size_t ngtcp2_conn_get_path_max_tx_udp_payload_size2(const ngtcp2_conn *conn) {
   return conn->dcid.current.max_udp_payload_size;
 }
 
+/*
+ * conn_estimate_frame_size returns the estimated wire size in bytes
+ * of the frame |fr|.  It uses ngtcp2_put_uvarintlen to compute
+ * variable-length integer sizes from actual field values.  All frame
+ * types that can appear in pktns->tx.frq are handled exhaustively.
+ */
+static size_t conn_estimate_frame_size(const ngtcp2_frame *fr) {
+  switch (fr->hd.type) {
+  case NGTCP2_FRAME_RESET_STREAM:
+    /* type(1) + stream_id + error_code + final_size */
+    return 1 + ngtcp2_put_uvarintlen((uint64_t)fr->reset_stream.stream_id) +
+           ngtcp2_put_uvarintlen(fr->reset_stream.app_error_code) +
+           ngtcp2_put_uvarintlen(fr->reset_stream.final_size);
+  case NGTCP2_FRAME_STOP_SENDING:
+    /* type(1) + stream_id + error_code */
+    return 1 + ngtcp2_put_uvarintlen((uint64_t)fr->stop_sending.stream_id) +
+           ngtcp2_put_uvarintlen(fr->stop_sending.app_error_code);
+  case NGTCP2_FRAME_MAX_STREAM_DATA:
+    /* type(1) + stream_id + max_stream_data */
+    return 1 +
+           ngtcp2_put_uvarintlen((uint64_t)fr->max_stream_data.stream_id) +
+           ngtcp2_put_uvarintlen(fr->max_stream_data.max_stream_data);
+  case NGTCP2_FRAME_MAX_DATA:
+    /* type(1) + max_data */
+    return 1 + ngtcp2_put_uvarintlen(fr->max_data.max_data);
+  case NGTCP2_FRAME_MAX_STREAMS_BIDI:
+  case NGTCP2_FRAME_MAX_STREAMS_UNI:
+    /* type(1) + max_streams */
+    return 1 + ngtcp2_put_uvarintlen(fr->max_streams.max_streams);
+  case NGTCP2_FRAME_DATA_BLOCKED:
+    /* type(1) + offset */
+    return 1 + ngtcp2_put_uvarintlen(fr->data_blocked.offset);
+  case NGTCP2_FRAME_STREAM_DATA_BLOCKED:
+    /* type(1) + stream_id + offset */
+    return 1 +
+           ngtcp2_put_uvarintlen(
+               (uint64_t)fr->stream_data_blocked.stream_id) +
+           ngtcp2_put_uvarintlen(fr->stream_data_blocked.offset);
+  case NGTCP2_FRAME_NEW_CONNECTION_ID:
+    /* type(1) + seq + retire_prior_to + cid_len(1) + cid +
+       stateless_reset_token */
+    return 1 + ngtcp2_put_uvarintlen(fr->new_connection_id.seq) +
+           ngtcp2_put_uvarintlen(fr->new_connection_id.retire_prior_to) + 1 +
+           fr->new_connection_id.cid.datalen + NGTCP2_STATELESS_RESET_TOKENLEN;
+  case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
+    /* type(1) + seq */
+    return 1 + ngtcp2_put_uvarintlen(fr->retire_connection_id.seq);
+  case NGTCP2_FRAME_PING:
+  case NGTCP2_FRAME_HANDSHAKE_DONE:
+    /* type(1) */
+    return 1;
+  case NGTCP2_FRAME_STREAMS_BLOCKED_BIDI:
+  case NGTCP2_FRAME_STREAMS_BLOCKED_UNI:
+    /* type(1) + max_streams */
+    return 1 + ngtcp2_put_uvarintlen(fr->streams_blocked.max_streams);
+  case NGTCP2_FRAME_PATH_CHALLENGE:
+  case NGTCP2_FRAME_PATH_RESPONSE:
+    /* type(1) + data(8) */
+    return 9;
+  case NGTCP2_FRAME_CONNECTION_CLOSE:
+  case NGTCP2_FRAME_CONNECTION_CLOSE_APP:
+    /* type(1) + error_code + frame_type + reason_length + reason */
+    return 1 + ngtcp2_put_uvarintlen(fr->connection_close.error_code) +
+           ngtcp2_put_uvarintlen(fr->connection_close.frame_type) +
+           ngtcp2_put_uvarintlen((uint64_t)fr->connection_close.reasonlen) +
+           fr->connection_close.reasonlen;
+  case NGTCP2_FRAME_NEW_TOKEN:
+    /* type(1) + token_length + token */
+    return 1 + ngtcp2_put_uvarintlen((uint64_t)fr->new_token.tokenlen) +
+           fr->new_token.tokenlen;
+  default:
+    ngtcp2_unreachable();
+  }
+}
+
+/*
+ * conn_estimate_control_overhead estimates the total wire size of
+ * control frames that ngtcp2 may prepend when building a 1-RTT
+ * packet.  It inspects actual connection state — ACK tracker,
+ * queued frame chain, pending MAX_STREAMS, stream priority queue,
+ * and connection-level flow control — rather than using fixed
+ * constants.
+ *
+ * Caveat: This does NOT account for CRYPTO or STREAM data frames.
+ * Callers must still handle the case where the DATAGRAM does not fit.
+ */
+static size_t conn_estimate_control_overhead(ngtcp2_conn *conn) {
+  ngtcp2_pktns *pktns = &conn->pktns;
+  ngtcp2_acktr *acktr = &pktns->acktr;
+  size_t overhead = 0;
+  size_t num_ack_ranges;
+  ngtcp2_frame_chain *frc;
+
+  /* ACK frame estimate */
+  if (!ngtcp2_acktr_empty(acktr)) {
+    num_ack_ranges = ngtcp2_ksl_len(&acktr->ents);
+    num_ack_ranges = ngtcp2_min_size(num_ack_ranges, NGTCP2_MAX_ACK_RANGES);
+
+    /* type(1) + largest_ack + ack_delay(up to 4) + ack_range_count +
+       first_ack_range(up to 4) */
+    overhead += 1;
+    if (acktr->max_pkt_num >= 0) {
+      overhead += ngtcp2_put_uvarintlen((uint64_t)acktr->max_pkt_num);
+    } else {
+      overhead += 1;
+    }
+    overhead += 4; /* ack_delay (conservative) */
+    overhead += ngtcp2_put_uvarintlen((uint64_t)num_ack_ranges);
+    overhead += 4; /* first_ack_range (conservative) */
+
+    /* Each additional ACK range: gap + ack_range, ~4 bytes each */
+    if (num_ack_ranges > 1) {
+      overhead += (num_ack_ranges - 1) * 4;
+    }
+
+    /* ECN counts: 3 varint fields if ECN data is present */
+    if (acktr->ecn.ect0 || acktr->ecn.ect1 || acktr->ecn.ce) {
+      overhead += ngtcp2_put_uvarintlen((uint64_t)acktr->ecn.ect0) +
+                  ngtcp2_put_uvarintlen((uint64_t)acktr->ecn.ect1) +
+                  ngtcp2_put_uvarintlen((uint64_t)acktr->ecn.ce);
+    }
+  }
+
+  /* PATH_RESPONSE (9 bytes: type(1) + 8 data) + PING (1 byte) if we
+     have pending path challenges to respond to. */
+  if (ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb) > 0) {
+    overhead += 10;
+  }
+
+  /* Queued frames in pktns->tx.frq */
+  for (frc = pktns->tx.frq; frc; frc = frc->next) {
+    overhead += conn_estimate_frame_size(&frc->fr);
+  }
+
+  /* MAX_STREAMS_BIDI if unsent */
+  if (conn->remote.bidi.unsent_max_streams >
+      conn->remote.bidi.max_streams) {
+    overhead +=
+        1 + ngtcp2_put_uvarintlen(conn->remote.bidi.unsent_max_streams);
+  }
+
+  /* MAX_STREAMS_UNI if unsent */
+  if (conn->remote.uni.unsent_max_streams > conn->remote.uni.max_streams) {
+    overhead +=
+        1 + ngtcp2_put_uvarintlen(conn->remote.uni.unsent_max_streams);
+  }
+
+  /* Stream control frames dynamically generated from conn->tx.strmq
+     during packet construction (RESET_STREAM, STOP_SENDING,
+     STREAM_DATA_BLOCKED, MAX_STREAM_DATA).  Iterate the stream
+     priority queue and check each stream's flags/state to compute
+     exact overhead.  All check functions used here are read-only. */
+  {
+    size_t i;
+    size_t strmq_len = ngtcp2_pq_size(&conn->tx.strmq);
+    ngtcp2_strm *strm;
+
+    for (i = 0; i < strmq_len; ++i) {
+      strm = ngtcp2_struct_of(conn->tx.strmq.q[i], ngtcp2_strm, pe);
+
+      if (strm->flags & NGTCP2_STRM_FLAG_SEND_RESET_STREAM) {
+        /* type(1) + stream_id + error_code + final_size */
+        overhead +=
+            1 + ngtcp2_put_uvarintlen((uint64_t)strm->stream_id) +
+            ngtcp2_put_uvarintlen(strm->tx.reset_stream_app_error_code) +
+            ngtcp2_put_uvarintlen(strm->tx.offset);
+      }
+
+      if (strm->flags & NGTCP2_STRM_FLAG_SEND_STOP_SENDING) {
+        /* type(1) + stream_id + error_code */
+        overhead +=
+            1 + ngtcp2_put_uvarintlen((uint64_t)strm->stream_id) +
+            ngtcp2_put_uvarintlen(strm->tx.stop_sending_app_error_code);
+      }
+
+      if (!(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) &&
+          strm_should_send_stream_data_blocked(strm)) {
+        /* type(1) + stream_id + offset */
+        overhead += 1 + ngtcp2_put_uvarintlen((uint64_t)strm->stream_id) +
+                    ngtcp2_put_uvarintlen(strm->tx.max_offset);
+      }
+
+      if (!(strm->flags &
+            (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) &&
+          conn_should_send_max_stream_data(conn, strm)) {
+        /* type(1) + stream_id + max_stream_data */
+        overhead += 1 + ngtcp2_put_uvarintlen((uint64_t)strm->stream_id) +
+                    ngtcp2_put_uvarintlen(strm->rx.unsent_max_offset);
+      }
+    }
+  }
+
+  /* MAX_DATA frame generated inline if the connection-level receive
+     window should be extended. */
+  if (conn_should_send_max_data(conn)) {
+    /* type(1) + max_data */
+    overhead += 1 + ngtcp2_put_uvarintlen(conn->rx.unsent_max_offset);
+  }
+
+  /* Connection-level DATA_BLOCKED frame generated inline if the
+     connection flow control limit is reached. */
+  if (conn_should_send_data_blocked(conn)) {
+    /* type(1) + offset */
+    overhead += 1 + ngtcp2_put_uvarintlen(conn->tx.max_offset);
+  }
+
+  return overhead;
+}
+
+static size_t max_dgram_datalen_from_limit(size_t limit) {
+  size_t datalen;
+  size_t varint_len;
+
+  if (limit <= 2) {
+    return 0;
+  }
+
+  datalen = limit - 2;
+  varint_len = ngtcp2_put_uvarintlen((uint64_t)datalen);
+
+  if (varint_len > 1) {
+    if (limit <= 1 + varint_len) {
+      return 0;
+    }
+    datalen = limit - 1 - varint_len;
+  }
+
+  return datalen;
+}
+
+size_t ngtcp2_conn_get_max_datagram_size(ngtcp2_conn *conn) {
+  ngtcp2_pktns *pktns = &conn->pktns;
+  uint64_t max_datagram_frame_size;
+  size_t max_udp_payload;
+  size_t hdr_overhead;
+  size_t aead_overhead;
+  size_t control_overhead;
+  size_t left;
+  size_t datalen;
+
+  if (!conn->remote.transport_params ||
+      conn->remote.transport_params->max_datagram_frame_size == 0 ||
+      pktns->crypto.tx.ckm == NULL) {
+    return 0;
+  }
+
+  max_datagram_frame_size =
+      conn->remote.transport_params->max_datagram_frame_size;
+
+  if (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) {
+    /* Packet is currently being constructed; query exact remaining
+       space after all frames already written. */
+    left = ngtcp2_ppe_left(&conn->pkt.ppe);
+  } else {
+    /* No packet in progress; compute theoretical maximum for a fresh
+       short header packet. */
+    max_udp_payload = conn_shape_udp_payload(
+        conn, &conn->dcid.current,
+        conn->local.settings.max_tx_udp_payload_size);
+    /* short header: 1 byte flags + DCID length + 4 bytes max pkt num */
+    hdr_overhead = 1 + conn->dcid.current.cid.datalen + 4;
+    aead_overhead = pktns->crypto.ctx.aead.max_overhead;
+
+    /* Estimate overhead for ACK and other control frames that ngtcp2
+       may prepend when building the packet.  Dynamically-generated
+       stream control frames are not fully accounted for; the caller
+       should still handle the case where the datagram does not fit. */
+    control_overhead = conn_estimate_control_overhead(conn);
+
+    if (max_udp_payload <= hdr_overhead + aead_overhead + control_overhead) {
+      return 0;
+    }
+
+    left = max_udp_payload - hdr_overhead - aead_overhead - control_overhead;
+  }
+
+  datalen = max_dgram_datalen_from_limit(left);
+
+  /* Clamp to remote's max_datagram_frame_size. */
+  if (ngtcp2_pkt_datagram_framelen(datalen) > max_datagram_frame_size) {
+    datalen = max_dgram_datalen_from_limit((size_t)max_datagram_frame_size);
+  }
+
+  return datalen;
+}
+
 static int conn_initiate_migration_precheck(ngtcp2_conn *conn,
                                             const ngtcp2_addr *local_addr) {
   if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) ||
