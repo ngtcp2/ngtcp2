@@ -1779,7 +1779,7 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
       switch (hd.token[0]) {
       case NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY2:
         if (auto rv = verify_retry_token(&ocid, &hd, remote_addr); !rv) {
-          if (rv.error() != Error::UNREADABLE_TOKEN) {
+          if (rv.error() != Error::UNREADABLE_TOKEN || config.validate_addr) {
             send_stateless_connection_close(&hd, ep, local_addr, remote_addr);
 
             return;
