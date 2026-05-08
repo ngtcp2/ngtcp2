@@ -2293,6 +2293,9 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain *frc,
     }
 
     right_frc->fr.stream.type = NGTCP2_FRAME_CRYPTO;
+    right_frc->fr.stream.flags = 0;
+    right_frc->fr.stream.fin = 0;
+    right_frc->fr.stream.stream_id = 0;
     right_frc->fr.stream.offset =
       removed_frc->fr.stream.offset + removed_frc->fr.stream.data->len;
     right_frc->fr.stream.datacnt = 0;
