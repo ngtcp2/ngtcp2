@@ -24,7 +24,6 @@
  */
 #include "tls_server_context_picotls.h"
 
-#include <iostream>
 #include <memory>
 #include <algorithm>
 

@@ -25,7 +25,6 @@
 #include "tls_client_session_picotls.h"
 
 #include <cstring>
-#include <iostream>
 #include <memory>
 
 #include <ngtcp2/ngtcp2_crypto_picotls.h>

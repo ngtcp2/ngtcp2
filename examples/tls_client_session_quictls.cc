@@ -25,7 +25,6 @@
 #include "tls_client_session_quictls.h"
 
 #include <cassert>
-#include <iostream>
 
 #include <openssl/err.h>
 

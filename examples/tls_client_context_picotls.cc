@@ -24,8 +24,6 @@
  */
 #include "tls_client_context_picotls.h"
 
-#include <iostream>
-
 #include <ngtcp2/ngtcp2_crypto_picotls.h>
 
 #include <openssl/bio.h>

@@ -31,7 +31,6 @@
 #include <cmath>
 #include <utility>
 #include <string_view>
-#include <iostream>
 
 #include "ngtcp2/ngtcp2_crypto_wolfssl.h"
 

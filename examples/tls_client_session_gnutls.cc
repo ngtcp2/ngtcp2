@@ -25,7 +25,6 @@
 #include "tls_client_session_gnutls.h"
 
 #include <cstring>
-#include <iostream>
 #include <fstream>
 #include <array>
 

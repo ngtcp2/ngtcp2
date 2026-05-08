@@ -25,7 +25,6 @@
 #include "tls_client_session_ossl.h"
 
 #include <cassert>
-#include <iostream>
 
 #include <openssl/err.h>
 

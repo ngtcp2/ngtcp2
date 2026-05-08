@@ -25,7 +25,6 @@
 #include "tls_server_session_gnutls.h"
 
 #include <cassert>
-#include <iostream>
 #include <fstream>
 #include <array>
 #include <algorithm>

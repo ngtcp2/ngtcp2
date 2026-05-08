@@ -28,7 +28,6 @@
 
 #include <cassert>
 #include <random>
-#include <iostream>
 #include <array>
 
 #include "util.h"
