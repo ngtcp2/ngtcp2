@@ -25,7 +25,6 @@
 #include "util.h"
 
 #include <cassert>
-#include <iostream>
 #include <array>
 #include <algorithm>
 #include <expected>

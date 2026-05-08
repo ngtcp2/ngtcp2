@@ -25,7 +25,6 @@
 #include "tls_server_context_wolfssl.h"
 
 #include <cstring>
-#include <iostream>
 #include <fstream>
 #include <limits>
 #include <algorithm>

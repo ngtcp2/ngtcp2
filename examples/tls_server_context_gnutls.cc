@@ -24,8 +24,6 @@
  */
 #include "tls_server_context_gnutls.h"
 
-#include <iostream>
-
 #include "server_base.h"
 #include "template.h"
 

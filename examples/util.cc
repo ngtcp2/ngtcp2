@@ -43,7 +43,6 @@
 #include <cstdlib>
 #include <chrono>
 #include <array>
-#include <iostream>
 #include <fstream>
 #include <algorithm>
 #include <limits>

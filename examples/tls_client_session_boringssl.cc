@@ -25,7 +25,6 @@
 #include "tls_client_session_boringssl.h"
 
 #include <cassert>
-#include <iostream>
 #include <fstream>
 
 #include "tls_client_context_boringssl.h"

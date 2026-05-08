@@ -24,8 +24,6 @@
  */
 #include "tls_client_context_gnutls.h"
 
-#include <iostream>
-
 #include <ngtcp2/ngtcp2_crypto_gnutls.h>
 
 #include "client_base.h"

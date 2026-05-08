@@ -25,7 +25,6 @@
 #include "tls_client_context_boringssl.h"
 
 #include <cstring>
-#include <iostream>
 #include <fstream>
 
 #include <ngtcp2/ngtcp2_crypto_boringssl.h>
