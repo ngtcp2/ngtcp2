@@ -949,6 +949,9 @@ ngtcp2_ssize ngtcp2_pkt_decode_connection_close_frame(
   if (reasonlen == 0) {
     dest->reason = NULL;
   } else {
+    if (payloadlen - (size_t)(p - payload) < reasonlen) {
+      return NGTCP2_ERR_FRAME_ENCODING;
+    }
     dest->reason = (uint8_t *)p;
     p += reasonlen;
   }
