@@ -167,6 +167,9 @@ jobs:
     - name: Linux setup
       if: runner.os == 'Linux' && steps.settings.outputs.needs-build == 'true'
       run: |
+        # Do not use azure mirror.  They are frequently throttled
+        # therefore unstable and slow.
+        sudo sed -i '/azure.archive.ubuntu.com/d' /etc/apt/apt-mirrors.txt
         sudo apt-get update
         sudo apt-get install \
           autoconf \
@@ -350,6 +353,9 @@ jobs:
     - name: Linux setup
       if: runner.os == 'Linux'
       run: |
+        # Do not use azure mirror.  They are frequently throttled
+        # therefore unstable and slow.
+        sudo sed -i '/azure.archive.ubuntu.com/d' /etc/apt/apt-mirrors.txt
         sudo apt-get update
         sudo apt-get install \
           g++-14 \
@@ -744,6 +750,9 @@ jobs:
         sudo dpkg --add-architecture i386
     - name: Linux setup
       run: |
+        # Do not use azure mirror.  They are frequently throttled
+        # therefore unstable and slow.
+        sudo sed -i '/azure.archive.ubuntu.com/d' /etc/apt/apt-mirrors.txt
         sudo apt-get update
         sudo apt-get install \
           gcc-mingw-w64 \
