@@ -34,6 +34,7 @@
 #include <queue>
 #include <span>
 #include <random>
+#include <optional>
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -51,6 +52,8 @@ using Timestamp =
   std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds>;
 
 ngtcp2_tstamp to_ngtcp2_tstamp(const Timestamp &ts);
+
+ngtcp2_duration to_ngtcp2_duration(Timestamp::duration d);
 
 Timestamp to_timestamp(ngtcp2_tstamp ts);
 
@@ -177,6 +180,7 @@ public:
   void send_pkt(const NetworkPath &path, std::span<uint8_t> pkt);
   void schedule_timeout(Timestamp ts);
   void set_timestamp(Timestamp ts) { ts_ = ts; }
+  Timestamp get_timestamp() const { return ts_; }
   Timestamp get_next_timestamp() const;
   Event get_next_event();
   void pop_tx_queue();
@@ -197,6 +201,12 @@ private:
   Timestamp ts_{};
 };
 
+struct TokenParams {
+  const ngtcp2_cid *original_dcid;
+  const ngtcp2_cid *retry_scid;
+  std::span<const uint8_t> token;
+};
+
 class Endpoint {
 public:
   Endpoint();
@@ -212,7 +222,8 @@ public:
   std::expected<void, Error>
   setup_server(std::span<const uint8_t> original_dcid,
                std::span<const uint8_t> client_scid, uint32_t version,
-               const ngtcp2_addr *remote_addr);
+               const ngtcp2_addr *remote_addr,
+               std::optional<const TokenParams> token_params);
   ngtcp2_conn *get_conn() const { return conn_; }
   bool get_initialized() const { return initialized_; }
   const EndpointConfig &get_endpoint_config() const { return config_; }
@@ -224,6 +235,10 @@ public:
   Channel &get_channel() { return channel_; }
 
 private:
+  void reset();
+  std::expected<void, Error> send_retry(const NetworkPath &path,
+                                        const ngtcp2_version_cid &vcid);
+
   EndpointConfig config_;
   WOLFSSL_CTX *ssl_ctx_{};
   WOLFSSL *ssl_{};
