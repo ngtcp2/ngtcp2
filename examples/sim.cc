@@ -79,18 +79,6 @@ int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
 }
 } // namespace
 
-ngtcp2_tstamp to_ngtcp2_tstamp(const Timestamp &ts) {
-  return static_cast<ngtcp2_tstamp>(ts.time_since_epoch().count());
-}
-
-ngtcp2_duration to_ngtcp2_duration(Timestamp::duration d) {
-  return static_cast<ngtcp2_duration>(d.count());
-}
-
-Timestamp to_timestamp(ngtcp2_tstamp ts) {
-  return Timestamp{Timestamp::duration{ts}};
-}
-
 uint64_t LinkConfig::compute_expected_goodput(Timestamp::duration rtt) const {
   // Assume 80% usage ratio.
   uint64_t g = rate * 8 / 10;
@@ -265,7 +253,11 @@ Endpoint::Endpoint(Endpoint &&other) noexcept
     conn_{std::exchange(other.conn_, nullptr)},
     conn_ref_{ngtcp2::get_conn, this},
     channel_{std::exchange(other.channel_, {})},
-    initialized_{std::exchange(other.initialized_, false)} {}
+    initialized_{std::exchange(other.initialized_, false)} {
+  if (ssl_) {
+    wolfSSL_set_app_data(ssl_, &conn_ref_);
+  }
+}
 
 Endpoint::~Endpoint() { reset(); }
 
@@ -604,7 +596,7 @@ ngtcp2_path to_ngtcp2_path(const NetworkPath &path) {
   };
 }
 
-NetworkPath NetworkPath::invert() {
+NetworkPath NetworkPath::invert() const {
   auto path = *this;
 
   std::swap(path.local, path.remote);
@@ -638,7 +630,7 @@ Channel &Channel::operator=(Channel &&other) noexcept {
   return *this;
 }
 
-void Channel::send_pkt(const NetworkPath &path, std::span<uint8_t> pkt) {
+void Channel::send_pkt(const NetworkPath &path, std::span<const uint8_t> pkt) {
   auto rate = link_config_.rate / 8;
 
   if (rate == 0) {
