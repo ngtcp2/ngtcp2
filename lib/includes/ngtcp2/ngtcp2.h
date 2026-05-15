@@ -5863,6 +5863,28 @@ ngtcp2_conn_get_path_max_tx_udp_payload_size2(const ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_max_datagram_size` returns the maximum datagram
+ * payload size that can fit in the current packet.  When a packet is
+ * currently being constructed (i.e., after a call that returned
+ * :macro:`NGTCP2_ERR_WRITE_MORE`), this returns the exact remaining
+ * space in the in-progress packet buffer.  Otherwise, it returns an
+ * estimate for a fresh packet based on path MTU, packet overhead,
+ * and currently pending control frames (ACK, MAX_DATA,
+ * MAX_STREAMS, RESET_STREAM, STOP_SENDING, MAX_STREAM_DATA,
+ * STREAM_DATA_BLOCKED, queued frames, etc.).
+ *
+ * The estimate does not account for CRYPTO data frames or STREAM
+ * data frames.  The caller should handle the case where the
+ * datagram does not fit in the actual packet.
+ *
+ * This function returns 0 if the DATAGRAM extension is not
+ * negotiated or 1-RTT keys are not yet available.
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_get_max_datagram_size(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_initiate_immediate_migration` starts connection
  * migration to the given |path|.  Only client can initiate migration.
  * This function does immediate migration; while the path validation
