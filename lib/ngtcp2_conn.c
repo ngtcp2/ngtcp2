@@ -58,6 +58,16 @@
    are not processed. */
 #define NGTCP2_MAX_ACK_PER_PKT 1
 
+/* NGTCP2_MAX_INITIAL_CRYPTO_OFFSET is the maximum offset of CRYPTO
+   data at Initial encryption level. */
+#define NGTCP2_MAX_INITIAL_CRYPTO_OFFSET (16 * 1024)
+/* NGTCP2_MAX_HANDSHAKE_CRYPTO_OFFSET is the maximum offset of CRYPTO
+   data at Handshake encryption level. */
+#define NGTCP2_MAX_HANDSHAKE_CRYPTO_OFFSET (64 * 1024)
+/* NGTCP2_MAX_1RTT_CRYPTO_OFFSET is the maximum offset of CRYPTO data
+   at 1RTT encryption level. */
+#define NGTCP2_MAX_1RTT_CRYPTO_OFFSET (256 * 1024)
+
 ngtcp2_objalloc_def(strm, ngtcp2_strm, oplent)
 
 /*
@@ -7230,6 +7240,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn,
   uint64_t rx_offset;
   int rv;
   ngtcp2_ssize nwrite;
+  size_t max_offset;
 
   if (fr->datacnt == 0) {
     if (encryption_level != NGTCP2_ENCRYPTION_LEVEL_INITIAL &&
@@ -7244,6 +7255,27 @@ static int conn_recv_crypto(ngtcp2_conn *conn,
 
   if (NGTCP2_MAX_VARINT < fr_end_offset) {
     return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
+  /* Apply the absolute upper bound against CRYPTO data offset because
+     some TLS stacks do not care much about the number of bytes they
+     store. */
+  switch (encryption_level) {
+  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
+    max_offset = NGTCP2_MAX_INITIAL_CRYPTO_OFFSET;
+    break;
+  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
+    max_offset = NGTCP2_MAX_HANDSHAKE_CRYPTO_OFFSET;
+    break;
+  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
+    max_offset = NGTCP2_MAX_1RTT_CRYPTO_OFFSET;
+    break;
+  default:
+    ngtcp2_unreachable();
+  }
+
+  if (fr_end_offset > max_offset) {
+    return NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED;
   }
 
   rx_offset = ngtcp2_strm_rx_offset(crypto);
