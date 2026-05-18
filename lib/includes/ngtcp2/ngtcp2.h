@@ -275,16 +275,24 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.1.0
+ *
  * :macro:`NGTCP2_PROTO_VER_MAX` is the highest QUIC version that this
- * library supports.  Deprecated since v1.1.0.
+ * library supports.
  */
 #define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_V1
 
 /**
  * @macro
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.1.0
+ *
  * :macro:`NGTCP2_PROTO_VER_MIN` is the lowest QUIC version that this
- * library supports.  Deprecated since v1.1.0.
+ * library supports.
  */
 #define NGTCP2_PROTO_VER_MIN NGTCP2_PROTO_VER_V1
 
@@ -324,11 +332,13 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.17.0
+ *     Path MTU Discovery is not capped to this value anymore.
+ *
  * :macro:`NGTCP2_MAX_PMTUD_UDP_PAYLOAD_SIZE` was the maximum UDP
  * datagram payload size that Path MTU Discovery can discover.
- *
- * Deprecated since v1.17.0.  Path MTU Discovery is not capped to this
- * value anymore.
  */
 #define NGTCP2_MAX_PMTUD_UDP_PAYLOAD_SIZE 1452
 
@@ -1186,10 +1196,12 @@ typedef struct ngtcp2_pkt_hd {
 /**
  * @struct
  *
- * :type:`ngtcp2_pkt_stateless_reset` represents Stateless Reset.
+ * .. warning::
  *
- * Deprecated since v1.22.0.  Use :type:`ngtcp2_pkt_stateless_reset2`
- * instead.
+ *   .. version-deprecated:: 1.22.0
+ *     Use :type:`ngtcp2_pkt_stateless_reset2` instead.
+ *
+ * :type:`ngtcp2_pkt_stateless_reset` represents Stateless Reset.
  */
 typedef struct ngtcp2_pkt_stateless_reset {
   /**
@@ -1212,7 +1224,7 @@ typedef struct ngtcp2_pkt_stateless_reset {
  *
  * :type:`ngtcp2_stateless_reset_token` stores stateless reset token.
  *
- * This struct has been available since v1.22.0.
+ * .. version-added:: 1.22.0
  */
 typedef struct ngtcp2_stateless_reset_token {
   uint8_t data[NGTCP2_STATELESS_RESET_TOKENLEN];
@@ -1223,7 +1235,7 @@ typedef struct ngtcp2_stateless_reset_token {
  *
  * :type:`ngtcp2_pkt_stateless_reset2` represents Stateless Reset.
  *
- * This struct has been available since v1.22.0.
+ * .. version-added:: 1.22.0
  */
 typedef struct ngtcp2_pkt_stateless_reset2 {
   /**
@@ -1668,50 +1680,59 @@ typedef struct ngtcp2_conn_info {
    * packets which have not been acknowledged.
    */
   uint64_t bytes_in_flight;
-  /* The following fields have been added since NGTCP2_CONN_INFO_V2. */
+  /* The following fields have been added since
+     NGTCP2_CONN_INFO_V2. */
   /**
-   * :member:`pkt_sent` is the number of QUIC packets sent.  This
-   * field has been available since v1.16.0.
+   * :member:`pkt_sent` is the number of QUIC packets sent.
+   *
+   * .. version-added:: 1.16.0
    */
   uint64_t pkt_sent;
   /**
    * :member:`bytes_sent` is the number of bytes (the sum of QUIC
-   * packet length) sent.  This field has been available since
-   * v1.16.0.
+   * packet length) sent.
+   *
+   * .. version-added:: 1.16.0
    */
   uint64_t bytes_sent;
   /**
    * :member:`pkt_recv` is the number of QUIC packets received,
-   * excluding discarded ones.  This field has been available since
-   * v1.16.0.
+   * excluding discarded ones.
+   *
+   * .. version-added:: 1.16.0
    */
   uint64_t pkt_recv;
   /**
    * :member:`bytes_recv` is the number of bytes (the sum of QUIC
-   * packet length) received, excluding discarded ones.  This field
-   * has been available since v1.16.0.
+   * packet length) received, excluding discarded ones.
+   *
+   * .. version-added:: 1.16.0
    */
   uint64_t bytes_recv;
   /**
    * :member:`pkt_lost` is the number of QUIC packets that are
-   * considered lost, excluding PMTUD packets.  This field has been
-   * available since v1.16.0.
+   * considered lost, excluding PMTUD packets.
+   *
+   * .. version-added:: 1.16.0
    */
   uint64_t pkt_lost;
   /**
    * :member:`bytes_lost` is the number of bytes (the sum of QUIC
-   * packet length) lost, excluding PMTUD packets.  This field has
-   * been available since v1.16.0.
+   * packet length) lost, excluding PMTUD packets.
+   *
+   * .. version-added:: 1.16.0
    */
   uint64_t bytes_lost;
   /**
-   * :member:`ping_recv` is the number of PING frames received.  This
-   * field has been available since v1.16.0.
+   * :member:`ping_recv` is the number of PING frames received.
+   *
+   * .. version-added:: 1.16.0
    */
   uint64_t ping_recv;
   /**
    * :member:`pkt_discarded` is the number of QUIC packets discarded.
-   * This field has been available since v1.16.0.
+   *
+   * .. version-added:: 1.16.0
    */
   uint64_t pkt_discarded;
 } ngtcp2_conn_info;
@@ -1739,11 +1760,14 @@ typedef enum ngtcp2_cc_algo {
 /**
  * @functypedef
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use :type:`ngtcp2_log_write` instead.
+ *
  * :type:`ngtcp2_printf` is a callback function for logging.
  * |user_data| is the same object passed to `ngtcp2_conn_client_new`
  * or `ngtcp2_conn_server_new`.
- *
- * Deprecated since v1.23.0.  Use :type:`ngtcp2_log_write` instead.
  */
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
@@ -1758,7 +1782,7 @@ typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
  * with a line terminator, one can do msg[len] = '\n', and write |len|
  * + 1 bytes from |msg|.
  *
- * This type has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 typedef void (*ngtcp2_log_write)(void *user_data, char *msg, size_t len);
 
@@ -1864,11 +1888,14 @@ typedef struct ngtcp2_settings {
    */
   ngtcp2_duration initial_rtt;
   /**
+   * .. warning::
+   *
+   *   .. version-deprecated:: 1.23.0
+   *     Use :member:`log_write` instead.
+   *
    * :member:`log_printf` is a function that the library uses to write
    * logs.  ``NULL`` means no logging output.  It is nothing to do
    * with qlog.
-   *
-   * Deprecated since v1.23.0.  Use :member:`log_write` instead.
    */
   ngtcp2_printf log_printf;
   /**
@@ -2045,14 +2072,16 @@ typedef struct ngtcp2_settings {
    * or equal to :macro:`NGTCP2_MAX_TX_UDP_PAYLOAD_SIZE`.  Otherwise
    * the behavior is undefined.  The maximum value in this array
    * should be set to :member:`max_tx_udp_payload_size`.  If this
-   * field is not set, the predefined PMTUD probes are made.  This
-   * field has been available since v1.4.0.
+   * field is not set, the predefined PMTUD probes are made.
+   *
+   * .. version-added:: 1.4.0
    */
   const uint16_t *pmtud_probes;
   /**
    * :member:`pmtud_probeslen` is the number of elements that are
-   * contained in the array pointed by :member:`pmtud_probes`.  This
-   * field has been available since v1.4.0.
+   * contained in the array pointed by :member:`pmtud_probes`.
+   *
+   * .. version-added:: 1.4.0
    */
   size_t pmtud_probeslen;
   /* The following fields have been added since NGTCP2_SETTINGS_V3. */
@@ -2062,14 +2091,17 @@ typedef struct ngtcp2_settings {
    * activity from a remote endpoint.  If detected, certain amount of
    * tokens are consumed.  If no tokens are available to consume, the
    * connection is closed.  The rate of token generation is specified
-   * by :member:`glitch_ratelim_rate`.  This field has been available
-   * since v1.15.0.
+   * by :member:`glitch_ratelim_rate`.
+   *
+   * .. version-added:: 1.15.0
    */
   uint64_t glitch_ratelim_burst;
   /**
    * :member:`glitch_ratelim_rate` is the number of tokens generated
    * per second.  See :member:`glitch_ratelim_burst` for "glitch" rate
-   * limiter.  This field has been available since v1.15.0.
+   * limiter.
+   *
+   * .. version-added:: 1.15.0
    */
   uint64_t glitch_ratelim_rate;
   /* The following fields have been added since NGTCP2_SETTINGS_V4. */
@@ -2079,8 +2111,9 @@ typedef struct ngtcp2_settings {
    * :member:`log_printf` are specified, the former has precedence.
    * If both :member:`log_write` and :member:`log_printf` are
    * ``NULL``, logging is disabled.  For qlog, see
-   * :member:`qlog_write`.  This field has been available since
-   * v1.23.0.
+   * :member:`qlog_write`.
+   *
+   * .. version-added:: 1.23.0
    */
   ngtcp2_log_write log_write;
 } ngtcp2_settings;
@@ -2508,6 +2541,11 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.22.0
+ *     Use `ngtcp2_pkt_write_stateless_reset2` instead.
+ *
  * `ngtcp2_pkt_write_stateless_reset` writes Stateless Reset packet in
  * the buffer pointed by |dest| whose length is |destlen|.
  * |stateless_reset_token| is a pointer to the Stateless Reset Token,
@@ -2528,9 +2566,6 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
  * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     |randlen| is strictly less than
  *     :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN`.
- *
- * Deprecated since v1.22.0.  Use `ngtcp2_pkt_write_stateless_reset2`
- * instead.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(
   uint8_t *dest, size_t destlen, const uint8_t *stateless_reset_token,
@@ -2558,7 +2593,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(
  *     |randlen| is strictly less than
  *     :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN`.
  *
- * This function has been available since v1.22.0.
+ * .. version-added:: 1.22.0
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset2(
   uint8_t *dest, size_t destlen, const ngtcp2_stateless_reset_token *token,
@@ -3013,6 +3048,11 @@ typedef int (*ngtcp2_acked_stream_data_offset)(
 /**
  * @functypedef
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.22.0
+ *     Use :type:`ngtcp2_recv_stateless_reset2` instead.
+ *
  * :type:`ngtcp2_recv_stateless_reset` is a callback function which is
  * called when Stateless Reset packet is received.  The stateless
  * reset details are given in |sr|.
@@ -3020,9 +3060,6 @@ typedef int (*ngtcp2_acked_stream_data_offset)(
  * The implementation of this callback should return 0 if it succeeds.
  * Returning :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
- *
- * Deprecated since v1.22.0.  Use :type:`ngtcp2_recv_stateless_reset2`
- * instead.
  */
 typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
                                            const ngtcp2_pkt_stateless_reset *sr,
@@ -3075,6 +3112,11 @@ typedef void (*ngtcp2_rand)(uint8_t *dest, size_t destlen,
 /**
  * @functypedef
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.22.0
+ *     Use :type:`ngtcp2_get_new_connection_id2` instead.
+ *
  * :type:`ngtcp2_get_new_connection_id` is a callback function to ask
  * an application for new connection ID.  Application must generate
  * new unused connection ID with the exact |cidlen| bytes, and store
@@ -3087,9 +3129,6 @@ typedef void (*ngtcp2_rand)(uint8_t *dest, size_t destlen,
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
- *
- * Deprecated since v1.22.0.  Use
- * :type:`ngtcp2_get_new_connection_id2` instead.
  */
 typedef int (*ngtcp2_get_new_connection_id)(ngtcp2_conn *conn, ngtcp2_cid *cid,
                                             uint8_t *token, size_t cidlen,
@@ -3274,6 +3313,11 @@ typedef enum ngtcp2_connection_id_status_type {
 /**
  * @functypedef
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.22.0
+ *     Use :type:`ngtcp2_connection_id_status2` instead.
+ *
  * :type:`ngtcp2_connection_id_status` is a callback function which is
  * called when the status of Destination Connection ID changes.
  *
@@ -3287,9 +3331,6 @@ typedef enum ngtcp2_connection_id_status_type {
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
- *
- * Deprecated since v1.22.0.  Use :type:`ngtcp2_connection_id_status2`
- * instead.
  */
 typedef int (*ngtcp2_connection_id_status)(
   ngtcp2_conn *conn, ngtcp2_connection_id_status_type type, uint64_t seq,
@@ -3408,6 +3449,11 @@ typedef int (*ngtcp2_lost_datagram)(ngtcp2_conn *conn, uint64_t dgram_id,
 /**
  * @functypedef
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.22.0
+ *     Use :type:`ngtcp2_get_path_challenge_data2` instead.
+ *
  * :type:`ngtcp2_get_path_challenge_data` is a callback function to
  * ask an application for new data that is sent in PATH_CHALLENGE
  * frame.  Application must generate new unpredictable, exactly
@@ -3417,9 +3463,6 @@ typedef int (*ngtcp2_lost_datagram)(ngtcp2_conn *conn, uint64_t dgram_id,
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
- *
- * Deprecated since v1.22.0.  Use
- * :type:`ngtcp2_get_path_challenge_data2` instead.
  */
 typedef int (*ngtcp2_get_path_challenge_data)(ngtcp2_conn *conn, uint8_t *data,
                                               void *user_data);
@@ -3502,7 +3545,7 @@ typedef int (*ngtcp2_tls_early_data_rejected)(ngtcp2_conn *conn,
  * Returning :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
  *
- * This type has been available since v1.22.0
+ * .. version-added:: 1.22.0
  */
 typedef int (*ngtcp2_recv_stateless_reset2)(
   ngtcp2_conn *conn, const ngtcp2_pkt_stateless_reset2 *sr, void *user_data);
@@ -3520,7 +3563,7 @@ typedef int (*ngtcp2_recv_stateless_reset2)(
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  *
- * This type has been available since v1.22.0
+ * .. version-added:: 1.22.0
  */
 typedef int (*ngtcp2_get_new_connection_id2)(
   ngtcp2_conn *conn, ngtcp2_cid *cid, ngtcp2_stateless_reset_token *token,
@@ -3543,7 +3586,7 @@ typedef int (*ngtcp2_get_new_connection_id2)(
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  *
- * This type has been available since v1.22.0
+ * .. version-added:: 1.22.0
  */
 typedef int (*ngtcp2_connection_id_status2)(
   ngtcp2_conn *conn, ngtcp2_connection_id_status_type type, uint64_t seq,
@@ -3555,7 +3598,7 @@ typedef int (*ngtcp2_connection_id_status2)(
  *
  * :type:`ngtcp2_path_challenge_data` stores path challenge data.
  *
- * This type has been available since v1.22.0.
+ * .. version-added:: 1.22.0
  */
 typedef struct ngtcp2_path_challenge_data {
   uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
@@ -3574,7 +3617,7 @@ typedef struct ngtcp2_path_challenge_data {
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  *
- * This type has been available since v1.22.0.
+ * .. version-added:: 1.22.0
  */
 typedef int (*ngtcp2_get_path_challenge_data2)(ngtcp2_conn *conn,
                                                ngtcp2_path_challenge_data *data,
@@ -3667,14 +3710,17 @@ typedef struct ngtcp2_callbacks {
    */
   ngtcp2_stream_close stream_close;
   /**
+   * .. warning::
+   *
+   *   .. version-deprecated:: 1.22.0
+   *     Use :member:`recv_stateless_reset2` instead.  If both
+   *     :member:`recv_stateless_reset` and
+   *     :member:`recv_stateless_reset2` are set, the latter has the
+   *     precedence.
+   *
    * :member:`recv_stateless_reset` is a callback function which is
    * invoked when Stateless Reset packet is received.  This callback
    * function is optional.
-   *
-   * Deprecated since v1.22.0.  Use :member:`recv_stateless_reset2`
-   * instead.  If both :member:`recv_stateless_reset` and
-   * :member:`recv_stateless_reset2` are set, the latter has the
-   * precedence.
    */
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   /**
@@ -3704,15 +3750,18 @@ typedef struct ngtcp2_callbacks {
    */
   ngtcp2_rand rand;
   /**
+   * .. warning::
+   *
+   *   .. version-deprecated:: 1.22.0
+   *     Use :member:`get_new_connection_id2` instead.  If both
+   *     :member:`get_new_connection_id` and
+   *     :member:`get_new_connection_id2` are set, the latter has the
+   *     precedence.
+   *
    * :member:`get_new_connection_id` is a callback function which is
    * invoked when the library needs new connection ID.  Either this
    * callback function or :member:`get_new_connection_id2` must be
    * specified.
-   *
-   * Deprecated since v1.22.0.  Use :member:`get_new_connection_id2`
-   * instead.  If both :member:`get_new_connection_id` and
-   * :member:`get_new_connection_id2` are set, the latter has the
-   * precedence.
    */
   ngtcp2_get_new_connection_id get_new_connection_id;
   /**
@@ -3769,14 +3818,17 @@ typedef struct ngtcp2_callbacks {
    */
   ngtcp2_extend_max_stream_data extend_max_stream_data;
   /**
+   * .. warning::
+   *
+   *   .. version-deprecated:: 1.22.0
+   *     Use :member:`dcid_status2` instead.  If both
+   *     :member:`dcid_status` and :member:`dcid_status2` are set, the
+   *     latter has the precedence.
+   *
    * :member:`dcid_status` is a callback function which is invoked
    * when the new Destination Connection ID is activated, or the
    * activated Destination Connection ID is now deactivated.  This
    * callback function is optional.
-   *
-   * Deprecated since v1.22.0.  Use :member:`dcid_status2` instead.
-   * If both :member:`dcid_status` and :member:`dcid_status2` are set,
-   * the latter has the precedence.
    */
   ngtcp2_connection_id_status dcid_status;
   /**
@@ -3824,12 +3876,14 @@ typedef struct ngtcp2_callbacks {
    */
   ngtcp2_lost_datagram lost_datagram;
   /**
+   * .. warning::
+   *
+   *   .. version-deprecated:: 1.22.0
+   *     Use :member:`get_path_challenge_data2` instead.
+   *
    * :member:`get_path_challenge_data` is a callback function which is
    * invoked when the library needs new data sent along with
    * PATH_CHALLENGE frame.  This callback must be specified.
-   *
-   * Deprecated since v1.22.0.  Use :member:`get_path_challenge_data2`
-   * instead.
    */
   ngtcp2_get_path_challenge_data get_path_challenge_data;
   /**
@@ -3866,40 +3920,48 @@ typedef struct ngtcp2_callbacks {
    * is only used by client.
    */
   ngtcp2_tls_early_data_rejected tls_early_data_rejected;
-  /* The following fields have been added since NGTCP2_CALLBACKS_V2. */
+  /* The following fields have been added since
+     NGTCP2_CALLBACKS_V2. */
   /**
    * :member:`begin_path_validation` is a callback function which is
-   * invoked when a path validation has started.  This field is
-   * available since v1.14.0.
+   * invoked when a path validation has started.
+   *
+   * .. version-added:: 1.14.0
    */
   ngtcp2_begin_path_validation begin_path_validation;
-  /* The following fields have been added since NGTCP2_CALLBACKS_V3. */
+  /* The following fields have been added since
+     NGTCP2_CALLBACKS_V3. */
   /**
    * :member:`recv_stateless_reset2` is a callback function which is
    * invoked when Stateless Reset packet is received.  This callback
-   * function is optional.  This field is available since v1.22.0.
+   * function is optional.
+   *
+   * .. version-added:: 1.22.0
    */
   ngtcp2_recv_stateless_reset2 recv_stateless_reset2;
   /**
    * :member:`get_new_connection_id2` is a callback function which is
    * invoked when the library needs new connection ID.  This callback
-   * function must be specified.  This field is available since
-   * v1.22.0.
+   * function must be specified.
+   *
+   * .. version-added:: 1.22.0
    */
   ngtcp2_get_new_connection_id2 get_new_connection_id2;
   /**
    * :member:`dcid_status2` is a callback function which is invoked
    * when the new Destination Connection ID is activated, or the
    * activated Destination Connection ID is now deactivated.  This
-   * callback function is optional.  This field is available since
-   * v1.22.0.
+   * callback function is optional.
+   *
+   * .. version-added:: 1.22.0
    */
   ngtcp2_connection_id_status2 dcid_status2;
   /**
    * :member:`get_path_challenge_data2` is a callback function which
    * is invoked when the library needs new data sent along with
-   * PATH_CHALLENGE frame.  This callback must be specified.  This
-   * field is available since v1.22.0.
+   * PATH_CHALLENGE frame.  This callback must be specified.
+   *
+   * .. version-added:: 1.22.0
    */
   ngtcp2_get_path_challenge_data2 get_path_challenge_data2;
 } ngtcp2_callbacks;
@@ -4127,7 +4189,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_pkt_versioned(
  * This function returns 0 if it succeeds.  In general, this function
  * returns the same set of error codes from `ngtcp2_conn_read_pkt`.
  *
- * This function has been available since v1.22.0.
+ * .. version-added:: 1.22.0
  */
 NGTCP2_EXTERN int ngtcp2_conn_continue_handshake(ngtcp2_conn *conn,
                                                  ngtcp2_tstamp ts);
@@ -4145,11 +4207,13 @@ NGTCP2_EXTERN void ngtcp2_conn_tls_handshake_completed(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_handshake_completed2` instead.
+ *
  * `ngtcp2_conn_get_handshake_completed` returns nonzero if QUIC
  * handshake has completed.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_handshake_completed2` instead.
  */
 NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
 
@@ -4418,12 +4482,14 @@ NGTCP2_EXTERN void ngtcp2_conn_set_tls_error(ngtcp2_conn *conn, int liberr);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_tls_error2` instead.
+ *
  * `ngtcp2_conn_get_tls_error` returns the value set by
  * `ngtcp2_conn_set_tls_error`.  If no value is set, this function
  * returns 0.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_tls_error2`
- * instead.
  */
 NGTCP2_EXTERN int ngtcp2_conn_get_tls_error(ngtcp2_conn *conn);
 
@@ -4434,7 +4500,7 @@ NGTCP2_EXTERN int ngtcp2_conn_get_tls_error(ngtcp2_conn *conn);
  * `ngtcp2_conn_set_tls_error`.  If no value is set, this function
  * returns 0.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN int ngtcp2_conn_get_tls_error2(const ngtcp2_conn *conn);
 
@@ -4451,12 +4517,14 @@ NGTCP2_EXTERN void ngtcp2_conn_set_tls_alert(ngtcp2_conn *conn, uint8_t alert);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_tls_alert2` instead.
+ *
  * `ngtcp2_conn_get_tls_alert` returns the value set by
  * `ngtcp2_conn_set_tls_alert`.  If no value is set, this function
  * returns 0.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_tls_alert2`
- * instead.
  */
 NGTCP2_EXTERN uint8_t ngtcp2_conn_get_tls_alert(ngtcp2_conn *conn);
 
@@ -4467,7 +4535,7 @@ NGTCP2_EXTERN uint8_t ngtcp2_conn_get_tls_alert(ngtcp2_conn *conn);
  * `ngtcp2_conn_set_tls_alert`.  If no value is set, this function
  * returns 0.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN uint8_t ngtcp2_conn_get_tls_alert2(const ngtcp2_conn *conn);
 
@@ -4487,12 +4555,15 @@ NGTCP2_EXTERN void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_expiry2` instead.
+ *
  * `ngtcp2_conn_get_expiry` returns the next expiry time.  It returns
  * ``UINT64_MAX`` if there is no next expiry.
  *
  * Call `ngtcp2_conn_handle_expiry` when the expiry time has passed.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_expiry2` instead.
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
 
@@ -4504,7 +4575,7 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
  *
  * Call `ngtcp2_conn_handle_expiry` when the expiry time has passed.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry2(const ngtcp2_conn *conn);
 
@@ -4533,9 +4604,12 @@ NGTCP2_EXTERN int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_pto` returns Probe Timeout (PTO).
+ * .. warning::
  *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_pto2` instead.
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_pto2` instead.
+ *
+ * `ngtcp2_conn_get_pto` returns Probe Timeout (PTO).
  */
 NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn);
 
@@ -4544,7 +4618,7 @@ NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_get_pto2` returns Probe Timeout (PTO).
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto2(const ngtcp2_conn *conn);
 
@@ -4575,12 +4649,14 @@ NGTCP2_EXTERN int ngtcp2_conn_decode_and_set_remote_transport_params(
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_remote_transport_params2` instead.
+ *
  * `ngtcp2_conn_get_remote_transport_params` returns a pointer to the
  * remote QUIC transport parameters.  If no remote transport
  * parameters are set, it returns NULL.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_remote_transport_params2` instead.
  */
 NGTCP2_EXTERN const ngtcp2_transport_params *
 ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn);
@@ -4592,13 +4668,18 @@ ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn);
  * remote QUIC transport parameters.  If no remote transport
  * parameters are set, it returns NULL.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN const ngtcp2_transport_params *
 ngtcp2_conn_get_remote_transport_params2(const ngtcp2_conn *conn);
 
 /**
  * @function
+ *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_encode_0rtt_transport_params2` instead.
  *
  * `ngtcp2_conn_encode_0rtt_transport_params` encodes the QUIC
  * transport parameters that are used for 0-RTT data in the buffer
@@ -4631,9 +4712,6 @@ ngtcp2_conn_get_remote_transport_params2(const ngtcp2_conn *conn);
  *
  * :macro:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_encode_0rtt_transport_params2` instead.
  */
 NGTCP2_EXTERN
 ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params(ngtcp2_conn *conn,
@@ -4675,7 +4753,7 @@ ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params(ngtcp2_conn *conn,
  * :macro:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN
 ngtcp2_ssize ngtcp2_conn_encode_0rtt_transport_params2(const ngtcp2_conn *conn,
@@ -4741,11 +4819,13 @@ NGTCP2_EXTERN int ngtcp2_conn_set_local_transport_params_versioned(
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_local_transport_params2` instead.
+ *
  * `ngtcp2_conn_get_local_transport_params` returns a pointer to the
  * local QUIC transport parameters.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_local_transport_params2` instead.
  */
 NGTCP2_EXTERN const ngtcp2_transport_params *
 ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn);
@@ -4756,13 +4836,18 @@ ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn);
  * `ngtcp2_conn_get_local_transport_params2` returns a pointer to the
  * local QUIC transport parameters.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN const ngtcp2_transport_params *
 ngtcp2_conn_get_local_transport_params2(const ngtcp2_conn *conn);
 
 /**
  * @function
+ *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_encode_local_transport_params2` instead.
  *
  * `ngtcp2_conn_encode_local_transport_params` encodes the local QUIC
  * transport parameters in |dest| of length |destlen|.
@@ -4772,9 +4857,6 @@ ngtcp2_conn_get_local_transport_params2(const ngtcp2_conn *conn);
  *
  * :macro:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_encode_local_transport_params2` instead.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(
   ngtcp2_conn *conn, uint8_t *dest, size_t destlen);
@@ -4791,7 +4873,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(
  * :macro:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_encode_local_transport_params2(
   const ngtcp2_conn *conn, uint8_t *dest, size_t destlen);
@@ -5300,11 +5382,13 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_in_closing_period2` instead.
+ *
  * `ngtcp2_conn_in_closing_period` returns nonzero if |conn| is in the
  * closing period.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_in_closing_period2`
- * instead.
  */
 NGTCP2_EXTERN int ngtcp2_conn_in_closing_period(ngtcp2_conn *conn);
 
@@ -5314,18 +5398,20 @@ NGTCP2_EXTERN int ngtcp2_conn_in_closing_period(ngtcp2_conn *conn);
  * `ngtcp2_conn_in_closing_period2` returns nonzero if |conn| is in
  * the closing period.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN int ngtcp2_conn_in_closing_period2(const ngtcp2_conn *conn);
 
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_in_draining_period2` instead.
+ *
  * `ngtcp2_conn_in_draining_period` returns nonzero if |conn| is in
  * the draining period.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_in_draining_period2`
- * instead.
  */
 NGTCP2_EXTERN int ngtcp2_conn_in_draining_period(ngtcp2_conn *conn);
 
@@ -5335,7 +5421,7 @@ NGTCP2_EXTERN int ngtcp2_conn_in_draining_period(ngtcp2_conn *conn);
  * `ngtcp2_conn_in_draining_period2` returns nonzero if |conn| is in
  * the draining period.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN int ngtcp2_conn_in_draining_period2(const ngtcp2_conn *conn);
 
@@ -5405,12 +5491,15 @@ NGTCP2_EXTERN void ngtcp2_conn_extend_max_streams_uni(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_dcid2` instead.
+ *
  * `ngtcp2_conn_get_dcid` returns the non-NULL pointer to the current
  * Destination Connection ID.  If no Destination Connection ID is
  * present, the return value is not ``NULL``, and its :member:`datalen
  * <ngtcp2_cid.datalen>` field is 0.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_dcid2` instead.
  */
 NGTCP2_EXTERN const ngtcp2_cid *ngtcp2_conn_get_dcid(ngtcp2_conn *conn);
 
@@ -5422,21 +5511,23 @@ NGTCP2_EXTERN const ngtcp2_cid *ngtcp2_conn_get_dcid(ngtcp2_conn *conn);
  * present, the return value is not ``NULL``, and its :member:`datalen
  * <ngtcp2_cid.datalen>` field is 0.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN const ngtcp2_cid *ngtcp2_conn_get_dcid2(const ngtcp2_conn *conn);
 
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_client_initial_dcid2` instead.
+ *
  * `ngtcp2_conn_get_client_initial_dcid` returns the non-NULL pointer
  * to the Destination Connection ID that client sent in its Initial
  * packet.  If the Destination Connection ID is not present, the
  * return value is not ``NULL``, and its :member:`datalen
  * <ngtcp2_cid.datalen>` field is 0.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_client_initial_dcid2` instead.
  */
 NGTCP2_EXTERN const ngtcp2_cid *
 ngtcp2_conn_get_client_initial_dcid(ngtcp2_conn *conn);
@@ -5450,13 +5541,18 @@ ngtcp2_conn_get_client_initial_dcid(ngtcp2_conn *conn);
  * return value is not ``NULL``, and its :member:`datalen
  * <ngtcp2_cid.datalen>` field is 0.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN const ngtcp2_cid *
 ngtcp2_conn_get_client_initial_dcid2(const ngtcp2_conn *conn);
 
 /**
  * @function
+ *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_scid2` instead.
  *
  * `ngtcp2_conn_get_scid` writes all Source Connection IDs which a
  * local endpoint has provided to a remote endpoint, and are not
@@ -5466,8 +5562,6 @@ ngtcp2_conn_get_client_initial_dcid2(const ngtcp2_conn *conn);
  * pointed by |dest| must have sizeof(:type:`ngtcp2_cid`) * n bytes
  * available, where n is the return value of `ngtcp2_conn_get_scid`
  * with |dest| == NULL.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_scid2` instead.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest);
 
@@ -5483,7 +5577,7 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest);
  * available, where n is the return value of `ngtcp2_conn_get_scid2`
  * with |dest| == NULL.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_scid2(const ngtcp2_conn *conn,
                                            ngtcp2_cid *dest);
@@ -5491,10 +5585,13 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_scid2(const ngtcp2_conn *conn,
 /**
  * @struct
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.22.0
+ *     Use :type:`ngtcp2_cid_token2` instead.
+ *
  * :type:`ngtcp2_cid_token` is the convenient struct to store
  * Connection ID, its associated path, and stateless reset token.
- *
- * Deprecated since v1.22.0.  Use :type:`ngtcp2_cid_token2` instead.
  */
 typedef struct ngtcp2_cid_token {
   /**
@@ -5525,6 +5622,11 @@ typedef struct ngtcp2_cid_token {
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.22.0
+ *     Use `ngtcp2_conn_get_active_dcid3` instead.
+ *
  * `ngtcp2_conn_get_active_dcid` writes all active Destination
  * Connection IDs and their tokens to |dest|.  Before handshake
  * completes, this function returns 0.  If |dest| is NULL, this
@@ -5534,9 +5636,6 @@ typedef struct ngtcp2_cid_token {
  * sizeof(:type:`ngtcp2_cid_token`) * n bytes available, where n is
  * the return value of `ngtcp2_conn_get_active_dcid` with |dest| ==
  * NULL.
- *
- * Deprecated since v1.22.0.  Use `ngtcp2_conn_get_active_dcid3`
- * instead.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn,
                                                  ngtcp2_cid_token *dest);
@@ -5547,7 +5646,7 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn,
  * :type:`ngtcp2_cid_token2` is the convenient struct to store
  * Connection ID, its associated path, and stateless reset token.
  *
- * This type has been available since v1.22.0.
+ * .. version-added:: 1.22.0
  */
 typedef struct ngtcp2_cid_token2 {
   /**
@@ -5578,6 +5677,11 @@ typedef struct ngtcp2_cid_token2 {
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_active_dcid3` instead.
+ *
  * `ngtcp2_conn_get_active_dcid2` writes all active Destination
  * Connection IDs and their tokens to |dest|.  Before handshake
  * completes, this function returns 0.  If |dest| is NULL, this
@@ -5588,8 +5692,7 @@ typedef struct ngtcp2_cid_token2 {
  * the return value of `ngtcp2_conn_get_active_dcid2` with |dest| ==
  * NULL.
  *
- * This function has been available since v1.22.0, and deprecated
- * since v1.23.0.  Use `ngtcp2_conn_get_active_dcid3` instead.
+ * .. version-added:: 1.22.0
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid2(ngtcp2_conn *conn,
                                                   ngtcp2_cid_token2 *dest);
@@ -5607,7 +5710,7 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid2(ngtcp2_conn *conn,
  * the return value of `ngtcp2_conn_get_active_dcid3` with |dest| ==
  * NULL.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid3(const ngtcp2_conn *conn,
                                                   ngtcp2_cid_token2 *dest);
@@ -5615,11 +5718,13 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid3(const ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_client_chosen_version2` instead.
+ *
  * `ngtcp2_conn_get_client_chosen_version` returns the client chosen
  * version.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_client_chosen_version2` instead.
  */
 NGTCP2_EXTERN uint32_t ngtcp2_conn_get_client_chosen_version(ngtcp2_conn *conn);
 
@@ -5629,7 +5734,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_conn_get_client_chosen_version(ngtcp2_conn *conn);
  * `ngtcp2_conn_get_client_chosen_version2` returns the client chosen
  * version.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN uint32_t
 ngtcp2_conn_get_client_chosen_version2(const ngtcp2_conn *conn);
@@ -5637,13 +5742,15 @@ ngtcp2_conn_get_client_chosen_version2(const ngtcp2_conn *conn);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_negotiated_version2` instead.
+ *
  * `ngtcp2_conn_get_negotiated_version` returns the negotiated
  * version.
  *
  * Until the version is negotiated, this function returns 0.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_negotiated_version2` instead.
  */
 NGTCP2_EXTERN uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn);
 
@@ -5655,7 +5762,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn);
  *
  * Until the version is negotiated, this function returns 0.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN uint32_t
 ngtcp2_conn_get_negotiated_version2(const ngtcp2_conn *conn);
@@ -5688,11 +5795,13 @@ NGTCP2_EXTERN int ngtcp2_conn_tls_early_data_rejected(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_tls_early_data_rejected2`.
+ *
  * `ngtcp2_conn_get_tls_early_data_rejected` returns nonzero if
  * `ngtcp2_conn_tls_early_data_rejected` has been called.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_tls_early_data_rejected2`.
  */
 NGTCP2_EXTERN int ngtcp2_conn_get_tls_early_data_rejected(ngtcp2_conn *conn);
 
@@ -5702,7 +5811,7 @@ NGTCP2_EXTERN int ngtcp2_conn_get_tls_early_data_rejected(ngtcp2_conn *conn);
  * `ngtcp2_conn_get_tls_early_data_rejected2` returns nonzero if
  * `ngtcp2_conn_tls_early_data_rejected` has been called.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN int
 ngtcp2_conn_get_tls_early_data_rejected2(const ngtcp2_conn *conn);
@@ -5710,11 +5819,13 @@ ngtcp2_conn_get_tls_early_data_rejected2(const ngtcp2_conn *conn);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_conn_info2` instead.
+ *
  * `ngtcp2_conn_get_conn_info` assigns connection statistics data to
  * |*cinfo|.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_conn_info2`
- * instead.
  */
 NGTCP2_EXTERN void ngtcp2_conn_get_conn_info_versioned(ngtcp2_conn *conn,
                                                        int conn_info_version,
@@ -5726,7 +5837,7 @@ NGTCP2_EXTERN void ngtcp2_conn_get_conn_info_versioned(ngtcp2_conn *conn,
  * `ngtcp2_conn_get_conn_info2` assigns connection statistics data to
  * |*cinfo|.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN void ngtcp2_conn_get_conn_info2_versioned(
   const ngtcp2_conn *conn, int conn_info_version, ngtcp2_conn_info *cinfo);
@@ -5788,9 +5899,12 @@ NGTCP2_EXTERN void ngtcp2_conn_set_path_user_data(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_path` returns the current path.
+ * .. warning::
  *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_path2` instead.
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_path2` instead.
+ *
+ * `ngtcp2_conn_get_path` returns the current path.
  */
 NGTCP2_EXTERN const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn);
 
@@ -5799,20 +5913,22 @@ NGTCP2_EXTERN const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_get_path2` returns the current path.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN const ngtcp2_path *ngtcp2_conn_get_path2(const ngtcp2_conn *conn);
 
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_max_tx_udp_payload_size2` instead.
+ *
  * `ngtcp2_conn_get_max_tx_udp_payload_size` returns the maximum UDP
  * payload size that this local endpoint would send.  This is the
  * value of :member:`ngtcp2_settings.max_tx_udp_payload_size` that is
  * passed to `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_max_tx_udp_payload_size2` instead.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_max_tx_udp_payload_size(ngtcp2_conn *conn);
 
@@ -5824,7 +5940,7 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_max_tx_udp_payload_size(ngtcp2_conn *conn);
  * value of :member:`ngtcp2_settings.max_tx_udp_payload_size` that is
  * passed to `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN size_t
 ngtcp2_conn_get_max_tx_udp_payload_size2(const ngtcp2_conn *conn);
@@ -5832,15 +5948,17 @@ ngtcp2_conn_get_max_tx_udp_payload_size2(const ngtcp2_conn *conn);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_path_max_tx_udp_payload_size2` instead.
+ *
  * `ngtcp2_conn_get_path_max_tx_udp_payload_size` returns the maximum
  * UDP payload size for the current path.  If
  * :member:`ngtcp2_settings.no_tx_udp_payload_size_shaping` is set to
  * nonzero, this function is equivalent to
  * `ngtcp2_conn_get_max_tx_udp_payload_size`.  Otherwise, it returns
  * the maximum UDP payload size that is probed for the current path.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_path_max_tx_udp_payload_size2` instead.
  */
 NGTCP2_EXTERN size_t
 ngtcp2_conn_get_path_max_tx_udp_payload_size(ngtcp2_conn *conn);
@@ -5855,7 +5973,7 @@ ngtcp2_conn_get_path_max_tx_udp_payload_size(ngtcp2_conn *conn);
  * `ngtcp2_conn_get_max_tx_udp_payload_size2`.  Otherwise, it returns
  * the maximum UDP payload size that is probed for the current path.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN size_t
 ngtcp2_conn_get_path_max_tx_udp_payload_size2(const ngtcp2_conn *conn);
@@ -5916,12 +6034,14 @@ NGTCP2_EXTERN int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_max_data_left2` instead.
+ *
  * `ngtcp2_conn_get_max_data_left` returns the number of bytes that
  * this local endpoint can send in this connection without violating
  * connection-level flow control.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_max_data_left2`
- * instead.
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn);
 
@@ -5932,20 +6052,22 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn);
  * this local endpoint can send in this connection without violating
  * connection-level flow control.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left2(const ngtcp2_conn *conn);
 
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_max_stream_data_left2` instead.
+ *
  * `ngtcp2_conn_get_max_stream_data_left` returns the number of bytes
  * that this local endpoint can send to a stream identified by
  * |stream_id| without violating stream-level flow control.  If no
  * such stream is found, this function returns 0.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_max_stream_data_left2` instead.
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_stream_data_left(ngtcp2_conn *conn,
                                                             int64_t stream_id);
@@ -5958,7 +6080,7 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_stream_data_left(ngtcp2_conn *conn,
  * |stream_id| without violating stream-level flow control.  If no
  * such stream is found, this function returns 0.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_stream_data_left2(
   const ngtcp2_conn *conn, int64_t stream_id);
@@ -5966,12 +6088,14 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_stream_data_left2(
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_streams_bidi_left2` instead.
+ *
  * `ngtcp2_conn_get_streams_bidi_left` returns the number of
  * bidirectional streams which the local endpoint can open without
  * violating stream concurrency limit.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_streams_bidi_left2`
- * instead.
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_streams_bidi_left(ngtcp2_conn *conn);
 
@@ -5982,7 +6106,7 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_streams_bidi_left(ngtcp2_conn *conn);
  * bidirectional streams which the local endpoint can open without
  * violating stream concurrency limit.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN uint64_t
 ngtcp2_conn_get_streams_bidi_left2(const ngtcp2_conn *conn);
@@ -5990,12 +6114,14 @@ ngtcp2_conn_get_streams_bidi_left2(const ngtcp2_conn *conn);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_streams_uni_left2` instead.
+ *
  * `ngtcp2_conn_get_streams_uni_left` returns the number of
  * unidirectional streams which the local endpoint can open without
  * violating stream concurrency limit.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_streams_uni_left2`
- * instead.
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_streams_uni_left(ngtcp2_conn *conn);
 
@@ -6006,7 +6132,7 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_streams_uni_left(ngtcp2_conn *conn);
  * unidirectional streams which the local endpoint can open without
  * violating stream concurrency limit.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN uint64_t
 ngtcp2_conn_get_streams_uni_left2(const ngtcp2_conn *conn);
@@ -6014,12 +6140,14 @@ ngtcp2_conn_get_streams_uni_left2(const ngtcp2_conn *conn);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_cwnd_left2` instead.
+ *
  * `ngtcp2_conn_get_cwnd_left` returns the cwnd minus the number of
  * bytes in flight on the current path.  If the former is smaller than
  * the latter, this function returns 0.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_cwnd_left2`
- * instead.
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_cwnd_left(ngtcp2_conn *conn);
 
@@ -6030,7 +6158,7 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_cwnd_left(ngtcp2_conn *conn);
  * bytes in flight on the current path.  If the former is smaller than
  * the latter, this function returns 0.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_cwnd_left2(const ngtcp2_conn *conn);
 
@@ -6049,11 +6177,13 @@ ngtcp2_conn_set_initial_crypto_ctx(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_initial_crypto_ctx2` instead.
+ *
  * `ngtcp2_conn_get_initial_crypto_ctx` returns
  * :type:`ngtcp2_crypto_ctx` object for Initial packet encryption.
- *
- * Deprecated since v1.23.0.  Use
- * `ngtcp2_conn_get_initial_crypto_ctx2` instead.
  */
 NGTCP2_EXTERN const ngtcp2_crypto_ctx *
 ngtcp2_conn_get_initial_crypto_ctx(ngtcp2_conn *conn);
@@ -6064,7 +6194,7 @@ ngtcp2_conn_get_initial_crypto_ctx(ngtcp2_conn *conn);
  * `ngtcp2_conn_get_initial_crypto_ctx2` returns
  * :type:`ngtcp2_crypto_ctx` object for Initial packet encryption.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN const ngtcp2_crypto_ctx *
 ngtcp2_conn_get_initial_crypto_ctx2(const ngtcp2_conn *conn);
@@ -6083,11 +6213,13 @@ NGTCP2_EXTERN void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_crypto_ctx2` instead.
+ *
  * `ngtcp2_conn_get_crypto_ctx` returns :type:`ngtcp2_crypto_ctx`
  * object for Handshake/1-RTT packet encryption.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_crypto_ctx2`
- * instead.
  */
 NGTCP2_EXTERN const ngtcp2_crypto_ctx *
 ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn);
@@ -6098,7 +6230,7 @@ ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn);
  * `ngtcp2_conn_get_crypto_ctx2` returns :type:`ngtcp2_crypto_ctx`
  * object for Handshake/1-RTT packet encryption.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN const ngtcp2_crypto_ctx *
 ngtcp2_conn_get_crypto_ctx2(const ngtcp2_conn *conn);
@@ -6118,11 +6250,13 @@ ngtcp2_conn_set_0rtt_crypto_ctx(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_0rtt_crypto_ctx2` instead.
+ *
  * `ngtcp2_conn_get_0rtt_crypto_ctx` returns :type:`ngtcp2_crypto_ctx`
  * object for 0-RTT packet encryption.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_0rtt_crypto_ctx2`
- * instead.
  */
 NGTCP2_EXTERN const ngtcp2_crypto_ctx *
 ngtcp2_conn_get_0rtt_crypto_ctx(ngtcp2_conn *conn);
@@ -6133,7 +6267,7 @@ ngtcp2_conn_get_0rtt_crypto_ctx(ngtcp2_conn *conn);
  * `ngtcp2_conn_get_0rtt_crypto_ctx2` returns
  * :type:`ngtcp2_crypto_ctx` object for 0-RTT packet encryption.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN const ngtcp2_crypto_ctx *
 ngtcp2_conn_get_0rtt_crypto_ctx2(const ngtcp2_conn *conn);
@@ -6141,11 +6275,13 @@ ngtcp2_conn_get_0rtt_crypto_ctx2(const ngtcp2_conn *conn);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_tls_native_handle2` instead.
+ *
  * `ngtcp2_conn_get_tls_native_handle` returns TLS native handle set
  * by `ngtcp2_conn_set_tls_native_handle`.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_tls_native_handle2`
- * instead.
  */
 NGTCP2_EXTERN void *ngtcp2_conn_get_tls_native_handle(ngtcp2_conn *conn);
 
@@ -6155,7 +6291,7 @@ NGTCP2_EXTERN void *ngtcp2_conn_get_tls_native_handle(ngtcp2_conn *conn);
  * `ngtcp2_conn_get_tls_native_handle2` returns TLS native handle set
  * by `ngtcp2_conn_set_tls_native_handle`.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN void *ngtcp2_conn_get_tls_native_handle2(const ngtcp2_conn *conn);
 
@@ -6435,11 +6571,14 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_ccerr2` instead.
+ *
  * `ngtcp2_conn_get_ccerr` returns the received connection close
  * error.  If no connection error is received, it returns
  * :type:`ngtcp2_ccerr` that is initialized by `ngtcp2_ccerr_default`.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_ccerr2` instead.
  */
 NGTCP2_EXTERN const ngtcp2_ccerr *ngtcp2_conn_get_ccerr(ngtcp2_conn *conn);
 
@@ -6450,7 +6589,7 @@ NGTCP2_EXTERN const ngtcp2_ccerr *ngtcp2_conn_get_ccerr(ngtcp2_conn *conn);
  * error.  If no connection error is received, it returns
  * :type:`ngtcp2_ccerr` that is initialized by `ngtcp2_ccerr_default`.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN const ngtcp2_ccerr *
 ngtcp2_conn_get_ccerr2(const ngtcp2_conn *conn);
@@ -6458,11 +6597,13 @@ ngtcp2_conn_get_ccerr2(const ngtcp2_conn *conn);
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_is_local_stream2` instead.
+ *
  * `ngtcp2_conn_is_local_stream` returns nonzero if |stream_id|
  * denotes a locally initiated stream.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_is_local_stream2`
- * instead.
  */
 NGTCP2_EXTERN int ngtcp2_conn_is_local_stream(ngtcp2_conn *conn,
                                               int64_t stream_id);
@@ -6473,7 +6614,7 @@ NGTCP2_EXTERN int ngtcp2_conn_is_local_stream(ngtcp2_conn *conn,
  * `ngtcp2_conn_is_local_stream2` returns nonzero if |stream_id|
  * denotes a locally initiated stream.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN int ngtcp2_conn_is_local_stream2(const ngtcp2_conn *conn,
                                                int64_t stream_id);
@@ -6481,10 +6622,13 @@ NGTCP2_EXTERN int ngtcp2_conn_is_local_stream2(const ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_is_server2` instead.
+ *
  * `ngtcp2_conn_is_server` returns nonzero if |conn| is initialized as
  * server.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_is_server2` instead.
  */
 NGTCP2_EXTERN int ngtcp2_conn_is_server(ngtcp2_conn *conn);
 
@@ -6494,17 +6638,20 @@ NGTCP2_EXTERN int ngtcp2_conn_is_server(ngtcp2_conn *conn);
  * `ngtcp2_conn_is_server2` returns nonzero if |conn| is initialized
  * as server.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN int ngtcp2_conn_is_server2(const ngtcp2_conn *conn);
 
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_after_retry2` instead.
+ *
  * `ngtcp2_conn_after_retry` returns nonzero if |conn| as a client has
  * received Retry packet from server, and successfully validated it.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_after_retry2` instead.
  */
 NGTCP2_EXTERN int ngtcp2_conn_after_retry(ngtcp2_conn *conn);
 
@@ -6515,7 +6662,7 @@ NGTCP2_EXTERN int ngtcp2_conn_after_retry(ngtcp2_conn *conn);
  * has received Retry packet from server, and successfully validated
  * it.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN int ngtcp2_conn_after_retry2(const ngtcp2_conn *conn);
 
@@ -6538,6 +6685,11 @@ NGTCP2_EXTERN int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_stream_user_data2` instead.
+ *
  * `ngtcp2_conn_get_stream_user_data` returns stream_user_data
  * associated to the stream identified by |stream_id|.  If the stream
  * is not found, or no stream data is associated to the stream, this
@@ -6550,8 +6702,7 @@ NGTCP2_EXTERN int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn,
  * - `ngtcp2_conn_open_uni_stream`
  * - `ngtcp2_conn_set_stream_user_data`
  *
- * This function has been available since v1.17.0, and deprecated
- * since v1.23.0.  Use `ngtcp2_conn_get_stream_user_data2` instead.
+ * .. version-added:: 1.17.0
  */
 NGTCP2_EXTERN void *ngtcp2_conn_get_stream_user_data(ngtcp2_conn *conn,
                                                      int64_t stream_id);
@@ -6571,7 +6722,7 @@ NGTCP2_EXTERN void *ngtcp2_conn_get_stream_user_data(ngtcp2_conn *conn,
  * - `ngtcp2_conn_open_uni_stream`
  * - `ngtcp2_conn_set_stream_user_data`
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN void *ngtcp2_conn_get_stream_user_data2(const ngtcp2_conn *conn,
                                                       int64_t stream_id);
@@ -6592,11 +6743,13 @@ NGTCP2_EXTERN void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_send_quantum2` instead.
+ *
  * `ngtcp2_conn_get_send_quantum` returns the maximum number of bytes
  * that can be sent in one go without packet spacing.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_send_quantum2`
- * instead.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn);
 
@@ -6606,21 +6759,23 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn);
  * `ngtcp2_conn_get_send_quantum2` returns the maximum number of bytes
  * that can be sent in one go without packet spacing.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_send_quantum2(const ngtcp2_conn *conn);
 
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.23.0
+ *     Use `ngtcp2_conn_get_stream_loss_count2` instead.
+ *
  * `ngtcp2_conn_get_stream_loss_count` returns the number of packets
  * that contain STREAM frame for a stream identified by |stream_id|
  * and are declared to be lost.  The number may include the spurious
  * losses.  If no stream identified by |stream_id| is found, this
  * function returns 0.
- *
- * Deprecated since v1.23.0.  Use `ngtcp2_conn_get_stream_loss_count2`
- * instead.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_stream_loss_count(ngtcp2_conn *conn,
                                                        int64_t stream_id);
@@ -6634,7 +6789,7 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_stream_loss_count(ngtcp2_conn *conn,
  * losses.  If no stream identified by |stream_id| is found, this
  * function returns 0.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_stream_loss_count2(const ngtcp2_conn *conn,
                                                         int64_t stream_id);
@@ -6667,7 +6822,7 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_stream_loss_count2(const ngtcp2_conn *conn,
  * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_PADDING` if
  * `ngtcp2_conn_writev_datagram` is used) is recommended.
  *
- * This callback function has been available since v1.15.0.
+ * .. version-added:: 1.15.0
  */
 typedef ngtcp2_ssize (*ngtcp2_write_pkt)(ngtcp2_conn *conn, ngtcp2_path *path,
                                          ngtcp2_pkt_info *pi, uint8_t *dest,
@@ -6713,7 +6868,7 @@ typedef ngtcp2_ssize (*ngtcp2_write_pkt)(ngtcp2_conn *conn, ngtcp2_path *path,
  * This function returns the number of bytes written to the buffer, or
  * a negative error code returned by |write_pkt|.
  *
- * This function has been available since v1.15.0.
+ * .. version-added:: 1.15.0
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
   ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
@@ -6736,7 +6891,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt_versioned(
  * an application.  It can experiment different GSO buffer size
  * strategy and number of GSO writes per event loop.
  *
- * This function has been available since v1.17.0.
+ * .. version-added:: 1.17.0
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt2_versioned(
   ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
@@ -6749,7 +6904,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt2_versioned(
  * `ngtcp2_conn_get_timestamp` returns the latest timestamp that is
  * known to |conn|.
  *
- * This function has been available since v1.16.0.
+ * .. version-added:: 1.16.0
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_timestamp(const ngtcp2_conn *conn);
 
@@ -7010,7 +7165,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  * Otherwise, it uses volatile function pointer to ``memset`` to fill
  * zeros.
  *
- * This function has been available since v1.23.0.
+ * .. version-added:: 1.23.0
  */
 NGTCP2_EXTERN void ngtcp2_secure_clear(void *data, size_t len);
 
