@@ -35,6 +35,7 @@
 
 extern const MunitSuite ppe_suite;
 
+munit_void_test_decl(test_ngtcp2_ppe_encode_hd)
 munit_void_test_decl(test_ngtcp2_ppe_dgram_padding_size)
 munit_void_test_decl(test_ngtcp2_ppe_padding_size)
 

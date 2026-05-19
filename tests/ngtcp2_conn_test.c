@@ -8361,7 +8361,7 @@ void test_ngtcp2_conn_writev_stream(void) {
   assert_int(0, ==, rv);
 
   /*
-   * Long header (1+18+1)
+   * Short header (1+18+1)
    * STREAM overhead (+3)
    * AEAD overhead (16)
    */
