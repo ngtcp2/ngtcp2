@@ -2545,10 +2545,6 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
     return 0;
   }
 
-  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
-    return 0;
-  }
-
   lfr.ack.ranges = ack_ranges;
   if (ngtcp2_acktr_create_ack_frame(&pktns->acktr, &lfr.ack, type, ts,
                                     /* ack_delay = */ 0,
@@ -3662,10 +3658,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       return 0;
     }
 
-    if (!ngtcp2_ppe_ensure_hp_sample(ppe)) {
-      return 0;
-    }
-
     if (ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb)) {
       pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge.rb, 0);
 
@@ -4645,10 +4637,6 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
-    return 0;
-  }
-
-  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
     return 0;
   }
 
@@ -14424,10 +14412,6 @@ ngtcp2_ssize ngtcp2_pkt_write_connection_close(
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
     return rv;
-  }
-
-  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
-    return NGTCP2_ERR_NOBUF;
   }
 
   fr.connection_close = (ngtcp2_connection_close){
