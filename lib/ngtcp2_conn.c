@@ -5711,11 +5711,6 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
       return rv;
     }
 
-    if (!bidi) {
-      ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
-      strm->flags |= NGTCP2_STRM_FLAG_FIN_ACKED;
-    }
-
     rv = conn_call_stream_open(conn, strm);
     if (rv != 0) {
       return rv;
@@ -7931,11 +7926,6 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
     if (rv != 0) {
       ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
       return rv;
-    }
-
-    if (!bidi) {
-      ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
-      strm->flags |= NGTCP2_STRM_FLAG_FIN_ACKED;
     }
 
     rv = conn_call_stream_open(conn, strm);
