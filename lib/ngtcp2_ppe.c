@@ -224,17 +224,33 @@ size_t ngtcp2_ppe_dgram_padding(ngtcp2_ppe *ppe) {
 size_t ngtcp2_ppe_dgram_padding_size(ngtcp2_ppe *ppe, size_t n) {
   ngtcp2_crypto_cc *cc = ppe->cc;
   ngtcp2_buf *buf = &ppe->buf;
-  size_t dgramlen =
-    ppe->dgram_offset + ngtcp2_buf_len(buf) + cc->aead.max_overhead;
+  size_t pktlen = ngtcp2_buf_len(buf) + cc->aead.max_overhead;
+  size_t dgramlen = ppe->dgram_offset + pktlen;
   size_t len;
+  size_t min_pktlen;
 
   n = ngtcp2_min(n, ppe->dgram_offset + ngtcp2_buf_cap(buf));
 
-  if (dgramlen >= n) {
+  if (dgramlen < n) {
+    len = n - dgramlen;
+  } else {
+    len = 0;
+  }
+
+  /* Ensure header protection sample */
+  min_pktlen = ppe_sample_offset(ppe) + NGTCP2_HP_SAMPLELEN;
+  if (pktlen < min_pktlen) {
+    len = ngtcp2_max(len, min_pktlen - pktlen);
+  }
+
+  /* ngtcp2_ppe_encode_hd ensures that the buffer has enough capacity
+     for the padding required for header protection sample. */
+  assert(ngtcp2_buf_left(buf) >= len + cc->aead.max_overhead);
+
+  if (len == 0) {
     return 0;
   }
 
-  len = n - dgramlen;
   buf->last = ngtcp2_setmem(buf->last, 0, len);
 
   return len;
