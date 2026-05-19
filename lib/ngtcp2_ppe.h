@@ -125,7 +125,9 @@ size_t ngtcp2_ppe_dgram_padding(ngtcp2_ppe *ppe);
  * of a UDP datagram payload is at least |n| bytes long.  If it is
  * unable to add PADDING in that way, this function still adds PADDING
  * frame as much as possible.  This function should be called just
- * before calling ngtcp2_ppe_final().
+ * before calling ngtcp2_ppe_final().  This function also ensures that
+ * the packet has enough space for header protection sample by
+ * possibly adding extra padding more than |n|.
  *
  * This function returns the number of bytes added as padding.
  */

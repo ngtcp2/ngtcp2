@@ -100,6 +100,7 @@ void test_ngtcp2_ppe_dgram_padding_size(void) {
   ngtcp2_crypto_cc cc = {0};
   uint8_t buf[2048];
   uint8_t pkt[2048];
+  size_t len;
 
   cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
@@ -147,6 +148,19 @@ void test_ngtcp2_ppe_dgram_padding_size(void) {
 
   ngtcp2_ppe_dgram_padding_size(&ppe, 1400);
 
+  assert_memory_equal(1280, pkt, buf);
+
+  /* Ensure minimum packet size for header encryption sample */
+  ngtcp2_ppe_init(&ppe, buf, 1280, 1200, &cc);
+  ppe.buf.last += 5;
+  ppe.pkt_num_offset = 4;
+
+  set_padding_range(pkt, sizeof(pkt), 5, 3);
+  memset(buf, 0XFF, sizeof(buf));
+
+  len = ngtcp2_ppe_dgram_padding_size(&ppe, 1210);
+
+  assert_size(3, ==, len);
   assert_memory_equal(1280, pkt, buf);
 }
 
