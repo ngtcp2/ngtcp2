@@ -1421,6 +1421,11 @@ void test_ngtcp2_conn_stream_open_close(void) {
   assert_int(0, ==, rv);
   assert_int64(3, ==, stream_id);
 
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_not_null(strm);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD);
+
   rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
 
   assert_int(NGTCP2_ERR_STREAM_ID_BLOCKED, ==, rv);
@@ -2489,7 +2494,8 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* RESET_STREAM against remote stream which has not been initiated */
+  /* RESET_STREAM against remote bidirectional stream which has not
+     been initiated */
   setup_default_server(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
@@ -2509,6 +2515,31 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   assert_uint64(1999, ==, strm->rx.last_offset);
   assert_true(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
   assert_uint64(3, ==, conn->remote.bidi.unsent_max_streams);
+
+  ngtcp2_conn_del(conn);
+
+  /* RESET_STREAM against remote unidirectional stream which has not
+     been initiated */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.reset_stream = (ngtcp2_reset_stream){
+    .type = NGTCP2_FRAME_RESET_STREAM,
+    .stream_id = 2,
+    .app_error_code = NGTCP2_APP_ERR01,
+    .final_size = 1999,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 1);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 2);
+
+  /* strm was created and then deleted. */
+  assert_null(strm);
+  assert_uint64(2, ==, conn->remote.uni.unsent_max_streams);
 
   ngtcp2_conn_del(conn);
 
@@ -3411,6 +3442,7 @@ void test_ngtcp2_conn_recv_stream_data_blocked(void) {
 
   assert_uint64(719, ==, strm->rx.last_offset);
   assert_true(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED);
   assert_uint64(719, ==, conn->rx.offset);
 
   ngtcp2_conn_del(conn);
@@ -6846,6 +6878,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   ngtcp2_transport_params params, remote_params;
   ngtcp2_callbacks callbacks;
   conn_options opts;
+  ngtcp2_strm *strm;
 
   /* 2 STREAM frames are received in the correct order. */
   server_default_callbacks(&callbacks);
@@ -7149,6 +7182,12 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   assert_int64(3, ==, ud.stream_data.stream_id);
   assert_false(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   assert_size(911, ==, ud.stream_data.datalen);
+
+  strm = ngtcp2_conn_find_stream(conn, 3);
+
+  assert_not_null(strm);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED);
 
   ngtcp2_conn_del(conn);
 
