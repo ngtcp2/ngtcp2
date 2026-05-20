@@ -408,8 +408,9 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
   p = out;
 
   *p = (uint8_t)(NGTCP2_HEADER_FORM_BIT |
-                 (ngtcp2_pkt_versioned_type(hd->version, hd->type) << 4) |
-                 (uint8_t)(hd->pkt_numlen - 1));
+                 (uint32_t)(ngtcp2_pkt_versioned_type(hd->version, hd->type)
+                            << 4) |
+                 (uint32_t)(hd->pkt_numlen - 1));
 
   if (!(hd->flags & NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR)) {
     *p |= NGTCP2_FIXED_BIT_MASK;
