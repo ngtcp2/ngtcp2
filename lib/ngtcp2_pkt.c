@@ -2186,22 +2186,22 @@ int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, const uint8_t *payload,
 
 int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
                                   size_t pkt_numlen) {
-  int64_t expected = max_pkt_num + 1;
-  int64_t win = (int64_t)1 << (pkt_numlen * 8);
-  int64_t hwin = win / 2;
-  int64_t mask = win - 1;
-  int64_t cand = (expected & ~mask) | pkt_num;
+  uint64_t expected = (uint64_t)max_pkt_num + 1;
+  uint64_t win = 1ULL << (pkt_numlen * 8);
+  uint64_t hwin = win / 2;
+  uint64_t mask = win - 1;
+  uint64_t cand = (expected & ~mask) | (uint64_t)pkt_num;
 
-  if (cand <= expected - hwin) {
-    assert(cand <= (int64_t)NGTCP2_MAX_VARINT - win);
-    return cand + win;
+  if (cand + hwin <= expected) {
+    assert(cand <= NGTCP2_MAX_VARINT - win);
+    return (int64_t)(cand + win);
   }
 
   if (cand > expected + hwin && cand >= win) {
-    return cand - win;
+    return (int64_t)(cand - win);
   }
 
-  return cand;
+  return (int64_t)cand;
 }
 
 int ngtcp2_pkt_validate_ack(const ngtcp2_ack *fr, int64_t min_pkt_num) {
