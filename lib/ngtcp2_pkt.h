@@ -32,20 +32,20 @@
 #include <ngtcp2/ngtcp2.h>
 
 /* QUIC header macros */
-#define NGTCP2_HEADER_FORM_BIT 0x80
-#define NGTCP2_FIXED_BIT_MASK 0x40
-#define NGTCP2_PKT_NUMLEN_MASK 0x03
+#define NGTCP2_HEADER_FORM_BIT 0x80U
+#define NGTCP2_FIXED_BIT_MASK 0x40U
+#define NGTCP2_PKT_NUMLEN_MASK 0x03U
 
 /* Long header specific macros */
-#define NGTCP2_LONG_TYPE_MASK 0x30
-#define NGTCP2_LONG_RESERVED_BIT_MASK 0x0C
+#define NGTCP2_LONG_TYPE_MASK 0x30U
+#define NGTCP2_LONG_RESERVED_BIT_MASK 0x0CU
 
 /* Short header specific macros */
-#define NGTCP2_SHORT_RESERVED_BIT_MASK 0x18
-#define NGTCP2_SHORT_KEY_PHASE_BIT 0x04
+#define NGTCP2_SHORT_RESERVED_BIT_MASK 0x18U
+#define NGTCP2_SHORT_KEY_PHASE_BIT 0x04U
 
 /* NGTCP2_SR_TYPE is a Type field of Stateless Reset. */
-#define NGTCP2_SR_TYPE 0x1F
+#define NGTCP2_SR_TYPE 0x1FU
 
 /* NGTCP2_MIN_LONG_HEADERLEN is the minimum length of long header.
    That is (1|1|TT|RR|PP)<1> + VERSION<4> + DCIL<1> + SCIL<1> +
@@ -53,9 +53,9 @@
 #define NGTCP2_MIN_LONG_HEADERLEN (1 + 4 + 1 + 1 + 1 + 1)
 
 /* STREAM frame specific macros */
-#define NGTCP2_STREAM_FIN_BIT 0x01
-#define NGTCP2_STREAM_LEN_BIT 0x02
-#define NGTCP2_STREAM_OFF_BIT 0x04
+#define NGTCP2_STREAM_FIN_BIT 0x01U
+#define NGTCP2_STREAM_LEN_BIT 0x02U
+#define NGTCP2_STREAM_OFF_BIT 0x04U
 
 /* NGTCP2_MIN_QUIC_PKTLEN is the minimum length of a valid QUIC
    packet. */
@@ -109,29 +109,29 @@
 
 /* NGTCP2_PKT_TYPE_INITIAL_V1 is Initial long header packet type for
    QUIC v1. */
-#define NGTCP2_PKT_TYPE_INITIAL_V1 0x0
+#define NGTCP2_PKT_TYPE_INITIAL_V1 0x0U
 /* NGTCP2_PKT_TYPE_0RTT_V1 is 0RTT long header packet type for QUIC
    v1. */
-#define NGTCP2_PKT_TYPE_0RTT_V1 0x1
+#define NGTCP2_PKT_TYPE_0RTT_V1 0x1U
 /* NGTCP2_PKT_TYPE_HANDSHAKE_V1 is Handshake long header packet type
    for QUIC v1. */
-#define NGTCP2_PKT_TYPE_HANDSHAKE_V1 0x2
+#define NGTCP2_PKT_TYPE_HANDSHAKE_V1 0x2U
 /* NGTCP2_PKT_TYPE_RETRY_V1 is Retry long header packet type for QUIC
    v1. */
-#define NGTCP2_PKT_TYPE_RETRY_V1 0x3
+#define NGTCP2_PKT_TYPE_RETRY_V1 0x3U
 
 /* NGTCP2_PKT_TYPE_INITIAL_V2 is Initial long header packet type for
    QUIC v2. */
-#define NGTCP2_PKT_TYPE_INITIAL_V2 0x1
+#define NGTCP2_PKT_TYPE_INITIAL_V2 0x1U
 /* NGTCP2_PKT_TYPE_0RTT_V2 is 0RTT long header packet type for QUIC
    v2. */
-#define NGTCP2_PKT_TYPE_0RTT_V2 0x2
+#define NGTCP2_PKT_TYPE_0RTT_V2 0x2U
 /* NGTCP2_PKT_TYPE_HANDSHAKE_V2 is Handshake long header packet type
    for QUIC v2. */
-#define NGTCP2_PKT_TYPE_HANDSHAKE_V2 0x3
+#define NGTCP2_PKT_TYPE_HANDSHAKE_V2 0x3U
 /* NGTCP2_PKT_TYPE_RETRY_V2 is Retry long header packet type for QUIC
    v2. */
-#define NGTCP2_PKT_TYPE_RETRY_V2 0x0
+#define NGTCP2_PKT_TYPE_RETRY_V2 0x0U
 
 /* NGTCP2_MIN_STREAM_DATALEN is the minimum length of STREAM frame to
    avoid too small frame.  It is not always enforced for various
