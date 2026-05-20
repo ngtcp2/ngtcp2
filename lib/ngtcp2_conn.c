@@ -1161,11 +1161,11 @@ static int conn_handle_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 }
 
 static size_t buflen_align(size_t buflen) {
-  return (buflen + 0x7) & (size_t)~0x7;
+  return (buflen + 0x7U) & ~(size_t)0x7U;
 }
 
 static void *buf_align(void *buf) {
-  return (void *)((uintptr_t)((uint8_t *)buf + 0x7) & (uintptr_t)~0x7);
+  return (void *)((uintptr_t)((uint8_t *)buf + 0x7U) & ~(uintptr_t)0x7U);
 }
 
 static void *buf_advance(void *buf, size_t n) { return (uint8_t *)buf + n; }
