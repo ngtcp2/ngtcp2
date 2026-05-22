@@ -2115,7 +2115,7 @@ ngtcp2_ssize ngtcp2_pkt_write_version_negotiation(
 
   p = dest;
 
-  *p++ = 0xC0 | unused_random;
+  *p++ = 0xC0U | unused_random;
   p = ngtcp2_put_uint32be(p, 0);
   *p++ = (uint8_t)dcidlen;
 
@@ -2366,7 +2366,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_pseudo_retry(
     return NGTCP2_ERR_NOBUF;
   }
 
-  *p &= 0xF0;
+  *p &= 0xF0U;
   *p |= unused;
 
   p += nwrite;

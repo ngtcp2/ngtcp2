@@ -1996,7 +1996,7 @@ void test_ngtcp2_pkt_write_stateless_reset2(void) {
   assert_ptrdiff(256, ==, spktlen);
   assert_uint8(0, ==, (*p & NGTCP2_HEADER_FORM_BIT));
   assert_true((*p & NGTCP2_FIXED_BIT_MASK));
-  assert_uint8(0x40 | (0x3F & rand[0]), ==, *p);
+  assert_uint8(0x40U | (0x3FU & rand[0]), ==, *p);
 
   ++p;
 
@@ -2084,7 +2084,7 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
 
   p = buf;
 
-  assert_uint8((0xC0 | 133), ==, buf[0]);
+  assert_uint8((0xC0U | 133), ==, buf[0]);
 
   ++p;
 

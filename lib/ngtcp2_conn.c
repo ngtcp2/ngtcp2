@@ -5922,9 +5922,9 @@ decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   }
 
   if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    dest[0] = (uint8_t)(dest[0] ^ (mask[0] & 0x0F));
+    dest[0] = (uint8_t)(dest[0] ^ (mask[0] & 0x0FU));
   } else {
-    dest[0] = (uint8_t)(dest[0] ^ (mask[0] & 0x1F));
+    dest[0] = (uint8_t)(dest[0] ^ (mask[0] & 0x1FU));
     if (dest[0] & NGTCP2_SHORT_KEY_PHASE_BIT) {
       hd->flags |= NGTCP2_PKT_FLAG_KEY_PHASE;
     }
