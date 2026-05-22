@@ -68,7 +68,7 @@ uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
 
   for (i = 0; i < len; ++i) {
     *dest++ = (uint8_t)LOWER_XDIGITS[data[i] >> 4];
-    *dest++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xF];
+    *dest++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xFU];
   }
 
   return dest;
@@ -115,7 +115,7 @@ uint8_t *ngtcp2_encode_uint_hex(uint8_t *dest, uint64_t n) {
         *dest++ = (uint8_t)LOWER_XDIGITS[d >> 4];
       }
 
-      *dest++ = (uint8_t)LOWER_XDIGITS[d & 0xF];
+      *dest++ = (uint8_t)LOWER_XDIGITS[d & 0xFU];
       ++i;
 
       break;
@@ -126,7 +126,7 @@ uint8_t *ngtcp2_encode_uint_hex(uint8_t *dest, uint64_t n) {
     d = (uint8_t)(n >> (sizeof(n) - 1 - i) * 8);
 
     *dest++ = (uint8_t)LOWER_XDIGITS[d >> 4];
-    *dest++ = (uint8_t)LOWER_XDIGITS[d & 0xF];
+    *dest++ = (uint8_t)LOWER_XDIGITS[d & 0xFU];
   }
 
   return dest;
@@ -179,7 +179,7 @@ static uint8_t *write_hex_zsup(uint8_t *dest, const uint8_t *data, size_t len) {
       break;
     }
 
-    d &= 0xF;
+    d &= 0xFU;
 
     if (d) {
       *p++ = (uint8_t)LOWER_XDIGITS[d];
@@ -196,7 +196,7 @@ static uint8_t *write_hex_zsup(uint8_t *dest, const uint8_t *data, size_t len) {
   for (; i < len; ++i) {
     d = data[i];
     *p++ = (uint8_t)LOWER_XDIGITS[d >> 4];
-    *p++ = (uint8_t)LOWER_XDIGITS[d & 0xF];
+    *p++ = (uint8_t)LOWER_XDIGITS[d & 0xFU];
   }
 
   return p;

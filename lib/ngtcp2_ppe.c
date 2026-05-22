@@ -158,9 +158,9 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
 
   p = buf->begin;
   if (*p & NGTCP2_HEADER_FORM_BIT) {
-    *p = (uint8_t)(*p ^ (mask[0] & 0x0F));
+    *p = (uint8_t)(*p ^ (mask[0] & 0x0FU));
   } else {
-    *p = (uint8_t)(*p ^ (mask[0] & 0x1F));
+    *p = (uint8_t)(*p ^ (mask[0] & 0x1FU));
   }
 
   p = buf->begin + ppe->pkt_num_offset;

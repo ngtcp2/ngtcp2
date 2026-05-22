@@ -4024,7 +4024,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   /* long packet */
   buf[0] |= NGTCP2_HEADER_FORM_BIT;
-  buf[0] |= 0x30;
+  buf[0] |= 0x30U;
   /* Make version nonzero so that it does not look like Version
      Negotiation packet */
   buf[1] = 0xFF;
