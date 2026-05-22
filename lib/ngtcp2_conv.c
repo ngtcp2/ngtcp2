@@ -62,7 +62,7 @@ const uint8_t *ngtcp2_get_uint16(uint16_t *dest, const uint8_t *p) {
   return p + sizeof(*dest);
 }
 
-static const uint8_t *get_uvarint(uint64_t *dest, const uint8_t *p) {
+const uint8_t *ngtcp2_get_uvarint(uint64_t *dest, const uint8_t *p) {
   uint16_t n16;
   uint32_t n32;
   uint64_t n64;
@@ -95,14 +95,6 @@ static const uint8_t *get_uvarint(uint64_t *dest, const uint8_t *p) {
   default:
     ngtcp2_unreachable();
   }
-}
-
-const uint8_t *ngtcp2_get_uvarint(uint64_t *dest, const uint8_t *p) {
-  return get_uvarint(dest, p);
-}
-
-const uint8_t *ngtcp2_get_varint(int64_t *dest, const uint8_t *p) {
-  return get_uvarint((uint64_t *)dest, p);
 }
 
 int64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen) {
