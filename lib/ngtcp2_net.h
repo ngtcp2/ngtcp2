@@ -67,11 +67,11 @@
 #    define ngtcp2_htonl64(N) (N)
 #  else /* !defined(WORDS_BIGENDIAN) */
 #    if HAVE_DECL_BSWAP_64
-#      define ngtcp2_bswap64 bswap_64
+#      define ngtcp2_bswap64(N) bswap_64(N)
 #    elif defined(WIN32)
-#      define ngtcp2_bswap64 _byteswap_uint64
+#      define ngtcp2_bswap64(N) _byteswap_uint64(N)
 #    elif defined(__APPLE__)
-#      define ngtcp2_bswap64 OSSwapInt64
+#      define ngtcp2_bswap64(N) OSSwapInt64(N)
 #    else /* !(HAVE_DECL_BSWAP_64 || defined(WIN32) || defined(__APPLE__)) */
 #      define ngtcp2_bswap64(N)                                                \
         ((uint64_t)(ngtcp2_ntohl((uint32_t)(N))) << 32 |                       \
@@ -92,12 +92,10 @@
 #  define ngtcp2_ntohl(N) _byteswap_ulong(N)
 #  define ngtcp2_ntohs(N) _byteswap_ushort(N)
 #else /* !defined(WIN32) */
-
-#  define ngtcp2_htonl htonl
-#  define ngtcp2_htons htons
-#  define ngtcp2_ntohl ntohl
-#  define ngtcp2_ntohs ntohs
-
+#  define ngtcp2_htonl(N) htonl(N)
+#  define ngtcp2_htons(N) htons(N)
+#  define ngtcp2_ntohl(N) ntohl(N)
+#  define ngtcp2_ntohs(N) ntohs(N)
 #endif /* !defined(WIN32) */
 
 #endif /* !defined(NGTCP2_NET_H) */
