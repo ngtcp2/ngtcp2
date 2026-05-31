@@ -1861,7 +1861,8 @@ typedef enum ngtcp2_token_type {
 #define NGTCP2_SETTINGS_V2 2
 #define NGTCP2_SETTINGS_V3 3
 #define NGTCP2_SETTINGS_V4 4
-#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V4
+#define NGTCP2_SETTINGS_V5 5
+#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V5
 
 /**
  * @struct
@@ -2116,6 +2117,7 @@ typedef struct ngtcp2_settings {
    * .. version-added:: 1.23.0
    */
   ngtcp2_log_write log_write;
+  /* The following fields have been added since NGTCP2_SETTINGS_V5. */
   /**
    * :member:`handshake_pto_ceiling` is the maximum probe timeout
    * duration for the Initial and Handshake packet number spaces.
