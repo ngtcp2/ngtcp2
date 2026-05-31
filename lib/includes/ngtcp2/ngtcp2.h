@@ -2116,6 +2116,17 @@ typedef struct ngtcp2_settings {
    * .. version-added:: 1.23.0
    */
   ngtcp2_log_write log_write;
+  /**
+   * :member:`handshake_pto_ceiling` is the maximum probe timeout
+   * duration for the Initial and Handshake packet number spaces.
+   * When set to a nonzero value, the exponential backoff duration is
+   * capped at this value during the QUIC handshake.  The PTO still
+   * grows exponentially but will not exceed this ceiling.  After the
+   * handshake is confirmed, standard uncapped exponential backoff is
+   * used for the Application packet number space regardless of this
+   * setting.  Setting this to 0 (the default) applies no ceiling.
+   */
+  ngtcp2_duration handshake_pto_ceiling;
 } ngtcp2_settings;
 
 /**

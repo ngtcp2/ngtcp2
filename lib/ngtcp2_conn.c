@@ -13325,6 +13325,12 @@ static ngtcp2_tstamp conn_get_earliest_pto_expiry(const ngtcp2_conn *conn,
     compute_pto(cstat->smoothed_rtt, cstat->rttvar, /* max_ack_delay = */ 0) *
     (1ULL << cstat->pto_count);
 
+  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
+      conn->local.settings.handshake_pto_ceiling &&
+      duration > conn->local.settings.handshake_pto_ceiling) {
+    duration = conn->local.settings.handshake_pto_ceiling;
+  }
+
   for (i = NGTCP2_PKTNS_ID_INITIAL; i < NGTCP2_PKTNS_ID_MAX; ++i) {
     if (ns[i] == NULL || ns[i]->rtb.num_pto_eliciting == 0 ||
         (times[i] == UINT64_MAX ||
