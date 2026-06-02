@@ -64,7 +64,7 @@ cryptotest_LDADD = libngtcp2_crypto_libressl.la
 else # !HAVE_LIBRESSL
 cryptotest_LDADD = libngtcp2_crypto_quictls.la
 endif # !HAVE_LIBRESSL
-cryptotest_LDADD += $(top_builddir)/lib/libngtcp2.la
+cryptotest_LDADD += $(top_builddir)/lib/libngtcp2.la @OPENSSL_LIBS@
 
 TESTS = cryptotest
 

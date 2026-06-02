@@ -51,6 +51,7 @@ cryptotest_SOURCES = \
 cryptotest_CPPFLAGS = ${AM_CPPFLAGS} -I$(top_srcdir)/tests/munit
 cryptotest_LDADD = \
 	libngtcp2_crypto_ossl.la \
-	$(top_builddir)/lib/libngtcp2.la
+	$(top_builddir)/lib/libngtcp2.la \
+	@OPENSSL_LIBS@
 
 TESTS = cryptotest
