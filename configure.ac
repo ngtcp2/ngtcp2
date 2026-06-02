@@ -110,6 +110,11 @@ AC_ARG_ENABLE([lib-only],
                     [Build libngtcp2 and libngtcp2_crypto only.])],
     [lib_only=$enableval], [lib_only=no])
 
+AC_ARG_ENABLE([cryptotest],
+    [AS_HELP_STRING([--disable-cryptotest],
+                    [Disable cryptotest under crypto directory])],
+    [cryptotest=$enableval], [cryptotest=yes])
+
 AC_ARG_WITH([jemalloc],
     [AS_HELP_STRING([--with-jemalloc],
                     [Use jemalloc [default=check]])],
@@ -453,6 +458,7 @@ if test "x${have_quictls}" = "xyes" ||
 fi
 
 AM_CONDITIONAL([HAVE_CRYPTO], [ test "x${have_crypto}" = "xyes" ])
+AM_CONDITIONAL([HAVE_CRYPTOTEST], [ test "x${cryptotest}" = "xyes" ])
 
 # libnghttp3 (required for examples)
 have_libnghttp3=no
@@ -857,6 +863,7 @@ AC_MSG_NOTICE([summary of build options:
       libngtcp2_crypto_picotls:   ${have_picotls}
       libngtcp2_crypto_wolfssl:   ${have_wolfssl}
       libngtcp2_crypto_ossl:      ${have_ossl}
+    Cryptotest:       ${cryptotest}
     Debug:
       Debug:          ${debug} (CFLAGS='${DEBUGCFLAGS}')
     Libs:

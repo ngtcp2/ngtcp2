@@ -42,6 +42,7 @@ libngtcp2_crypto_wolfssl_la_LDFLAGS = -no-undefined \
 libngtcp2_crypto_wolfssl_la_LIBADD = $(top_builddir)/lib/libngtcp2.la \
 	@WOLFSSL_LIBS@
 
+if HAVE_CRYPTOTEST
 check_PROGRAMS = cryptotest
 
 cryptotest_SOURCES = \
@@ -54,3 +55,4 @@ cryptotest_LDADD = \
 	$(top_builddir)/lib/libngtcp2.la
 
 TESTS = cryptotest
+endif # HAVE_CRYPTOTEST
