@@ -38,6 +38,7 @@ lib_LIBRARIES = libngtcp2_crypto_boringssl.a
 
 libngtcp2_crypto_boringssl_a_SOURCES = boringssl.c ../shared.c ../shared.h
 
+if HAVE_CRYPTOTEST
 if HAVE_BORINGSSL_STDCXXLIB
 check_PROGRAMS = cryptotest
 
@@ -54,3 +55,4 @@ cryptotest_LDADD = \
 
 TESTS = cryptotest
 endif # HAVE_BORINGSSL_STDCXXLIB
+endif # HAVE_CRYPTOTEST

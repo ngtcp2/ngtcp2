@@ -52,6 +52,7 @@ libngtcp2_crypto_quictls_la_LIBADD = $(top_builddir)/lib/libngtcp2.la \
 	@OPENSSL_LIBS@
 endif
 
+if HAVE_CRYPTOTEST
 check_PROGRAMS = cryptotest
 
 cryptotest_SOURCES = \
@@ -67,5 +68,6 @@ endif # !HAVE_LIBRESSL
 cryptotest_LDADD += $(top_builddir)/lib/libngtcp2.la @OPENSSL_LIBS@
 
 TESTS = cryptotest
+endif # HAVE_CRYPTOTEST
 
 DISTCLEANFILES = $(pkgconfig_DATA)

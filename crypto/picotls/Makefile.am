@@ -38,6 +38,7 @@ lib_LIBRARIES = libngtcp2_crypto_picotls.a
 
 libngtcp2_crypto_picotls_a_SOURCES = picotls.c ../shared.c ../shared.h
 
+if HAVE_CRYPTOTEST
 check_PROGRAMS = cryptotest
 
 cryptotest_SOURCES = \
@@ -51,3 +52,4 @@ cryptotest_LDADD = \
 	@PICOTLS_LIBS@ @VANILLA_OPENSSL_LIBS@
 
 TESTS = cryptotest
+endif # HAVE_CRYPTOTEST

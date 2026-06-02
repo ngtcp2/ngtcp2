@@ -42,6 +42,7 @@ libngtcp2_crypto_ossl_la_LDFLAGS = -no-undefined \
 libngtcp2_crypto_ossl_la_LIBADD = $(top_builddir)/lib/libngtcp2.la \
 	@OPENSSL_LIBS@
 
+if HAVE_CRYPTOTEST
 check_PROGRAMS = cryptotest
 
 cryptotest_SOURCES = \
@@ -55,3 +56,4 @@ cryptotest_LDADD = \
 	@OPENSSL_LIBS@
 
 TESTS = cryptotest
+endif # HAVE_CRYPTOTEST
