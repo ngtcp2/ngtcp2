@@ -324,6 +324,11 @@ typedef struct {
     uint8_t token[256];
     size_t tokenlen;
   } new_token;
+  struct {
+    int64_t stream_id;
+    uint64_t app_error_code;
+    size_t ncalled;
+  } stop_sending;
 } my_user_data;
 
 static int client_initial(ngtcp2_conn *conn, void *user_data) {
@@ -667,6 +672,22 @@ static int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
     ud->stream_close.flags = flags;
     ud->stream_close.stream_id = stream_id;
     ud->stream_close.app_error_code = app_error_code;
+  }
+
+  return 0;
+}
+
+static int recv_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
+                             uint64_t app_error_code, void *user_data,
+                             void *stream_user_data) {
+  my_user_data *ud = user_data;
+  (void)conn;
+  (void)stream_user_data;
+
+  if (ud) {
+    ud->stop_sending.stream_id = stream_id;
+    ud->stop_sending.app_error_code = app_error_code;
+    ++ud->stop_sending.ncalled;
   }
 
   return 0;
@@ -2844,10 +2865,15 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
   ngtcp2_tpe tpe;
+  my_user_data ud;
 
   /* Receive STOP_SENDING */
   setup_default_client(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
+
+  ud = (my_user_data){0};
+  conn->user_data = &ud;
+  conn->callbacks.recv_stop_sending = recv_stop_sending;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -2864,6 +2890,12 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
+
+  /* recv_stop_sending callback is invoked once with the frame's stream
+     ID and application error code. */
+  assert_size(1, ==, ud.stop_sending.ncalled);
+  assert_int64(stream_id, ==, ud.stop_sending.stream_id);
+  assert_uint64(NGTCP2_APP_ERR01, ==, ud.stop_sending.app_error_code);
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
 
@@ -2900,11 +2932,18 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   assert_true(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM);
   assert_false(strm->flags & NGTCP2_STRM_FLAG_SEND_RESET_STREAM);
 
+  /* Duplicate STOP_SENDING does not invoke the callback again. */
+  assert_size(1, ==, ud.stop_sending.ncalled);
+
   ngtcp2_conn_del(conn);
 
   /* Receive STOP_SENDING after receiving RESET_STREAM */
   setup_default_client(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
+
+  ud = (my_user_data){0};
+  conn->user_data = &ud;
+  conn->callbacks.recv_stop_sending = recv_stop_sending;
 
   t = 0;
 
@@ -2936,6 +2975,10 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   assert_int(0, ==, rv);
   assert_not_null(ngtcp2_conn_find_stream(conn, stream_id));
 
+  /* Callback fires even though the read side was already reset. */
+  assert_size(1, ==, ud.stop_sending.ncalled);
+  assert_int64(stream_id, ==, ud.stop_sending.stream_id);
+
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   assert_ptrdiff(0, <, spktlen);
@@ -2962,12 +3005,30 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   assert_int(0, ==, rv);
   assert_null(ngtcp2_conn_find_stream(conn, stream_id));
 
+  /* STOP_SENDING for a local stream that no longer has a stream object
+     does not invoke the callback. */
+  fr.stop_sending = (ngtcp2_stop_sending){
+    .type = NGTCP2_FRAME_STOP_SENDING,
+    .stream_id = stream_id,
+    .app_error_code = NGTCP2_APP_ERR01,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ud.stop_sending.ncalled);
+
   ngtcp2_conn_del(conn);
 
   /* STOP_SENDING against remote bidirectional stream which has not
      been initiated. */
   setup_default_server(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
+
+  ud = (my_user_data){0};
+  conn->user_data = &ud;
+  conn->callbacks.recv_stop_sending = recv_stop_sending;
 
   fr.stop_sending = (ngtcp2_stop_sending){
     .type = NGTCP2_FRAME_STOP_SENDING,
@@ -2983,6 +3044,10 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
 
   assert_not_null(strm);
   assert_true(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
+
+  /* Stream object is created on receipt, then the callback fires. */
+  assert_size(1, ==, ud.stop_sending.ncalled);
+  assert_int64(0, ==, ud.stop_sending.stream_id);
 
   ngtcp2_conn_del(conn);
 
