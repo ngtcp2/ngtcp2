@@ -2866,14 +2866,22 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_tpe tpe;
   my_user_data ud;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   /* Receive STOP_SENDING */
-  setup_default_client(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  client_default_callbacks(&callbacks);
+  callbacks.recv_stop_sending = recv_stop_sending;
 
   ud = (my_user_data){0};
-  conn->user_data = &ud;
-  conn->callbacks.recv_stop_sending = recv_stop_sending;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -2938,12 +2946,18 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   ngtcp2_conn_del(conn);
 
   /* Receive STOP_SENDING after receiving RESET_STREAM */
-  setup_default_client(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  client_default_callbacks(&callbacks);
+  callbacks.recv_stop_sending = recv_stop_sending;
 
   ud = (my_user_data){0};
-  conn->user_data = &ud;
-  conn->callbacks.recv_stop_sending = recv_stop_sending;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   t = 0;
 
@@ -3023,12 +3037,18 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
 
   /* STOP_SENDING against remote bidirectional stream which has not
      been initiated. */
-  setup_default_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stop_sending = recv_stop_sending;
 
   ud = (my_user_data){0};
-  conn->user_data = &ud;
-  conn->callbacks.recv_stop_sending = recv_stop_sending;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
 
   fr.stop_sending = (ngtcp2_stop_sending){
     .type = NGTCP2_FRAME_STOP_SENDING,
