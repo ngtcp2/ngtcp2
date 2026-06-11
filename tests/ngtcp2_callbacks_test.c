@@ -437,6 +437,18 @@ static int stream_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
   return 0;
 }
 
+static int recv_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
+                             uint64_t app_error_code, void *user_data,
+                             void *stream_user_data) {
+  (void)conn;
+  (void)stream_id;
+  (void)app_error_code;
+  (void)user_data;
+  (void)stream_user_data;
+
+  return 0;
+}
+
 static int version_negotiation(ngtcp2_conn *conn, uint32_t version,
                                const ngtcp2_cid *client_dcid, void *user_data) {
   (void)conn;
@@ -646,6 +658,7 @@ void test_ngtcp2_callbacks_convert_to_latest(void) {
   assert_null(dest->get_new_connection_id2);
   assert_null(dest->dcid_status2);
   assert_null(dest->get_path_challenge_data2);
+  assert_null(dest->recv_stop_sending);
 }
 
 void test_ngtcp2_callbacks_convert_to_old(void) {
@@ -695,6 +708,7 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
     .get_new_connection_id2 = get_new_connection_id2,
     .dcid_status2 = dcid_status2,
     .get_path_challenge_data2 = get_path_challenge_data2,
+    .recv_stop_sending = recv_stop_sending,
   };
   ngtcp2_callbacks *dest, destbuf = {0};
   size_t v2len;
@@ -763,4 +777,5 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
   assert_null(destbuf.get_new_connection_id2);
   assert_null(destbuf.dcid_status2);
   assert_null(destbuf.get_path_challenge_data2);
+  assert_null(destbuf.recv_stop_sending);
 }

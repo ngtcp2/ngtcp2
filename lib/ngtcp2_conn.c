@@ -230,6 +230,24 @@ static int conn_call_stream_reset(ngtcp2_conn *conn, int64_t stream_id,
   return 0;
 }
 
+static int conn_call_recv_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
+                                       uint64_t app_error_code,
+                                       void *stream_user_data) {
+  int rv;
+
+  if (!conn->callbacks.recv_stop_sending) {
+    return 0;
+  }
+
+  rv = conn->callbacks.recv_stop_sending(conn, stream_id, app_error_code,
+                                         conn->user_data, stream_user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int conn_call_extend_max_local_streams_bidi(ngtcp2_conn *conn,
                                                    uint64_t max_streams) {
   int rv;
@@ -7931,6 +7949,12 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   }
 
   ngtcp2_strm_set_app_error_code(strm, fr->app_error_code);
+
+  rv = conn_call_recv_stop_sending(conn, fr->stream_id, fr->app_error_code,
+                                   strm->stream_user_data);
+  if (rv != 0) {
+    return rv;
+  }
 
   /* No RESET_STREAM is required if we have sent FIN and all data have
      been acknowledged. */
