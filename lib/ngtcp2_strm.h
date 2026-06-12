@@ -166,6 +166,9 @@ struct ngtcp2_strm {
         uint64_t unsent_max_offset;
         /* window is the stream-level flow control window size. */
         uint64_t window;
+        /* max_stream_data_thresh, if nonzero, is the threshold to
+           decide when MAX_STREAM_DATA frame is sent. */
+        uint64_t max_stream_data_thresh;
       } rx;
 
       const ngtcp2_mem *mem;
