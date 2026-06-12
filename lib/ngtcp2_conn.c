@@ -3218,6 +3218,10 @@ static int conn_should_send_max_stream_data(const ngtcp2_conn *conn,
   uint64_t inc = strm->rx.unsent_max_offset - strm->rx.max_offset;
   (void)conn;
 
+  if (strm->rx.max_stream_data_thresh) {
+    return strm->rx.max_stream_data_thresh < inc;
+  }
+
   return strm->rx.window < 4 * inc;
 }
 
@@ -13111,6 +13115,24 @@ int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, int64_t stream_id,
   }
 
   return conn_extend_max_stream_offset(conn, strm, datalen);
+}
+
+int ngtcp2_conn_set_max_stream_data_thresh(ngtcp2_conn *conn, int64_t stream_id,
+                                           uint64_t thresh) {
+  ngtcp2_strm *strm;
+
+  if (!bidi_stream(stream_id) && conn_local_stream(conn, stream_id)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  if (strm == NULL) {
+    return 0;
+  }
+
+  strm->rx.max_stream_data_thresh = thresh;
+
+  return conn_extend_max_stream_offset(conn, strm, 0);
 }
 
 void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn, uint64_t datalen) {
