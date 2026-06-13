@@ -5489,7 +5489,9 @@ NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
  * is used.  Normally, there is no need to use this function.
  *
  * This function returns 0 if a stream denoted by |stream_id| is not
- * found.
+ * found.  If the stream-level window auto-tuning is enabled (see
+ * :member:`ngtcp2_settings.max_stream_window`), this function is
+ * noop.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
