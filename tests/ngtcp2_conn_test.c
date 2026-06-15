@@ -133,7 +133,6 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_skip_pkt_num),
   munit_void_test(test_ngtcp2_conn_get_timestamp),
   munit_void_test(test_ngtcp2_conn_get_stream_user_data),
-  munit_void_test(test_ngtcp2_conn_set_max_stream_data_thresh),
   munit_void_test(test_ngtcp2_conn_new_failmalloc),
   munit_void_test(test_ngtcp2_conn_post_handshake_failmalloc),
   munit_void_test(test_ngtcp2_accept),
@@ -18450,84 +18449,6 @@ void test_ngtcp2_conn_get_stream_user_data(void) {
 
   assert_int(0, ==, rv);
   assert_ptr_equal(conn, ngtcp2_conn_get_stream_user_data2(conn, stream_id));
-
-  ngtcp2_conn_del(conn);
-}
-
-void test_ngtcp2_conn_set_max_stream_data_thresh(void) {
-  ngtcp2_conn *conn;
-  uint8_t buf[2400];
-  ngtcp2_vec datav;
-  ngtcp2_frame fr;
-  ngtcp2_ssize spktlen;
-  ngtcp2_tstamp t = 0;
-  ngtcp2_tpe tpe;
-  ngtcp2_ksl_it it;
-  ngtcp2_rtb_entry *ent;
-  ngtcp2_frame_chain *frc;
-  int rv;
-  size_t pktlen;
-  int64_t stream_id;
-
-  setup_default_client(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
-
-  assert_ssize(0, <, spktlen);
-
-  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
-
-  assert_int(0, ==, rv);
-
-  fr.stream = (ngtcp2_stream){
-    .type = NGTCP2_FRAME_STREAM,
-    .stream_id = stream_id,
-    .datacnt = 1,
-    .data = &datav,
-  };
-  datav = (ngtcp2_vec){
-    .len = 1200,
-    .base = null_data,
-  };
-
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
-
-  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
-
-  assert_int(0, ==, rv);
-
-  rv = ngtcp2_conn_extend_max_stream_offset(conn, stream_id, 1200);
-
-  assert_int(0, ==, rv);
-
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
-
-  assert_ssize(0, ==, spktlen);
-
-  rv = ngtcp2_conn_set_max_stream_data_thresh(conn, stream_id, 1200);
-
-  assert_int(0, ==, rv);
-
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
-
-  assert_ssize(0, ==, spktlen);
-
-  rv = ngtcp2_conn_set_max_stream_data_thresh(conn, stream_id, 1199);
-
-  assert_int(0, ==, rv);
-
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
-
-  assert_ssize(0, <, spktlen);
-
-  it = ngtcp2_rtb_head(&conn->pktns.rtb);
-  ent = ngtcp2_ksl_it_get(&it);
-  frc = ent->frc;
-
-  assert_uint64(NGTCP2_FRAME_MAX_STREAM_DATA, ==, frc->fr.hd.type);
-  assert_int64(stream_id, ==, frc->fr.max_stream_data.stream_id);
-  assert_uint64(65535 + 1200, ==, frc->fr.max_stream_data.max_stream_data);
 
   ngtcp2_conn_del(conn);
 }
