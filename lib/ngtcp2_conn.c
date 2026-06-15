@@ -3218,7 +3218,11 @@ static int conn_should_send_max_stream_data(const ngtcp2_conn *conn,
   uint64_t inc = strm->rx.unsent_max_offset - strm->rx.max_offset;
   (void)conn;
 
-  return strm->rx.window < NGTCP2_MAX_STREAM_DATA_THRESH_FACTOR * inc;
+  if (strm->rx.max_stream_data_thresh) {
+    return strm->rx.max_stream_data_thresh < inc;
+  }
+
+  return strm->rx.window < 4 * inc;
 }
 
 /*
@@ -3228,7 +3232,7 @@ static int conn_should_send_max_stream_data(const ngtcp2_conn *conn,
 static int conn_should_send_max_data(const ngtcp2_conn *conn) {
   uint64_t inc = conn->rx.unsent_max_offset - conn->rx.max_offset;
 
-  return conn->rx.window < NGTCP2_MAX_STREAM_DATA_THRESH_FACTOR * inc;
+  return conn->rx.window < 4 * inc;
 }
 
 /*
@@ -13117,10 +13121,6 @@ int ngtcp2_conn_set_max_stream_data_thresh(ngtcp2_conn *conn, int64_t stream_id,
                                            uint64_t thresh) {
   ngtcp2_strm *strm;
 
-  if (conn->local.settings.max_stream_window) {
-    return 0;
-  }
-
   if (!bidi_stream(stream_id) && conn_local_stream(conn, stream_id)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -13130,21 +13130,7 @@ int ngtcp2_conn_set_max_stream_data_thresh(ngtcp2_conn *conn, int64_t stream_id,
     return 0;
   }
 
-  if (thresh == 0) {
-    if (bidi_stream(stream_id)) {
-      strm->rx.window =
-        conn_local_stream(conn, stream_id)
-          ? conn->local.transport_params.initial_max_stream_data_bidi_local
-          : conn->local.transport_params.initial_max_stream_data_bidi_remote;
-    } else {
-      strm->rx.window =
-        conn->local.transport_params.initial_max_stream_data_uni;
-    }
-  } else if (thresh > UINT64_MAX / NGTCP2_MAX_STREAM_DATA_THRESH_FACTOR) {
-    strm->rx.window = UINT64_MAX;
-  } else {
-    strm->rx.window = thresh * NGTCP2_MAX_STREAM_DATA_THRESH_FACTOR;
-  }
+  strm->rx.max_stream_data_thresh = thresh;
 
   return conn_extend_max_stream_offset(conn, strm, 0);
 }

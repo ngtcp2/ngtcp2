@@ -18465,7 +18465,6 @@ void test_ngtcp2_conn_set_max_stream_data_thresh(void) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
   ngtcp2_frame_chain *frc;
-  ngtcp2_strm *strm;
   int rv;
   size_t pktlen;
   int64_t stream_id;
@@ -18518,11 +18517,6 @@ void test_ngtcp2_conn_set_max_stream_data_thresh(void) {
 
   assert_int(0, ==, rv);
 
-  strm = ngtcp2_conn_find_stream(conn, stream_id);
-
-  assert_uint64(1199 * NGTCP2_MAX_STREAM_DATA_THRESH_FACTOR, ==,
-                strm->rx.window);
-
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   assert_ssize(0, <, spktlen);
@@ -18534,12 +18528,6 @@ void test_ngtcp2_conn_set_max_stream_data_thresh(void) {
   assert_uint64(NGTCP2_FRAME_MAX_STREAM_DATA, ==, frc->fr.hd.type);
   assert_int64(stream_id, ==, frc->fr.max_stream_data.stream_id);
   assert_uint64(65535 + 1200, ==, frc->fr.max_stream_data.max_stream_data);
-
-  /* Check that specifying 0 resets the value to the default value */
-  rv = ngtcp2_conn_set_max_stream_data_thresh(conn, stream_id, 0);
-
-  assert_int(0, ==, rv);
-  assert_uint64(65535, ==, strm->rx.window);
 
   ngtcp2_conn_del(conn);
 }
