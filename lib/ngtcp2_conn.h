@@ -112,10 +112,6 @@ typedef enum {
    packet as much as possible if the packet is not empty. */
 #define NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY 0x08U
 
-/* NGTCP2_MAX_STREAM_DATA_THRESH_FACTOR is the factor of threshold
-   against stream window size that triggers MAX_STREAM_DATA. */
-#define NGTCP2_MAX_STREAM_DATA_THRESH_FACTOR 4
-
 typedef struct ngtcp2_path_challenge_entry {
   ngtcp2_path_storage ps;
   ngtcp2_path_challenge_data data;

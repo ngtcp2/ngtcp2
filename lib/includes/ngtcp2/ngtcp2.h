@@ -5480,36 +5480,6 @@ NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_set_max_stream_data_thresh` sets the threshold to
- * decide whether MAX_STREAM_DATA frame should be sent.  If the amount
- * of bytes accumulated by `ngtcp2_conn_extend_max_stream_offset`
- * exceeds |thresh|, MAX_STREAM_DATA is sent.  If |thresh| is 0, which
- * is the default, the internal threshold that is the fraction of the
- * initial max stream data declared by the local transport parameters
- * is used.  Normally, there is no need to use this function.
- *
- * This function returns 0 if a stream denoted by |stream_id| is not
- * found.  If the stream-level window auto-tuning is enabled (see
- * :member:`ngtcp2_settings.max_stream_window`), this function is
- * noop.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :macro:`NGTCP2_ERR_NOMEM`
- *     Out of memory.
- * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| refers to a local unidirectional stream.
- *
- * .. version-added:: 1.24.0
- */
-NGTCP2_EXTERN int ngtcp2_conn_set_max_stream_data_thresh(ngtcp2_conn *conn,
-                                                         int64_t stream_id,
-                                                         uint64_t thresh);
-
-/**
- * @function
- *
  * `ngtcp2_conn_extend_max_offset` extends max data offset by
  * |datalen|.  This function only extends connection-level flow
  * control window.
