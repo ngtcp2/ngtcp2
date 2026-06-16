@@ -51,7 +51,7 @@
 #include "ngtcp2_tstamp_test.h"
 #include "ngtcp2_cc_test.h"
 #include "ngtcp2_qlog_test.h"
-#include "ngtcp2_window_filter_test.h"
+#include "ngtcp2_wf_test.h"
 #include "ngtcp2_settings_test.h"
 #include "ngtcp2_callbacks_test.h"
 #include "ngtcp2_ppe_test.h"
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
     tstamp_suite,
     cc_suite,
     qlog_suite,
-    window_filter_suite,
+    wf_suite,
     settings_suite,
     callbacks_suite,
     ppe_suite,

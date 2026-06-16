@@ -48,7 +48,7 @@ OBJECTS = \
 	ngtcp2_tstamp_test.c \
 	ngtcp2_cc_test.c \
 	ngtcp2_qlog_test.c \
-	ngtcp2_window_filter_test.c \
+	ngtcp2_wf_test.c \
 	ngtcp2_settings_test.c \
 	ngtcp2_callbacks_test.c \
 	ngtcp2_ppe_test.c \
@@ -86,7 +86,7 @@ HFILES= \
 	ngtcp2_tstamp_test.h \
 	ngtcp2_cc_test.h \
 	ngtcp2_qlog_test.h \
-	ngtcp2_window_filter_test.h \
+	ngtcp2_wf_test.h \
 	ngtcp2_settings_test.h \
 	ngtcp2_callbacks_test.h \
 	ngtcp2_ppe_test.h \
