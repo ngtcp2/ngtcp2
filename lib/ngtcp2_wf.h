@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2024 ngtcp2 contributors
+ * Copyright (c) 2026 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,19 +22,34 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_WINDOW_FILTER_TEST_H
-#define NGTCP2_WINDOW_FILTER_TEST_H
+#ifndef NGTCP2_WF_H
+#define NGTCP2_WF_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif /* defined(HAVE_CONFIG_H) */
 
-#define MUNIT_ENABLE_ASSERT_ALIASES
+#include <ngtcp2/ngtcp2.h>
 
-#include "munit.h"
+/*
+ * ngtcp2_wf implements Kathleen Nichols's windowed min/max tracking
+ * algorithm.
+ */
 
-extern const MunitSuite window_filter_suite;
+typedef struct ngtcp2_wf_sample {
+  uint64_t value;
+  uint64_t ts;
+} ngtcp2_wf_sample;
 
-munit_void_test_decl(test_ngtcp2_window_filter_update)
+typedef struct ngtcp2_wf {
+  uint64_t win;
+  ngtcp2_wf_sample samples[3];
+} ngtcp2_wf;
 
-#endif /* !defined(NGTCP2_WINDOW_FILTER_TEST_H) */
+void ngtcp2_wf_init(ngtcp2_wf *wf, uint64_t win);
+
+void ngtcp2_wf_update(ngtcp2_wf *wf, uint64_t value, uint64_t ts);
+
+uint64_t ngtcp2_wf_get_best(const ngtcp2_wf *wf);
+
+#endif /* !defined(NGTCP2_WF_H) */

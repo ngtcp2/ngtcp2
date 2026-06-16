@@ -68,7 +68,7 @@ OBJECTS = \
 	ngtcp2_pmtud.c \
 	ngtcp2_version.c \
 	ngtcp2_rst.c \
-	ngtcp2_window_filter.c \
+	ngtcp2_wf.c \
 	ngtcp2_opl.c \
 	ngtcp2_balloc.c \
 	ngtcp2_objalloc.c \
@@ -116,7 +116,7 @@ HFILES = \
 	ngtcp2_pmtud.h \
 	ngtcp2_macro.h \
 	ngtcp2_rst.h \
-	ngtcp2_window_filter.h \
+	ngtcp2_wf.h \
 	ngtcp2_opl.h \
 	ngtcp2_balloc.h \
 	ngtcp2_objalloc.h \
