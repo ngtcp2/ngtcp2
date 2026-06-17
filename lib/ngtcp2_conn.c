@@ -2639,6 +2639,8 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
             ngtcp2_unreachable();
           }
         }
+
+        conn->frame_counts.crypto += (size_t)datacnt;
       } else {
         left = ngtcp2_pkt_crypto_max_datalen(crypto_offset, left, left);
         if (left == (size_t)-1) {
@@ -2662,6 +2664,8 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
         if (rv != 0) {
           ngtcp2_unreachable();
         }
+
+        ++conn->frame_counts.crypto;
       }
 
       *pfrc = nfrc;
@@ -3877,6 +3881,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
                            NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                            NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
+
+        ++conn->frame_counts.crypto;
       }
     }
 
@@ -4091,6 +4097,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                            NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                            NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
 
+        ++conn->frame_counts.stream;
+
         if (ngtcp2_strm_streamfrq_empty(strm)) {
           ngtcp2_conn_tx_strmq_pop(conn);
           continue;
@@ -4253,6 +4261,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
                        NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                        NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
+
+    ++conn->frame_counts.stream;
 
     vmsg->stream.strm->tx.offset += ndatalen;
     conn->tx.offset += ndatalen;
@@ -12059,6 +12069,12 @@ ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
                                              stream_id, v, datacnt, ts);
 }
 
+static int conn_no_app_data_written(const ngtcp2_conn *conn) {
+  const ngtcp2_frame_counts *counts = &conn->frame_counts;
+
+  return counts->crypto == 0 && counts->stream == 0;
+}
+
 static ngtcp2_ssize
 conn_write_vmsg_wrapper(ngtcp2_conn *conn, ngtcp2_path *path,
                         int pkt_info_version, ngtcp2_pkt_info *pi,
@@ -12079,12 +12095,9 @@ conn_write_vmsg_wrapper(ngtcp2_conn *conn, ngtcp2_path *path,
     conn->rst.is_cwnd_limited = 1;
   } else if ((cstat->cwnd >= cstat->ssthresh ||
               cstat->bytes_in_flight * 2 < cstat->cwnd) &&
-             nwrite == 0 && conn_pacing_pkt_tx_allowed(conn, ts) &&
-             (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) &&
-             /* Because NGTCP2_CONN_FLAG_AGGREGATE_PKTS is set after a
-                packet is produced, if it is set, we are sure that we
-                are not app-limited. */
-             !(conn->flags & NGTCP2_CONN_FLAG_AGGREGATE_PKTS)) {
+             conn_pacing_pkt_tx_allowed(conn, ts) && !vmsg &&
+             conn_no_app_data_written(conn) &&
+             (!path || ngtcp2_path_eq(&conn->dcid.current.ps.path, path))) {
     conn->rst.app_limited =
       ngtcp2_max(conn->rst.delivered + cstat->bytes_in_flight, 1);
   }
@@ -12262,8 +12275,12 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   origlen = destlen =
     conn_shape_udp_payload(conn, &conn->dcid.current, destlen);
 
-  if (!ppe_pending && pi) {
-    pi->ecn = NGTCP2_ECN_NOT_ECT;
+  if (!ppe_pending) {
+    if (pi) {
+      pi->ecn = NGTCP2_ECN_NOT_ECT;
+    }
+
+    conn->frame_counts = (ngtcp2_frame_counts){0};
   }
 
   switch (conn->state) {
