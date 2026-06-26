@@ -12093,9 +12093,7 @@ conn_write_vmsg_wrapper(ngtcp2_conn *conn, ngtcp2_path *path,
 
   if (cstat->bytes_in_flight >= cstat->cwnd) {
     conn->rst.is_cwnd_limited = 1;
-  } else if ((cstat->cwnd >= cstat->ssthresh ||
-              cstat->bytes_in_flight * 2 < cstat->cwnd) &&
-             conn_pacing_pkt_tx_allowed(conn, ts) && !vmsg &&
+  } else if (conn_pacing_pkt_tx_allowed(conn, ts) && !vmsg &&
              conn_no_app_data_written(conn) &&
              (!path || ngtcp2_path_eq(&conn->dcid.current.ps.path, path))) {
     conn->rst.app_limited =
