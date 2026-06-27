@@ -62,7 +62,7 @@ directory require at least one of the following TLS backends:
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1w+quic>`_
   (deprecated)
 - GnuTLS >= 3.7.5
-- BoringSSL (commit ef4f3c2197f90c96a44716aedaac55a10cb4e479);
+- BoringSSL (commit 3c6315e00ab02d7bc9b8922aff1f85d8f81ee130);
   or aws-lc >= 1.39.0
 - Picotls (commit 91ee0e7e78549adeb1a8f97e8feab24e2effb109)
 - wolfSSL >= 5.5.0
@@ -116,7 +116,7 @@ Build with BoringSSL
 
    $ git clone https://boringssl.googlesource.com/boringssl
    $ cd boringssl
-   $ git checkout ef4f3c2197f90c96a44716aedaac55a10cb4e479
+   $ git checkout 3c6315e00ab02d7bc9b8922aff1f85d8f81ee130
    $ cmake -B build -DCMAKE_POSITION_INDEPENDENT_CODE=ON
    $ make -j$(nproc) -C build
    $ cd ..
