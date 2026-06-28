@@ -60,7 +60,7 @@ namespace {
 int on_msg_complete(http_parser *htp) {
   auto s = static_cast<Stream *>(htp->data);
   s->eos = true;
-  s->start_response();
+  (void)s->start_response();
   return 0;
 }
 } // namespace
@@ -200,16 +200,14 @@ ProtoCodec::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
   return {};
 }
 
-std::expected<void, Error>
-ProtoCodec::send_status_response(Stream *stream, unsigned int status_code) {
+void ProtoCodec::send_status_response(Stream *stream,
+                                      unsigned int status_code) {
   stream->status_resp_body = make_status_body(status_code);
   stream->resp_data = as_uint8_span(std::span{stream->status_resp_body});
 
   sendq_.emplace(stream);
 
   handler_->shutdown_read(stream->stream_id, 0);
-
-  return {};
 }
 
 std::expected<void, Error> ProtoCodec::start_response(Stream *stream) {
