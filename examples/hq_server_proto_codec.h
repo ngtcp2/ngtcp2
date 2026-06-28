@@ -84,8 +84,7 @@ public:
   static constexpr auto protocol = AppProtocol::HQ;
 
 private:
-  std::expected<void, Error> send_status_response(Stream *stream,
-                                                  unsigned int status_code);
+  void send_status_response(Stream *stream, unsigned int status_code);
 
   Handler *handler_;
   ngtcp2_conn *conn_;

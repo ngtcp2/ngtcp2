@@ -105,7 +105,7 @@ namespace {
 void writecb(struct ev_loop *loop, ev_io *w, int revents) {
   auto c = static_cast<Client *>(w->data);
 
-  c->on_write();
+  (void)c->on_write();
 }
 } // namespace
 
@@ -118,7 +118,7 @@ void readcb(struct ev_loop *loop, ev_io *w, int revents) {
     return;
   }
 
-  c->on_write();
+  (void)c->on_write();
 }
 } // namespace
 
@@ -130,7 +130,7 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
     return;
   }
 
-  c->on_write();
+  (void)c->on_write();
 }
 } // namespace
 
@@ -138,7 +138,7 @@ namespace {
 void change_local_addrcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto c = static_cast<Client *>(w->data);
 
-  c->change_local_addr();
+  (void)c->change_local_addr();
 }
 } // namespace
 
@@ -158,7 +158,7 @@ void delay_streamcb(struct ev_loop *loop, ev_timer *w, int revents) {
 
   ev_timer_stop(loop, w);
   c->on_extend_max_streams();
-  c->on_write();
+  (void)c->on_write();
 }
 } // namespace
 
@@ -202,7 +202,7 @@ Client::~Client() { disconnect(); }
 void Client::disconnect() {
   tx_.send_blocked = false;
 
-  handle_error();
+  (void)handle_error();
 
   config.tx_loss_prob = 0;
 
@@ -588,7 +588,7 @@ int recv_new_token(ngtcp2_conn *conn, const uint8_t *token, size_t tokenlen,
     return 0;
   }
 
-  util::write_token(config.token_file, {token, tokenlen});
+  (void)util::write_token(config.token_file, {token, tokenlen});
 
   return 0;
 }
@@ -1054,8 +1054,8 @@ std::expected<void, Error> Client::write_streams() {
     return {};
   }
 
-  send_packet_or_blocked(ps.path, pi.ecn,
-                         txbuf.first(static_cast<size_t>(nwrite)), gso_size);
+  (void)send_packet_or_blocked(
+    ps.path, pi.ecn, txbuf.first(static_cast<size_t>(nwrite)), gso_size);
 
   return {};
 }
@@ -1730,7 +1730,7 @@ void Client::on_extend_max_streams() {
     }
 
     if (!config.download.empty()) {
-      stream->open_file(stream->req.path);
+      (void)stream->open_file(stream->req.path);
     }
 
     if (auto [_, rv] = streams_.try_emplace(stream_id, std::move(stream));
