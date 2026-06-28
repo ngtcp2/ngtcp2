@@ -358,7 +358,7 @@ jobs:
         sudo sed -i '/azure.archive.ubuntu.com/d' /etc/apt/apt-mirrors.txt
         sudo apt-get update
         sudo apt-get install \
-          g++-14 \
+          g++-15 \
           clang-19 \
           autoconf \
           automake \
@@ -399,8 +399,8 @@ jobs:
     - name: Setup gcc
       if: runner.os == 'Linux' && matrix.compiler == 'gcc'
       run: |
-        echo 'CC=gcc-14' >> $GITHUB_ENV
-        echo 'CXX=g++-14' >> $GITHUB_ENV
+        echo 'CC=gcc-15' >> $GITHUB_ENV
+        echo 'CXX=g++-15' >> $GITHUB_ENV
     - name: Restore OpenSSL v1.1.1 cache
       uses: actions/cache/restore@v5
       if: matrix.tls.openssl == 'openssl1'
