@@ -333,7 +333,7 @@ static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 
   bbr->probe_up_cnt = UINT64_MAX;
   bbr->cycle_stamp = UINT64_MAX;
-  bbr->ack_phase = 0;
+  bbr->ack_phase = NGTCP2_BBR_ACK_PHASE_ACKS_INIT;
   bbr->bw_probe_wait = 0;
   bbr->bw_probe_samples = 0;
   bbr->bw_probe_up_rounds = 0;
@@ -859,11 +859,11 @@ static uint64_t bbr_inflight_with_headroom(const ngtcp2_cc_bbr *bbr,
 
 static void bbr_raise_inflight_longterm_slope(ngtcp2_cc_bbr *bbr,
                                               const ngtcp2_conn_stat *cstat) {
-  uint64_t growth_this_round = cstat->max_tx_udp_payload_size
-                               << bbr->bw_probe_up_rounds;
+  uint64_t growth_this_round = 1ULL << bbr->bw_probe_up_rounds;
 
   bbr->bw_probe_up_rounds = ngtcp2_min(bbr->bw_probe_up_rounds + 1, 30);
-  bbr->probe_up_cnt = ngtcp2_max(cstat->cwnd / growth_this_round, 1);
+  bbr->probe_up_cnt =
+    ngtcp2_max(cstat->cwnd / growth_this_round, cstat->max_tx_udp_payload_size);
 }
 
 static void bbr_probe_inflight_longterm_upward(ngtcp2_cc_bbr *bbr,
@@ -877,12 +877,10 @@ static void bbr_probe_inflight_longterm_upward(ngtcp2_cc_bbr *bbr,
 
   bbr->bw_probe_up_acks += ack->bytes_delivered;
 
-  if (bbr->probe_up_cnt != UINT64_MAX &&
-      bbr->bw_probe_up_acks >=
-        bbr->probe_up_cnt * cstat->max_tx_udp_payload_size) {
+  if (bbr->bw_probe_up_acks >= bbr->probe_up_cnt) {
     delta = bbr->bw_probe_up_acks / bbr->probe_up_cnt;
     bbr->bw_probe_up_acks -= delta * bbr->probe_up_cnt;
-    bbr->inflight_longterm += delta;
+    bbr->inflight_longterm += delta * cstat->max_tx_udp_payload_size;
   }
 
   if (bbr->round_start) {
@@ -900,6 +898,9 @@ static void bbr_adapt_longterm_model(ngtcp2_cc_bbr *bbr,
 
   if (bbr->ack_phase == NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_STOPPING &&
       bbr->round_start) {
+    bbr->bw_probe_samples = 0;
+    bbr->ack_phase = NGTCP2_BBR_ACK_PHASE_ACKS_INIT;
+
     if (bbr_is_in_probe_bw_state(bbr) && !bbr->rst->rs.is_app_limited) {
       bbr_advance_max_bw_filter(bbr);
     }
