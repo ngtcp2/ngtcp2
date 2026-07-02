@@ -235,6 +235,17 @@ static void log_fr_reset_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     hex(fr->app_error_code), ") final_size=", fr->final_size);
 }
 
+static void log_fr_reset_stream_at(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                   const ngtcp2_reset_stream *fr,
+                                   const char *dir) {
+  ngtcp2_log_infof_raw(
+    log, NGTCP2_LOG_EVENT_FRM, NGTCP2_LOG_PKT(dir, hd), " RESET_STREAM_AT(0x",
+    hex(fr->type), ") id=0x", hex(fr->stream_id),
+    " app_error_code=", strapperrorcode(fr->app_error_code), "(0x",
+    hex(fr->app_error_code), ") final_size=", fr->final_size,
+    " reliable_size=", fr->reliable_size);
+}
+
 static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                     const ngtcp2_connection_close *fr,
                                     const char *dir) {
@@ -399,6 +410,9 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     break;
   case NGTCP2_FRAME_RESET_STREAM:
     log_fr_reset_stream(log, hd, &fr->reset_stream, dir);
+    break;
+  case NGTCP2_FRAME_RESET_STREAM_AT:
+    log_fr_reset_stream_at(log, hd, &fr->reset_stream, dir);
     break;
   case NGTCP2_FRAME_CONNECTION_CLOSE:
   case NGTCP2_FRAME_CONNECTION_CLOSE_APP:
@@ -641,6 +655,10 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log,
                            i >> 2, "]=0x", hexw(version, 8));
     }
   }
+
+  ngtcp2_log_infof_raw(
+    log, NGTCP2_LOG_EVENT_CRY,
+    NGTCP2_LOG_TP " reset_stream_at=", params->reset_stream_at);
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,
