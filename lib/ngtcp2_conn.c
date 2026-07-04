@@ -13000,10 +13000,8 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
   /* Extend connection flow control window for the amount of data
      which are not passed to application. */
-  if (!(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED)) {
-    ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
-                                          ngtcp2_strm_rx_offset(strm));
-  }
+  ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
+                                        ngtcp2_strm_rx_offset(strm));
 
   strm->flags |= NGTCP2_STRM_FLAG_STOP_SENDING;
 
