@@ -5997,7 +5997,7 @@ conn_emit_pending_crypto_data(ngtcp2_conn *conn,
   }
 
   for (;;) {
-    datalen = ngtcp2_rob_data_at(strm->rx.rob, &data, rx_offset);
+    datalen = (size_t)ngtcp2_rob_data_at(strm->rx.rob, &data, rx_offset);
     if (datalen == 0) {
       assert(rx_offset == ngtcp2_strm_rx_offset(strm));
       return 0;
@@ -7181,7 +7181,7 @@ fail:
  */
 static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                          uint64_t rx_offset) {
-  size_t datalen;
+  uint64_t datalen;
   const uint8_t *data;
   int rv;
   uint64_t offset;
@@ -7222,7 +7222,8 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
       sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
     }
 
-    rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data, datalen);
+    rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data,
+                                    (size_t)datalen);
     if (rv != 0) {
       return rv;
     }
@@ -12995,6 +12996,8 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 
   strm->flags |= NGTCP2_STRM_FLAG_STOP_SENDING;
+
+  ngtcp2_strm_stop_buffering_reordered_data(strm);
 
   return conn_stop_sending(conn, strm, app_error_code);
 }
