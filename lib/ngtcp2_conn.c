@@ -7194,9 +7194,13 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
   for (;;) {
     /* Stop calling callback if application has called
-       ngtcp2_conn_shutdown_stream_read() inside the callback.
-       Because it doubly counts connection window. */
+       ngtcp2_conn_shutdown_stream_read() inside the callback. */
     if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+      datalen = ngtcp2_strm_discard_ordered_data(strm, rx_offset);
+      if (datalen) {
+        ngtcp2_conn_extend_max_offset(conn, datalen);
+      }
+
       return 0;
     }
 
@@ -7529,10 +7533,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
     }
 
     conn->rx.offset += len;
-
-    if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
-      ngtcp2_conn_extend_max_offset(conn, len);
-    }
   }
 
   rx_offset = ngtcp2_strm_rx_offset(strm);
@@ -7597,31 +7597,32 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
     }
 
     if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
-      return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
-    }
+      datalen += ngtcp2_strm_discard_ordered_data(strm, rx_offset);
+      ngtcp2_conn_extend_max_offset(conn, datalen);
+    } else {
+      fin = (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
+            rx_offset == strm->rx.last_offset;
 
-    fin = (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-          rx_offset == strm->rx.last_offset;
+      assert(fin || datalen);
 
-    assert(fin || datalen);
+      if (fin) {
+        sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
+      }
+      if (!conn_is_tls_handshake_completed(conn)) {
+        sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
+      }
+      rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data,
+                                      (size_t)datalen);
+      if (rv != 0) {
+        return rv;
+      }
 
-    if (fin) {
-      sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
+      rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
+      if (rv != 0) {
+        return rv;
+      }
     }
-    if (!conn_is_tls_handshake_completed(conn)) {
-      sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
-    }
-    rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data,
-                                    (size_t)datalen);
-    if (rv != 0) {
-      return rv;
-    }
-
-    rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
-    if (rv != 0) {
-      return rv;
-    }
-  } else if (fr->datacnt && !(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING)) {
+  } else if (fr->datacnt) {
     nwrite = ngtcp2_strm_recv_reordering(strm, fr->data[0].base,
                                          fr->data[0].len, fr->offset);
     if (nwrite < 0) {
@@ -7844,15 +7845,12 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
     return rv;
   }
 
+  conn->rx.offset += datalen;
+
   /* Extend connection flow control window for the amount of data
      which are not passed to application. */
-  if (!(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING)) {
-    ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
-                                          ngtcp2_strm_rx_offset(strm));
-  }
-
-  conn->rx.offset += datalen;
-  ngtcp2_conn_extend_max_offset(conn, datalen);
+  ngtcp2_conn_extend_max_offset(conn,
+                                fr->final_size - ngtcp2_strm_rx_offset(strm));
 
   strm->rx.last_offset = fr->final_size;
   strm->flags |=
@@ -8533,10 +8531,6 @@ static int conn_recv_stream_data_blocked(ngtcp2_conn *conn,
     }
 
     conn->rx.offset += datalen;
-
-    if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
-      ngtcp2_conn_extend_max_offset(conn, datalen);
-    }
   }
 
   strm->rx.last_offset = fr->offset;
@@ -13000,14 +12994,7 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
     return 0;
   }
 
-  /* Extend connection flow control window for the amount of data
-     which are not passed to application. */
-  ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
-                                        ngtcp2_strm_rx_offset(strm));
-
   strm->flags |= NGTCP2_STRM_FLAG_STOP_SENDING;
-
-  ngtcp2_strm_discard_reordered_data(strm);
 
   return conn_stop_sending(conn, strm, app_error_code);
 }
