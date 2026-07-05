@@ -224,12 +224,6 @@ ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
 void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset);
 
 /*
- * ngtcp2_strm_discard_reordered_data discards all buffered reordered
- * data.
- */
-void ngtcp2_strm_discard_reordered_data(ngtcp2_strm *strm);
-
-/*
  * ngtcp2_strm_shutdown shutdowns |strm|.  |flags| should be one of
  * NGTCP2_STRM_FLAG_SHUT_RD, NGTCP2_STRM_FLAG_SHUT_WR, and
  * NGTCP2_STRM_FLAG_SHUT_RDWR.
@@ -357,5 +351,11 @@ int ngtcp2_strm_require_retransmit_max_stream_data(
  */
 int ngtcp2_strm_require_retransmit_stream_data_blocked(
   const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr);
+
+/* ngtcp2_strm_discard_ordered_data discards the ordered data starting
+   at |rx_offset|.  It stops when it finds a gap, which means that a
+   portion of the data has not been received yet.  It returns the size
+   of the buffered bytes discarded. */
+size_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm, uint64_t rx_offset);
 
 #endif /* !defined(NGTCP2_STRM_H) */

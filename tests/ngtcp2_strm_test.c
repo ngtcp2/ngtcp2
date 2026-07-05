@@ -35,7 +35,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_strm_streamfrq_pop),
   munit_void_test(test_ngtcp2_strm_streamfrq_unacked_offset),
   munit_void_test(test_ngtcp2_strm_streamfrq_unacked_pop),
-  munit_void_test(test_ngtcp2_strm_discard_reordered_data),
+  munit_void_test(test_ngtcp2_strm_discard_ordered_data),
   munit_test_end(),
 };
 
@@ -805,7 +805,7 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   ngtcp2_objalloc_free(&frc_objalloc);
 }
 
-void test_ngtcp2_strm_discard_reordered_data(void) {
+void test_ngtcp2_strm_discard_ordered_data(void) {
   ngtcp2_strm strm;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
 
@@ -813,26 +813,27 @@ void test_ngtcp2_strm_discard_reordered_data(void) {
   ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, NULL, mem);
 
   ngtcp2_strm_update_rx_offset(&strm, 1000000007);
-  ngtcp2_strm_discard_reordered_data(&strm);
+  ngtcp2_strm_discard_ordered_data(&strm, 1000000007);
 
   assert_null(strm.rx.rob);
   assert_uint64(1000000007, ==, ngtcp2_strm_rx_offset(&strm));
 
   ngtcp2_strm_free(&strm);
 
-  /* Discard reordered data */
+  /* Discard the ordered data */
   ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, NULL, mem);
 
-  ngtcp2_strm_update_rx_offset(&strm, 1000000007);
-  ngtcp2_strm_recv_reordering(&strm, nulldata, 117, 1000000008);
+  ngtcp2_strm_recv_reordering(&strm, nulldata, 1024, 1000000007);
+  ngtcp2_strm_recv_reordering(&strm, nulldata, 999, 1000001032);
 
   assert_not_null(strm.rx.rob);
-  assert_uint64(1000000007, ==, ngtcp2_strm_rx_offset(&strm));
+  assert_uint64(0, ==, ngtcp2_strm_rx_offset(&strm));
 
-  ngtcp2_strm_discard_reordered_data(&strm);
+  ngtcp2_strm_update_rx_offset(&strm, 1000000007);
 
-  assert_null(strm.rx.rob);
-  assert_uint64(1000000007, ==, ngtcp2_strm_rx_offset(&strm));
+  ngtcp2_strm_discard_ordered_data(&strm, 1000000007);
+
+  assert_uint64(1000001031, ==, ngtcp2_strm_rx_offset(&strm));
 
   ngtcp2_strm_free(&strm);
 }

@@ -2832,7 +2832,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   ngtcp2_conn_shutdown_stream_read(conn, 0, 4, NGTCP2_APP_ERR01);
   ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 3);
 
-  assert_uint64(128 * 1024 + 956, ==, conn->rx.unsent_max_offset);
+  assert_uint64(128 * 1024, ==, conn->rx.unsent_max_offset);
 
   fr.reset_stream = (ngtcp2_reset_stream){
     .type = NGTCP2_FRAME_RESET_STREAM,
@@ -3421,7 +3421,7 @@ void test_ngtcp2_conn_recv_stream_data_blocked(void) {
 
   assert_uint64(7777, ==, strm->rx.last_offset);
   assert_uint64(7777, ==, conn->rx.offset);
-  assert_uint64(128 * 1024 + 7777, ==, conn->rx.unsent_max_offset);
+  assert_uint64(128 * 1024, ==, conn->rx.unsent_max_offset);
 
   fr.stream = (ngtcp2_stream){
     .type = NGTCP2_FRAME_STREAM,
@@ -3442,7 +3442,7 @@ void test_ngtcp2_conn_recv_stream_data_blocked(void) {
   assert_int(0, ==, rv);
   assert_uint64(7778, ==, strm->rx.last_offset);
   assert_uint64(7778, ==, conn->rx.offset);
-  assert_uint64(128 * 1024 + 7778, ==, conn->rx.unsent_max_offset);
+  assert_uint64(128 * 1024, ==, conn->rx.unsent_max_offset);
 
   ngtcp2_conn_del(conn);
 
@@ -7831,6 +7831,123 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(NGTCP2_ERR_INTERNAL, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* After stream shutdown, the completion of the incoming data closes
+     the stream. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_not_null(strm);
+
+  rv = ngtcp2_conn_shutdown_stream(conn, 0, 0, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_not_null(strm);
+
+  datav = (ngtcp2_vec){
+    .base = null_data,
+    .len = 1,
+  };
+  frs[0].stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .offset = 1,
+    .datacnt = 1,
+    .data = &datav,
+  };
+  frs[1].stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .fin = 1,
+    .offset = 3,
+    .datacnt = 1,
+    .data = &datav,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(128 * 1024, ==, conn->rx.unsent_max_offset);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_not_null(strm);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .datacnt = 1,
+    .data = &datav,
+  };
+  datav = (ngtcp2_vec){
+    .base = null_data,
+    .len = 1,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(128 * 1024 + 2, ==, conn->rx.unsent_max_offset);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_not_null(strm);
+  assert_uint64(2, ==, ngtcp2_strm_rx_offset(strm));
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .offset = 2,
+    .datacnt = 1,
+    .data = &datav,
+  };
+  datav = (ngtcp2_vec){
+    .base = null_data,
+    .len = 1,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(128 * 1024 + 4, ==, conn->rx.unsent_max_offset);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_null(strm);
 
   ngtcp2_conn_del(conn);
 }
