@@ -359,10 +359,12 @@ int ngtcp2_strm_require_retransmit_max_stream_data(
 int ngtcp2_strm_require_retransmit_stream_data_blocked(
   const ngtcp2_strm *strm, const ngtcp2_stream_data_blocked *fr);
 
-/* ngtcp2_strm_discard_ordered_data discards the ordered data starting
-   at |rx_offset|.  It stops when it finds a gap, which means that a
-   portion of the data has not been received yet.  It returns the size
-   of the buffered bytes discarded. */
+/*
+ * ngtcp2_strm_discard_ordered_data discards the ordered data starting
+ * at |rx_offset|.  It stops when it finds a gap, which means that a
+ * portion of the data has not been received yet.  It returns the size
+ * of the buffered bytes discarded.
+ */
 uint64_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm,
                                           uint64_t rx_offset);
 
