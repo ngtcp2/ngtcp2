@@ -82,7 +82,7 @@ typedef struct ngtcp2_cc_bbr {
   uint64_t extra_acked_delivered;
 
   /* Congestion signals */
-  int loss_in_round;
+  int is_loss_in_round;
   uint64_t bw_latest;
   uint64_t inflight_latest;
 
@@ -114,7 +114,7 @@ typedef struct ngtcp2_cc_bbr {
   uint64_t undo_inflight_longterm;
 
   uint64_t loss_round_delivered;
-  uint64_t rounds_since_bw_probe;
+  uint64_t rounds_since_probe_up;
   uint64_t max_bw;
   uint64_t bw;
   uint64_t cycle_count;
@@ -122,12 +122,12 @@ typedef struct ngtcp2_cc_bbr {
   uint64_t bytes_lost_in_round;
   size_t loss_events_in_round;
   uint64_t offload_budget;
-  uint64_t probe_up_cnt;
+  uint64_t probe_up_acked_per_inc;
   ngtcp2_tstamp cycle_stamp;
   ngtcp2_bbr_ack_phase ack_phase;
   ngtcp2_duration bw_probe_wait;
   size_t bw_probe_up_rounds;
-  uint64_t bw_probe_up_acks;
+  uint64_t bw_probe_up_acked;
   uint64_t inflight_longterm;
   ngtcp2_duration probe_rtt_min_delay;
   ngtcp2_tstamp probe_rtt_min_stamp;
@@ -136,7 +136,7 @@ typedef struct ngtcp2_cc_bbr {
   uint64_t bdp;
   uint64_t drain_start_round;
   int loss_round_start;
-  int bw_probe_samples;
+  int is_bw_probe_sample;
   int probe_rtt_expired;
   int in_loss_recovery;
 } ngtcp2_cc_bbr;
