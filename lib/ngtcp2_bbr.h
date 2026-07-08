@@ -139,6 +139,8 @@ typedef struct ngtcp2_cc_bbr {
   int is_bw_probe_sample;
   int probe_rtt_expired;
   int in_loss_recovery;
+  int prev_probe_too_high;
+  int prev_probe_precautionary;
 } ngtcp2_cc_bbr;
 
 void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *bbr, ngtcp2_log *log,

@@ -182,9 +182,9 @@ static void bbr_probe_inflight_longterm_upward(ngtcp2_cc_bbr *bbr,
                                                const ngtcp2_conn_stat *cstat,
                                                const ngtcp2_cc_ack *ack);
 
-static void bbr_adapt_longterm_model(ngtcp2_cc_bbr *bbr,
-                                     const ngtcp2_conn_stat *cstat,
-                                     const ngtcp2_cc_ack *ack);
+static int bbr_adapt_longterm_model(ngtcp2_cc_bbr *bbr,
+                                    const ngtcp2_conn_stat *cstat,
+                                    const ngtcp2_cc_ack *ack);
 
 static int bbr_is_time_to_probe_bw(ngtcp2_cc_bbr *bbr,
                                    const ngtcp2_conn_stat *cstat,
@@ -338,6 +338,8 @@ static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
   bbr->is_bw_probe_sample = 0;
   bbr->bw_probe_up_rounds = 0;
   bbr->bw_probe_up_acked = 0;
+  bbr->prev_probe_too_high = 0;
+  bbr->prev_probe_precautionary = 0;
 
   bbr->inflight_longterm = UINT64_MAX;
 
@@ -736,6 +738,7 @@ static void bbr_start_probe_bw_refill(ngtcp2_cc_bbr *bbr) {
 
   bbr->bw_probe_up_rounds = 0;
   bbr->bw_probe_up_acked = 0;
+  bbr->prev_probe_precautionary = 0;
   bbr->ack_phase = NGTCP2_BBR_ACK_PHASE_ACKS_REFILLING;
 
   bbr_start_round(bbr);
@@ -770,7 +773,9 @@ static void bbr_update_probe_bw_cycle_phase(ngtcp2_cc_bbr *bbr,
     return;
   }
 
-  bbr_adapt_longterm_model(bbr, cstat, ack);
+  if (bbr_adapt_longterm_model(bbr, cstat, ack)) {
+    return;
+  }
 
   if (!bbr_is_in_probe_bw_state(bbr)) {
     return;
@@ -802,6 +807,7 @@ static void bbr_update_probe_bw_cycle_phase(ngtcp2_cc_bbr *bbr,
     break;
   case NGTCP2_BBR_STATE_PROBE_BW_UP:
     if (bbr_is_time_to_go_down(bbr, cstat)) {
+      bbr->prev_probe_too_high = 0;
       bbr_start_probe_bw_down(bbr, ts);
     }
 
@@ -821,6 +827,13 @@ static int bbr_is_time_to_cruise(ngtcp2_cc_bbr *bbr,
 
 static int bbr_is_time_to_go_down(ngtcp2_cc_bbr *bbr,
                                   const ngtcp2_conn_stat *cstat) {
+  if (bbr->prev_probe_too_high &&
+      cstat->bytes_in_flight >= bbr->inflight_longterm) {
+    bbr->prev_probe_precautionary = 1;
+
+    return 1;
+  }
+
   if (bbr->rst->is_cwnd_limited && cstat->cwnd >= bbr->inflight_longterm) {
     bbr_reset_full_bw(bbr);
     bbr->full_bw = cstat->delivery_rate_sec;
@@ -888,9 +901,9 @@ static void bbr_probe_inflight_longterm_upward(ngtcp2_cc_bbr *bbr,
   }
 }
 
-static void bbr_adapt_longterm_model(ngtcp2_cc_bbr *bbr,
-                                     const ngtcp2_conn_stat *cstat,
-                                     const ngtcp2_cc_ack *ack) {
+static int bbr_adapt_longterm_model(ngtcp2_cc_bbr *bbr,
+                                    const ngtcp2_conn_stat *cstat,
+                                    const ngtcp2_cc_ack *ack) {
   if (bbr->ack_phase == NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_STARTING &&
       bbr->round_start) {
     bbr->ack_phase = NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_FEEDBACK;
@@ -904,11 +917,18 @@ static void bbr_adapt_longterm_model(ngtcp2_cc_bbr *bbr,
     if (bbr_is_in_probe_bw_state(bbr) && !bbr->rst->rs.is_app_limited) {
       bbr_advance_max_bw_filter(bbr);
     }
+
+    if (bbr_is_in_probe_bw_state(bbr) && bbr->prev_probe_precautionary &&
+        !bbr->prev_probe_too_high) {
+      bbr_start_probe_bw_refill(bbr);
+
+      return 1;
+    }
   }
 
   if (!bbr_is_inflight_too_high(bbr, &bbr->rst->rs)) {
     if (bbr->inflight_longterm == UINT64_MAX) {
-      return;
+      return 0;
     }
 
     if (bbr->rst->rs.tx_in_flight > bbr->inflight_longterm) {
@@ -919,6 +939,8 @@ static void bbr_adapt_longterm_model(ngtcp2_cc_bbr *bbr,
       bbr_probe_inflight_longterm_upward(bbr, cstat, ack);
     }
   }
+
+  return 0;
 }
 
 static int bbr_is_time_to_probe_bw(ngtcp2_cc_bbr *bbr,
@@ -964,6 +986,7 @@ static void bbr_handle_inflight_too_high(ngtcp2_cc_bbr *bbr,
                                          const ngtcp2_conn_stat *cstat,
                                          const ngtcp2_rs *rs,
                                          ngtcp2_tstamp ts) {
+  bbr->prev_probe_too_high = 1;
   bbr->is_bw_probe_sample = 0;
 
   if (!rs->is_app_limited) {
