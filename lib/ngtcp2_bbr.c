@@ -205,12 +205,13 @@ static void bbr_handle_inflight_too_high(ngtcp2_cc_bbr *bbr,
                                          const ngtcp2_conn_stat *cstat,
                                          const ngtcp2_rs *rs, ngtcp2_tstamp ts);
 
-static void bbr_note_loss(ngtcp2_cc_bbr *bbr);
+static void bbr_note_loss(ngtcp2_cc_bbr *bbr, const ngtcp2_conn_stat *cstat);
 
-static void bbr_save_state_upon_loss(ngtcp2_cc_bbr *bbr);
+static void bbr_save_state_upon_loss(ngtcp2_cc_bbr *bbr,
+                                     const ngtcp2_conn_stat *cstat);
 
 static void bbr_handle_spurious_loss_detection(ngtcp2_cc_bbr *bbr,
-                                               const ngtcp2_conn_stat *cstat);
+                                               ngtcp2_conn_stat *cstat);
 
 static void bbr_handle_lost_packet(ngtcp2_cc_bbr *bbr,
                                    const ngtcp2_conn_stat *cstat,
@@ -355,7 +356,7 @@ static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
   bbr->bdp = 0;
   bbr->drain_start_round = 0;
 
-  bbr->undo_state = 0;
+  bbr->undo_state = NGTCP2_BBR_STATE_NONE;
   bbr->undo_bw_shortterm = 0;
   bbr->undo_inflight_shortterm = 0;
   bbr->undo_inflight_longterm = 0;
@@ -1000,16 +1001,18 @@ static void bbr_handle_inflight_too_high(ngtcp2_cc_bbr *bbr,
   }
 }
 
-static void bbr_note_loss(ngtcp2_cc_bbr *bbr) {
+static void bbr_note_loss(ngtcp2_cc_bbr *bbr, const ngtcp2_conn_stat *cstat) {
   if (!bbr->is_loss_in_round) {
     bbr->loss_round_delivered = bbr->rst->delivered;
-    bbr_save_state_upon_loss(bbr);
+    bbr_save_state_upon_loss(bbr, cstat);
   }
 
   bbr->is_loss_in_round = 1;
 }
 
-static void bbr_save_state_upon_loss(ngtcp2_cc_bbr *bbr) {
+static void bbr_save_state_upon_loss(ngtcp2_cc_bbr *bbr,
+                                     const ngtcp2_conn_stat *cstat) {
+  bbr_save_cwnd(bbr, cstat);
   bbr->undo_state = bbr->state;
   bbr->undo_bw_shortterm = bbr->bw_shortterm;
   bbr->undo_inflight_shortterm = bbr->inflight_shortterm;
@@ -1017,7 +1020,9 @@ static void bbr_save_state_upon_loss(ngtcp2_cc_bbr *bbr) {
 }
 
 static void bbr_handle_spurious_loss_detection(ngtcp2_cc_bbr *bbr,
-                                               const ngtcp2_conn_stat *cstat) {
+                                               ngtcp2_conn_stat *cstat) {
+  bbr_restore_cwnd(bbr, cstat);
+
   bbr->is_loss_in_round = 0;
 
   bbr_reset_full_bw(bbr);
@@ -1028,19 +1033,21 @@ static void bbr_handle_spurious_loss_detection(ngtcp2_cc_bbr *bbr,
   bbr->inflight_longterm =
     ngtcp2_max(bbr->inflight_longterm, bbr->undo_inflight_longterm);
 
-  if (bbr->state != NGTCP2_BBR_STATE_PROBE_RTT &&
-      bbr->state != bbr->undo_state) {
-    switch (bbr->undo_state) {
-    case NGTCP2_BBR_STATE_STARTUP:
+  if (bbr->undo_state == NGTCP2_BBR_STATE_STARTUP &&
+      bbr->state != NGTCP2_BBR_STATE_STARTUP) {
+    bbr->full_bw_reached = 0;
+
+    if (bbr->state != NGTCP2_BBR_STATE_PROBE_RTT) {
       bbr_enter_startup(bbr);
-      break;
-    case NGTCP2_BBR_STATE_PROBE_BW_UP:
-      bbr_start_probe_bw_up(bbr, cstat);
-      break;
-    default:
-      break;
+    }
+  } else if (bbr->undo_state == NGTCP2_BBR_STATE_PROBE_BW_UP &&
+             bbr->state != NGTCP2_BBR_STATE_PROBE_BW_UP) {
+    if (bbr->state != NGTCP2_BBR_STATE_PROBE_RTT) {
+      bbr_start_probe_bw_refill(bbr);
     }
   }
+
+  bbr->undo_state = NGTCP2_BBR_STATE_NONE;
 }
 
 static void bbr_handle_lost_packet(ngtcp2_cc_bbr *bbr,
@@ -1048,7 +1055,7 @@ static void bbr_handle_lost_packet(ngtcp2_cc_bbr *bbr,
                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
   ngtcp2_rs rs = {0};
 
-  bbr_note_loss(bbr);
+  bbr_note_loss(bbr, cstat);
 
   if (!bbr->is_bw_probe_sample) {
     return;
@@ -1393,7 +1400,6 @@ static void bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   bbr->in_loss_recovery = 1;
   bbr->round_count_at_recovery =
     bbr->round_start ? bbr->round_count : bbr->round_count + 1;
-  bbr_save_cwnd(bbr, cstat);
 
   cstat->congestion_recovery_start_ts = ts;
 }
@@ -1409,7 +1415,6 @@ static void bbr_cc_on_spurious_congestion(ngtcp2_cc *cc,
   bbr->in_loss_recovery = 0;
   bbr->round_count_at_recovery = UINT64_MAX;
 
-  bbr_restore_cwnd(bbr, cstat);
   bbr_handle_spurious_loss_detection(bbr, cstat);
 }
 
@@ -1423,7 +1428,6 @@ static void bbr_cc_on_persistent_congestion(ngtcp2_cc *cc,
   bbr->in_loss_recovery = 0;
   bbr->round_count_at_recovery = UINT64_MAX;
 
-  bbr_save_cwnd(bbr, cstat);
   cstat->cwnd = cstat->bytes_in_flight + cstat->max_tx_udp_payload_size;
   cstat->cwnd =
     ngtcp2_max(cstat->cwnd, min_pipe_cwnd(cstat->max_tx_udp_payload_size));

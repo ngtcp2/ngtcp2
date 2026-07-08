@@ -38,6 +38,7 @@ typedef struct ngtcp2_rst ngtcp2_rst;
 typedef struct ngtcp2_pcg32 ngtcp2_pcg32;
 
 typedef enum ngtcp2_bbr_state {
+  NGTCP2_BBR_STATE_NONE,
   NGTCP2_BBR_STATE_STARTUP,
   NGTCP2_BBR_STATE_DRAIN,
   NGTCP2_BBR_STATE_PROBE_BW_DOWN,
