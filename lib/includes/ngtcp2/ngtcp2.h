@@ -3984,7 +3984,7 @@ typedef struct ngtcp2_callbacks {
    */
   ngtcp2_get_path_challenge_data2 get_path_challenge_data2;
   /* The following fields have been added since
-     NGTCP2_CALLBACKS_V3. */
+     NGTCP2_CALLBACKS_V4. */
   /**
    * :member:`recv_stop_sending` is a callback function which is invoked
    * when a STOP_SENDING frame is received from a remote endpoint.  This
