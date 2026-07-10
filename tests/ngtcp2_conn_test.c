@@ -313,6 +313,13 @@ typedef struct {
   } stream_close;
   struct {
     uint32_t flags;
+    int64_t stream_id;
+    uint64_t rx_app_error_code;
+    uint64_t tx_app_error_code;
+    size_t ncalled;
+  } stream_close2;
+  struct {
+    uint32_t flags;
     ngtcp2_path_storage path;
     ngtcp2_path_storage fallback_path;
   } begin_path_validation;
@@ -673,6 +680,26 @@ static int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
     ud->stream_close.stream_id = stream_id;
     ud->stream_close.app_error_code = app_error_code;
   }
+
+  return 0;
+}
+
+static int stream_close2(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
+                         uint64_t rx_app_error_code, uint64_t tx_app_error_code,
+                         void *user_data, void *stream_user_data) {
+  my_user_data *ud = user_data;
+  (void)conn;
+  (void)stream_user_data;
+
+  if (!ud) {
+    return 0;
+  }
+
+  ud->stream_close2.flags = flags;
+  ud->stream_close2.stream_id = stream_id;
+  ud->stream_close2.rx_app_error_code = rx_app_error_code;
+  ud->stream_close2.tx_app_error_code = tx_app_error_code;
+  ++ud->stream_close2.ncalled;
 
   return 0;
 }
@@ -15336,6 +15363,277 @@ void test_ngtcp2_conn_stream_close(void) {
   assert_false(NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET &
                ud.stream_close.flags);
   assert_int64(frs[0].stream.stream_id, ==, ud.stream_close.stream_id);
+
+  ngtcp2_conn_del(conn);
+
+  /* stream_close2: Stream closed without error codes */
+  server_default_callbacks(&callbacks);
+  callbacks.stream_close2 = stream_close2;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  frs[0].stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .fin = 1,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_FIN, 0, null_data,
+                                     1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  frs[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  ud = (my_user_data){0};
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ud.stream_close2.ncalled);
+  assert_uint32(NGTCP2_STREAM_CLOSE2_FLAG_NONE, ==, ud.stream_close2.flags);
+  assert_int64(0, ==, ud.stream_close2.stream_id);
+  assert_uint64(0, ==, ud.stream_close2.rx_app_error_code);
+  assert_uint64(0, ==, ud.stream_close2.tx_app_error_code);
+
+  ngtcp2_conn_del(conn);
+
+  /* stream_close2: Send RESET_STREAM */
+  server_default_callbacks(&callbacks);
+  callbacks.stream_close2 = stream_close2;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  frs[0].stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .fin = 1,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 0, 0, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  frs[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  ud = (my_user_data){0};
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ud.stream_close2.ncalled);
+  assert_uint32(NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET, ==,
+                ud.stream_close2.flags);
+  assert_int64(0, ==, ud.stream_close2.stream_id);
+  assert_uint64(0, ==, ud.stream_close2.rx_app_error_code);
+  assert_uint64(NGTCP2_APP_ERR01, ==, ud.stream_close2.tx_app_error_code);
+
+  ngtcp2_conn_del(conn);
+
+  /* stream_close2: Receive RESET_STREAM */
+  server_default_callbacks(&callbacks);
+  callbacks.stream_close2 = stream_close2;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  frs[0].reset_stream = (ngtcp2_reset_stream){
+    .type = NGTCP2_FRAME_RESET_STREAM,
+    .app_error_code = NGTCP2_APP_ERR02,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_FIN, 0, null_data,
+                                     1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  frs[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  ud = (my_user_data){0};
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ud.stream_close2.ncalled);
+  assert_uint32(NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET, ==,
+                ud.stream_close2.flags);
+  assert_int64(0, ==, ud.stream_close2.stream_id);
+  assert_uint64(NGTCP2_APP_ERR02, ==, ud.stream_close2.rx_app_error_code);
+  assert_uint64(0, ==, ud.stream_close2.tx_app_error_code);
+
+  ngtcp2_conn_del(conn);
+
+  /* stream_close2: Stream closed with errors in both sides */
+  server_default_callbacks(&callbacks);
+  callbacks.stream_close2 = stream_close2;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  frs[0].reset_stream = (ngtcp2_reset_stream){
+    .type = NGTCP2_FRAME_RESET_STREAM,
+    .app_error_code = NGTCP2_APP_ERR01,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 0, 0, NGTCP2_APP_ERR02);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  frs[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  ud = (my_user_data){0};
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ud.stream_close2.ncalled);
+  assert_uint32(NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET |
+                  NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET,
+                ==, ud.stream_close2.flags);
+  assert_int64(0, ==, ud.stream_close2.stream_id);
+  assert_uint64(NGTCP2_APP_ERR01, ==, ud.stream_close2.rx_app_error_code);
+  assert_uint64(NGTCP2_APP_ERR02, ==, ud.stream_close2.tx_app_error_code);
+
+  ngtcp2_conn_del(conn);
+
+  /* stream_close2: Send STOP_SENDING and receive RESET_STREAM */
+  server_default_callbacks(&callbacks);
+  callbacks.stream_close2 = stream_close2;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  frs[0].stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, 0, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  frs[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+  frs[1].reset_stream = (ngtcp2_reset_stream){
+    .type = NGTCP2_FRAME_RESET_STREAM,
+    .app_error_code = NGTCP2_APP_ERR02,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_FIN, 0, null_data,
+                                     1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  frs[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  ud = (my_user_data){0};
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ud.stream_close2.ncalled);
+  assert_uint32(NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET, ==,
+                ud.stream_close2.flags);
+  assert_int64(0, ==, ud.stream_close2.stream_id);
+  assert_uint64(NGTCP2_APP_ERR02, ==, ud.stream_close2.rx_app_error_code);
+  assert_uint64(0, ==, ud.stream_close2.tx_app_error_code);
 
   ngtcp2_conn_del(conn);
 }

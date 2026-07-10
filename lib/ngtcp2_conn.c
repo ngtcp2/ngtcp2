@@ -192,11 +192,35 @@ static int conn_call_stream_open(ngtcp2_conn *conn, ngtcp2_strm *strm) {
 
 static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   int rv;
-  uint32_t flags = NGTCP2_STREAM_CLOSE_FLAG_NONE;
+  uint32_t flags;
+
+  if (conn->callbacks.stream_close2) {
+    flags = NGTCP2_STREAM_CLOSE2_FLAG_NONE;
+
+    if (strm->flags & NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET) {
+      flags |= NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET;
+    }
+
+    if (strm->flags & NGTCP2_STRM_FLAG_TX_APP_ERROR_CODE_SET) {
+      flags |= NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET;
+    }
+
+    rv = conn->callbacks.stream_close2(conn, flags, strm->stream_id,
+                                       strm->rx.app_error_code,
+                                       strm->tx.reset_stream_app_error_code,
+                                       conn->user_data, strm->stream_user_data);
+    if (rv != 0) {
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
+
+    return 0;
+  }
 
   if (!conn->callbacks.stream_close) {
     return 0;
   }
+
+  flags = NGTCP2_STREAM_CLOSE_FLAG_NONE;
 
   if (strm->flags & NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET) {
     flags |= NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET;
@@ -7643,7 +7667,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
  */
 static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                              uint64_t app_error_code) {
-  strm->flags |= NGTCP2_STRM_FLAG_SEND_RESET_STREAM;
+  strm->flags |=
+    NGTCP2_STRM_FLAG_SEND_RESET_STREAM | NGTCP2_STRM_FLAG_TX_APP_ERROR_CODE_SET;
   strm->tx.reset_stream_app_error_code = app_error_code;
 
   if (ngtcp2_strm_is_tx_queued(strm)) {
@@ -7848,8 +7873,10 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
                                 fr->final_size - ngtcp2_strm_rx_offset(strm));
 
   strm->rx.last_offset = fr->final_size;
-  strm->flags |=
-    NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RESET_STREAM_RECVED;
+  strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD |
+                 NGTCP2_STRM_FLAG_RESET_STREAM_RECVED |
+                 NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET;
+  strm->rx.app_error_code = fr->app_error_code;
 
   ngtcp2_strm_set_app_error_code(strm, fr->app_error_code);
 
