@@ -544,7 +544,22 @@ static int get_path_challenge_data2(ngtcp2_conn *conn,
   return 0;
 }
 
+static int stream_close2(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
+                         uint64_t rx_app_error_code, uint64_t tx_app_error_code,
+                         void *user_data, void *stream_user_data) {
+  (void)conn;
+  (void)flags;
+  (void)stream_id;
+  (void)rx_app_error_code;
+  (void)tx_app_error_code;
+  (void)user_data;
+  (void)stream_user_data;
+
+  return 0;
+}
+
 void test_ngtcp2_callbacks_convert_to_latest(void) {
+  const int srcver = NGTCP2_CALLBACKS_V4;
   static const ngtcp2_callbacks srcbuf = {
     .client_initial = client_initial,
     .recv_client_initial = recv_client_initial,
@@ -587,19 +602,23 @@ void test_ngtcp2_callbacks_convert_to_latest(void) {
     .recv_tx_key = recv_tx_key,
     .tls_early_data_rejected = tls_early_data_rejected,
     .begin_path_validation = begin_path_validation,
+    .recv_stateless_reset2 = recv_stateless_reset2,
+    .get_new_connection_id2 = get_new_connection_id2,
+    .dcid_status2 = dcid_status2,
+    .get_path_challenge_data2 = get_path_challenge_data2,
+    .recv_stop_sending = recv_stop_sending,
   };
   ngtcp2_callbacks *src, callbacksbuf;
   const ngtcp2_callbacks *dest;
-  size_t v2len;
+  size_t srclen;
 
-  v2len = ngtcp2_callbackslen_version(NGTCP2_CALLBACKS_V2);
+  srclen = ngtcp2_callbackslen_version(srcver);
 
-  src = malloc(v2len);
+  src = malloc(srclen);
 
-  memcpy(src, &srcbuf, v2len);
+  memcpy(src, &srcbuf, srclen);
 
-  dest =
-    ngtcp2_callbacks_convert_to_latest(&callbacksbuf, NGTCP2_CALLBACKS_V2, src);
+  dest = ngtcp2_callbacks_convert_to_latest(&callbacksbuf, srcver, src);
 
   free(src);
 
@@ -654,14 +673,17 @@ void test_ngtcp2_callbacks_convert_to_latest(void) {
   assert_ptr_equal(srcbuf.tls_early_data_rejected,
                    dest->tls_early_data_rejected);
   assert_ptr_equal(srcbuf.begin_path_validation, dest->begin_path_validation);
-  assert_null(dest->recv_stateless_reset2);
-  assert_null(dest->get_new_connection_id2);
-  assert_null(dest->dcid_status2);
-  assert_null(dest->get_path_challenge_data2);
-  assert_null(dest->recv_stop_sending);
+  assert_ptr_equal(srcbuf.recv_stateless_reset2, dest->recv_stateless_reset2);
+  assert_ptr_equal(srcbuf.get_new_connection_id2, dest->get_new_connection_id2);
+  assert_ptr_equal(srcbuf.dcid_status2, dest->dcid_status2);
+  assert_ptr_equal(srcbuf.get_path_challenge_data2,
+                   dest->get_path_challenge_data2);
+  assert_ptr_equal(srcbuf.recv_stop_sending, dest->recv_stop_sending);
+  assert_null(dest->stream_close2);
 }
 
 void test_ngtcp2_callbacks_convert_to_old(void) {
+  const int destver = NGTCP2_CALLBACKS_V4;
   static const ngtcp2_callbacks src = {
     .client_initial = client_initial,
     .recv_client_initial = recv_client_initial,
@@ -709,17 +731,18 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
     .dcid_status2 = dcid_status2,
     .get_path_challenge_data2 = get_path_challenge_data2,
     .recv_stop_sending = recv_stop_sending,
+    .stream_close2 = stream_close2,
   };
   ngtcp2_callbacks *dest, destbuf = {0};
-  size_t v2len;
+  size_t destlen;
 
-  v2len = ngtcp2_callbackslen_version(NGTCP2_CALLBACKS_V2);
+  destlen = ngtcp2_callbackslen_version(destver);
 
-  dest = malloc(v2len);
+  dest = malloc(destlen);
 
-  ngtcp2_callbacks_convert_to_old(NGTCP2_CALLBACKS_V2, dest, &src);
+  ngtcp2_callbacks_convert_to_old(destver, dest, &src);
 
-  memcpy(&destbuf, dest, v2len);
+  memcpy(&destbuf, dest, destlen);
 
   free(dest);
 
@@ -773,9 +796,11 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
   assert_ptr_equal(src.tls_early_data_rejected,
                    destbuf.tls_early_data_rejected);
   assert_ptr_equal(src.begin_path_validation, destbuf.begin_path_validation);
-  assert_null(destbuf.recv_stateless_reset2);
-  assert_null(destbuf.get_new_connection_id2);
-  assert_null(destbuf.dcid_status2);
-  assert_null(destbuf.get_path_challenge_data2);
-  assert_null(destbuf.recv_stop_sending);
+  assert_ptr_equal(src.recv_stateless_reset2, destbuf.recv_stateless_reset2);
+  assert_ptr_equal(src.get_new_connection_id2, destbuf.get_new_connection_id2);
+  assert_ptr_equal(src.dcid_status2, destbuf.dcid_status2);
+  assert_ptr_equal(src.get_path_challenge_data2,
+                   destbuf.get_path_challenge_data2);
+  assert_ptr_equal(src.recv_stop_sending, destbuf.recv_stop_sending);
+  assert_null(destbuf.stream_close2);
 }
