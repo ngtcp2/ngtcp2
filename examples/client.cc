@@ -391,11 +391,18 @@ void Client::recv_version_negotiation(const uint32_t *sv, size_t nsv) {
 
 namespace {
 int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
-                 uint64_t app_error_code, void *user_data,
-                 void *stream_user_data) {
+                 uint64_t rx_app_error_code, uint64_t tx_app_error_code,
+                 void *user_data, void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  if (!c->on_stream_close(stream_id, app_error_code)) {
+  if (!c->on_stream_close(
+        stream_id,
+        (flags & NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET)
+          ? std::make_optional(rx_app_error_code)
+          : std::nullopt,
+        (flags & NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET)
+          ? std::make_optional(tx_app_error_code)
+          : std::nullopt)) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -655,7 +662,6 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
     .hp_mask = do_hp_mask,
     .recv_stream_data = ::recv_stream_data,
     .acked_stream_data_offset = ::acked_stream_data_offset,
-    .stream_close = stream_close,
     .recv_retry = ngtcp2_crypto_recv_retry_cb,
     .extend_max_local_streams_bidi = extend_max_local_streams_bidi,
     .rand = rand,
@@ -674,6 +680,7 @@ std::expected<void, Error> Client::init(int fd, const Address &local_addr,
     .tls_early_data_rejected = ::early_data_rejected,
     .get_new_connection_id2 = get_new_connection_id,
     .get_path_challenge_data2 = ngtcp2_crypto_get_path_challenge_data2_cb,
+    .stream_close2 = stream_close,
   };
 
   ngtcp2_cid scid, dcid;
@@ -1662,13 +1669,17 @@ std::expected<void, Error> Client::handle_error() {
                      {buf.data(), static_cast<size_t>(nwrite)});
 }
 
-std::expected<void, Error> Client::on_stream_close(int64_t stream_id,
-                                                   uint64_t app_error_code) {
+std::expected<void, Error>
+Client::on_stream_close(int64_t stream_id,
+                        std::optional<uint64_t> rx_app_error_code,
+                        std::optional<uint64_t> tx_app_error_code) {
   if (!config.quiet) {
     std::println(stderr, "QUIC stream {:#x} closed", stream_id);
   }
 
-  if (auto rv = proto_codec_->on_stream_close(stream_id, app_error_code); !rv) {
+  if (auto rv = proto_codec_->on_stream_close(stream_id, rx_app_error_code,
+                                              tx_app_error_code);
+      !rv) {
     return rv;
   }
 
