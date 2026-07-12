@@ -3687,10 +3687,10 @@ typedef int (*ngtcp2_get_path_challenge_data2)(ngtcp2_conn *conn,
  * existing streams are closed.  |flags| is the bitwise-OR of zero or
  * more of :macro:`NGTCP2_STREAM_CLOSE2_FLAG_*
  * <NGTCP2_STREAM_CLOSE2_FLAG_NONE>`.  |rx_app_error_code| indicates
- * the error code received from the remote endpoint in RESET_STREAM
- * frame if :macro:`NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET`
- * is set in |flags|.  |tx_app_error_code| indicates the error code
- * sent to the remote endpoint in RESET_STREAM frame if
+ * the error code that shut down the receiving side of the stream if
+ * :macro:`NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET` is set in
+ * |flags|.  |tx_app_error_code| indicates the error code that shut
+ * down the sending side of the stream if
  * :macro:`NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET` is set in
  * |flags|.
  *

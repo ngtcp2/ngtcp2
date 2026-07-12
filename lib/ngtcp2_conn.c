@@ -193,20 +193,27 @@ static int conn_call_stream_open(ngtcp2_conn *conn, ngtcp2_strm *strm) {
 static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   int rv;
   uint32_t flags;
+  uint64_t rx_app_error_code;
 
   if (conn->callbacks.stream_close2) {
     flags = NGTCP2_STREAM_CLOSE2_FLAG_NONE;
 
-    if (strm->flags & NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET) {
+    if (strm->flags & NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET) {
       flags |= NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET;
+      rx_app_error_code = strm->tx.stop_sending_app_error_code;
+    } else if (strm->flags & NGTCP2_STRM_FLAG_RX_APP_ERROR_CODE_SET) {
+      flags |= NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET;
+      rx_app_error_code = strm->rx.app_error_code;
+    } else {
+      rx_app_error_code = 0;
     }
 
-    if (strm->flags & NGTCP2_STRM_FLAG_TX_APP_ERROR_CODE_SET) {
+    if (strm->flags & NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET) {
       flags |= NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET;
     }
 
     rv = conn->callbacks.stream_close2(conn, flags, strm->stream_id,
-                                       strm->rx.app_error_code,
+                                       rx_app_error_code,
                                        strm->tx.reset_stream_app_error_code,
                                        conn->user_data, strm->stream_user_data);
     if (rv != 0) {
@@ -7667,8 +7674,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
  */
 static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                              uint64_t app_error_code) {
-  strm->flags |=
-    NGTCP2_STRM_FLAG_SEND_RESET_STREAM | NGTCP2_STRM_FLAG_TX_APP_ERROR_CODE_SET;
+  strm->flags |= NGTCP2_STRM_FLAG_SEND_RESET_STREAM |
+                 NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET;
   strm->tx.reset_stream_app_error_code = app_error_code;
 
   if (ngtcp2_strm_is_tx_queued(strm)) {
@@ -7692,7 +7699,8 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  */
 static int conn_stop_sending(ngtcp2_conn *conn, ngtcp2_strm *strm,
                              uint64_t app_error_code) {
-  strm->flags |= NGTCP2_STRM_FLAG_SEND_STOP_SENDING;
+  strm->flags |= NGTCP2_STRM_FLAG_SEND_STOP_SENDING |
+                 NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET;
   strm->tx.stop_sending_app_error_code = app_error_code;
 
   if (ngtcp2_strm_is_tx_queued(strm)) {
@@ -12979,8 +12987,16 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                       uint64_t app_error_code) {
   ngtcp2_strm_set_app_error_code(strm, app_error_code);
 
-  if ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) ||
-      ngtcp2_strm_is_all_tx_data_fin_acked(strm)) {
+  if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) {
+    return 0;
+  }
+
+  if (ngtcp2_strm_is_all_tx_data_fin_acked(strm)) {
+    if (!(strm->flags & NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET)) {
+      strm->flags |= NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET;
+      strm->tx.reset_stream_app_error_code = app_error_code;
+    }
+
     return 0;
   }
 
@@ -13013,6 +13029,11 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
       ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) {
+    if (!(strm->flags & NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET)) {
+      strm->flags |= NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET;
+      strm->tx.stop_sending_app_error_code = app_error_code;
+    }
+
     return 0;
   }
 
