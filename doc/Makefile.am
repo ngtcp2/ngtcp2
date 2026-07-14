@@ -35,7 +35,7 @@ BUILDDIR      = build
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-.PHONY: help html apiref cryptoapiref
+.PHONY: help html apiref cryptoapiref man doc
 
 apiref: mkapiref.py \
 	$(top_builddir)/lib/includes/ngtcp2/version.h \
@@ -61,6 +61,11 @@ cryptoapiref: mkapiref.py \
 
 html-local: apiref cryptoapiref
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+man: apiref cryptoapiref
+	@$(SPHINXBUILD) -M man "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+doc: html-local man
 
 clean-local:
 	-rm -rf "$(BUILDDIR)"
