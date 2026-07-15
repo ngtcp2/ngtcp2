@@ -12987,16 +12987,8 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                       uint64_t app_error_code) {
   ngtcp2_strm_set_app_error_code(strm, app_error_code);
 
-  if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) {
-    return 0;
-  }
-
-  if (ngtcp2_strm_is_all_tx_data_fin_acked(strm)) {
-    if (!(strm->flags & NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET)) {
-      strm->flags |= NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET;
-      strm->tx.reset_stream_app_error_code = app_error_code;
-    }
-
+  if ((strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM) ||
+      ngtcp2_strm_is_all_tx_data_fin_acked(strm)) {
     return 0;
   }
 
@@ -13029,11 +13021,6 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
       ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) {
-    if (!(strm->flags & NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET)) {
-      strm->flags |= NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET;
-      strm->tx.stop_sending_app_error_code = app_error_code;
-    }
-
     return 0;
   }
 
