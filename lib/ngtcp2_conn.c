@@ -60,7 +60,7 @@
 
 /* NGTCP2_MAX_INITIAL_CRYPTO_OFFSET is the maximum offset of CRYPTO
    data at Initial encryption level. */
-#define NGTCP2_MAX_INITIAL_CRYPTO_OFFSET (16 * 1024)
+#define NGTCP2_MAX_INITIAL_CRYPTO_OFFSET (64 * 1024)
 /* NGTCP2_MAX_HANDSHAKE_CRYPTO_OFFSET is the maximum offset of CRYPTO
    data at Handshake encryption level. */
 #define NGTCP2_MAX_HANDSHAKE_CRYPTO_OFFSET (64 * 1024)
