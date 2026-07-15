@@ -1861,7 +1861,8 @@ typedef enum ngtcp2_token_type {
 #define NGTCP2_SETTINGS_V2 2
 #define NGTCP2_SETTINGS_V3 3
 #define NGTCP2_SETTINGS_V4 4
-#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V4
+#define NGTCP2_SETTINGS_V5 5
+#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V5
 
 /**
  * @struct
@@ -2116,6 +2117,28 @@ typedef struct ngtcp2_settings {
    * .. version-added:: 1.23.0
    */
   ngtcp2_log_write log_write;
+  /* The following fields have been added since NGTCP2_SETTINGS_V5. */
+  /**
+   * :member:`max_initial_crypto_offset` is the maximum offset of
+   * CRYPTO data at the Initial encryption level.
+   *
+   * .. version-added:: 1.25.0
+   */
+  size_t max_initial_crypto_offset;
+  /**
+   * :member:`max_handshake_crypto_offset` is the maximum offset of
+   * CRYPTO data at the Handshake encryption level.
+   *
+   * .. version-added:: 1.25.0
+   */
+  size_t max_handshake_crypto_offset;
+  /**
+   * :member:`max_1rtt_crypto_offset` is the maximum offset of CRYPTO
+   * data at the 1RTT encryption level.
+   *
+   * .. version-added:: 1.25.0
+   */
+  size_t max_1rtt_crypto_offset;
 } ngtcp2_settings;
 
 /**
@@ -7125,6 +7148,12 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  *   <ngtcp2_settings.glitch_ratelim_burst>` = 10000
  * * :member:`glitch_ratelim_rate
  *   <ngtcp2_settings.glitch_ratelim_rate>` = 330
+ * * :member:`max_initial_crypto_offset
+ *   <ngtcp2_settings.max_initial_crypto_offset>` = 65536
+ * * :member:`max_handshake_crypto_offset
+ *   <ngtcp2_settings.max_handshake_crypto_offset>` = 65536
+ * * :member:`max_1rtt_crypto_offset
+ *   <ngtcp2_settings.max_1rtt_crypto_offset>` = 262144
  */
 NGTCP2_EXTERN void ngtcp2_settings_default_versioned(int settings_version,
                                                      ngtcp2_settings *settings);
