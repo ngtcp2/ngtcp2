@@ -222,8 +222,8 @@ void test_ngtcp2_settings_convert_to_old(void) {
   assert_uint32(src.initial_pkt_num, ==, destbuf.initial_pkt_num);
   assert_ptr_equal(src.pmtud_probes, destbuf.pmtud_probes);
   assert_size(src.pmtud_probeslen, ==, destbuf.pmtud_probeslen);
-  assert_uint64(1999, ==, destbuf.glitch_ratelim_burst);
-  assert_uint64(78, ==, destbuf.glitch_ratelim_rate);
+  assert_uint64(src.glitch_ratelim_burst, ==, destbuf.glitch_ratelim_burst);
+  assert_uint64(src.glitch_ratelim_rate, ==, destbuf.glitch_ratelim_rate);
   assert_ptr_equal(src.log_write, destbuf.log_write);
   assert_size(0, ==, destbuf.max_initial_crypto_offset);
   assert_size(0, ==, destbuf.max_handshake_crypto_offset);
