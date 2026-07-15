@@ -38,6 +38,16 @@
    per second for glitch rate limiter. */
 #define NGTCP2_DEFAULT_GLITCH_RATELIM_RATE 330
 
+/* NGTCP2_DEFAULT_MAX_INITIAL_CRYPTO_OFFSET is the maximum offset of
+   CRYPTO data at the Initial encryption level. */
+#define NGTCP2_DEFAULT_MAX_INITIAL_CRYPTO_OFFSET (64 * 1024)
+/* NGTCP2_DEFAULT_MAX_HANDSHAKE_CRYPTO_OFFSET is the maximum offset of
+   CRYPTO data at the Handshake encryption level. */
+#define NGTCP2_DEFAULT_MAX_HANDSHAKE_CRYPTO_OFFSET (64 * 1024)
+/* NGTCP2_DEFAULT_MAX_1RTT_CRYPTO_OFFSET is the maximum offset of
+   CRYPTO data at the 1RTT encryption level. */
+#define NGTCP2_DEFAULT_MAX_1RTT_CRYPTO_OFFSET (256 * 1024)
+
 /*
  * ngtcp2_settings_convert_to_latest converts |src| of version
  * |settings_version| to the latest version NGTCP2_SETTINGS_VERSION.
