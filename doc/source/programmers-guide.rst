@@ -498,7 +498,7 @@ The send-side stream is closed when you call
 flag set, and all data are acknowledged.  The receive-side stream is
 closed when a local endpoint receives fin from a remote endpoint, and
 all data are received.  And then
-:member:`ngtcp2_callbacks.stream_close` is invoked.
+:member:`ngtcp2_callbacks.stream_close2` is invoked.
 
 Application can close stream abruptly by calling
 `ngtcp2_conn_shutdown_stream`.  It has
