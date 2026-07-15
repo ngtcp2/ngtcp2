@@ -150,17 +150,15 @@ struct ngtcp2_strm {
            multiple STREAM frames in one lost packet. */
         int64_t last_lost_pkt_num;
         /* stop_sending_app_error_code is the application specific
-           error code that is sent along with STOP_SENDING.  It might
-           not be sent if the receiving side of the stream has been
-           closed.  If this field is set,
+           error code that is sent along with STOP_SENDING.  If this
+           field is set,
            NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET is set.
            This field is eventually passed to ngtcp2_stream_close2
            callback as rx_app_error_code parameter. */
         uint64_t stop_sending_app_error_code;
         /* reset_stream_app_error_code is the application specific
-           error code that is sent along with RESET_STREAM.  It might
-           not be sent if the sending side of the stream has been
-           closed.  If this field is set,
+           error code that is sent along with RESET_STREAM.  If this
+           field is set,
            NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET is set.
            This field is eventually passed to ngtcp2_stream_close2
            callback as tx_app_error_code parameter. */

@@ -15638,7 +15638,7 @@ void test_ngtcp2_conn_stream_close(void) {
   ngtcp2_conn_del(conn);
 
   /* stream_close2: Calling ngtcp2_conn_shutdown_stream_read after the
-     incoming fin sets rx_app_error_code */
+     incoming fin does not set rx_app_error_code */
   server_default_callbacks(&callbacks);
   callbacks.stream_close2 = stream_close2;
 
@@ -15683,16 +15683,14 @@ void test_ngtcp2_conn_stream_close(void) {
 
   assert_int(0, ==, rv);
   assert_size(1, ==, ud.stream_close2.ncalled);
-  assert_uint32(NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET, ==,
-                ud.stream_close2.flags);
+  assert_uint32(NGTCP2_STREAM_CLOSE2_FLAG_NONE, ==, ud.stream_close2.flags);
   assert_int64(0, ==, ud.stream_close2.stream_id);
-  assert_uint64(NGTCP2_INTERNAL_ERROR, ==, ud.stream_close2.rx_app_error_code);
-  assert_uint64(0, ==, ud.stream_close2.tx_app_error_code);
 
   ngtcp2_conn_del(conn);
 
   /* stream_close2: Calling ngtcp2_conn_shutdown_stream_write after
-     the all outgoing data is acknowledged sets tx_app_error_code */
+     the all outgoing data is acknowledged does not set
+     tx_app_error_code */
   server_default_callbacks(&callbacks);
   callbacks.stream_close2 = stream_close2;
 
@@ -15747,11 +15745,8 @@ void test_ngtcp2_conn_stream_close(void) {
 
   assert_int(0, ==, rv);
   assert_size(1, ==, ud.stream_close2.ncalled);
-  assert_uint32(NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET, ==,
-                ud.stream_close2.flags);
+  assert_uint32(NGTCP2_STREAM_CLOSE2_FLAG_NONE, ==, ud.stream_close2.flags);
   assert_int64(0, ==, ud.stream_close2.stream_id);
-  assert_uint64(0, ==, ud.stream_close2.rx_app_error_code);
-  assert_uint64(NGTCP2_INTERNAL_ERROR, ==, ud.stream_close2.tx_app_error_code);
 
   ngtcp2_conn_del(conn);
 }
