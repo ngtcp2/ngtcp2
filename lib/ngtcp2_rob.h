@@ -36,37 +36,6 @@
 #include "ngtcp2_ksl.h"
 
 /*
- * ngtcp2_rob_data holds the buffered stream data.
- */
-typedef struct ngtcp2_rob_data {
-  /* begin points to the buffer. */
-  uint8_t *begin;
-} ngtcp2_rob_data;
-
-/*
- * ngtcp2_rob_data_new allocates new ngtcp2_rob_data object, and
- * assigns its pointer to |*pd|.  The caller should call
- * ngtcp2_rob_data_del to delete it when it is no longer used.
- * |chunk| is the size of the buffer.  |mem| is custom memory
- * allocator to allocate memory.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_rob_data_new(ngtcp2_rob_data **pd, size_t chunk,
-                        const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_rob_data_del deallocates |d|.  It deallocates the memory
- * pointed by |d| itself.  |mem| is custom memory allocator to
- * deallocate memory.
- */
-void ngtcp2_rob_data_del(ngtcp2_rob_data *d, const ngtcp2_mem *mem);
-
-/*
  * ngtcp2_rob is the reorder buffer which reassembles stream data
  * received in out of order.
  */
