@@ -297,9 +297,9 @@ void test_ngtcp2_rob_data_at(void) {
   size_t i;
   const uint8_t *p;
   uint64_t len;
-  ngtcp2_rob_data *d;
   ngtcp2_ksl_it it;
   const ngtcp2_range *g;
+  const ngtcp2_range *r;
 
   for (i = 0; i < sizeof(data); ++i) {
     data[i] = (uint8_t)i;
@@ -444,14 +444,14 @@ void test_ngtcp2_rob_data_at(void) {
 
   it = ngtcp2_ksl_begin(&rob.dataksl);
   ngtcp2_ksl_it_next(&it);
-  d = ngtcp2_ksl_it_get(&it);
+  r = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(16, ==, d->range.begin);
+  assert_uint64(16, ==, r->begin);
 
   ngtcp2_ksl_it_next(&it);
-  d = ngtcp2_ksl_it_get(&it);
+  r = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(32, ==, d->range.begin);
+  assert_uint64(32, ==, r->begin);
 
   ngtcp2_ksl_it_next(&it);
 
@@ -548,7 +548,7 @@ void test_ngtcp2_rob_remove_prefix(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_rob rob;
   const ngtcp2_range *g;
-  ngtcp2_rob_data *d;
+  const ngtcp2_range *r;
   ngtcp2_ksl_it it;
   uint8_t data[256];
   ngtcp2_ssize nwrite;
@@ -568,9 +568,9 @@ void test_ngtcp2_rob_remove_prefix(void) {
   assert_uint64(33, ==, g->begin);
 
   it = ngtcp2_ksl_begin(&rob.dataksl);
-  d = ngtcp2_ksl_it_get(&it);
+  r = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(32, ==, d->range.begin);
+  assert_uint64(32, ==, r->begin);
 
   ngtcp2_rob_free(&rob);
 

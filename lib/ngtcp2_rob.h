@@ -39,8 +39,6 @@
  * ngtcp2_rob_data holds the buffered stream data.
  */
 typedef struct ngtcp2_rob_data {
-  /* range is the range of this data. */
-  ngtcp2_range range;
   /* begin points to the buffer. */
   uint8_t *begin;
 } ngtcp2_rob_data;
@@ -49,9 +47,8 @@ typedef struct ngtcp2_rob_data {
  * ngtcp2_rob_data_new allocates new ngtcp2_rob_data object, and
  * assigns its pointer to |*pd|.  The caller should call
  * ngtcp2_rob_data_del to delete it when it is no longer used.
- * |offset| is the stream offset of the first byte of this data.
- * |chunk| is the size of the buffer.  |offset| must be multiple of
- * |chunk|.  |mem| is custom memory allocator to allocate memory.
+ * |chunk| is the size of the buffer.  |mem| is custom memory
+ * allocator to allocate memory.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -59,7 +56,7 @@ typedef struct ngtcp2_rob_data {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_rob_data_new(ngtcp2_rob_data **pd, uint64_t offset, size_t chunk,
+int ngtcp2_rob_data_new(ngtcp2_rob_data **pd, size_t chunk,
                         const ngtcp2_mem *mem);
 
 /*
