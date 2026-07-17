@@ -55,9 +55,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     auto len =
       fuzzed_data_provider.ConsumeIntegralInRange<size_t>(1, sizeof(null_data));
 
-    auto rv = ngtcp2_rob_push(&rob, offset, null_data, len);
-    if (rv != 0) {
-      break;
+    if (offset <= data_offset && data_offset < offset + len) {
+      data_offset = offset + len;
+      ngtcp2_rob_remove_prefix(&rob, data_offset);
+    } else {
+      auto nwrite = ngtcp2_rob_push(&rob, offset, null_data, len);
+      if (nwrite < 0) {
+        break;
+      }
     }
 
     for (;;) {

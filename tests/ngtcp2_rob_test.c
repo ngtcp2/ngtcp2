@@ -48,7 +48,7 @@ void test_ngtcp2_rob_push(void) {
   ngtcp2_rob rob;
   ngtcp2_ssize nwrite;
   uint8_t data[256];
-  ngtcp2_rob_gap *g;
+  const ngtcp2_range *g;
   ngtcp2_ksl_it it;
 
   /* Check range overlapping */
@@ -59,16 +59,16 @@ void test_ngtcp2_rob_push(void) {
   assert_ptrdiff(145, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(0, ==, g->range.begin);
-  assert_uint64(34567, ==, g->range.end);
+  assert_uint64(0, ==, g->begin);
+  assert_uint64(34567, ==, g->end);
 
   ngtcp2_ksl_it_next(&it);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(34567 + 145, ==, g->range.begin);
-  assert_uint64(UINT64_MAX, ==, g->range.end);
+  assert_uint64(34567 + 145, ==, g->begin);
+  assert_uint64(UINT64_MAX, ==, g->end);
 
   ngtcp2_ksl_it_next(&it);
 
@@ -79,48 +79,48 @@ void test_ngtcp2_rob_push(void) {
   assert_ptrdiff(1, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(0, ==, g->range.begin);
-  assert_uint64(34565, ==, g->range.end);
+  assert_uint64(0, ==, g->begin);
+  assert_uint64(34565, ==, g->end);
 
   ngtcp2_ksl_it_next(&it);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(34566, ==, g->range.begin);
-  assert_uint64(34567, ==, g->range.end);
+  assert_uint64(34566, ==, g->begin);
+  assert_uint64(34567, ==, g->end);
 
   nwrite = ngtcp2_rob_push(&rob, 34563, data, 1);
 
   assert_ptrdiff(1, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(0, ==, g->range.begin);
-  assert_uint64(34563, ==, g->range.end);
+  assert_uint64(0, ==, g->begin);
+  assert_uint64(34563, ==, g->end);
 
   ngtcp2_ksl_it_next(&it);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(34564, ==, g->range.begin);
-  assert_uint64(34565, ==, g->range.end);
+  assert_uint64(34564, ==, g->begin);
+  assert_uint64(34565, ==, g->end);
 
   nwrite = ngtcp2_rob_push(&rob, 34561, data, 151);
 
   assert_ptrdiff(4, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(0, ==, g->range.begin);
-  assert_uint64(34561, ==, g->range.end);
+  assert_uint64(0, ==, g->begin);
+  assert_uint64(34561, ==, g->end);
 
   ngtcp2_ksl_it_next(&it);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(34567 + 145, ==, g->range.begin);
-  assert_uint64(UINT64_MAX, ==, g->range.end);
+  assert_uint64(34567 + 145, ==, g->begin);
+  assert_uint64(UINT64_MAX, ==, g->end);
 
   ngtcp2_ksl_it_next(&it);
 
@@ -136,10 +136,10 @@ void test_ngtcp2_rob_push(void) {
   assert_ptrdiff(123, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(123, ==, g->range.begin);
-  assert_uint64(UINT64_MAX, ==, g->range.end);
+  assert_uint64(123, ==, g->begin);
+  assert_uint64(UINT64_MAX, ==, g->end);
 
   ngtcp2_ksl_it_next(&it);
 
@@ -155,10 +155,10 @@ void test_ngtcp2_rob_push(void) {
   assert_ptrdiff(123, ==, nwrite);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(0, ==, g->range.begin);
-  assert_uint64(UINT64_MAX - 123, ==, g->range.end);
+  assert_uint64(0, ==, g->begin);
+  assert_uint64(UINT64_MAX - 123, ==, g->end);
 
   ngtcp2_ksl_it_next(&it);
 
@@ -297,9 +297,9 @@ void test_ngtcp2_rob_data_at(void) {
   size_t i;
   const uint8_t *p;
   uint64_t len;
-  ngtcp2_rob_data *d;
   ngtcp2_ksl_it it;
-  ngtcp2_rob_gap *g;
+  const ngtcp2_range *g;
+  const ngtcp2_range *r;
 
   for (i = 0; i < sizeof(data); ++i) {
     data[i] = (uint8_t)i;
@@ -444,14 +444,14 @@ void test_ngtcp2_rob_data_at(void) {
 
   it = ngtcp2_ksl_begin(&rob.dataksl);
   ngtcp2_ksl_it_next(&it);
-  d = ngtcp2_ksl_it_get(&it);
+  r = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(16, ==, d->range.begin);
+  assert_uint64(16, ==, r->begin);
 
   ngtcp2_ksl_it_next(&it);
-  d = ngtcp2_ksl_it_get(&it);
+  r = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(32, ==, d->range.begin);
+  assert_uint64(32, ==, r->begin);
 
   ngtcp2_ksl_it_next(&it);
 
@@ -483,9 +483,9 @@ void test_ngtcp2_rob_data_at(void) {
   }
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(256, ==, g->range.begin);
+  assert_uint64(256, ==, g->begin);
 
   it = ngtcp2_ksl_begin(&rob.dataksl);
 
@@ -547,8 +547,8 @@ void test_ngtcp2_rob_data_at(void) {
 void test_ngtcp2_rob_remove_prefix(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_rob rob;
-  ngtcp2_rob_gap *g;
-  ngtcp2_rob_data *d;
+  const ngtcp2_range *g;
+  const ngtcp2_range *r;
   ngtcp2_ksl_it it;
   uint8_t data[256];
   ngtcp2_ssize nwrite;
@@ -563,14 +563,14 @@ void test_ngtcp2_rob_remove_prefix(void) {
   ngtcp2_rob_remove_prefix(&rob, 33);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(33, ==, g->range.begin);
+  assert_uint64(33, ==, g->begin);
 
   it = ngtcp2_ksl_begin(&rob.dataksl);
-  d = ngtcp2_ksl_it_get(&it);
+  r = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(32, ==, d->range.begin);
+  assert_uint64(32, ==, r->begin);
 
   ngtcp2_rob_free(&rob);
 
@@ -588,9 +588,9 @@ void test_ngtcp2_rob_remove_prefix(void) {
   ngtcp2_rob_remove_prefix(&rob, 16);
 
   it = ngtcp2_ksl_begin(&rob.gapksl);
-  g = ngtcp2_ksl_it_get(&it);
+  g = ngtcp2_ksl_it_key(&it);
 
-  assert_uint64(16, ==, g->range.begin);
+  assert_uint64(16, ==, g->begin);
 
   ngtcp2_ksl_it_next(&it);
 
