@@ -56,9 +56,6 @@ typedef struct ngtcp2_acktr_entry {
          includes pkt_num itself counting in decreasing order.  So pkt_num
          = 987 and len = 2, this entry includes packet 987 and 986. */
       size_t len;
-      /* tstamp is the timestamp when a packet denoted by pkt_num is
-         received. */
-      ngtcp2_tstamp tstamp;
     };
 
     ngtcp2_opl_entry oplent;
@@ -79,7 +76,6 @@ ngtcp2_objalloc_decl(acktr_entry, ngtcp2_acktr_entry, oplent)
  *     Out of memory.
  */
 int ngtcp2_acktr_entry_objalloc_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
-                                    ngtcp2_tstamp tstamp,
                                     ngtcp2_objalloc *objalloc);
 
 /*
