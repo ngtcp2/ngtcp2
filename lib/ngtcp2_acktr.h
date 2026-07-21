@@ -48,18 +48,11 @@ typedef struct ngtcp2_log ngtcp2_log;
  */
 typedef struct ngtcp2_acktr_entry {
   union {
-    struct {
-      /* pkt_num is the largest packet number to acknowledge in this
-         range. */
-      int64_t pkt_num;
-      /* len is the consecutive packets started from pkt_num which
-         includes pkt_num itself counting in decreasing order.  So pkt_num
-         = 987 and len = 2, this entry includes packet 987 and 986. */
-      size_t len;
-      /* tstamp is the timestamp when a packet denoted by pkt_num is
-         received. */
-      ngtcp2_tstamp tstamp;
-    };
+    /* len is the consecutive packets started from pkt_num (the key in
+       ngtcp2_ksl structure) which includes pkt_num itself counting in
+       decreasing order.  So pkt_num = 987 and len = 2, this entry
+       includes packet 987 and 986. */
+    size_t len;
 
     ngtcp2_opl_entry oplent;
   };
@@ -69,8 +62,8 @@ ngtcp2_objalloc_decl(acktr_entry, ngtcp2_acktr_entry, oplent)
 
 /*
  * ngtcp2_acktr_entry_objalloc_new allocates memory for ent, and
- * initializes it with the given parameters.  The pointer to the
- * allocated object is stored to |*ent|.
+ * initializes it.  The pointer to the allocated object is stored to
+ * |*ent|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -78,8 +71,7 @@ ngtcp2_objalloc_decl(acktr_entry, ngtcp2_acktr_entry, oplent)
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_acktr_entry_objalloc_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
-                                    ngtcp2_tstamp tstamp,
+int ngtcp2_acktr_entry_objalloc_new(ngtcp2_acktr_entry **ent,
                                     ngtcp2_objalloc *objalloc);
 
 /*
@@ -180,10 +172,10 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
 
 /*
  * ngtcp2_acktr_forget removes all entries which have the packet
- * number that is equal to or less than ent->pkt_num.  This function
- * assumes that |acktr| includes |ent|.
+ * number that is equal to or less than |pkt_num|.  This function
+ * assumes that |acktr| includes the entry whose key is |pkt_num|.
  */
-void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
+void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, int64_t pkt_num);
 
 /*
  * ngtcp2_acktr_get returns the iterator to pointer to the entry which

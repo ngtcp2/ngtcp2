@@ -32,24 +32,20 @@
 
 ngtcp2_objalloc_def(acktr_entry, ngtcp2_acktr_entry, oplent)
 
-static void acktr_entry_init(ngtcp2_acktr_entry *ent, int64_t pkt_num,
-                             ngtcp2_tstamp tstamp) {
+static void acktr_entry_init(ngtcp2_acktr_entry *ent) {
   *ent = (ngtcp2_acktr_entry){
-    .pkt_num = pkt_num,
     .len = 1,
-    .tstamp = tstamp,
   };
 }
 
-int ngtcp2_acktr_entry_objalloc_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
-                                    ngtcp2_tstamp tstamp,
+int ngtcp2_acktr_entry_objalloc_new(ngtcp2_acktr_entry **ent,
                                     ngtcp2_objalloc *objalloc) {
   *ent = ngtcp2_objalloc_acktr_entry_get(objalloc);
   if (*ent == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
 
-  acktr_entry_init(*ent, pkt_num, tstamp);
+  acktr_entry_init(*ent);
 
   return 0;
 }
@@ -102,7 +98,8 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
 int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
                      ngtcp2_tstamp ts) {
   ngtcp2_ksl_it it, prev_it;
-  ngtcp2_acktr_entry *ent, *prev_ent, *delent;
+  ngtcp2_acktr_entry *ent, *prev_ent;
+  int64_t ent_pkt_num, prev_ent_pkt_num;
   int rv;
   int added = 0;
 
@@ -110,48 +107,47 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
     it = ngtcp2_ksl_lower_bound(&acktr->ents, &pkt_num);
     if (ngtcp2_ksl_it_end(&it)) {
       ngtcp2_ksl_it_prev(&it);
+      ent_pkt_num = *(const int64_t *)ngtcp2_ksl_it_key(&it);
       ent = ngtcp2_ksl_it_get(&it);
 
-      assert(ent->pkt_num >= pkt_num + (int64_t)ent->len);
+      assert(ent_pkt_num >= pkt_num + (int64_t)ent->len);
 
-      if (ent->pkt_num == pkt_num + (int64_t)ent->len) {
+      if (ent_pkt_num == pkt_num + (int64_t)ent->len) {
         ++ent->len;
         added = 1;
       }
     } else {
+      ent_pkt_num = *(const int64_t *)ngtcp2_ksl_it_key(&it);
       ent = ngtcp2_ksl_it_get(&it);
 
-      assert(ent->pkt_num != pkt_num);
+      assert(ent_pkt_num != pkt_num);
 
       if (ngtcp2_ksl_it_begin(&it)) {
-        if (ent->pkt_num + 1 == pkt_num) {
-          ngtcp2_ksl_update_key(&acktr->ents, &ent->pkt_num, &pkt_num);
-          ent->pkt_num = pkt_num;
-          ent->tstamp = ts;
+        if (ent_pkt_num + 1 == pkt_num) {
+          ngtcp2_ksl_update_key(&acktr->ents, &ent_pkt_num, &pkt_num);
           ++ent->len;
           added = 1;
         }
       } else {
         prev_it = it;
         ngtcp2_ksl_it_prev(&prev_it);
+        prev_ent_pkt_num = *(const int64_t *)ngtcp2_ksl_it_key(&prev_it);
         prev_ent = ngtcp2_ksl_it_get(&prev_it);
 
-        assert(prev_ent->pkt_num >= pkt_num + (int64_t)prev_ent->len);
+        assert(prev_ent_pkt_num >= pkt_num + (int64_t)prev_ent->len);
 
-        if (ent->pkt_num + 1 == pkt_num) {
-          if (prev_ent->pkt_num == pkt_num + (int64_t)prev_ent->len) {
+        if (ent_pkt_num + 1 == pkt_num) {
+          if (prev_ent_pkt_num == pkt_num + (int64_t)prev_ent->len) {
             prev_ent->len += ent->len + 1;
-            ngtcp2_ksl_remove_hint(&acktr->ents, NULL, &it, &ent->pkt_num);
+            ngtcp2_ksl_remove_hint(&acktr->ents, NULL, &it, &ent_pkt_num);
             ngtcp2_acktr_entry_objalloc_del(ent, &acktr->objalloc);
             added = 1;
           } else {
-            ngtcp2_ksl_update_key(&acktr->ents, &ent->pkt_num, &pkt_num);
-            ent->pkt_num = pkt_num;
-            ent->tstamp = ts;
+            ngtcp2_ksl_update_key(&acktr->ents, &ent_pkt_num, &pkt_num);
             ++ent->len;
             added = 1;
           }
-        } else if (prev_ent->pkt_num == pkt_num + (int64_t)prev_ent->len) {
+        } else if (prev_ent_pkt_num == pkt_num + (int64_t)prev_ent->len) {
           ++prev_ent->len;
           added = 1;
         }
@@ -160,11 +156,11 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
   }
 
   if (!added) {
-    rv = ngtcp2_acktr_entry_objalloc_new(&ent, pkt_num, ts, &acktr->objalloc);
+    rv = ngtcp2_acktr_entry_objalloc_new(&ent, &acktr->objalloc);
     if (rv != 0) {
       return rv;
     }
-    rv = ngtcp2_ksl_insert(&acktr->ents, NULL, &ent->pkt_num, ent);
+    rv = ngtcp2_ksl_insert(&acktr->ents, NULL, &pkt_num, ent);
     if (rv != 0) {
       ngtcp2_acktr_entry_objalloc_del(ent, &acktr->objalloc);
       return rv;
@@ -181,9 +177,10 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
   if (ngtcp2_ksl_len(&acktr->ents) > NGTCP2_ACKTR_MAX_ENT) {
     it = ngtcp2_ksl_end(&acktr->ents);
     ngtcp2_ksl_it_prev(&it);
-    delent = ngtcp2_ksl_it_get(&it);
-    ngtcp2_ksl_remove_hint(&acktr->ents, NULL, &it, &delent->pkt_num);
-    ngtcp2_acktr_entry_objalloc_del(delent, &acktr->objalloc);
+    ent_pkt_num = *(const int64_t *)ngtcp2_ksl_it_key(&it);
+    ent = ngtcp2_ksl_it_get(&it);
+    ngtcp2_ksl_remove_hint(&acktr->ents, NULL, &it, &ent_pkt_num);
+    ngtcp2_acktr_entry_objalloc_del(ent, &acktr->objalloc);
   }
 
   if (acktr->max_pkt_num < pkt_num) {
@@ -194,15 +191,17 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
   return 0;
 }
 
-void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent) {
+void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, int64_t pkt_num) {
   ngtcp2_ksl_it it;
+  ngtcp2_acktr_entry *ent;
 
-  it = ngtcp2_ksl_lower_bound(&acktr->ents, &ent->pkt_num);
-  assert(*(int64_t *)ngtcp2_ksl_it_key(&it) == (int64_t)ent->pkt_num);
+  it = ngtcp2_ksl_lower_bound(&acktr->ents, &pkt_num);
+  assert(pkt_num == *(const int64_t *)ngtcp2_ksl_it_key(&it));
 
   for (; !ngtcp2_ksl_it_end(&it);) {
+    pkt_num = *(const int64_t *)ngtcp2_ksl_it_key(&it);
     ent = ngtcp2_ksl_it_get(&it);
-    ngtcp2_ksl_remove_hint(&acktr->ents, &it, &it, &ent->pkt_num);
+    ngtcp2_ksl_remove_hint(&acktr->ents, &it, &it, &pkt_num);
     ngtcp2_acktr_entry_objalloc_del(ent, &acktr->objalloc);
   }
 }
@@ -236,7 +235,9 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
  */
 static void acktr_remove(ngtcp2_acktr *acktr, ngtcp2_ksl_it *it,
                          ngtcp2_acktr_entry *ent) {
-  ngtcp2_ksl_remove_hint(&acktr->ents, it, it, &ent->pkt_num);
+  int64_t pkt_num = *(const int64_t *)ngtcp2_ksl_it_key(it);
+
+  ngtcp2_ksl_remove_hint(&acktr->ents, it, it, &pkt_num);
   ngtcp2_acktr_entry_objalloc_del(ent, &acktr->objalloc);
 }
 
@@ -245,6 +246,7 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, ngtcp2_ringbuf *rb,
   ngtcp2_acktr_ack_entry *ack_ent;
   ngtcp2_acktr_entry *ent;
   ngtcp2_ksl_it it;
+  int64_t ent_pkt_num;
 
   assert(ngtcp2_ringbuf_len(rb));
 
@@ -261,12 +263,13 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, ngtcp2_ringbuf *rb,
     assert(ngtcp2_ksl_it_end(&it));
 
     ngtcp2_ksl_it_prev(&it);
+    ent_pkt_num = *(const int64_t *)ngtcp2_ksl_it_key(&it);
     ent = ngtcp2_ksl_it_get(&it);
 
-    assert(ent->pkt_num > ack_ent->largest_ack);
+    assert(ent_pkt_num > ack_ent->largest_ack);
 
-    if (ack_ent->largest_ack + (int64_t)ent->len > ent->pkt_num) {
-      ent->len = (size_t)(ent->pkt_num - ack_ent->largest_ack);
+    if (ack_ent->largest_ack + (int64_t)ent->len > ent_pkt_num) {
+      ent->len = (size_t)(ent_pkt_num - ack_ent->largest_ack);
     }
   }
 
@@ -341,11 +344,10 @@ int ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr, ngtcp2_ack *ack,
                                   uint8_t type, ngtcp2_tstamp ts,
                                   ngtcp2_duration ack_delay,
                                   uint64_t ack_delay_exponent) {
-  int64_t last_pkt_num;
+  int64_t last_pkt_num, rpkt_pkt_num;
   ngtcp2_ack_range *range;
   ngtcp2_ksl_it it;
   ngtcp2_acktr_entry *rpkt;
-  ngtcp2_tstamp largest_ack_ts;
   size_t num_acks;
 
   if (acktr->flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK) {
@@ -374,35 +376,33 @@ int ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr, ngtcp2_ack *ack,
   }
   ack->rangecnt = 0;
 
+  rpkt_pkt_num = *(const int64_t *)ngtcp2_ksl_it_key(&it);
   rpkt = ngtcp2_ksl_it_get(&it);
 
-  if (rpkt->pkt_num == acktr->max_pkt_num) {
-    last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
-    largest_ack_ts = rpkt->tstamp;
-    ack->largest_ack = rpkt->pkt_num;
+  if (rpkt_pkt_num == acktr->max_pkt_num) {
+    last_pkt_num = rpkt_pkt_num - (int64_t)(rpkt->len - 1);
+    ack->largest_ack = rpkt_pkt_num;
     ack->first_ack_range = rpkt->len - 1;
 
     ngtcp2_ksl_it_next(&it);
     --num_acks;
-  } else if (rpkt->pkt_num + 1 == acktr->max_pkt_num) {
-    last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
-    largest_ack_ts = acktr->max_pkt_ts;
+  } else if (rpkt_pkt_num + 1 == acktr->max_pkt_num) {
+    last_pkt_num = rpkt_pkt_num - (int64_t)(rpkt->len - 1);
     ack->largest_ack = acktr->max_pkt_num;
     ack->first_ack_range = rpkt->len;
 
     ngtcp2_ksl_it_next(&it);
     --num_acks;
   } else {
-    assert(rpkt->pkt_num < acktr->max_pkt_num);
+    assert(rpkt_pkt_num < acktr->max_pkt_num);
 
     last_pkt_num = acktr->max_pkt_num;
-    largest_ack_ts = acktr->max_pkt_ts;
     ack->largest_ack = acktr->max_pkt_num;
     ack->first_ack_range = 0;
   }
 
   if (type == NGTCP2_PKT_1RTT) {
-    ack->ack_delay_unscaled = ts - largest_ack_ts;
+    ack->ack_delay_unscaled = ts - acktr->max_pkt_ts;
     ack->ack_delay = ack->ack_delay_unscaled / NGTCP2_MICROSECONDS /
                      (1ULL << ack_delay_exponent);
   } else {
@@ -413,13 +413,14 @@ int ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr, ngtcp2_ack *ack,
   num_acks = ngtcp2_min(num_acks, NGTCP2_MAX_ACK_RANGES);
 
   for (; ack->rangecnt < num_acks; ngtcp2_ksl_it_next(&it)) {
+    rpkt_pkt_num = *(const int64_t *)ngtcp2_ksl_it_key(&it);
     rpkt = ngtcp2_ksl_it_get(&it);
 
     range = &ack->ranges[ack->rangecnt++];
-    range->gap = (uint64_t)(last_pkt_num - rpkt->pkt_num - 2);
+    range->gap = (uint64_t)(last_pkt_num - rpkt_pkt_num - 2);
     range->len = rpkt->len - 1;
 
-    last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
+    last_pkt_num = rpkt_pkt_num - (int64_t)(rpkt->len - 1);
   }
 
   return 0;
