@@ -8466,7 +8466,8 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   it = ngtcp2_acktr_get(&conn->in_pktns->acktr);
   ackent = ngtcp2_ksl_it_get(&it);
 
-  assert_int64(tpe.initial.last_pkt_num, ==, ackent->pkt_num);
+  assert_int64(tpe.initial.last_pkt_num, ==,
+               *(const int64_t *)ngtcp2_ksl_it_key(&it));
   assert_size(2, ==, ackent->len);
 
   ngtcp2_ksl_it_next(&it);
@@ -8509,7 +8510,8 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   it = ngtcp2_acktr_get(&conn->pktns.acktr);
   ackent = ngtcp2_ksl_it_get(&it);
 
-  assert_int64(tpe.app.last_pkt_num, ==, ackent->pkt_num);
+  assert_int64(tpe.app.last_pkt_num, ==,
+               *(const int64_t *)ngtcp2_ksl_it_key(&it));
 
   it = ngtcp2_acktr_get(&conn->hs_pktns->acktr);
 
@@ -16663,7 +16665,8 @@ void test_ngtcp2_conn_create_ack_frame(void) {
 
   assert_false(ngtcp2_ksl_it_end(&it));
 
-  ngtcp2_acktr_forget(&conn->pktns.acktr, ngtcp2_ksl_it_get(&it));
+  ngtcp2_acktr_forget(&conn->pktns.acktr,
+                      *(const int64_t *)ngtcp2_ksl_it_key(&it));
 
   tpe.app.last_pkt_num = -1;
 
@@ -16723,7 +16726,8 @@ void test_ngtcp2_conn_create_ack_frame(void) {
 
   assert_false(ngtcp2_ksl_it_end(&it));
 
-  ngtcp2_acktr_forget(&conn->pktns.acktr, ngtcp2_ksl_it_get(&it));
+  ngtcp2_acktr_forget(&conn->pktns.acktr,
+                      *(const int64_t *)ngtcp2_ksl_it_key(&it));
 
   fr.ping.type = NGTCP2_FRAME_PING;
 
@@ -16814,7 +16818,8 @@ void test_ngtcp2_conn_create_ack_frame(void) {
 
   assert_false(ngtcp2_ksl_it_end(&it));
 
-  ngtcp2_acktr_forget(&conn->pktns.acktr, ngtcp2_ksl_it_get(&it));
+  ngtcp2_acktr_forget(&conn->pktns.acktr,
+                      *(const int64_t *)ngtcp2_ksl_it_key(&it));
 
   fr.ping.type = NGTCP2_FRAME_PING;
 
