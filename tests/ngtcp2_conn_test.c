@@ -8430,7 +8430,7 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   ngtcp2_frame fr;
   int64_t pkt_num = 1;
   ngtcp2_tstamp t = 0;
-  ngtcp2_acktr_entry *ackent;
+  const ngtcp2_pkt_range *ackent;
   int rv;
   ngtcp2_ksl_it it;
   ngtcp2_tpe tpe;
@@ -8464,10 +8464,9 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   assert_ptrdiff(0, <, spktlen);
 
   it = ngtcp2_acktr_get(&conn->in_pktns->acktr);
-  ackent = ngtcp2_ksl_it_get(&it);
+  ackent = ngtcp2_ksl_it_key(&it);
 
-  assert_int64(tpe.initial.last_pkt_num, ==,
-               *(const int64_t *)ngtcp2_ksl_it_key(&it));
+  assert_int64(tpe.initial.last_pkt_num, ==, ackent->pkt_num);
   assert_size(2, ==, ackent->len);
 
   ngtcp2_ksl_it_next(&it);
@@ -8508,10 +8507,9 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   assert_int(0, ==, rv);
 
   it = ngtcp2_acktr_get(&conn->pktns.acktr);
-  ackent = ngtcp2_ksl_it_get(&it);
+  ackent = ngtcp2_ksl_it_key(&it);
 
-  assert_int64(tpe.app.last_pkt_num, ==,
-               *(const int64_t *)ngtcp2_ksl_it_key(&it));
+  assert_int64(tpe.app.last_pkt_num, ==, ackent->pkt_num);
 
   it = ngtcp2_acktr_get(&conn->hs_pktns->acktr);
 
@@ -16563,6 +16561,7 @@ void test_ngtcp2_conn_create_ack_frame(void) {
   ngtcp2_ksl_it it;
   size_t i;
   ngtcp2_ack_range ar;
+  const ngtcp2_pkt_range *ackent;
   ngtcp2_tpe tpe;
   ngtcp2_settings settings;
   conn_options opts;
@@ -16665,8 +16664,8 @@ void test_ngtcp2_conn_create_ack_frame(void) {
 
   assert_false(ngtcp2_ksl_it_end(&it));
 
-  ngtcp2_acktr_forget(&conn->pktns.acktr,
-                      *(const int64_t *)ngtcp2_ksl_it_key(&it));
+  ackent = ngtcp2_ksl_it_key(&it);
+  ngtcp2_acktr_forget(&conn->pktns.acktr, ackent->pkt_num);
 
   tpe.app.last_pkt_num = -1;
 
@@ -16726,8 +16725,8 @@ void test_ngtcp2_conn_create_ack_frame(void) {
 
   assert_false(ngtcp2_ksl_it_end(&it));
 
-  ngtcp2_acktr_forget(&conn->pktns.acktr,
-                      *(const int64_t *)ngtcp2_ksl_it_key(&it));
+  ackent = ngtcp2_ksl_it_key(&it);
+  ngtcp2_acktr_forget(&conn->pktns.acktr, ackent->pkt_num);
 
   fr.ping.type = NGTCP2_FRAME_PING;
 
@@ -16818,8 +16817,8 @@ void test_ngtcp2_conn_create_ack_frame(void) {
 
   assert_false(ngtcp2_ksl_it_end(&it));
 
-  ngtcp2_acktr_forget(&conn->pktns.acktr,
-                      *(const int64_t *)ngtcp2_ksl_it_key(&it));
+  ackent = ngtcp2_ksl_it_key(&it);
+  ngtcp2_acktr_forget(&conn->pktns.acktr, ackent->pkt_num);
 
   fr.ping.type = NGTCP2_FRAME_PING;
 
