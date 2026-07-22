@@ -13513,6 +13513,7 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   }
 
   ++cstat->pto_count;
+  cstat->pto_count = ngtcp2_min(cstat->pto_count, 30);
 
   ngtcp2_log_infof(&conn->log, NGTCP2_LOG_EVENT_LDC,
                    "pto_count=", cstat->pto_count);

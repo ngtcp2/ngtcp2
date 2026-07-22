@@ -227,19 +227,18 @@ static int ksl_split_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i) {
 static int ksl_split_root(ngtcp2_ksl *ksl) {
   ngtcp2_ksl_blk *rblk = NULL, *lblk, *nroot = NULL;
 
+  nroot = ksl_blk_objalloc_new(ksl);
+  if (nroot == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
   rblk = ksl_split_blk(ksl, ksl->root);
   if (rblk == NULL) {
+    ksl_blk_objalloc_del(ksl, nroot);
     return NGTCP2_ERR_NOMEM;
   }
 
   lblk = ksl->root;
-
-  nroot = ksl_blk_objalloc_new(ksl);
-
-  if (nroot == NULL) {
-    ksl_blk_objalloc_del(ksl, rblk);
-    return NGTCP2_ERR_NOMEM;
-  }
 
   nroot->next = nroot->prev = NULL;
   nroot->n = 2;
