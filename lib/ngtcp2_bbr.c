@@ -64,6 +64,8 @@
 
 #define NGTCP2_BBR_MAX_DRAIN_ROUNDS 3
 
+#define NGTCP2_BBR_MAX_BDP (100 * (1ULL << 30))
+
 static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                         ngtcp2_tstamp initial_ts);
 
@@ -1228,7 +1230,13 @@ static uint64_t bbr_bdp_multiple(ngtcp2_cc_bbr *bbr, uint64_t gain_h) {
     return bbr->initial_cwnd;
   }
 
-  bbr->bdp = ngtcp2_max(bbr->bw * bbr->min_rtt / NGTCP2_SECONDS, 1);
+  if (bbr->min_rtt && bbr->bw > NGTCP2_BBR_MAX_BDP / bbr->min_rtt) {
+    bbr->bdp = NGTCP2_BBR_MAX_BDP;
+  } else {
+    bbr->bdp = ngtcp2_max(
+      ngtcp2_min(NGTCP2_BBR_MAX_BDP, bbr->bw * bbr->min_rtt / NGTCP2_SECONDS),
+      1);
+  }
 
   return (uint64_t)(bbr->bdp * gain_h / 100);
 }
