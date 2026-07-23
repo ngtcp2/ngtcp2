@@ -8828,13 +8828,16 @@ static void conn_rotate_keys(ngtcp2_conn *conn, int64_t pkt_num,
 
 /*
  * conn_path_validation_in_progress returns nonzero if path validation
- * against |path| is underway.
+ * against |path| is underway.  Ignore the path validation with
+ * NGTCP2_PV_FLAG_DONT_CARE flag set, that is performed after the
+ * successful migration.  Client might migrate back to this path.
  */
 static int conn_path_validation_in_progress(const ngtcp2_conn *conn,
                                             const ngtcp2_path *path) {
   const ngtcp2_pv *pv = conn->pv;
 
-  return pv && ngtcp2_path_eq(&pv->dcid.ps.path, path);
+  return pv && ngtcp2_path_eq(&pv->dcid.ps.path, path) &&
+         !(pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
 }
 
 /*
