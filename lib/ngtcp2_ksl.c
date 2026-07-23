@@ -225,7 +225,7 @@ static int ksl_split_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i) {
  *     Out of memory.
  */
 static int ksl_split_root(ngtcp2_ksl *ksl) {
-  ngtcp2_ksl_blk *rblk = NULL, *lblk, *nroot = NULL;
+  ngtcp2_ksl_blk *rblk, *lblk, *nroot;
 
   nroot = ksl_blk_objalloc_new(ksl);
   if (nroot == NULL) {
