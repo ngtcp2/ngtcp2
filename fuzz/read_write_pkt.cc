@@ -45,8 +45,6 @@ extern "C" {
 #endif // defined(__cplusplus)
 
 namespace {
-constexpr size_t NGTCP2_FAKE_AEAD_OVERHEAD = NGTCP2_INITIAL_AEAD_OVERHEAD;
-
 const uint8_t null_secret[32]{};
 const uint8_t null_iv[16]{};
 } // namespace
@@ -105,7 +103,7 @@ int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
     memcpy(dest, plaintext, plaintextlen);
   }
 
-  memset(dest + plaintextlen, 0, NGTCP2_FAKE_AEAD_OVERHEAD);
+  memset(dest + plaintextlen, 0, aead->max_overhead);
 
   return 0;
 }
@@ -117,9 +115,11 @@ int null_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                  const uint8_t *ciphertext, size_t ciphertextlen,
                  const uint8_t *nonce, size_t noncelen, const uint8_t *aad,
                  size_t aadlen) {
-  assert(ciphertextlen >= NGTCP2_FAKE_AEAD_OVERHEAD);
+  if (ciphertextlen < aead->max_overhead) {
+    return NGTCP2_ERR_DECRYPT;
+  }
 
-  memcpy(dest, ciphertext, ciphertextlen - NGTCP2_FAKE_AEAD_OVERHEAD);
+  memcpy(dest, ciphertext, ciphertextlen - aead->max_overhead);
 
   return 0;
 }
@@ -531,6 +531,26 @@ int get_path_challenge_data2(ngtcp2_conn *conn,
 } // namespace
 
 namespace {
+int recv_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
+                      uint64_t app_error_code, void *user_data,
+                      void *stream_user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
+int stream_close2(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
+                  uint64_t rx_app_error_code, uint64_t tx_app_error_code,
+                  void *user_data, void *stream_user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
 void init_path(ngtcp2_path_storage *ps) {
   addrinfo *local, *remote,
     hints{
@@ -637,6 +657,8 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
     .get_new_connection_id2 = get_new_connection_id2,
     .dcid_status2 = dcid_status2,
     .get_path_challenge_data2 = get_path_challenge_data2,
+    .recv_stop_sending = recv_stop_sending,
+    .stream_close2 = stream_close2,
   };
 
   if (fuzzed_data_provider.ConsumeBool()) {
@@ -655,21 +677,32 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
     cb.get_path_challenge_data2 = nullptr;
   }
 
-  static const ngtcp2_cid dcid = {
-    .datalen = 17,
-    .data = {0x10, 0xE7, 0x43, 0x2A, 0xAF, 0x7A, 0x19, 0xB0, 0x3C, 0x34, 0xB3,
-             0x3F, 0xC1, 0x8D, 0xE7, 0x90, 0x36},
+  if (fuzzed_data_provider.ConsumeBool()) {
+    cb.stream_close2 = nullptr;
+  }
+
+  ngtcp2_cid dcid = {
+    .datalen = fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(
+      0, NGTCP2_MAX_CIDLEN),
   };
-  static const ngtcp2_cid scid = {
-    .datalen = 18,
-    .data = {0x8D, 0x8F, 0x16, 0x90, 0x4E, 0x41, 0x90, 0xB1, 0x70, 0x1E, 0x5C,
-             0x5D, 0x00, 0x09, 0x92, 0x1D, 0xDF, 0xAB},
+  ngtcp2_cid scid = {
+    .datalen = fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(
+      0, NGTCP2_MAX_CIDLEN),
   };
-  static const ngtcp2_cid odcid = {
-    .datalen = 18,
-    .data = {0xAA, 0x0A, 0x9D, 0x0E, 0xA4, 0xC7, 0xB1, 0x54, 0x50, 0xF5, 0x51,
-             0x94, 0x5E, 0xD6, 0x16, 0x9D, 0xE3, 0x57},
+  ngtcp2_cid odcid = {
+    .datalen = fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(
+      NGTCP2_MIN_INITIAL_DCIDLEN, NGTCP2_MAX_CIDLEN),
   };
+
+  auto cid_init = [&fuzzed_data_provider](ngtcp2_cid &cid) {
+    for (size_t i = 0; i < cid.datalen; ++i) {
+      cid.data[i] = fuzzed_data_provider.ConsumeIntegral<uint8_t>();
+    }
+  };
+
+  cid_init(dcid);
+  cid_init(scid);
+  cid_init(odcid);
 
   ngtcp2_path_storage ps;
 
@@ -689,16 +722,27 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
   ngtcp2_transport_params_default(&params);
 
   params.original_dcid = odcid;
-  params.initial_max_stream_data_bidi_local = 65535;
-  params.initial_max_stream_data_bidi_remote = 65535;
-  params.initial_max_stream_data_uni = 65535;
-  params.initial_max_data = 128 * 1024;
-  params.initial_max_streams_bidi = 3;
-  params.initial_max_streams_uni = 2;
-  params.max_idle_timeout = 60 * NGTCP2_SECONDS;
-  params.active_connection_id_limit = 8;
+  params.initial_max_stream_data_bidi_local =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  params.initial_max_stream_data_bidi_remote =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  params.initial_max_stream_data_uni =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  params.initial_max_data =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  params.initial_max_streams_bidi =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  params.initial_max_streams_uni =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  params.max_idle_timeout =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(0, NGTCP2_MAX_VARINT);
+  params.active_connection_id_limit =
+    fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(
+      NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT,
+      NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE);
   for (size_t i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
-    params.stateless_reset_token[i] = static_cast<uint8_t>(i);
+    params.stateless_reset_token[i] =
+      fuzzed_data_provider.ConsumeIntegral<uint8_t>();
   }
 
   ngtcp2_conn *conn;
@@ -725,10 +769,13 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
   ngtcp2_crypto_ctx crypto_ctx{
     .aead =
       {
-        .max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
+        .max_overhead =
+          fuzzed_data_provider.ConsumeIntegralInRange<size_t>(1, 32),
       },
-    .max_encryption = 9999,
-    .max_decryption_failure = 8888,
+    .max_encryption =
+      fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(1, 9999),
+    .max_decryption_failure =
+      fuzzed_data_provider.ConsumeIntegralInRange<uint64_t>(1, 8888),
   };
 
   ngtcp2_conn_set_initial_crypto_ctx(conn, &crypto_ctx);
@@ -818,7 +865,12 @@ namespace {
 int read_write(ngtcp2_conn *conn, FuzzedDataProvider &fuzzed_data_provider,
                const ngtcp2_path *path, ngtcp2_tstamp &ts) {
   auto pi = ngtcp2_pkt_info{
-    .ecn = NGTCP2_ECN_ECT_1,
+    .ecn = static_cast<uint8_t>(fuzzed_data_provider.PickValueInArray({
+      NGTCP2_ECN_NOT_ECT,
+      NGTCP2_ECN_ECT_1,
+      NGTCP2_ECN_ECT_0,
+      NGTCP2_ECN_CE,
+    })),
   };
 
   std::array<uint8_t, 1500> pkt;
