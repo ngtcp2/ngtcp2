@@ -58,6 +58,16 @@
    are not processed. */
 #define NGTCP2_MAX_ACK_PER_PKT 1
 
+/* NGTCP2_MAX_INITIAL_CRYPTO_OFFSET is the maximum offset of CRYPTO
+   data at Initial encryption level. */
+#define NGTCP2_MAX_INITIAL_CRYPTO_OFFSET (64 * 1024)
+/* NGTCP2_MAX_HANDSHAKE_CRYPTO_OFFSET is the maximum offset of CRYPTO
+   data at Handshake encryption level. */
+#define NGTCP2_MAX_HANDSHAKE_CRYPTO_OFFSET (64 * 1024)
+/* NGTCP2_MAX_1RTT_CRYPTO_OFFSET is the maximum offset of CRYPTO data
+   at 1RTT encryption level. */
+#define NGTCP2_MAX_1RTT_CRYPTO_OFFSET (256 * 1024)
+
 ngtcp2_objalloc_def(strm, ngtcp2_strm, oplent)
 
 /*
@@ -7308,13 +7318,13 @@ static int conn_recv_crypto(ngtcp2_conn *conn,
      store. */
   switch (encryption_level) {
   case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
-    max_offset = conn->local.settings.max_initial_crypto_offset;
+    max_offset = NGTCP2_MAX_INITIAL_CRYPTO_OFFSET;
     break;
   case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
-    max_offset = conn->local.settings.max_handshake_crypto_offset;
+    max_offset = NGTCP2_MAX_HANDSHAKE_CRYPTO_OFFSET;
     break;
   case NGTCP2_ENCRYPTION_LEVEL_1RTT:
-    max_offset = conn->local.settings.max_1rtt_crypto_offset;
+    max_offset = NGTCP2_MAX_1RTT_CRYPTO_OFFSET;
     break;
   default:
     ngtcp2_unreachable();
