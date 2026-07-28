@@ -59,7 +59,8 @@ typedef uint64_t ngtcp2_transport_param_id;
 #define NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION 0x11U
 /* https://datatracker.ietf.org/doc/html/draft-ietf-quic-reliable-stream-reset
  */
-#define NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT 0x17F7586D2CB571ULL
+#define NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT 0x1DU
+#define NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT_DRAFT 0x17F7586D2CB571ULL
 
 /* NGTCP2_MAX_STREAMS is the maximum number of streams. */
 #define NGTCP2_MAX_STREAMS (1LL << 60)
