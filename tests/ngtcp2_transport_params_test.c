@@ -164,6 +164,8 @@ void test_ngtcp2_transport_params_encode(void) {
      sizeof(params.version_info.chosen_version) +
      params.version_info.available_versionslen) +
     (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT) +
+     ngtcp2_put_uvarintlen(0)) +
+    (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT_DRAFT) +
      ngtcp2_put_uvarintlen(0));
 
   nwrite = ngtcp2_transport_params_encode(NULL, 0, &params);
@@ -393,6 +395,8 @@ void test_ngtcp2_transport_params_decode_new(void) {
      sizeof(params.version_info.chosen_version) +
      params.version_info.available_versionslen) +
     (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT) +
+     ngtcp2_put_uvarintlen(0)) +
+    (ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT_DRAFT) +
      ngtcp2_put_uvarintlen(0));
 
   nwrite = ngtcp2_transport_params_encode(buf, sizeof(buf), &params);

@@ -233,6 +233,7 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
   }
   if (params->reset_stream_at) {
     len += zero_paramlen(NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT);
+    len += zero_paramlen(NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT_DRAFT);
   }
 
   if (dest == NULL && destlen == 0) {
@@ -385,6 +386,7 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
 
   if (params->reset_stream_at) {
     p = write_zero_param(p, NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT);
+    p = write_zero_param(p, NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT_DRAFT);
   }
 
   assert((size_t)(p - dest) == len);
@@ -757,6 +759,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       params->version_info_present = 1;
       break;
     case NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT:
+    case NGTCP2_TRANSPORT_PARAM_RESET_STREAM_AT_DRAFT:
       if (decode_zero_param(&p, end) != 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
