@@ -404,6 +404,128 @@ internally.  Please note that `ngtcp2_conn_write_aggregate_pkt()`
 requires the buffer of at least
 `ngtcp2_conn_get_path_max_tx_udp_payload_size2()` bytes long.
 
+Pseudo code for writing packets with GSO
+----------------------------------------
+
+As discussed in the previous section,
+`ngtcp2_conn_write_aggregate_pkt()` is a convenient function to batch
+multiple packets into a GSO buffer.  Conceptually, it looks like this:
+
+.. code-block:: c
+
+   int write_streams(ngtcp2_conn *conn) {
+     ngtcp2_path_storage ps;
+     ngtcp2_pkt_info pi;
+     size_t gso_size;
+     ngtcp2_tstamp ts = timestamp();
+     uint8_t *txbuf = ...; /* GSO buffer up to 64KiB */
+     size_t buflen = ...; /* size of txbuf */
+
+     ngtcp2_path_storage_zero(&ps);
+
+     ngtcp2_ssize nwrite = ngtcp2_conn_write_aggregate_pkt(
+       conn, &ps.path, &pi, txbuf, buflen, &gso_size, write_pkt,
+       ts);
+     if (nwrite < 0) {
+       return -1;
+     }
+
+     if (nwrite == 0) {
+       return 0;
+     }
+
+     send_packet(ps.path, pi.ecn, txbuf, (size_t)nwrite, gso_size);
+
+     return 0;
+   }
+
+`ngtcp2_conn_write_aggregate_pkt()` calls
+`ngtcp2_conn_update_pkt_tx_time()` internally, which sets up the timer
+for packet pacing.
+
+``write_pkt()`` is a function to produce a single UDP datagram
+payload:
+
+.. code-block:: c
+
+   ngtcp2_ssize write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
+			  ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
+			  ngtcp2_tstamp ts, void *user_data) {
+     ngtcp2_vec vec[16];
+
+     for (;;) {
+       int64_t stream_id = -1;
+       int fin = 0;
+       size_t veccnt = 0;
+
+       if (ngtcp2_conn_get_max_data_left2(conn)) {
+	 /* Get application stream data here.
+	    Fill stream_id, fin, vec, and veccnt. */
+	 ...
+       }
+
+       ngtcp2_ssize ndatalen;
+
+       uint32_t flags =
+	 NGTCP2_WRITE_STREAM_FLAG_MORE | NGTCP2_WRITE_STREAM_FLAG_PADDING;
+       if (fin) {
+	 flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
+       }
+
+       ngtcp2_ssize nwrite = ngtcp2_conn_writev_stream(
+	 conn, path, pi, dest, destlen, &ndatalen, flags, stream_id,
+	 vec, veccnt, ts);
+       if (nwrite < 0) {
+	 switch (nwrite) {
+	 case NGTCP2_ERR_STREAM_DATA_BLOCKED:
+	   /* The stream data cannot be written due to stream-level flow
+	      control.  Tell the application not to write this stream
+	      data until notified by
+	      ngtcp2_callbacks.extend_max_stream_data. */
+           ...
+	   continue;
+	 case NGTCP2_ERR_STREAM_SHUT_WR:
+	   /* The send side of the stream has closed.  Tell the application
+	      to close that side of the stream. */
+           ...
+	   continue;
+	 case NGTCP2_ERR_WRITE_MORE:
+	   /* We have written ndatalen bytes of data.  Tell the application
+	      that we made progress. */
+           ...
+	   continue;
+	 }
+
+	 return NGTCP2_ERR_CALLBACK_FAILURE;
+       }
+
+       if (ndatalen >= 0) {
+	 /* We have written ndatalen bytes of data.  Tell the application
+	    that we made progress. */
+         ...
+       }
+
+       /* If nwrite > 0, we made a complete UDP datagram payload.
+	  If nwrite == 0, no payload is produced, which means we have nothing
+	  to send at this time. */
+
+       return nwrite;
+     }
+   }
+
+Do not try to write the application stream data while
+`ngtcp2_conn_get_max_data_left2()` returns 0.  This ensures that
+:macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED` from
+`ngtcp2_conn_writev_stream()` is caused by stream-level flow control.
+Note that ``ndatalen`` could be 0, which is a valid write signal
+(e.g., only write fin without data).
+
+``write_streams()`` should be called after we have received any
+packets and processed them with `ngtcp2_conn_read_pkt()`.  It should
+also be called after `ngtcp2_conn_handle_expiry()`.  It is fine to
+just schedule the call, but generally ``write_streams()`` should be
+called as soon as possible to reduce the latency.
+
 Outgoing UDP datagram payload size
 ----------------------------------
 
