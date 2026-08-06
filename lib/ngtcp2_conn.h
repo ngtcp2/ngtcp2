@@ -459,6 +459,30 @@ struct ngtcp2_conn {
     ngtcp2_ccerr ccerr;
 
     struct {
+      /* unsent_max_streams is the maximum number of streams of peer
+         initiated bidirectional stream which the local endpoint can
+         accept.  This limit is not yet notified to the remote
+         endpoint. */
+      uint64_t unsent_max_streams;
+      /* max_streams is the maximum number of streams of peer
+         initiated bidirectional stream which the local endpoint can
+         accept. */
+      uint64_t max_streams;
+    } bidi;
+
+    struct {
+      /* unsent_max_streams is the maximum number of streams of peer
+         initiated unidirectional stream which the local endpoint can
+         accept.  This limit is not yet notified to the remote
+         endpoint. */
+      uint64_t unsent_max_streams;
+      /* max_streams is the maximum number of streams of peer
+         initiated unidirectional stream which the local endpoint can
+         accept. */
+      uint64_t max_streams;
+    } uni;
+
+    struct {
       /* pkt_num is the lowest incoming packet number of the packet
          that server verified preferred address usage of client. */
       int64_t pkt_num;
@@ -495,29 +519,6 @@ struct ngtcp2_conn {
        during handshake.  It is copied to transport_params when 1RTT
        key is available. */
     ngtcp2_transport_params *pending_transport_params;
-    struct {
-      /* unsent_max_streams is the maximum number of streams of peer
-         initiated bidirectional stream which the local endpoint can
-         accept.  This limit is not yet notified to the remote
-         endpoint. */
-      uint64_t unsent_max_streams;
-      /* max_streams is the maximum number of streams of peer
-         initiated bidirectional stream which the local endpoint can
-         accept. */
-      uint64_t max_streams;
-    } bidi;
-
-    struct {
-      /* unsent_max_streams is the maximum number of streams of peer
-         initiated unidirectional stream which the local endpoint can
-         accept.  This limit is not yet notified to the remote
-         endpoint. */
-      uint64_t unsent_max_streams;
-      /* max_streams is the maximum number of streams of peer
-         initiated unidirectional stream which the local endpoint can
-         accept. */
-      uint64_t max_streams;
-    } uni;
   } remote;
 
   struct {

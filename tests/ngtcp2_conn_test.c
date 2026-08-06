@@ -2562,7 +2562,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
 
   assert_uint64(1999, ==, strm->rx.last_offset);
   assert_true(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED);
-  assert_uint64(3, ==, conn->remote.bidi.unsent_max_streams);
+  assert_uint64(3, ==, conn->rx.bidi.unsent_max_streams);
 
   ngtcp2_conn_del(conn);
 
@@ -2587,7 +2587,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
 
   /* strm was created and then deleted. */
   assert_null(strm);
-  assert_uint64(2, ==, conn->remote.uni.unsent_max_streams);
+  assert_uint64(2, ==, conn->rx.uni.unsent_max_streams);
 
   ngtcp2_conn_del(conn);
 
@@ -3872,7 +3872,7 @@ void test_ngtcp2_conn_recv_streams_blocked(void) {
 
   fr.streams_blocked = (ngtcp2_streams_blocked){
     .type = NGTCP2_FRAME_STREAMS_BLOCKED_BIDI,
-    .max_streams = conn->remote.bidi.max_streams,
+    .max_streams = conn->rx.bidi.max_streams,
   };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
@@ -3888,7 +3888,7 @@ void test_ngtcp2_conn_recv_streams_blocked(void) {
 
   fr.streams_blocked = (ngtcp2_streams_blocked){
     .type = NGTCP2_FRAME_STREAMS_BLOCKED_BIDI,
-    .max_streams = conn->remote.bidi.max_streams + 1,
+    .max_streams = conn->rx.bidi.max_streams + 1,
   };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
@@ -3904,7 +3904,7 @@ void test_ngtcp2_conn_recv_streams_blocked(void) {
 
   fr.streams_blocked = (ngtcp2_streams_blocked){
     .type = NGTCP2_FRAME_STREAMS_BLOCKED_UNI,
-    .max_streams = conn->remote.uni.max_streams,
+    .max_streams = conn->rx.uni.max_streams,
   };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
@@ -3920,7 +3920,7 @@ void test_ngtcp2_conn_recv_streams_blocked(void) {
 
   fr.streams_blocked = (ngtcp2_streams_blocked){
     .type = NGTCP2_FRAME_STREAMS_BLOCKED_UNI,
-    .max_streams = conn->remote.uni.max_streams + 1,
+    .max_streams = conn->rx.uni.max_streams + 1,
   };
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
@@ -6403,8 +6403,8 @@ void test_ngtcp2_conn_cancel_retransmission(void) {
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   strm->flags |= NGTCP2_STRM_FLAG_FIN_ACKED | NGTCP2_STRM_FLAG_SHUT_RD;
 
-  conn->remote.bidi.max_streams += 100;
-  conn->remote.uni.max_streams += 100;
+  conn->rx.bidi.max_streams += 100;
+  conn->rx.uni.max_streams += 100;
 
   ngtcp2_conn_extend_max_offset(conn, 100);
 
@@ -14748,13 +14748,13 @@ void test_ngtcp2_conn_tls_early_data_rejected(void) {
   assert_uint64(conn->local.transport_params.initial_max_data + 1000, ==,
                 conn->rx.unsent_max_offset);
   assert_uint64(conn->local.transport_params.initial_max_streams_bidi + 7, ==,
-                conn->remote.bidi.unsent_max_streams);
+                conn->rx.bidi.unsent_max_streams);
   assert_uint64(conn->local.transport_params.initial_max_streams_bidi + 7, ==,
-                conn->remote.bidi.max_streams);
+                conn->rx.bidi.max_streams);
   assert_uint64(conn->local.transport_params.initial_max_streams_uni + 5, ==,
-                conn->remote.uni.unsent_max_streams);
+                conn->rx.uni.unsent_max_streams);
   assert_uint64(conn->local.transport_params.initial_max_streams_uni + 5, ==,
-                conn->remote.uni.max_streams);
+                conn->rx.uni.max_streams);
 
   fr.stream = (ngtcp2_stream){
     .type = NGTCP2_FRAME_CRYPTO,
@@ -14834,13 +14834,13 @@ void test_ngtcp2_conn_tls_early_data_rejected(void) {
   assert_uint64(conn->local.transport_params.initial_max_data, ==,
                 conn->rx.unsent_max_offset);
   assert_uint64(conn->local.transport_params.initial_max_streams_bidi, ==,
-                conn->remote.bidi.max_streams);
+                conn->rx.bidi.max_streams);
   assert_uint64(conn->local.transport_params.initial_max_streams_bidi, ==,
-                conn->remote.bidi.unsent_max_streams);
+                conn->rx.bidi.unsent_max_streams);
   assert_uint64(conn->local.transport_params.initial_max_streams_uni, ==,
-                conn->remote.uni.max_streams);
+                conn->rx.uni.max_streams);
   assert_uint64(conn->local.transport_params.initial_max_streams_uni, ==,
-                conn->remote.uni.unsent_max_streams);
+                conn->rx.uni.unsent_max_streams);
 
   ngtcp2_conn_del(conn);
 }
