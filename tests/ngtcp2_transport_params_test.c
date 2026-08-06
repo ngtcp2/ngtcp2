@@ -185,8 +185,6 @@ void test_ngtcp2_transport_params_encode(void) {
   rv = ngtcp2_transport_params_decode(&nparams, buf, len);
 
   assert_int(0, ==, rv);
-
-  assert_int(0, ==, rv);
   assert_uint64(params.initial_max_stream_data_bidi_local, ==,
                 nparams.initial_max_stream_data_bidi_local);
   assert_uint64(params.initial_max_stream_data_bidi_remote, ==,
