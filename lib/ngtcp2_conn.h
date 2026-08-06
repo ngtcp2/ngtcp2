@@ -495,7 +495,6 @@ struct ngtcp2_conn {
        key is available. */
     ngtcp2_transport_params *pending_transport_params;
     struct {
-      ngtcp2_idtr idtr;
       /* unsent_max_streams is the maximum number of streams of peer
          initiated bidirectional stream which the local endpoint can
          accept.  This limit is not yet notified to the remote
@@ -508,7 +507,6 @@ struct ngtcp2_conn {
     } bidi;
 
     struct {
-      ngtcp2_idtr idtr;
       /* unsent_max_streams is the maximum number of streams of peer
          initiated unidirectional stream which the local endpoint can
          accept.  This limit is not yet notified to the remote
@@ -520,6 +518,16 @@ struct ngtcp2_conn {
       uint64_t max_streams;
     } uni;
   } remote;
+
+  struct {
+    /* idtr tracks the stream ID usage. */
+    ngtcp2_idtr idtr;
+  } bidi;
+
+  struct {
+    /* idtr tracks the stream ID usage. */
+    ngtcp2_idtr idtr;
+  } uni;
 
   struct {
     struct {

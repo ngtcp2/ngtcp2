@@ -2624,8 +2624,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 1);
 
   assert_int(0, ==, rv);
-  assert_true(
-    ngtcp2_idtr_is_open(&conn->remote.bidi.idtr, fr.reset_stream.stream_id));
+  assert_true(ngtcp2_idtr_is_open(&conn->bidi.idtr, fr.reset_stream.stream_id));
 
   ngtcp2_conn_del(conn);
 
