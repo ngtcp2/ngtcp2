@@ -392,6 +392,24 @@ struct ngtcp2_conn {
     ngtcp2_tstamp last_max_data_ts;
 
     struct {
+      /* max_streams is the maximum number of bidirectional streams which
+         the local endpoint can open. */
+      uint64_t max_streams;
+      /* next_stream_id is the bidirectional stream ID which the local
+         endpoint opens next. */
+      int64_t next_stream_id;
+    } bidi;
+
+    struct {
+      /* max_streams is the maximum number of unidirectional streams
+         which the local endpoint can open. */
+      uint64_t max_streams;
+      /* next_stream_id is the unidirectional stream ID which the
+         local endpoint opens next. */
+      int64_t next_stream_id;
+    } uni;
+
+    struct {
       /* validation_start_ts is the timestamp when ECN validation is
          started.  It is UINT64_MAX if it has not started yet. */
       ngtcp2_tstamp validation_start_ts;
@@ -467,23 +485,6 @@ struct ngtcp2_conn {
     /* transport_params is the local transport parameters.  It is used
        for Short packet only. */
     ngtcp2_transport_params transport_params;
-    struct {
-      /* max_streams is the maximum number of bidirectional streams which
-         the local endpoint can open. */
-      uint64_t max_streams;
-      /* next_stream_id is the bidirectional stream ID which the local
-         endpoint opens next. */
-      int64_t next_stream_id;
-    } bidi;
-
-    struct {
-      /* max_streams is the maximum number of unidirectional streams
-         which the local endpoint can open. */
-      uint64_t max_streams;
-      /* next_stream_id is the unidirectional stream ID which the
-         local endpoint opens next. */
-      int64_t next_stream_id;
-    } uni;
   } local;
 
   struct {

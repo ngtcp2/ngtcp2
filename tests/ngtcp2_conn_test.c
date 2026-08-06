@@ -4686,7 +4686,7 @@ void test_ngtcp2_conn_recv_max_streams(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 1);
 
   assert_int(0, ==, rv);
-  assert_uint64(999, ==, conn->local.uni.max_streams);
+  assert_uint64(999, ==, conn->tx.uni.max_streams);
 
   fr.max_streams = (ngtcp2_max_streams){
     .type = NGTCP2_FRAME_MAX_STREAMS_BIDI,
@@ -4697,7 +4697,7 @@ void test_ngtcp2_conn_recv_max_streams(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 2);
 
   assert_int(0, ==, rv);
-  assert_uint64(997, ==, conn->local.bidi.max_streams);
+  assert_uint64(997, ==, conn->tx.bidi.max_streams);
 
   ngtcp2_conn_del(conn);
 }
@@ -8904,7 +8904,7 @@ void test_ngtcp2_conn_writev_stream(void) {
                              &null_aead_ctx, null_iv, sizeof(null_iv),
                              &null_hp_ctx);
 
-  conn->local.uni.max_streams = 1;
+  conn->tx.uni.max_streams = 1;
   conn->tx.max_offset = 1000;
 
   rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
@@ -8975,7 +8975,7 @@ void test_ngtcp2_conn_writev_stream(void) {
                              &null_aead_ctx, null_iv, sizeof(null_iv),
                              &null_hp_ctx);
 
-  conn->local.uni.max_streams = 1;
+  conn->tx.uni.max_streams = 1;
   conn->tx.max_offset = 1000;
 
   rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
