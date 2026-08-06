@@ -3500,6 +3500,8 @@ typedef int (*ngtcp2_stream_stop_sending)(ngtcp2_conn *conn, int64_t stream_id,
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
+ *
+ * .. version-added:: 1.24.0
  */
 typedef int (*ngtcp2_recv_stop_sending)(ngtcp2_conn *conn, int64_t stream_id,
                                         uint64_t app_error_code,
