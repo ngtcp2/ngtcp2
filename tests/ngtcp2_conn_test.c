@@ -3034,6 +3034,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   assert_uint64(NGTCP2_FRAME_RESET_STREAM, ==, frc->fr.hd.type);
   assert_uint64(NGTCP2_APP_ERR01, ==, frc->fr.reset_stream.app_error_code);
   assert_uint64(333, ==, frc->fr.reset_stream.final_size);
+  assert_not_null(ngtcp2_conn_find_stream(conn, stream_id));
 
   fr.ack = (ngtcp2_ack){
     .type = NGTCP2_FRAME_ACK,

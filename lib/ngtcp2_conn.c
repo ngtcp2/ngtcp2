@@ -8006,7 +8006,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
 
   ngtcp2_strm_streamfrq_clear(strm);
 
-  return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
+  return 0;
 }
 
 /*
