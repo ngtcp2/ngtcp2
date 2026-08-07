@@ -51,3 +51,7 @@ endif
 if HAVE_OSSL
 nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_ossl.h
 endif
+
+if HAVE_SCHANNEL
+nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_schannel.h
+endif

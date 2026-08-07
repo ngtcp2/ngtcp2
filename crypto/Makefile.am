@@ -54,4 +54,8 @@ if HAVE_OSSL
 SUBDIRS += ossl
 endif
 
+if HAVE_SCHANNEL
+SUBDIRS += schannel
+endif
+
 EXTRA_DIST = CMakeLists.txt

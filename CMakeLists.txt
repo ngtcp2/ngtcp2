@@ -52,6 +52,10 @@ set(CRYPTO_OSSL_LT_CURRENT 3)
 set(CRYPTO_OSSL_LT_REVISION 1)
 set(CRYPTO_OSSL_LT_AGE 3)
 
+set(CRYPTO_SCHANNEL_LT_CURRENT 1)
+set(CRYPTO_SCHANNEL_LT_REVISION 0)
+set(CRYPTO_SCHANNEL_LT_AGE 0)
+
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}")
 include(Version)
 
@@ -77,6 +81,11 @@ math(EXPR CRYPTO_OSSL_LT_SOVERSION
   "${CRYPTO_OSSL_LT_CURRENT} - ${CRYPTO_OSSL_LT_AGE}")
 set(CRYPTO_OSSL_LT_VERSION
   "${CRYPTO_OSSL_LT_SOVERSION}.${CRYPTO_OSSL_LT_AGE}.${CRYPTO_OSSL_LT_REVISION}")
+
+math(EXPR CRYPTO_SCHANNEL_LT_SOVERSION
+  "${CRYPTO_SCHANNEL_LT_CURRENT} - ${CRYPTO_SCHANNEL_LT_AGE}")
+set(CRYPTO_SCHANNEL_LT_VERSION
+  "${CRYPTO_SCHANNEL_LT_SOVERSION}.${CRYPTO_SCHANNEL_LT_AGE}.${CRYPTO_SCHANNEL_LT_REVISION}")
 
 set(PACKAGE_VERSION     "${PROJECT_VERSION}")
 HexVersion(PACKAGE_VERSION_NUM ${PROJECT_VERSION_MAJOR} ${PROJECT_VERSION_MINOR} ${PROJECT_VERSION_PATCH})
@@ -113,6 +122,7 @@ endif()
 
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
+include(CheckCSourceCompiles)
 
 include(CMakePushCheckState)
 
@@ -149,6 +159,9 @@ endif()
 if(ENABLE_JEMALLOC)
   find_package(Jemalloc REQUIRED)
 endif()
+if(ENABLE_SCHANNEL AND NOT WIN32)
+  message(FATAL_ERROR "Schannel is only available on Windows")
+endif()
 if(NOT ENABLE_LIB_ONLY)
   find_package(Libev 4.11)
   find_package(Libnghttp3 1.18.0)
@@ -157,7 +170,36 @@ if(NOT ENABLE_LIB_ONLY)
 endif()
 
 enable_testing()
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
+add_custom_target(check
+  COMMAND ${CMAKE_CTEST_COMMAND} --build-config $<CONFIG> --output-on-failure)
+
+if(ENABLE_SCHANNEL)
+  cmake_push_check_state()
+  set(CMAKE_REQUIRED_DEFINITIONS -DSECURITY_WIN32 -DWIN32_LEAN_AND_MEAN)
+  set(CMAKE_REQUIRED_LIBRARIES secur32 bcrypt)
+  check_c_source_compiles([[
+    #include <windows.h>
+    #include <security.h>
+    #include <schannel.h>
+    int main(void) {
+      SEC_FLAGS flags = { ISC_REQ_MESSAGES };
+      SEC_TRAFFIC_SECRETS secrets = {0};
+      SEND_GENERIC_TLS_EXTENSION *send_extension = 0;
+      SUBSCRIBE_GENERIC_TLS_EXTENSION subscribe_extension = {0};
+      return flags.Flags == 0 || secrets.TrafficSecretSize != 0 ||
+             send_extension != 0 || subscribe_extension.Flags != 0 ||
+             SECBUFFER_TRAFFIC_SECRETS != 28;
+    }
+  ]] HAVE_SCHANNEL_QUIC_API)
+  cmake_pop_check_state()
+  if(NOT HAVE_SCHANNEL_QUIC_API)
+    message(FATAL_ERROR "The selected Windows SDK does not expose the Schannel QUIC TLS API")
+  endif()
+  set(HAVE_SCHANNEL TRUE)
+  set(HAVE_CRYPTO TRUE)
+else()
+  set(HAVE_SCHANNEL FALSE)
+endif()
 
 # OpenSSL (required for libngtcp2_crypto_quictls,
 # libngtcp2_crypto_picotls and examples)
@@ -444,6 +486,7 @@ message(STATUS "summary of build options:
       BoringSSL:      ${HAVE_BORINGSSL} (LIBS='${BORINGSSL_LIBRARIES}')
       Picotls:        ${HAVE_PICOTLS} (LIBS='${PICOTLS_LIBRARIES}')
       wolfSSL:        ${HAVE_WOLFSSL} (LIBS='${WOLFSSL_LIBRARIES}')
+      Schannel:       ${HAVE_SCHANNEL}
       Jemalloc:       ${HAVE_JEMALLOC} (LIBS='${JEMALLOC_LIBRARIES}')
       Libbrotlienc:   ${HAVE_LIBBROTLIENC} (LIBS='${LIBBROTLIENC_LIBRARIES}')
       Libbrotlidec:   ${HAVE_LIBBROTLIDEC} (LIBS='${LIBBROTLIDEC_LIBRARIES}')

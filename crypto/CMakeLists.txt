@@ -66,3 +66,7 @@ if(HAVE_OSSL)
 elseif(ENABLE_OPENSSL)
   message(WARNING "libngtcp2_crypto_ossl library is disabled due to lack of good ossl")
 endif()
+
+if(HAVE_SCHANNEL)
+  add_subdirectory(schannel)
+endif()

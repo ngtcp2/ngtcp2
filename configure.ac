@@ -65,6 +65,10 @@ AC_SUBST(CRYPTO_OSSL_LT_CURRENT, 3)
 AC_SUBST(CRYPTO_OSSL_LT_REVISION, 1)
 AC_SUBST(CRYPTO_OSSL_LT_AGE, 3)
 
+AC_SUBST(CRYPTO_SCHANNEL_LT_CURRENT, 1)
+AC_SUBST(CRYPTO_SCHANNEL_LT_REVISION, 0)
+AC_SUBST(CRYPTO_SCHANNEL_LT_AGE, 0)
+
 # from nghttp2
 major=`echo $PACKAGE_VERSION |cut -d. -f1 | sed -e "s/[^0-9]//g"`
 minor=`echo $PACKAGE_VERSION |cut -d. -f2 | sed -e "s/[^0-9]//g"`
@@ -154,6 +158,11 @@ AC_ARG_WITH([wolfssl],
     [AS_HELP_STRING([--with-wolfssl],
                     [Use wolfSSL [default=no]])],
     [request_wolfssl=$withval], [request_wolfssl=no])
+
+AC_ARG_WITH([schannel],
+    [AS_HELP_STRING([--with-schannel],
+                    [Use Schannel and CNG [default=no]])],
+    [request_schannel=$withval], [request_schannel=no])
 
 AC_ARG_WITH([libbrotlienc],
     [AS_HELP_STRING([--with-libbrotlienc],
@@ -446,6 +455,46 @@ fi
 
 AM_CONDITIONAL([HAVE_WOLFSSL], [ test "x${have_wolfssl}" = "xyes" ])
 
+# Schannel and CNG (required for libngtcp2_crypto_schannel)
+have_schannel=no
+SCHANNEL_LIBS=
+if test "x${request_schannel}" != "xno"; then
+  save_CPPFLAGS="$CPPFLAGS"
+  save_LIBS="$LIBS"
+  CPPFLAGS="-DSECURITY_WIN32 -DWIN32_LEAN_AND_MEAN $CPPFLAGS"
+  LIBS="-lsecur32 -lbcrypt $LIBS"
+
+  AC_MSG_CHECKING([for Schannel QUIC TLS API])
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <windows.h>
+    #include <security.h>
+    #include <schannel.h>
+    #include <bcrypt.h>
+  ]], [[
+    SEC_FLAGS flags = { ISC_REQ_MESSAGES };
+    SEC_TRAFFIC_SECRETS secrets = {0};
+    SUBSCRIBE_GENERIC_TLS_EXTENSION subscribe_extension = {0};
+    BCryptGenRandom(NULL, NULL, 0, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+    FreeContextBuffer(NULL);
+    return flags.Flags == 0 || secrets.TrafficSecretSize != 0 ||
+           subscribe_extension.Flags != 0 ||
+           SECBUFFER_TRAFFIC_SECRETS != 28;
+  ]])],
+  [AC_MSG_RESULT([yes]); have_schannel=yes; SCHANNEL_LIBS="-lsecur32 -lbcrypt"],
+  [AC_MSG_RESULT([no]); have_schannel=no])
+
+  CPPFLAGS="$save_CPPFLAGS"
+  LIBS="$save_LIBS"
+fi
+
+if test "x${request_schannel}" = "xyes" &&
+   test "x${have_schannel}" != "xyes"; then
+  AC_MSG_ERROR([Schannel was requested (--with-schannel) but its QUIC TLS API was not found])
+fi
+
+AC_SUBST([SCHANNEL_LIBS])
+AM_CONDITIONAL([HAVE_SCHANNEL], [ test "x${have_schannel}" = "xyes" ])
+
 have_crypto=no
 if test "x${have_quictls}" = "xyes" ||
    test "x${have_libressl}" = "xyes" ||
@@ -453,6 +502,7 @@ if test "x${have_quictls}" = "xyes" ||
    test "x${have_boringssl}" = "xyes" ||
    test "x${have_picotls}" = "xyes" ||
    test "x${have_wolfssl}" = "xyes" ||
+   test "x${have_schannel}" = "xyes" ||
    test "x${have_ossl}" = "xyes"; then
   have_crypto=yes
 fi
@@ -821,6 +871,8 @@ AC_CONFIG_FILES([
   crypto/wolfssl/libngtcp2_crypto_wolfssl.pc
   crypto/ossl/Makefile
   crypto/ossl/libngtcp2_crypto_ossl.pc
+  crypto/schannel/Makefile
+  crypto/schannel/libngtcp2_crypto_schannel.pc
   doc/Makefile
   doc/source/conf.py
   third-party/Makefile
@@ -863,6 +915,7 @@ AC_MSG_NOTICE([summary of build options:
       libngtcp2_crypto_picotls:   ${have_picotls}
       libngtcp2_crypto_wolfssl:   ${have_wolfssl}
       libngtcp2_crypto_ossl:      ${have_ossl}
+      libngtcp2_crypto_schannel:  ${have_schannel}
     Cryptotest:       ${cryptotest}
     Debug:
       Debug:          ${debug} (CFLAGS='${DEBUGCFLAGS}')

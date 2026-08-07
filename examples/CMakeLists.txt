@@ -485,3 +485,23 @@ if(LIBEV_FOUND AND HAVE_OSSL AND LIBNGHTTP3_FOUND)
 
   # TODO prevent client and example servers from being installed?
 endif()
+
+if(HAVE_SCHANNEL)
+  if(TARGET ngtcp2_crypto_schannel)
+    set(schannel_example_crypto ngtcp2_crypto_schannel)
+  else()
+    set(schannel_example_crypto ngtcp2_crypto_schannel_static)
+  endif()
+
+  add_executable(schannelclient schannelclient.c schannel_common.c)
+  add_executable(schannelserver schannelserver.c schannel_common.c)
+  set_target_properties(schannelclient schannelserver PROPERTIES
+    COMPILE_FLAGS "${WARNCFLAGS}"
+  )
+  target_compile_definitions(schannelclient PRIVATE SECURITY_WIN32)
+  target_compile_definitions(schannelserver PRIVATE SECURITY_WIN32)
+  target_link_libraries(schannelclient
+    ${schannel_example_crypto} crypt32 ws2_32)
+  target_link_libraries(schannelserver
+    ${schannel_example_crypto} crypt32 ws2_32)
+endif()

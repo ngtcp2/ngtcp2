@@ -70,6 +70,8 @@ directory require at least one of the following TLS backends:
 - wolfSSL >= 5.5.0
 - LibreSSL >= v3.9.2
 - OpenSSL >= 3.5.0 (experimental)
+- Schannel with a Windows SDK and Windows runtime that provide the TLS
+  1.3 QUIC message-mode SSPI APIs
 
 Before building from git
 ------------------------
@@ -79,6 +81,22 @@ When build from git, run the following command to pull submodules:
 .. code-block:: shell
 
    $ git submodule update --init
+
+Build with Schannel
+-------------------
+
+Schannel support is available on Windows and uses CNG for QUIC packet
+protection.  It has no third-party TLS or cryptography dependency.
+
+.. code-block:: console
+
+   > cmake -S . -B build -DENABLE_OPENSSL=OFF -DENABLE_SCHANNEL=ON
+   > cmake --build build --config Release
+   > ctest --test-dir build --build-config Release --output-on-failure
+
+Autotools cross-builds can request the backend with
+``--with-schannel``.  Configure checks that the selected Windows SDK
+provides ``SEC_TRAFFIC_SECRETS`` and the generic TLS extension APIs.
 
 Build with wolfSSL
 ------------------
@@ -283,6 +301,8 @@ available crypto helper libraries are:
 - libngtcp2_crypto_picotls: Use Picotls as TLS backend
 - libngtcp2_crypto_wolfssl: Use wolfSSL as TLS backend
 - libngtcp2_crypto_ossl: Use OpenSSL as TLS backend (experimental)
+- libngtcp2_crypto_schannel: Use Schannel as TLS backend and CNG for
+  QUIC cryptography (Windows only)
 
 Because BoringSSL and Picotls are an unversioned product, we only
 tested their particular revision.  See Requirements section above.
@@ -327,6 +347,14 @@ if their corresponding crypto helper library is built:
 - wsslserver: wolfSSL server
 - osslclient: OpenSSL client
 - osslserver: OpenSSL server
+- schannelclient: native Windows Schannel handshake client
+- schannelserver: native Windows Schannel single-connection handshake server
+
+``schannelserver`` takes the SHA-1 thumbprint of a certificate with a
+private key in ``Cert:\CurrentUser\My``.  ``schannelclient`` uses the
+Windows system trust policy and validates the requested server name.  Its
+explicit ``--insecure`` option disables certificate validation for local
+self-signed demonstrations only.
 
 QUIC protocol extensions
 -------------------------

@@ -305,6 +305,32 @@ until the ``SSL`` object is freed by ``SSL_free``, or it must call
 
 To continue the handshake, call `ngtcp2_conn_continue_handshake`.
 
+Schannel
+~~~~~~~~
+
+The application creates a client or server ``CredHandle`` with
+``AcquireCredentialsHandleW`` and ``SCH_CREDENTIALS``.  The credential
+must enable TLS 1.3 and restrict negotiation to AES-128-GCM or
+AES-256-GCM; this backend does not implement QUIC packet protection for
+ChaCha20-Poly1305 or AES-CCM.
+
+For each QUIC connection, create :type:`ngtcp2_crypto_schannel` with
+`ngtcp2_crypto_schannel_new`.  Pass the credential handle, a
+:type:`ngtcp2_crypto_conn_ref`, and the wire-format ALPN list in
+:type:`ngtcp2_crypto_schannel_config`.  A client also passes the UTF-8
+server name used by Schannel for SNI and certificate validation.
+
+Set the resulting :type:`ngtcp2_crypto_schannel` as the TLS native
+handle with `ngtcp2_conn_set_tls_native_handle`.  Destroy it with
+`ngtcp2_crypto_schannel_del` after deleting the :type:`ngtcp2_conn`.
+The credential handle and :type:`ngtcp2_crypto_conn_ref` are borrowed
+and must remain valid for the whole TLS session.
+
+Credential acquisition, certificate selection, trust policy, and
+client-certificate policy remain application responsibilities.  The
+backend supports Schannel session resumption but does not expose QUIC
+0-RTT.
+
 Configuring TLS stack yourself
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

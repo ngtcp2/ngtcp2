@@ -60,3 +60,9 @@ if(HAVE_OSSL)
       ngtcp2/ngtcp2_crypto_ossl.h
       DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
 endif()
+
+if(HAVE_SCHANNEL)
+  install(FILES
+      ngtcp2/ngtcp2_crypto_schannel.h
+      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
+endif()

@@ -22,31 +22,20 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif /* defined(HAVE_CONFIG_H) */
+#ifndef SCHANNEL_TEST_H
+#define SCHANNEL_TEST_H
+
+#define MUNIT_ENABLE_ASSERT_ALIASES
 
 #include "munit.h"
 
-/* include test cases' include files here */
-#include "shared_test.h"
-#ifdef WITH_SCHANNEL_TESTS
-#  include "schannel_test.h"
-#endif /* defined(WITH_SCHANNEL_TESTS) */
+extern const MunitSuite schannel_suite;
 
-int main(int argc, char *argv[]) {
-  const MunitSuite suites[] = {
-    shared_suite,
-#ifdef WITH_SCHANNEL_TESTS
-    schannel_suite,
-#endif /* defined(WITH_SCHANNEL_TESTS) */
-    {0},
-  };
-  const MunitSuite suite = {
-    .prefix = "",
-    .suites = suites,
-    .iterations = 1,
-  };
+munit_void_test_decl(test_schannel_hkdf)
+munit_void_test_decl(test_schannel_aes_gcm)
+munit_void_test_decl(test_schannel_aes_256_gcm)
+munit_void_test_decl(test_schannel_hp_mask)
+munit_void_test_decl(test_schannel_api)
+void test_schannel_handshake(void);
 
-  return munit_suite_main(&suite, NULL, argc, argv);
-}
+#endif /* !defined(SCHANNEL_TEST_H) */
