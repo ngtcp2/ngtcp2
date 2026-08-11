@@ -392,6 +392,24 @@ struct ngtcp2_conn {
     ngtcp2_tstamp last_max_data_ts;
 
     struct {
+      /* max_streams is the maximum number of bidirectional streams which
+         the local endpoint can open. */
+      uint64_t max_streams;
+      /* next_stream_id is the bidirectional stream ID which the local
+         endpoint opens next. */
+      int64_t next_stream_id;
+    } bidi;
+
+    struct {
+      /* max_streams is the maximum number of unidirectional streams
+         which the local endpoint can open. */
+      uint64_t max_streams;
+      /* next_stream_id is the unidirectional stream ID which the
+         local endpoint opens next. */
+      int64_t next_stream_id;
+    } uni;
+
+    struct {
       /* validation_start_ts is the timestamp when ECN validation is
          started.  It is UINT64_MAX if it has not started yet. */
       ngtcp2_tstamp validation_start_ts;
@@ -441,6 +459,30 @@ struct ngtcp2_conn {
     ngtcp2_ccerr ccerr;
 
     struct {
+      /* unsent_max_streams is the maximum number of streams of peer
+         initiated bidirectional stream which the local endpoint can
+         accept.  This limit is not yet notified to the remote
+         endpoint. */
+      uint64_t unsent_max_streams;
+      /* max_streams is the maximum number of streams of peer
+         initiated bidirectional stream which the local endpoint can
+         accept. */
+      uint64_t max_streams;
+    } bidi;
+
+    struct {
+      /* unsent_max_streams is the maximum number of streams of peer
+         initiated unidirectional stream which the local endpoint can
+         accept.  This limit is not yet notified to the remote
+         endpoint. */
+      uint64_t unsent_max_streams;
+      /* max_streams is the maximum number of streams of peer
+         initiated unidirectional stream which the local endpoint can
+         accept. */
+      uint64_t max_streams;
+    } uni;
+
+    struct {
       /* pkt_num is the lowest incoming packet number of the packet
          that server verified preferred address usage of client. */
       int64_t pkt_num;
@@ -467,23 +509,6 @@ struct ngtcp2_conn {
     /* transport_params is the local transport parameters.  It is used
        for Short packet only. */
     ngtcp2_transport_params transport_params;
-    struct {
-      /* max_streams is the maximum number of bidirectional streams which
-         the local endpoint can open. */
-      uint64_t max_streams;
-      /* next_stream_id is the bidirectional stream ID which the local
-         endpoint opens next. */
-      int64_t next_stream_id;
-    } bidi;
-
-    struct {
-      /* max_streams is the maximum number of unidirectional streams
-         which the local endpoint can open. */
-      uint64_t max_streams;
-      /* next_stream_id is the unidirectional stream ID which the
-         local endpoint opens next. */
-      int64_t next_stream_id;
-    } uni;
   } local;
 
   struct {
@@ -494,32 +519,17 @@ struct ngtcp2_conn {
        during handshake.  It is copied to transport_params when 1RTT
        key is available. */
     ngtcp2_transport_params *pending_transport_params;
-    struct {
-      ngtcp2_idtr idtr;
-      /* unsent_max_streams is the maximum number of streams of peer
-         initiated bidirectional stream which the local endpoint can
-         accept.  This limit is not yet notified to the remote
-         endpoint. */
-      uint64_t unsent_max_streams;
-      /* max_streams is the maximum number of streams of peer
-         initiated bidirectional stream which the local endpoint can
-         accept. */
-      uint64_t max_streams;
-    } bidi;
-
-    struct {
-      ngtcp2_idtr idtr;
-      /* unsent_max_streams is the maximum number of streams of peer
-         initiated unidirectional stream which the local endpoint can
-         accept.  This limit is not yet notified to the remote
-         endpoint. */
-      uint64_t unsent_max_streams;
-      /* max_streams is the maximum number of streams of peer
-         initiated unidirectional stream which the local endpoint can
-         accept. */
-      uint64_t max_streams;
-    } uni;
   } remote;
+
+  struct {
+    /* idtr tracks the stream ID usage. */
+    ngtcp2_idtr idtr;
+  } bidi;
+
+  struct {
+    /* idtr tracks the stream ID usage. */
+    ngtcp2_idtr idtr;
+  } uni;
 
   struct {
     struct {
