@@ -1735,6 +1735,11 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
                                                   NGTCP2_SV_SCIDLEN);
           rv) {
   case 0:
+    if ((data[0] & 0x80U) && vc.version == 0) {
+      // Version Negotiation packet was received.
+      return;
+    }
+
     break;
   case NGTCP2_ERR_VERSION_NEGOTIATION:
     (void)send_version_negotiation(vc.version, {vc.scid, vc.scidlen},
