@@ -307,7 +307,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
     ngtcp2_get_uvarint(&vi, p);
 #if SIZE_MAX < UINT64_MAX
-    if (vi > SIZE_MAX) {
+    if (vi > SIZE_MAX / 2) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 #endif /* SIZE_MAX < UINT64_MAX */
