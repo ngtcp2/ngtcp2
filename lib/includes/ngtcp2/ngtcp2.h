@@ -3724,17 +3724,18 @@ typedef int (*ngtcp2_stream_close2)(ngtcp2_conn *conn, uint32_t flags,
 /**
  * @functypedef
  *
- * :type:`ngtcp2_extend_max_data` is a callback function which
- * is invoked when max session data is extended.
- * |max_data| is a cumulative number of bytes
- * an endpoint can send on this session.
+ * :type:`ngtcp2_extend_max_data` is a callback function which is
+ * invoked when max session data is extended.  |max_data| is a
+ * cumulative number of bytes an endpoint can send on this session.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
+ *
+ * .. version-added:: 1.26.0
  */
-typedef int (*ngtcp2_extend_max_data)(ngtcp2_conn *conn,
-                                      uint64_t max_data, void *user_data);
+typedef int (*ngtcp2_extend_max_data)(ngtcp2_conn *conn, uint64_t max_data,
+                                      void *user_data);
 
 #define NGTCP2_CALLBACKS_V1 1
 #define NGTCP2_CALLBACKS_V2 2
@@ -4107,12 +4108,11 @@ typedef struct ngtcp2_callbacks {
   /* The following fields have been added since
      NGTCP2_CALLBACKS_V6. */
   /**
-   * :member:`extend_max_data` is callback function which is
-   * invoked when the maximum offset of session data that a local
-   * endpoint can send is increased.  This callback function is
-   * optional.
-   * 
-   * .. version-added:: v1.26.0
+   * :member:`extend_max_data` is callback function which is invoked
+   * when the maximum offset of session data that a local endpoint can
+   * send is increased.  This callback function is optional.
+   *
+   * .. version-added:: 1.26.0
    */
   ngtcp2_extend_max_data extend_max_data;
 } ngtcp2_callbacks;

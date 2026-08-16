@@ -485,16 +485,14 @@ static int conn_call_extend_max_stream_data(ngtcp2_conn *conn,
   return 0;
 }
 
-static int conn_call_extend_max_data(ngtcp2_conn *conn,
-                                     uint64_t datalen) {
+static int conn_call_extend_max_data(ngtcp2_conn *conn, uint64_t datalen) {
   int rv;
 
   if (!conn->callbacks.extend_max_data) {
     return 0;
   }
 
-  rv = conn->callbacks.extend_max_data(
-    conn, datalen, conn->user_data);
+  rv = conn->callbacks.extend_max_data(conn, datalen, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -10303,7 +10301,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
     if (rv != 0) {
       return rv;
     }
-    
+
     if (conn->tx.max_offset > 0) {
       rv = conn_call_extend_max_data(conn, conn->tx.max_offset);
       if (rv != 0) {
