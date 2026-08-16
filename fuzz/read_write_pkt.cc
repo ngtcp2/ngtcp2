@@ -551,6 +551,14 @@ int stream_close2(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
 } // namespace
 
 namespace {
+int extend_max_data(ngtcp2_conn *conn, uint64_t max_data, void *user_data) {
+  auto fuzzed_data_provider = static_cast<FuzzedDataProvider *>(user_data);
+
+  return fuzzed_data_provider->ConsumeBool() ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+} // namespace
+
+namespace {
 void init_path(ngtcp2_path_storage *ps) {
   addrinfo *local, *remote,
     hints{
@@ -659,6 +667,7 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
     .get_path_challenge_data2 = get_path_challenge_data2,
     .recv_stop_sending = recv_stop_sending,
     .stream_close2 = stream_close2,
+    .extend_max_data = extend_max_data,
   };
 
   if (fuzzed_data_provider.ConsumeBool()) {

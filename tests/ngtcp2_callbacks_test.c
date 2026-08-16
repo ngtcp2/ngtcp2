@@ -558,8 +558,17 @@ static int stream_close2(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
   return 0;
 }
 
+static int extend_max_data(ngtcp2_conn *conn, uint64_t max_data,
+                           void *user_data) {
+  (void)conn;
+  (void)max_data;
+  (void)user_data;
+
+  return 0;
+}
+
 void test_ngtcp2_callbacks_convert_to_latest(void) {
-  const int srcver = NGTCP2_CALLBACKS_V4;
+  const int srcver = NGTCP2_CALLBACKS_V5;
   static const ngtcp2_callbacks srcbuf = {
     .client_initial = client_initial,
     .recv_client_initial = recv_client_initial,
@@ -607,6 +616,7 @@ void test_ngtcp2_callbacks_convert_to_latest(void) {
     .dcid_status2 = dcid_status2,
     .get_path_challenge_data2 = get_path_challenge_data2,
     .recv_stop_sending = recv_stop_sending,
+    .stream_close2 = stream_close2,
   };
   ngtcp2_callbacks *src, callbacksbuf;
   const ngtcp2_callbacks *dest;
@@ -679,11 +689,12 @@ void test_ngtcp2_callbacks_convert_to_latest(void) {
   assert_ptr_equal(srcbuf.get_path_challenge_data2,
                    dest->get_path_challenge_data2);
   assert_ptr_equal(srcbuf.recv_stop_sending, dest->recv_stop_sending);
-  assert_null(dest->stream_close2);
+  assert_ptr_equal(srcbuf.stream_close2, dest->stream_close2);
+  assert_null(dest->extend_max_data);
 }
 
 void test_ngtcp2_callbacks_convert_to_old(void) {
-  const int destver = NGTCP2_CALLBACKS_V4;
+  const int destver = NGTCP2_CALLBACKS_V5;
   static const ngtcp2_callbacks src = {
     .client_initial = client_initial,
     .recv_client_initial = recv_client_initial,
@@ -732,6 +743,7 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
     .get_path_challenge_data2 = get_path_challenge_data2,
     .recv_stop_sending = recv_stop_sending,
     .stream_close2 = stream_close2,
+    .extend_max_data = extend_max_data,
   };
   ngtcp2_callbacks *dest, destbuf = {0};
   size_t destlen;
@@ -802,5 +814,6 @@ void test_ngtcp2_callbacks_convert_to_old(void) {
   assert_ptr_equal(src.get_path_challenge_data2,
                    destbuf.get_path_challenge_data2);
   assert_ptr_equal(src.recv_stop_sending, destbuf.recv_stop_sending);
-  assert_null(destbuf.stream_close2);
+  assert_ptr_equal(src.stream_close2, destbuf.stream_close2);
+  assert_null(destbuf.extend_max_data);
 }
