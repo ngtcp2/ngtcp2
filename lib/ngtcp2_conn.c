@@ -485,6 +485,23 @@ static int conn_call_extend_max_stream_data(ngtcp2_conn *conn,
   return 0;
 }
 
+static int conn_call_extend_max_data(ngtcp2_conn *conn,
+                                     uint64_t datalen) {
+  int rv;
+
+  if (!conn->callbacks.extend_max_data) {
+    return 0;
+  }
+
+  rv = conn->callbacks.extend_max_data(
+    conn, datalen, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int conn_call_dcid_status(ngtcp2_conn *conn,
                                  ngtcp2_connection_id_status_type type,
                                  const ngtcp2_dcid *dcid) {
@@ -5786,8 +5803,18 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
 /*
  * conn_recv_max_data processes received MAX_DATA frame |fr|.
  */
-static void conn_recv_max_data(ngtcp2_conn *conn, const ngtcp2_max_data *fr) {
-  conn->tx.max_offset = ngtcp2_max(conn->tx.max_offset, fr->max_data);
+static int conn_recv_max_data(ngtcp2_conn *conn, const ngtcp2_max_data *fr) {
+  int rv;
+
+  if (fr->max_data > conn->tx.max_offset) {
+    conn->tx.max_offset = fr->max_data;
+    rv = conn_call_extend_max_data(conn, fr->max_data);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  return 0;
 }
 
 /*
@@ -10276,6 +10303,14 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
     if (rv != 0) {
       return rv;
     }
+    
+    if (conn->tx.max_offset > 0) {
+      rv = conn_call_extend_max_data(conn, conn->tx.max_offset);
+      if (rv != 0) {
+        return rv;
+      }
+    }
+
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
     rv = conn_call_activate_dcid(conn, &conn->dcid.current);
@@ -10683,6 +10718,13 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     rv = conn_sync_stream_data_limit(conn);
     if (rv != 0) {
       return rv;
+    }
+
+    if (conn->tx.max_offset > 0) {
+      rv = conn_call_extend_max_data(conn, conn->tx.max_offset);
+      if (rv != 0) {
+        return rv;
+      }
     }
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
