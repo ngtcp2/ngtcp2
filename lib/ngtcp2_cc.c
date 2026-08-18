@@ -444,7 +444,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   if (cubic->current.w_est > w_cubic) {
     cstat->cwnd = cubic->current.w_est;
   } else {
-    bytes_acked = (target - cstat->cwnd) * cstat->max_tx_udp_payload_size;
+    bytes_acked = (target - cstat->cwnd) * ack->bytes_delivered;
     m = (bytes_acked + cubic->current.pending_bytes_acked) / cstat->cwnd;
 
     cubic->current.pending_bytes_acked += bytes_acked;
