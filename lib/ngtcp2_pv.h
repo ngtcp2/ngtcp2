@@ -77,11 +77,15 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent,
    path validation fails, then fallback to them.  If path validation
    succeeds, the fallback Destination Connection ID is retired if it
    is not zero length, and does not equal to the current Destination
-   Connection ID. */
+   Connection ID, and NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK is not
+   set. */
 #define NGTCP2_PV_FLAG_FALLBACK_PRESENT 0x04U
 /* NGTCP2_PV_FLAG_PREFERRED_ADDR indicates that client is migrating to
    server's preferred address.  This flag is only used by client. */
 #define NGTCP2_PV_FLAG_PREFERRED_ADDR 0x10U
+/* NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK prevents the fallback
+   Destination Connection ID from being retired. */
+#define NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK 0x20U
 
 typedef struct ngtcp2_pv ngtcp2_pv;
 
