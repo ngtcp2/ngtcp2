@@ -11054,6 +11054,165 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_true(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
 
   ngtcp2_conn_del(conn);
+
+  /* Client migrates back to the original path while server is doing
+     path validation to the new path. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(1, <, ngtcp2_ksl_len(&conn->scid.set));
+
+  /* A remote endpoint did not change DCID */
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1200,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path1.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+
+  ngtcp2_path_storage_zero(&dst_path);
+  spktlen =
+    ngtcp2_conn_write_pkt(conn, &dst_path.path, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, <=, spktlen);
+  assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
+  assert_true(ngtcp2_path_eq(&new_path1.path, &dst_path.path));
+
+  /* Client migrates back to the original path. */
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1200,
+  };
+
+  tpe.dcid = conn->oscid;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  assert_true(ngtcp2_cid_eq(&(ngtcp2_cid)make_dcid(), &conn->dcid.current.cid));
+  assert_true(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
+  assert_size(0, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+
+  ngtcp2_conn_del(conn);
+
+  /* DCID is not retired if it is used as fallback in new path
+     validation */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(1, <, ngtcp2_ksl_len(&conn->scid.set));
+
+  frs[0].new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid,
+    .token = token,
+  };
+  frs[1].new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 2,
+    .cid =
+      {
+        .datalen = 4,
+        .data = {0x1F, 0x00, 0x00, 0x00},
+      },
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  /* A remote endpoint did not change DCID */
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1200,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path1.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+
+  ngtcp2_path_storage_zero(&dst_path);
+  spktlen =
+    ngtcp2_conn_write_pkt(conn, &dst_path.path, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, <=, spktlen);
+  assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
+  assert_true(ngtcp2_path_eq(&new_path1.path, &dst_path.path));
+
+  /* Client migrates to new path with new DCID */
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1200,
+  };
+
+  it = ngtcp2_ksl_begin(&conn->scid.set);
+
+  assert(!ngtcp2_ksl_it_end(&it));
+
+  new_cid = &(((ngtcp2_scid *)ngtcp2_ksl_it_get(&it))->cid);
+  tpe.dcid = *new_cid;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path2.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_size(0, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+
+  ngtcp2_path_storage_zero(&dst_path);
+  spktlen =
+    ngtcp2_conn_write_pkt(conn, &dst_path.path, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, <=, spktlen);
+  assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
+  assert_true(ngtcp2_path_eq(&new_path2.path, &dst_path.path));
+
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path2.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_path_eq(&new_path2.path, &conn->dcid.current.ps.path));
+  assert_size(0, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_not_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->pv->dcid.ps.path));
+  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
+  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_client_connection_migration(void) {

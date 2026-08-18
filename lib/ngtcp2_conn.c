@@ -5088,7 +5088,10 @@ static int conn_stop_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return 0;
   }
 
-  if (pv->dcid.cid.datalen && pv->dcid.seq != conn->dcid.current.seq) {
+  if (pv->dcid.cid.datalen && pv->dcid.seq != conn->dcid.current.seq &&
+      (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) ||
+       !(pv->flags & NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK) ||
+       pv->dcid.seq != pv->fallback_dcid.seq)) {
     rv = conn_retire_active_dcid(conn, &pv->dcid, ts);
     if (rv != 0) {
       goto fin;
@@ -5096,6 +5099,7 @@ static int conn_stop_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   }
 
   if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
+      !(pv->flags & NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK) &&
       pv->fallback_dcid.cid.datalen &&
       pv->fallback_dcid.seq != conn->dcid.current.seq &&
       pv->fallback_dcid.seq != pv->dcid.seq) {
@@ -6267,9 +6271,9 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   }
 
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) {
-    /* Unset the flag bit so that conn_stop_pv does not retire
+    /* Set the flag bit so that conn_stop_pv does not retire
        DCID. */
-    pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_PRESENT;
+    pv->flags |= NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK;
   }
 
   rv = conn_stop_pv(conn, ts);
@@ -8995,9 +8999,9 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT)) {
       ngtcp2_pv_set_fallback(pv, &conn->pv->fallback_dcid,
                              conn->pv->fallback_pto);
-      /* Unset the flag bit so that conn_stop_pv does not retire
+      /* Set the flag bit so that conn_stop_pv does not retire
          DCID. */
-      conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_PRESENT;
+      conn->pv->flags |= NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK;
     } else if (!pref_addr_migration) {
       ngtcp2_pv_set_fallback(pv, &conn->dcid.current, pto);
     }
