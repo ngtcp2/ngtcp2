@@ -1,11 +1,18 @@
-# - Try to find wolfssl
-# Once done this will define
-#  WOLFSSL_FOUND           - System has wolfssl
-#  WOLFSSL_INCLUDE_DIR     - The wolfssl include directories
-#  WOLFSSL_LIBRARIES       - The libraries needed to use wolfssl
+# Try to find wolfssl
+# 1. First use CMake find_package if available
+# 2. Simulate what find_packge does but with pkg-config
+
+find_package(wolfssl CONFIG)
+if (wolfssl_FOUND)
+    set(WOLFSSL_LINK_TARGET wolfssl::wolfssl)
+    return()
+endif ()
 
 find_package(PkgConfig QUIET)
-pkg_check_modules(PC_WOLFSSL QUIET wolfssl)
+if (wolfssl_FIND_REQUIRED)
+    set(wolfssl_FIND_REQUIRED_STR "REQUIRED")
+endif()
+pkg_check_modules(PC_WOLFSSL ${wolfssl_FIND_REQUIRED_STR} wolfssl)
 
 find_path(WOLFSSL_INCLUDE_DIR
   NAMES wolfssl/ssl.h
@@ -25,6 +32,21 @@ if(WOLFSSL_INCLUDE_DIR)
   unset(_version_regex)
 endif()
 
+add_library(wolfssl::wolfssl INTERFACE IMPORTED)
+
+set_target_properties(wolfssl::wolfssl PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${WOLFSSL_INCLUDE_DIR}
+  INTERFACE_LINK_LIBRARIES ${WOLFSSL_LIBRARY}
+)
+
+# We found wolfSSL built with autotools, which doesn't have
+# proper CMake Config usable in find_package directy. When we
+# exporting our own targets depending on wolfSSL we don't want them
+# to declare dependency on wolfssl::wolfssl because any consumers of
+# it won't be able to discover it without repeating what we have done here.
+set(WOLFSSL_LINK_TARGET $<BUILD_INTERFACE:wolfssl::wolfssl>)
+
+
 include(FindPackageHandleStandardArgs)
 # handle the QUIETLY and REQUIRED arguments and set WOLFSSL_FOUND
 # to TRUE if all listed variables are TRUE and the requested version
@@ -32,10 +54,3 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(wolfssl REQUIRED_VARS
                                   WOLFSSL_LIBRARY WOLFSSL_INCLUDE_DIR
                                   VERSION_VAR WOLFSSL_VERSION)
-
-if(WOLFSSL_FOUND)
-  set(WOLFSSL_LIBRARIES     ${WOLFSSL_LIBRARY})
-  set(WOLFSSL_INCLUDE_DIRS  ${WOLFSSL_INCLUDE_DIR})
-endif()
-
-mark_as_advanced(WOLFSSL_INCLUDE_DIR WOLFSSL_LIBRARY)
