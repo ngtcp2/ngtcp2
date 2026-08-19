@@ -10044,6 +10044,13 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
     }
   }
 
+  if (conn->tx.max_offset > 0) {
+    rv = conn_call_extend_max_data(conn, conn->tx.max_offset);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
   return 0;
 }
 
@@ -10304,13 +10311,6 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
     rv = conn_handshake_completed(conn);
     if (rv != 0) {
       return rv;
-    }
-
-    if (conn->tx.max_offset > 0) {
-      rv = conn_call_extend_max_data(conn, conn->tx.max_offset);
-      if (rv != 0) {
-        return rv;
-      }
     }
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
@@ -10720,13 +10720,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     rv = conn_sync_stream_data_limit(conn);
     if (rv != 0) {
       return rv;
-    }
-
-    if (conn->tx.max_offset > 0) {
-      rv = conn_call_extend_max_data(conn, conn->tx.max_offset);
-      if (rv != 0) {
-        return rv;
-      }
     }
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
