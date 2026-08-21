@@ -8442,13 +8442,13 @@ static int conn_recv_new_token(ngtcp2_conn *conn, const ngtcp2_new_token *fr) {
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_FRAME_ENCODING
+ * NGTCP2_ERR_STREAM_LIMIT
  *     Maximum Streams is larger than advertised value.
  */
 static int conn_recv_streams_blocked_bidi(ngtcp2_conn *conn,
                                           ngtcp2_streams_blocked *fr) {
   if (fr->max_streams > conn->rx.bidi.max_streams) {
-    return NGTCP2_ERR_FRAME_ENCODING;
+    return NGTCP2_ERR_STREAM_LIMIT;
   }
 
   return 0;
@@ -8461,13 +8461,13 @@ static int conn_recv_streams_blocked_bidi(ngtcp2_conn *conn,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_FRAME_ENCODING
+ * NGTCP2_ERR_STREAM_LIMIT
  *     Maximum Streams is larger than advertised value.
  */
 static int conn_recv_streams_blocked_uni(ngtcp2_conn *conn,
                                          ngtcp2_streams_blocked *fr) {
   if (fr->max_streams > conn->rx.uni.max_streams) {
-    return NGTCP2_ERR_FRAME_ENCODING;
+    return NGTCP2_ERR_STREAM_LIMIT;
   }
 
   return 0;
