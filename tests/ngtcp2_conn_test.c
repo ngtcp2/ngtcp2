@@ -3894,7 +3894,7 @@ void test_ngtcp2_conn_recv_streams_blocked(void) {
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
-  assert_int(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
+  assert_int(NGTCP2_ERR_STREAM_LIMIT, ==, rv);
 
   ngtcp2_conn_del(conn);
 
@@ -3926,7 +3926,7 @@ void test_ngtcp2_conn_recv_streams_blocked(void) {
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
-  assert_int(NGTCP2_ERR_FRAME_ENCODING, ==, rv);
+  assert_int(NGTCP2_ERR_STREAM_LIMIT, ==, rv);
 
   ngtcp2_conn_del(conn);
 }
