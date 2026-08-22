@@ -6119,6 +6119,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 void test_ngtcp2_conn_cancel_retransmission(void) {
   ngtcp2_conn *conn;
   ngtcp2_ssize spktlen;
+  ngtcp2_ssize ndatalen;
   ngtcp2_tstamp t = 0;
   ngtcp2_tpe tpe;
   ngtcp2_vec datav;
@@ -6447,11 +6448,12 @@ void test_ngtcp2_conn_cancel_retransmission(void) {
 
   assert_int(0, ==, rv);
 
-  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
-                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
-                                     null_data, 100, t);
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &ndatalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 101, t);
 
   assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(100, ==, ndatalen);
 
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
   ent = ngtcp2_ksl_it_get(&it);

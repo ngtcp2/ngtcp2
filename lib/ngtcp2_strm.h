@@ -101,6 +101,9 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 /* NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET is set when
    ngtcp2_strm.tx.stop_sending_app_error_code is set. */
 #define NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET 0x10000U
+/* NGTCP2_STRM_FLAG_SEND_STREAM_DATA_BLOCKED is set when
+   STREAM_DATA_BLOCKED and/or DATA_BLOCKED frame should be sent. */
+#define NGTCP2_STRM_FLAG_SEND_STREAM_DATA_BLOCKED 0x20000U
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 

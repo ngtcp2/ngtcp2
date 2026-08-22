@@ -4009,35 +4009,69 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           }
         }
 
-        if (!(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) &&
-            strm_should_send_stream_data_blocked(strm)) {
-          rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
-          if (rv != 0) {
-            return rv;
+        if (strm->flags & NGTCP2_STRM_FLAG_SEND_STREAM_DATA_BLOCKED) {
+          if (!(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR)) {
+            if (conn_should_send_data_blocked(conn)) {
+              rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
+              if (rv != 0) {
+                return rv;
+              }
+
+              nfrc->fr.data_blocked = (ngtcp2_data_blocked){
+                .type = NGTCP2_FRAME_DATA_BLOCKED,
+                .offset = conn->tx.max_offset,
+              };
+              *pfrc = nfrc;
+
+              conn->tx.last_blocked_offset = conn->tx.max_offset;
+
+              rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd,
+                                               &nfrc->fr);
+              if (rv != 0) {
+                assert(NGTCP2_ERR_NOBUF == rv);
+
+                break;
+              }
+
+              pkt_empty = 0;
+              rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                                 NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
+                                 NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
+              pfrc = &(*pfrc)->next;
+            }
+
+            if (strm_should_send_stream_data_blocked(strm)) {
+              rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
+              if (rv != 0) {
+                return rv;
+              }
+
+              nfrc->fr.stream_data_blocked = (ngtcp2_stream_data_blocked){
+                .type = NGTCP2_FRAME_STREAM_DATA_BLOCKED,
+                .stream_id = strm->stream_id,
+                .offset = strm->tx.max_offset,
+              };
+              *pfrc = nfrc;
+
+              strm->tx.last_blocked_offset = strm->tx.max_offset;
+
+              rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd,
+                                               &nfrc->fr);
+              if (rv != 0) {
+                assert(NGTCP2_ERR_NOBUF == rv);
+
+                break;
+              }
+
+              pkt_empty = 0;
+              rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                                 NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
+                                 NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
+              pfrc = &(*pfrc)->next;
+            }
           }
 
-          nfrc->fr.stream_data_blocked = (ngtcp2_stream_data_blocked){
-            .type = NGTCP2_FRAME_STREAM_DATA_BLOCKED,
-            .stream_id = strm->stream_id,
-            .offset = strm->tx.max_offset,
-          };
-          *pfrc = nfrc;
-
-          strm->tx.last_blocked_offset = strm->tx.max_offset;
-
-          rv =
-            conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
-          if (rv != 0) {
-            assert(NGTCP2_ERR_NOBUF == rv);
-
-            break;
-          }
-
-          pkt_empty = 0;
-          rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
-                             NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
-                             NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
-          pfrc = &(*pfrc)->next;
+          strm->flags &= ~NGTCP2_STRM_FLAG_SEND_STREAM_DATA_BLOCKED;
         }
 
         if (!(strm->flags &
@@ -4267,11 +4301,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
          left)) != (size_t)-1 &&
       (wdatalen == ndatalen || wdatalen >= NGTCP2_MIN_STREAM_DATALEN) &&
       (wdatalen || datalen == 0)) {
-    ndatalen = wdatalen;
     datacnt = ngtcp2_vec_copy_at_most(data, NGTCP2_MAX_STREAM_DATACNT,
                                       vmsg->stream.data, vmsg->stream.datacnt,
-                                      (size_t)ndatalen);
-    ndatalen = ngtcp2_vec_len(data, datacnt);
+                                      (size_t)wdatalen);
+    wdatalen = ngtcp2_vec_len(data, datacnt);
 
     assert((datacnt == 0 && datalen == 0) || (datacnt && datalen));
 
@@ -4285,7 +4318,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     nfrc->fr.stream.type = NGTCP2_FRAME_STREAM;
     nfrc->fr.stream.flags = 0;
     nfrc->fr.stream.fin = (vmsg->stream.flags & NGTCP2_WRITE_STREAM_FLAG_FIN) &&
-                          ndatalen == datalen;
+                          wdatalen == datalen;
     nfrc->fr.stream.stream_id = vmsg->stream.strm->stream_id;
     nfrc->fr.stream.offset = vmsg->stream.strm->tx.offset;
     nfrc->fr.stream.datacnt = datacnt;
@@ -4306,8 +4339,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     ++conn->frame_counts.stream;
 
-    vmsg->stream.strm->tx.offset += ndatalen;
-    conn->tx.offset += ndatalen;
+    vmsg->stream.strm->tx.offset += wdatalen;
+    conn->tx.offset += wdatalen;
     vmsg->stream.strm->flags |= NGTCP2_STRM_FLAG_ANY_SENT;
 
     if (nfrc->fr.stream.fin) {
@@ -4315,7 +4348,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     }
 
     if (vmsg->stream.pdatalen) {
-      *vmsg->stream.pdatalen = (ngtcp2_ssize)ndatalen;
+      *vmsg->stream.pdatalen = (ngtcp2_ssize)wdatalen;
     }
   } else {
     send_stream = 0;
@@ -4323,8 +4356,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   if (vmsg && vmsg->type == NGTCP2_VMSG_TYPE_STREAM &&
       ((stream_blocked && *pfrc == NULL) ||
-       (send_stream &&
-        !(vmsg->stream.strm->flags & NGTCP2_STRM_FLAG_SHUT_WR)))) {
+       (send_stream && !(vmsg->stream.strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) &&
+        ndatalen < datalen && ndatalen == wdatalen))) {
+    strm = vmsg->stream.strm;
+
     if (conn_should_send_data_blocked(conn)) {
       rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
       if (rv != 0) {
@@ -4344,6 +4379,13 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
         /* We cannot add nfrc to pktns->tx.frq here. */
         ngtcp2_frame_chain_objalloc_del(nfrc, &conn->frc_objalloc, conn->mem);
+
+        strm->flags |= NGTCP2_STRM_FLAG_SEND_STREAM_DATA_BLOCKED;
+
+        rv = ngtcp2_conn_tx_strmq_push_if_not(conn, strm);
+        if (rv != 0) {
+          return rv;
+        }
       } else {
         *pfrc = nfrc;
         pfrc = &(*pfrc)->next;
@@ -4356,8 +4398,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         conn->tx.last_blocked_offset = conn->tx.max_offset;
       }
     }
-
-    strm = vmsg->stream.strm;
 
     if (strm_should_send_stream_data_blocked(strm)) {
       rv = ngtcp2_frame_chain_objalloc_new(&nfrc, &conn->frc_objalloc);
@@ -4379,6 +4419,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
         /* We cannot add nfrc to pktns->tx.frq here. */
         ngtcp2_frame_chain_objalloc_del(nfrc, &conn->frc_objalloc, conn->mem);
+
+        strm->flags |= NGTCP2_STRM_FLAG_SEND_STREAM_DATA_BLOCKED;
 
         rv = ngtcp2_conn_tx_strmq_push_if_not(conn, strm);
         if (rv != 0) {
