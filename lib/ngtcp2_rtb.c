@@ -286,13 +286,9 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
         return rv;
       }
 
-      if (!ngtcp2_strm_is_tx_queued(strm)) {
-        strm->cycle = ngtcp2_conn_tx_strmq_first_cycle(conn);
-
-        rv = ngtcp2_conn_tx_strmq_push(conn, strm);
-        if (rv != 0) {
-          return rv;
-        }
+      rv = ngtcp2_conn_tx_strmq_push_if_not(conn, strm);
+      if (rv != 0) {
+        return rv;
       }
 
       ++num_reclaimed;
@@ -1326,12 +1322,9 @@ static int rtb_reclaim_frame_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
         return rv;
       }
 
-      if (!ngtcp2_strm_is_tx_queued(strm)) {
-        strm->cycle = ngtcp2_conn_tx_strmq_first_cycle(conn);
-        rv = ngtcp2_conn_tx_strmq_push(conn, strm);
-        if (rv != 0) {
-          return rv;
-        }
+      rv = ngtcp2_conn_tx_strmq_push_if_not(conn, strm);
+      if (rv != 0) {
+        return rv;
       }
 
       break;

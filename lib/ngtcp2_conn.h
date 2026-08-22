@@ -818,6 +818,18 @@ void ngtcp2_conn_tx_strmq_pop(ngtcp2_conn *conn);
 int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
 
 /*
+ * ngtcp2_conn_tx_strmq_push_if_not pushes |strm| into
+ * |conn|->tx.strmq if |strm| is not pushed yet.
+ *
+ *  This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+int ngtcp2_conn_tx_strmq_push_if_not(ngtcp2_conn *conn, ngtcp2_strm *strm);
+
+/*
  * ngtcp2_conn_internal_expiry returns the minimum expiry time among
  * all timers in |conn|.
  */

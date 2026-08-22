@@ -4380,12 +4380,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         /* We cannot add nfrc to pktns->tx.frq here. */
         ngtcp2_frame_chain_objalloc_del(nfrc, &conn->frc_objalloc, conn->mem);
 
-        if (!ngtcp2_strm_is_tx_queued(strm)) {
-          strm->cycle = ngtcp2_conn_tx_strmq_first_cycle(conn);
-          rv = ngtcp2_conn_tx_strmq_push(conn, strm);
-          if (rv != 0) {
-            return rv;
-          }
+        rv = ngtcp2_conn_tx_strmq_push_if_not(conn, strm);
+        if (rv != 0) {
+          return rv;
         }
       } else {
         *pfrc = nfrc;
@@ -7698,13 +7695,7 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                  NGTCP2_STRM_FLAG_TX_RESET_STREAM_APP_ERROR_CODE_SET;
   strm->tx.reset_stream_app_error_code = app_error_code;
 
-  if (ngtcp2_strm_is_tx_queued(strm)) {
-    return 0;
-  }
-
-  strm->cycle = ngtcp2_conn_tx_strmq_first_cycle(conn);
-
-  return ngtcp2_conn_tx_strmq_push(conn, strm);
+  return ngtcp2_conn_tx_strmq_push_if_not(conn, strm);
 }
 
 /*
@@ -7723,13 +7714,7 @@ static int conn_stop_sending(ngtcp2_conn *conn, ngtcp2_strm *strm,
                  NGTCP2_STRM_FLAG_TX_STOP_SENDING_APP_ERROR_CODE_SET;
   strm->tx.stop_sending_app_error_code = app_error_code;
 
-  if (ngtcp2_strm_is_tx_queued(strm)) {
-    return 0;
-  }
-
-  strm->cycle = ngtcp2_conn_tx_strmq_first_cycle(conn);
-
-  return ngtcp2_conn_tx_strmq_push(conn, strm);
+  return ngtcp2_conn_tx_strmq_push_if_not(conn, strm);
 }
 
 /*
@@ -13142,10 +13127,8 @@ static int conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
   if (!(strm->flags &
         (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) &&
-      !ngtcp2_strm_is_tx_queued(strm) &&
       conn_should_send_max_stream_data(conn, strm)) {
-    strm->cycle = ngtcp2_conn_tx_strmq_first_cycle(conn);
-    return ngtcp2_conn_tx_strmq_push(conn, strm);
+    return ngtcp2_conn_tx_strmq_push_if_not(conn, strm);
   }
 
   return 0;
@@ -13677,6 +13660,16 @@ void ngtcp2_conn_tx_strmq_pop(ngtcp2_conn *conn) {
 
 int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   return ngtcp2_pq_push(&conn->tx.strmq, &strm->pe);
+}
+
+int ngtcp2_conn_tx_strmq_push_if_not(ngtcp2_conn *conn, ngtcp2_strm *strm) {
+  if (ngtcp2_strm_is_tx_queued(strm)) {
+    return 0;
+  }
+
+  strm->cycle = ngtcp2_conn_tx_strmq_first_cycle(conn);
+
+  return ngtcp2_conn_tx_strmq_push(conn, strm);
 }
 
 static int conn_has_uncommitted_preferred_addr_cid(const ngtcp2_conn *conn) {
