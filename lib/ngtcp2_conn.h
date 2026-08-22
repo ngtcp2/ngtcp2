@@ -796,18 +796,19 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 
 /*
  * ngtcp2_conn_tx_strmq_top returns the ngtcp2_strm which sits on the
- * top of queue.  tx_strmq must not be empty.
+ * top of queue.  |conn|->tx.strmq must not be empty.
  */
 ngtcp2_strm *ngtcp2_conn_tx_strmq_top(ngtcp2_conn *conn);
 
 /*
  * ngtcp2_conn_tx_strmq_pop pops the ngtcp2_strm from the queue.
- * tx_strmq must not be empty.
+ * |conn|->tx.strmq must not be empty.
  */
 void ngtcp2_conn_tx_strmq_pop(ngtcp2_conn *conn);
 
 /*
- * ngtcp2_conn_tx_strmq_push pushes |strm| into tx_strmq.
+ * ngtcp2_conn_tx_strmq_push pushes |strm| into |conn|->tx.strmq.
+ * |strm|->cycle must be set before calling this function.
  *
  *  This function returns 0 if it succeeds, or one of the following
  * negative error codes:
