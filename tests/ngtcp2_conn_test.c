@@ -9904,6 +9904,8 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_int(0, ==, rv);
   assert_size(0, ==, ngtcp2_dcidtr_bound_len(&conn->dcid.dtr));
   assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
+  assert_size(1, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_size(2, ==, conn->dcid.dtr.retire_unacked.len);
   assert_uint64(2, ==, conn->dcid.current.seq);
   assert_not_null(conn->pktns.tx.frq);
   assert_uint64(2, ==, conn->dcid.retire_prior_to);
@@ -9911,16 +9913,32 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   frc = conn->pktns.tx.frq;
 
   assert_uint64(NGTCP2_FRAME_RETIRE_CONNECTION_ID, ==, frc->fr.hd.type);
+  assert_uint64(0, ==, frc->fr.retire_connection_id.seq);
 
   frc = frc->next;
 
   assert_uint64(NGTCP2_FRAME_RETIRE_CONNECTION_ID, ==, frc->fr.hd.type);
+  assert_uint64(1, ==, frc->fr.retire_connection_id.seq);
   assert_null(frc->next);
 
   /* This will send RETIRE_CONNECTION_ID frames */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   assert_ptrdiff(0, <, spktlen);
+
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+    .first_ack_range = (uint64_t)conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_size(0, ==, conn->dcid.dtr.retire_unacked.len);
 
   ngtcp2_conn_del(conn);
 
