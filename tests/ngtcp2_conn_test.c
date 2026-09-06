@@ -307,6 +307,9 @@ typedef struct {
     uint64_t dgram_id;
   } datagram;
   struct {
+    uint64_t dgram_id;
+  } lost_datagram;
+  struct {
     uint32_t flags;
     int64_t stream_id;
     uint64_t app_error_code;
@@ -786,9 +789,12 @@ static int version_negotiation(ngtcp2_conn *conn, uint32_t version,
 
 static int lost_datagram(ngtcp2_conn *conn, uint64_t dgram_id,
                          void *user_data) {
+  my_user_data *ud = user_data;
   (void)conn;
-  (void)dgram_id;
-  (void)user_data;
+
+  if (ud) {
+    ud->lost_datagram.dgram_id = dgram_id;
+  }
 
   return 0;
 }
@@ -5513,6 +5519,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   conn_options opts;
   size_t i;
   ngtcp2_ssize datalen;
+  my_user_data ud;
 
   /* Retransmit a packet completely */
   setup_default_client(&conn);
@@ -5591,10 +5598,12 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   remote_params.max_datagram_frame_size = 65535;
 
   client_default_callbacks(&callbacks);
-  callbacks.ack_datagram = ack_datagram;
+  callbacks.lost_datagram = lost_datagram;
 
   opts = (conn_options){
+    .callbacks = &callbacks,
     .remote_params = &remote_params,
+    .user_data = &ud,
   };
 
   setup_default_client_with_options(&conn, opts);
@@ -5629,8 +5638,11 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   conn->pktns.tx.last_pkt_num = 1000000009;
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
-  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ud = (my_user_data){0};
   ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
+
+  assert_uint64(1000000009, ==, ud.lost_datagram.dgram_id);
+
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   assert_ptrdiff(0, ==, spktlen);
@@ -9904,6 +9916,8 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_int(0, ==, rv);
   assert_size(0, ==, ngtcp2_dcidtr_bound_len(&conn->dcid.dtr));
   assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
+  assert_size(1, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_size(2, ==, conn->dcid.dtr.retire_unacked.len);
   assert_uint64(2, ==, conn->dcid.current.seq);
   assert_not_null(conn->pktns.tx.frq);
   assert_uint64(2, ==, conn->dcid.retire_prior_to);
@@ -9911,16 +9925,32 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   frc = conn->pktns.tx.frq;
 
   assert_uint64(NGTCP2_FRAME_RETIRE_CONNECTION_ID, ==, frc->fr.hd.type);
+  assert_uint64(0, ==, frc->fr.retire_connection_id.seq);
 
   frc = frc->next;
 
   assert_uint64(NGTCP2_FRAME_RETIRE_CONNECTION_ID, ==, frc->fr.hd.type);
+  assert_uint64(1, ==, frc->fr.retire_connection_id.seq);
   assert_null(frc->next);
 
   /* This will send RETIRE_CONNECTION_ID frames */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   assert_ptrdiff(0, <, spktlen);
+
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+    .first_ack_range = (uint64_t)conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_size(0, ==, conn->dcid.dtr.retire_unacked.len);
 
   ngtcp2_conn_del(conn);
 
