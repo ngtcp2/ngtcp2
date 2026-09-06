@@ -7520,11 +7520,11 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
     pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
-    ud.stream_data.stream_id = 0;
+    ud.stream_data.stream_id = -1;
     rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
     assert_int(0, ==, rv);
-    assert_int64(0, ==, ud.stream_data.stream_id);
+    assert_int64(-1, ==, ud.stream_data.stream_id);
     assert_uint64(19, ==, conn->rx.offset);
     assert_uint64(19, ==,
                   conn->rx.unsent_max_offset -
