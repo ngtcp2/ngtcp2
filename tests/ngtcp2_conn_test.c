@@ -272,12 +272,6 @@ void init_static_path(void) {
   path_init(&new_nat_path, 0, 0, 0, 1);
 }
 
-static ngtcp2_vec *null_datav(ngtcp2_vec *datav, size_t len) {
-  datav->base = null_data;
-  datav->len = len;
-  return datav;
-}
-
 static const ngtcp2_crypto_ctx fake_crypto_ctx = {
   .aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD,
   .max_encryption = 9999,
@@ -4183,7 +4177,6 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_ssize datalen;
   int rv;
   int accepted;
-  ngtcp2_vec datav;
   ngtcp2_strm *strm;
   ngtcp2_frame_chain *frc;
   ngtcp2_ksl_it it;
@@ -4283,16 +4276,16 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   assert_int(0, ==, rv);
 
-  spktlen = ngtcp2_conn_writev_stream(
+  spktlen = ngtcp2_conn_write_stream(
     conn, NULL, NULL, buf, NGTCP2_MAX_UDP_PAYLOAD_SIZE, &datalen,
-    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_datav(&datav, 219), 1, ++t);
+    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_data, 219, ++t);
 
   assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==, spktlen);
   assert_ptrdiff(219, ==, datalen);
 
-  spktlen = ngtcp2_conn_writev_stream(
+  spktlen = ngtcp2_conn_write_stream(
     conn, NULL, NULL, buf, NGTCP2_MAX_UDP_PAYLOAD_SIZE, &datalen,
-    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_datav(&datav, 119), 1, ++t);
+    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_data, 119, ++t);
 
   assert_ptrdiff(0, <, spktlen);
   assert_ptrdiff(119, ==, datalen);
@@ -4347,16 +4340,16 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   assert_int(0, ==, rv);
 
-  spktlen = ngtcp2_conn_writev_stream(
+  spktlen = ngtcp2_conn_write_stream(
     conn, NULL, NULL, buf, NGTCP2_MAX_UDP_PAYLOAD_SIZE, &datalen,
-    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_datav(&datav, 1200), 1, ++t);
+    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_data, 1200, ++t);
 
   assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==, spktlen);
   assert_ptrdiff(846, ==, datalen);
 
-  spktlen = ngtcp2_conn_writev_stream(
+  spktlen = ngtcp2_conn_write_stream(
     conn, NULL, NULL, buf, NGTCP2_MAX_UDP_PAYLOAD_SIZE, &datalen,
-    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_datav(&datav, 1200), 1, ++t);
+    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_data, 1200, ++t);
 
   assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==, spktlen);
   assert_ptrdiff(1130, ==, datalen);
@@ -4585,16 +4578,16 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   assert_int(0, ==, rv);
 
-  spktlen = ngtcp2_conn_writev_stream(
+  spktlen = ngtcp2_conn_write_stream(
     conn, NULL, NULL, buf, NGTCP2_MAX_UDP_PAYLOAD_SIZE, &datalen,
-    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_datav(&datav, 219), 1, ++t);
+    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_data, 219, ++t);
 
   assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==, spktlen);
   assert_ptrdiff(-1, ==, datalen);
 
-  spktlen = ngtcp2_conn_writev_stream(
+  spktlen = ngtcp2_conn_write_stream(
     conn, NULL, NULL, buf, NGTCP2_MAX_UDP_PAYLOAD_SIZE, &datalen,
-    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_datav(&datav, 219), 1, ++t);
+    NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id, null_data, 219, ++t);
 
   assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==, spktlen);
   assert_ptrdiff(219, ==, datalen);
@@ -8196,7 +8189,6 @@ void test_ngtcp2_conn_send_early_data(void) {
   int64_t stream_id;
   int rv;
   ngtcp2_tstamp t = 0;
-  ngtcp2_vec datav;
 
   setup_early_client(&conn);
 
@@ -8221,9 +8213,9 @@ void test_ngtcp2_conn_send_early_data(void) {
 
   assert_int(0, ==, rv);
 
-  spktlen = ngtcp2_conn_writev_stream(
-    conn, NULL, NULL, buf, sizeof(buf), &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
-    stream_id, null_datav(&datav, 199), 1, ++t);
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 199, ++t);
 
   assert_ptrdiff(sizeof(buf), ==, spktlen);
   assert_ptrdiff(199, ==, datalen);
