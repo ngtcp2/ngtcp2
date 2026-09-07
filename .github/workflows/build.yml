@@ -21,7 +21,7 @@ env:
 
 jobs:
   setup:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     outputs:
       nghttp3-version: ${{ steps.nghttp3-version.outputs.result }}
@@ -51,7 +51,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-26, macos-15]
+        os: [ubuntu-26.04, ubuntu-26.04-arm, macos-26, macos-15]
 
     runs-on: ${{ matrix.os }}
 
@@ -263,7 +263,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04]
+        os: [ubuntu-26.04]
         compiler: [gcc, clang]
         buildtool: [autotools, cmake]
         tls:
@@ -277,14 +277,14 @@ jobs:
           boringssl: aws-lc
         sockaddr: [native-sockaddr]
         include:
-        - os: ubuntu-24.04
+        - os: ubuntu-26.04
           compiler: clang
           buildtool: distcheck
           tls:
             openssl: ossl
             boringssl: aws-lc
           sockaddr: native-sockaddr
-        - os: ubuntu-24.04
+        - os: ubuntu-26.04
           compiler: clang
           buildtool: autotools
           tls:
@@ -326,14 +326,14 @@ jobs:
             openssl: ossl
             boringssl: aws-lc
           sockaddr: generic-sockaddr
-        - os: ubuntu-24.04-arm
+        - os: ubuntu-26.04-arm
           compiler: gcc
           buildtool: autotools
           tls:
             openssl: ossl
             boringssl: aws-lc
           sockaddr: native-sockaddr
-        - os: ubuntu-24.04-arm
+        - os: ubuntu-26.04-arm
           compiler: clang
           buildtool: autotools
           tls:
@@ -734,7 +734,7 @@ jobs:
         - host: i686-w64-mingw32
           oscc: mingw
 
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     env:
       HOST: ${{ matrix.host }}
@@ -822,7 +822,7 @@ jobs:
     permissions:
       contents: write
 
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
     - uses: actions/checkout@v7
