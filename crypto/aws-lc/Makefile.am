@@ -1,6 +1,6 @@
 # ngtcp2
 
-# Copyright (c) 2019 ngtcp2 contributors
+# Copyright (c) 2020 ngtcp2 contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -20,42 +20,24 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-SUBDIRS =
-
-if HAVE_CRYPTO
-SUBDIRS += includes
-endif
-
-if HAVE_QUICTLS
-SUBDIRS += quictls
-endif
-
-if HAVE_LIBRESSL
-SUBDIRS += quictls
-endif
-
-if HAVE_GNUTLS
-SUBDIRS += gnutls
-endif
-
-if HAVE_BORINGSSL
-SUBDIRS += boringssl
-endif
-
-if HAVE_AWS_LC
-SUBDIRS += aws-lc
-endif
-
-if HAVE_PICOTLS
-SUBDIRS += picotls
-endif
-
-if HAVE_WOLFSSL
-SUBDIRS += wolfssl
-endif
-
-if HAVE_OSSL
-SUBDIRS += ossl
-endif
-
 EXTRA_DIST = CMakeLists.txt
+
+AM_CFLAGS = $(WARNCFLAGS) $(DEBUGCFLAGS) $(EXTRACFLAG)
+AM_CPPFLAGS = -I$(top_srcdir)/lib/includes -I$(top_builddir)/lib/includes \
+	-I$(top_srcdir)/lib -DBUILDING_NGTCP2 \
+	-I$(top_srcdir)/crypto/includes -I$(top_builddir)/crypto/includes \
+	-I$(top_srcdir)/crypto -I$(top_builddir)/crypto \
+	@AWS_LC_CFLAGS@
+AM_LDFLAGS = ${LIBTOOL_LDFLAGS}
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libngtcp2_crypto_aws_lc.pc
+DISTCLEANFILES = $(pkgconfig_DATA)
+
+lib_LTLIBRARIES = libngtcp2_crypto_aws_lc.la
+
+libngtcp2_crypto_aws_lc_la_SOURCES = aws-lc.c ../shared.c ../shared.h
+libngtcp2_crypto_aws_lc_la_LDFLAGS = -no-undefined \
+	-version-info $(CRYPTO_AWS_LC_LT_CURRENT):$(CRYPTO_AWS_LC_LT_REVISION):$(CRYPTO_AWS_LC_LT_AGE)
+libngtcp2_crypto_ossl_la_LIBADD = $(top_builddir)/lib/libngtcp2.la \
+	@AWS_LC_LIBS@
