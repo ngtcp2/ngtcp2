@@ -44,7 +44,7 @@ foreach(name libngtcp2_crypto_picotls.pc)
   configure_file("${name}.in" "${name}" @ONLY)
 endforeach()
 
-if(ENABLE_STATIC_LIB)
+if(NGTCP2_ENABLE_STATIC_LIB)
   # Public static library
   add_library(ngtcp2_crypto_picotls_static STATIC ${ngtcp2_crypto_picotls_SOURCES})
   set_target_properties(ngtcp2_crypto_picotls_static PROPERTIES
