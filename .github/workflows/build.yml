@@ -254,16 +254,26 @@ jobs:
         compiler: [gcc, clang]
         buildtool: [autotools, cmake]
         tls:
-        - openssl: openssl3
-          boringssl: boringssl
-        - openssl: openssl1
-          boringssl: aws-lc
         - openssl: libressl
           boringssl: boringssl
         - openssl: ossl
           boringssl: aws-lc
         sockaddr: [native-sockaddr]
         include:
+        - os: ubuntu-26.04
+          compiler: clang
+          buildtool: autotools
+          tls:
+            openssl: openssl1
+            boringssl: aws-lc
+          sockaddr: native-sockaddr
+        - os: ubuntu-26.04
+          compiler: clang
+          buildtool: autotools
+          tls:
+            openssl: openssl3
+            boringssl: boringssl
+          sockaddr: native-sockaddr
         - os: ubuntu-26.04
           compiler: clang
           buildtool: distcheck
@@ -292,13 +302,6 @@ jobs:
             openssl: ossl
             boringssl: aws-lc
           sockaddr: generic-sockaddr
-        - os: macos-15
-          compiler: clang
-          buildtool: autotools
-          tls:
-            openssl: openssl1
-            boringssl: aws-lc
-          sockaddr: native-sockaddr
         - os: macos-15
           compiler: clang
           buildtool: autotools
