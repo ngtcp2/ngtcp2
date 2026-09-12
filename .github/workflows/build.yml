@@ -11,7 +11,6 @@ concurrency:
 env:
   OPENSSL1_VERSION: 1_1_1w+quic
   OPENSSL3_VERSION: 3.1.7+quic
-  OSSL_VERSION: 4.0.1
   BORINGSSL_VERSION: 22a0079b189c391b95689813a41982ce11876f0a
   AWSLC_VERSION: v5.4.0
   PICOTLS_VERSION: f07f1c8c68b237f1468bc1f1fe1b68aba3ff23b4
@@ -69,12 +68,6 @@ jobs:
       with:
         path: openssl3/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL3_VERSION }}
-    - name: Restore OSSL cache
-      id: cache-ossl
-      uses: actions/cache@v6
-      with:
-        path: ossl/build
-        key: ${{ matrix.os }}-ossl-${{ env.OSSL_VERSION }}
     - name: Restore BoringSSL cache
       id: cache-boringssl
       uses: actions/cache@v6
@@ -119,7 +112,7 @@ jobs:
           picotls-ossl/build/libpicotls-core.a
           picotls-ossl/build/libpicotls-openssl.a
           picotls-ossl/include
-        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-ossl-${{ env.OSSL_VERSION }}
+        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-ossl
     - name: Restore Picotls + LibreSSL cache
       id: cache-picotls-libressl
       uses: actions/cache@v6
@@ -152,7 +145,6 @@ jobs:
       if: |
         steps.cache-openssl1.outputs.cache-hit != 'true' ||
         steps.cache-openssl3.outputs.cache-hit != 'true' ||
-        steps.cache-ossl.outputs.cache-hit != 'true' ||
         steps.cache-boringssl.outputs.cache-hit != 'true' ||
         steps.cache-awslc.outputs.cache-hit != 'true' ||
         steps.cache-picotls-openssl1.outputs.cache-hit != 'true' ||
@@ -178,7 +170,8 @@ jobs:
           libtool \
           pkg-config \
           cmake \
-          cmake-data
+          cmake-data \
+          libssl-dev
 
         echo 'NPROC='"$(nproc)" >> $GITHUB_ENV
     - name: MacOS setup
@@ -199,12 +192,6 @@ jobs:
         ./ci/build_openssl.sh
       env:
         OPENSSL: openssl3
-    - name: Build OSSL
-      if: steps.cache-ossl.outputs.cache-hit != 'true'
-      run: |
-        ./ci/build_openssl.sh
-      env:
-        OPENSSL: ossl
     - name: Build BoringSSL
       if: steps.cache-boringssl.outputs.cache-hit != 'true'
       run: |
@@ -415,13 +402,6 @@ jobs:
         path: openssl3/build
         key: ${{ matrix.os }}-openssl-${{ env.OPENSSL3_VERSION }}
         fail-on-cache-miss: true
-    - name: Restore OSSL cache
-      uses: actions/cache/restore@v6
-      if: matrix.tls.openssl == 'ossl'
-      with:
-        path: ossl/build
-        key: ${{ matrix.os }}-ossl-${{ env.OSSL_VERSION }}
-        fail-on-cache-miss: true
     - name: Restore BoringSSL cache
       uses: actions/cache/restore@v6
       if: matrix.tls.boringssl == 'boringssl'
@@ -470,7 +450,7 @@ jobs:
           picotls-ossl/build/libpicotls-core.a
           picotls-ossl/build/libpicotls-openssl.a
           picotls-ossl/include
-        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-ossl-${{ env.OSSL_VERSION }}
+        key: ${{ matrix.os }}-picotls-${{ env.PICOTLS_VERSION }}-ossl
         fail-on-cache-miss: true
     - name: Restore wolfSSL cache
       uses: actions/cache/restore@v6
@@ -504,8 +484,8 @@ jobs:
         fail-on-cache-miss: true
     - name: Setup environment variables
       run: |
-        PKG_CONFIG_PATH="$PWD/openssl1/build/lib/pkgconfig:$PWD/openssl3/build/lib64/pkgconfig:$PWD/ossl/build/lib/pkgconfig:$PWD/ossl/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig:$PWD/libressl/build/lib/pkgconfig"
-        LDFLAGS="-Wl,-rpath,$PWD/openssl1/build/lib -Wl,-rpath,$PWD/openssl3/build/lib64 -Wl,-rpath,$PWD/ossl/build/lib -Wl,-rpath,$PWD/ossl/build/lib64 -Wl,-rpath,$PWD/libressl/build/lib"
+        PKG_CONFIG_PATH="$PWD/openssl1/build/lib/pkgconfig:$PWD/openssl3/build/lib64/pkgconfig:$PWD/wolfssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig:$PWD/libressl/build/lib/pkgconfig"
+        LDFLAGS="-Wl,-rpath,$PWD/openssl1/build/lib -Wl,-rpath,$PWD/openssl3/build/lib64 -Wl,-rpath,$PWD/libressl/build/lib"
 
         case "${{ matrix.tls.openssl }}" in
           "openssl3")
