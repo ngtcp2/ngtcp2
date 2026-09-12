@@ -55,6 +55,80 @@ static uint8_t *write_string_impl(uint8_t *p, const uint8_t *data,
 #define write_string(DEST, S)                                                  \
   write_string_impl((DEST), (const uint8_t *)(S), ngtcp2_strlen_lit(S))
 
+static size_t escaped_stringlen(const uint8_t *data, size_t datalen) {
+  size_t len = 0;
+  size_t i;
+  size_t n;
+
+  for (i = 0; i < datalen; ++i) {
+    switch (data[i]) {
+    case '"':
+    case '\\':
+    case '\b':
+    case '\f':
+    case '\n':
+    case '\r':
+    case '\t':
+      n = 2;
+      break;
+    default:
+      n = data[i] < 0x20 ? 6 : 1;
+    }
+
+    if (len > NGTCP2_QLOG_BUFLEN - n) {
+      return NGTCP2_QLOG_BUFLEN;
+    }
+
+    len += n;
+  }
+
+  return len;
+}
+
+static uint8_t *write_escaped_string(uint8_t *p, const uint8_t *data,
+                                     size_t datalen) {
+  size_t i;
+
+  *p++ = '"';
+
+  for (i = 0; i < datalen; ++i) {
+    switch (data[i]) {
+    case '"':
+      p = write_verbatim(p, "\\\"");
+      break;
+    case '\\':
+      p = write_verbatim(p, "\\\\");
+      break;
+    case '\b':
+      p = write_verbatim(p, "\\b");
+      break;
+    case '\f':
+      p = write_verbatim(p, "\\f");
+      break;
+    case '\n':
+      p = write_verbatim(p, "\\n");
+      break;
+    case '\r':
+      p = write_verbatim(p, "\\r");
+      break;
+    case '\t':
+      p = write_verbatim(p, "\\t");
+      break;
+    default:
+      if (data[i] < 0x20) {
+        p = write_verbatim(p, "\\u00");
+        p = ngtcp2_encode_hex(p, &data[i], 1);
+      } else {
+        *p++ = data[i];
+      }
+    }
+  }
+
+  *p++ = '"';
+
+  return p;
+}
+
 static uint8_t *write_hex(uint8_t *p, const uint8_t *data, size_t datalen) {
   *p++ = '"';
   p = ngtcp2_encode_hex(p, data, datalen);
@@ -103,6 +177,18 @@ static uint8_t *write_pair_hex_impl(uint8_t *p, const uint8_t *name,
 #define write_pair_hex(DEST, NAME, VALUE, VALUELEN)                            \
   write_pair_hex_impl((DEST), (const uint8_t *)(NAME),                         \
                       ngtcp2_strlen_lit(NAME), (VALUE), (VALUELEN))
+
+static uint8_t *write_pair_escaped_impl(uint8_t *p, const uint8_t *name,
+                                        size_t namelen, const uint8_t *value,
+                                        size_t valuelen) {
+  p = write_string_impl(p, name, namelen);
+  *p++ = ':';
+  return write_escaped_string(p, value, valuelen);
+}
+
+#define write_pair_escaped(DEST, NAME, VALUE, VALUELEN)                        \
+  write_pair_escaped_impl((DEST), (const uint8_t *)(NAME),                     \
+                          ngtcp2_strlen_lit(NAME), (VALUE), (VALUELEN))
 
 static uint8_t *write_pair_number_impl(uint8_t *p, const uint8_t *name,
                                        size_t namelen, uint64_t value) {
@@ -603,6 +689,8 @@ write_connection_close_frame(uint8_t *p, const ngtcp2_connection_close *fr) {
    * {"frame_type":"connection_close","error_space":"application","error_code":0000000000000000000,"raw_error_code":0000000000000000000}
    */
 #define NGTCP2_QLOG_CONNECTION_CLOSE_FRAME_OVERHEAD 131
+#define NGTCP2_QLOG_CONNECTION_CLOSE_REASON_OVERHEAD 12
+#define NGTCP2_QLOG_CONNECTION_CLOSE_TRIGGER_OVERHEAD 42
 
   p =
     write_verbatim(p, "{\"frame_type\":\"connection_close\",\"error_space\":");
@@ -615,8 +703,14 @@ write_connection_close_frame(uint8_t *p, const ngtcp2_connection_close *fr) {
   p = write_pair_number(p, "error_code", fr->error_code);
   *p++ = ',';
   p = write_pair_number(p, "raw_error_code", fr->error_code);
-  /* TODO Write reason by escaping non-printables */
-  /* TODO Write trigger_frame_type */
+  if (fr->reasonlen) {
+    *p++ = ',';
+    p = write_pair_escaped(p, "reason", fr->reason, fr->reasonlen);
+  }
+  if (fr->type == NGTCP2_FRAME_CONNECTION_CLOSE) {
+    *p++ = ',';
+    p = write_pair_number(p, "trigger_frame_type", fr->frame_type);
+  }
   *p++ = '}';
 
   return p;
@@ -851,11 +945,21 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
     p = write_path_response_frame(p, &fr->path_response);
     break;
   case NGTCP2_FRAME_CONNECTION_CLOSE:
-  case NGTCP2_FRAME_CONNECTION_CLOSE_APP:
-    if (ngtcp2_buf_left(&qlog->buf) <
-        NGTCP2_QLOG_CONNECTION_CLOSE_FRAME_OVERHEAD + 1) {
+  case NGTCP2_FRAME_CONNECTION_CLOSE_APP: {
+    size_t len = NGTCP2_QLOG_CONNECTION_CLOSE_FRAME_OVERHEAD + 1;
+
+    if (fr->connection_close.reasonlen) {
+      len += NGTCP2_QLOG_CONNECTION_CLOSE_REASON_OVERHEAD +
+             escaped_stringlen(fr->connection_close.reason,
+                               fr->connection_close.reasonlen);
+    }
+    if (fr->hd.type == NGTCP2_FRAME_CONNECTION_CLOSE) {
+      len += NGTCP2_QLOG_CONNECTION_CLOSE_TRIGGER_OVERHEAD;
+    }
+    if (ngtcp2_buf_left(&qlog->buf) < len) {
       return;
     }
+  }
     p = write_connection_close_frame(p, &fr->connection_close);
     break;
   case NGTCP2_FRAME_HANDSHAKE_DONE:

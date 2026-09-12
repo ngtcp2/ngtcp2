@@ -522,9 +522,14 @@ void test_ngtcp2_qlog_write_frame(void) {
   ngtcp2_buf_reset(&qlog.buf);
 
   {
+    static uint8_t reason[] = "bad \"reason\"\\line\n";
+
     fr.connection_close = (ngtcp2_connection_close){
       .type = NGTCP2_FRAME_CONNECTION_CLOSE,
       .error_code = 3270540419184339176,
+      .frame_type = NGTCP2_FRAME_CRYPTO,
+      .reason = reason,
+      .reasonlen = sizeof(reason) - 1,
     };
 
     ngtcp2_qlog_write_frame(&qlog, &fr);
@@ -533,7 +538,9 @@ void test_ngtcp2_qlog_write_frame(void) {
     assert_string_equal(
       "{\"frame_type\":\"connection_close\",\"error_space\":"
       "\"transport\",\"error_code\":3270540419184339176,\"raw_"
-      "error_code\":3270540419184339176},",
+      "error_code\":3270540419184339176,"
+      "\"reason\":\"bad \\\"reason\\\"\\\\line\\n\","
+      "\"trigger_frame_type\":6},",
       (const char *)qlog.buf.begin);
   }
 
@@ -552,6 +559,47 @@ void test_ngtcp2_qlog_write_frame(void) {
                         "\"application\",\"error_code\":1069447711149177103,"
                         "\"raw_error_code\":1069447711149177103},",
                         (const char *)qlog.buf.begin);
+  }
+
+  ngtcp2_buf_reset(&qlog.buf);
+
+  {
+    static uint8_t reason[] = {'\b', '\f', '\r', '\t', 0x01};
+
+    fr.connection_close = (ngtcp2_connection_close){
+      .type = NGTCP2_FRAME_CONNECTION_CLOSE_APP,
+      .error_code = 1069447711149177103,
+      .reason = reason,
+      .reasonlen = sizeof(reason),
+    };
+
+    ngtcp2_qlog_write_frame(&qlog, &fr);
+    *qlog.buf.last = '\0';
+
+    assert_string_equal("{\"frame_type\":\"connection_close\",\"error_space\":"
+                        "\"application\",\"error_code\":1069447711149177103,"
+                        "\"raw_error_code\":1069447711149177103,"
+                        "\"reason\":\"\\b\\f\\r\\t\\u0001\"},",
+                        (const char *)qlog.buf.begin);
+  }
+
+  ngtcp2_buf_reset(&qlog.buf);
+
+  {
+    static uint8_t reason[NGTCP2_QLOG_BUFLEN];
+
+    memset(reason, 0x01, sizeof(reason));
+
+    fr.connection_close = (ngtcp2_connection_close){
+      .type = NGTCP2_FRAME_CONNECTION_CLOSE_APP,
+      .error_code = 1,
+      .reason = reason,
+      .reasonlen = sizeof(reason),
+    };
+
+    ngtcp2_qlog_write_frame(&qlog, &fr);
+
+    assert_ptr_equal(qlog.buf.begin, qlog.buf.last);
   }
 
   ngtcp2_buf_reset(&qlog.buf);
