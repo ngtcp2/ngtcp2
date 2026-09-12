@@ -672,12 +672,6 @@ jobs:
         # failure; see https://gitlab.com/gnutls/gnutls/-/issues/1403
         EXPR="not (gnutls-boringssl and earlydata)"
 
-        # It looks like wolfSSL on ubuntu-24.04-arm cannot use
-        # TLS_CHACHA20_POLY1305_SHA256
-        if [ "${{ runner.arch }}" = "ARM64" ]; then
-          EXPR="$EXPR and not (wolfssl and TLS_CHACHA20_POLY1305_SHA256)"
-        fi
-
         if [ "${{ matrix.tls.openssl }}" = "libressl" ]; then
           # libressl does not support resumption, earlydata,
           # TLS_AES_128_CCM_SHA256, and X25519.  Resumption does not
