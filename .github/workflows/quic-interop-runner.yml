@@ -51,7 +51,7 @@ permissions: read-all
 
 jobs:
   config:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix: ${{ steps.config.outputs.matrix }}
       run_measurements: ${{ steps.config.outputs.run_measurements }}
@@ -91,7 +91,7 @@ jobs:
         echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
   tests:
     needs: [config]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     continue-on-error: true
     timeout-minutes: 45
     strategy:
