@@ -12,10 +12,6 @@ case "${OPENSSL}" in
         BRANCH="openssl-${OPENSSL3_VERSION}"
         REPO="https://github.com/quictls/openssl"
         ;;
-    ossl)
-        BRANCH="openssl-${OSSL_VERSION}"
-        REPO="https://github.com/openssl/openssl"
-        ;;
     *)
         echo "unsupported OpenSSL: ${OPENSSL}"
         exit 1

@@ -19,7 +19,7 @@ case "${OPENSSL}" in
         PKG_CONFIG_PATH=$PWD/../openssl3/build/lib/pkgconfig:$PWD/../openssl3/build/lib64/pkgconfig
         ;;
     "ossl")
-        PKG_CONFIG_PATH=$PWD/../ossl/build/lib/pkgconfig:$PWD/../ossl/build/lib64/pkgconfig
+	# Use the package provided by the package manager.
         ;;
     "libressl")
         PKG_CONFIG_PATH=$PWD/../libressl/build/lib/pkgconfig:$PWD/../libressl/build/lib/pkgconfig
