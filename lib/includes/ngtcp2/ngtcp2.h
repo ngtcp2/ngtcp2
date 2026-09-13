@@ -7139,8 +7139,8 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * @function
  *
  * `ngtcp2_settings_default` initializes |settings| with the default
- * values.  First this function fills |settings| with 0, and set the
- * default value to the following fields:
+ * values.  First this function fills |settings| with 0, and sets the
+ * default values to the following fields:
  *
  * * :member:`cc_algo <ngtcp2_settings.cc_algo>` =
  *   :enum:`ngtcp2_cc_algo.NGTCP2_CC_ALGO_CUBIC`
@@ -7163,8 +7163,8 @@ NGTCP2_EXTERN void ngtcp2_settings_default_versioned(int settings_version,
  * @function
  *
  * `ngtcp2_transport_params_default` initializes |params| with the
- * default values.  First this function fills |params| with 0, and set
- * the default value to the following fields:
+ * default values.  First this function fills |params| with 0, and
+ * sets the default values to the following fields:
  *
  * * :member:`max_udp_payload_size
  *   <ngtcp2_transport_params.max_udp_payload_size>` =
