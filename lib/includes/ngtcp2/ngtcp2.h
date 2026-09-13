@@ -2087,11 +2087,12 @@ typedef struct ngtcp2_settings {
   /* The following fields have been added since NGTCP2_SETTINGS_V3. */
   /**
    * :member:`glitch_ratelim_burst` is the maximum number of tokens
-   * available to "glitch" rate limiter.  "glitch" is a suspicious
-   * activity from a remote endpoint.  If detected, certain amount of
-   * tokens are consumed.  If no tokens are available to consume, the
-   * connection is closed.  The rate of token generation is specified
-   * by :member:`glitch_ratelim_rate`.
+   * available to "glitch" rate limiter.  It is clamped to UINT64_MAX
+   * / NGTCP2_SECONDS.  "glitch" is a suspicious activity from a
+   * remote endpoint.  If detected, certain amount of tokens are
+   * consumed.  If no tokens are available to consume, the connection
+   * is closed.  The rate of token generation is specified by
+   * :member:`glitch_ratelim_rate`.
    *
    * .. version-added:: 1.15.0
    */
