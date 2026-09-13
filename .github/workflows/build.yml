@@ -252,7 +252,7 @@ jobs:
       matrix:
         os: [ubuntu-26.04]
         compiler: [gcc, clang]
-        buildtool: [autotools, cmake]
+        buildtool: [autotools]
         tls:
         - openssl: libressl
           boringssl: boringssl
@@ -273,6 +273,20 @@ jobs:
           tls:
             openssl: openssl3
             boringssl: boringssl
+          sockaddr: native-sockaddr
+        - os: ubuntu-26.04
+          compiler: clang
+          buildtool: cmake
+          tls:
+            openssl: libressl
+            boringssl: boringssl
+          sockaddr: native-sockaddr
+        - os: ubuntu-26.04
+          compiler: clang
+          buildtool: cmake
+          tls:
+            openssl: ossl
+            boringssl: aws-lc
           sockaddr: native-sockaddr
         - os: ubuntu-26.04
           compiler: clang
