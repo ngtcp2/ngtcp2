@@ -2091,7 +2091,8 @@ typedef struct ngtcp2_settings {
    * activity from a remote endpoint.  If detected, certain amount of
    * tokens are consumed.  If no tokens are available to consume, the
    * connection is closed.  The rate of token generation is specified
-   * by :member:`glitch_ratelim_rate`.
+   * by :member:`glitch_ratelim_rate`.  It is clamped to UINT64_MAX /
+   * NGTCP2_SECONDS.
    *
    * .. version-added:: 1.15.0
    */

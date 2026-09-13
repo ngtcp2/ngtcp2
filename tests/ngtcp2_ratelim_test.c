@@ -104,10 +104,10 @@ void test_ngtcp2_ratelim_drain(void) {
   assert_uint64(0, ==, rlim.carry);
 
   /* Overflow */
-  ngtcp2_ratelim_init(&rlim, UINT64_MAX - 1, UINT64_MAX, ts);
+  ngtcp2_ratelim_init(&rlim, UINT64_MAX, UINT64_MAX, ts);
 
-  assert_uint64(UINT64_MAX - 1, ==, rlim.tokens);
-  assert_uint64(UINT64_MAX - 1, ==, rlim.burst);
+  assert_uint64(NGTCP2_RATELIM_MAX_BURST, ==, rlim.tokens);
+  assert_uint64(NGTCP2_RATELIM_MAX_BURST, ==, rlim.burst);
   assert_uint64(UINT64_MAX, ==, rlim.rate);
   assert_uint64(ts, ==, rlim.ts);
 
@@ -116,5 +116,5 @@ void test_ngtcp2_ratelim_drain(void) {
   rv = ngtcp2_ratelim_drain(&rlim, 1, ts);
 
   assert_int(0, ==, rv);
-  assert_uint64(UINT64_MAX - 2, ==, rlim.tokens);
+  assert_uint64(NGTCP2_RATELIM_MAX_BURST - 1, ==, rlim.tokens);
 }
