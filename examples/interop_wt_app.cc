@@ -68,9 +68,7 @@ App::submit_session_request(std::string_view scheme, std::string_view authority,
     util::make_nv_nn(":scheme", scheme),
     util::make_nv_nn(":authority", authority),
     util::make_nv_nn(":path", path),
-    // TODO This should be webtransport-h3, but we need to deal with
-    // the older servers.
-    util::make_nv_nn(":protocol", "webtransport"),
+    util::make_nv_nn(":protocol", "webtransport-h3"),
     util::make_nv_nn("user-agent", "nghttp3/ngtcp2 interop client"),
     {},
   });
