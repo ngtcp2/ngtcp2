@@ -40,6 +40,9 @@ uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   return ngtcp2_min(10 * max_udp_payload_size, n);
 }
 
+/* NGTCP2_CC_SLOW_START_PACING_GAIN_H is the pacing rate for slow
+   start phase. */
+#define NGTCP2_CC_SLOW_START_PACING_GAIN_H 200
 /* 1.25 is the under-utilization avoidance factor described in
    https://datatracker.ietf.org/doc/html/rfc9002#section-7.7 */
 #define NGTCP2_CC_PACING_GAIN_H 125
@@ -47,22 +50,30 @@ uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
 static void init_pacing_rate(ngtcp2_conn_stat *cstat) {
   assert(cstat->cwnd);
 
-  cstat->pacing_interval_m = ngtcp2_max((NGTCP2_MILLISECONDS << 10) * 100 /
-                                          NGTCP2_CC_PACING_GAIN_H / cstat->cwnd,
-                                        1);
+  cstat->pacing_interval_m =
+    ngtcp2_max((NGTCP2_MILLISECONDS << 10) * 100 /
+                 NGTCP2_CC_SLOW_START_PACING_GAIN_H / cstat->cwnd,
+               1);
   cstat->send_quantum = 10 * cstat->max_tx_udp_payload_size;
 }
 
 static void set_pacing_rate(ngtcp2_conn_stat *cstat) {
   size_t send_quantum = 64 * 1024;
+  uint64_t pacing_gain_h;
 
   assert(cstat->cwnd);
+
+  if (cstat->cwnd < cstat->ssthresh) {
+    pacing_gain_h = NGTCP2_CC_SLOW_START_PACING_GAIN_H;
+  } else {
+    pacing_gain_h = NGTCP2_CC_PACING_GAIN_H;
+  }
 
   cstat->pacing_interval_m =
     ((cstat->first_rtt_sample_ts == UINT64_MAX ? NGTCP2_MILLISECONDS
                                                : cstat->smoothed_rtt)
      << 10) *
-    100 / NGTCP2_CC_PACING_GAIN_H / cstat->cwnd;
+    100 / pacing_gain_h / cstat->cwnd;
 
   cstat->pacing_interval_m = ngtcp2_max(cstat->pacing_interval_m, 1);
 
@@ -375,6 +386,8 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
         cstat->ssthresh = cstat->cwnd;
         cubic->current.cwnd_prior = cstat->cwnd;
         cubic->current.w_est = cstat->cwnd;
+
+        set_pacing_rate(cstat);
       }
 
       return;
