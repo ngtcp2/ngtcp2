@@ -50,6 +50,7 @@ cryptoapiref: mkapiref.py \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_quictls.h \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_gnutls.h \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_boringssl.h \
+	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_aws_lc.h \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_picotls.h \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_wolfssl.h \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_ossl.h

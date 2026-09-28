@@ -65,6 +65,10 @@ AC_SUBST(CRYPTO_OSSL_LT_CURRENT, 3)
 AC_SUBST(CRYPTO_OSSL_LT_REVISION, 1)
 AC_SUBST(CRYPTO_OSSL_LT_AGE, 3)
 
+AC_SUBST(CRYPTO_AWS_LC_LT_CURRENT, 1)
+AC_SUBST(CRYPTO_AWS_LC_LT_REVISION, 0)
+AC_SUBST(CRYPTO_AWS_LC_LT_AGE, 0)
+
 # from nghttp2
 major=`echo $PACKAGE_VERSION |cut -d. -f1 | sed -e "s/[^0-9]//g"`
 minor=`echo $PACKAGE_VERSION |cut -d. -f2 | sed -e "s/[^0-9]//g"`
@@ -144,6 +148,11 @@ AC_ARG_WITH([boringssl],
     [AS_HELP_STRING([--with-boringssl],
                     [Use boringssl [default=no]])],
     [request_boringssl=$withval], [request_boringssl=no])
+
+AC_ARG_WITH([aws-lc],
+    [AS_HELP_STRING([--with-aws-lc],
+                    [Use AWS-LC [default=no]])],
+    [request_aws_lc=$withval], [request_aws_lc=no])
 
 AC_ARG_WITH([picotls],
     [AS_HELP_STRING([--with-picotls],
@@ -373,6 +382,23 @@ fi
 
 AM_CONDITIONAL([HAVE_BORINGSSL], [ test "x${have_boringssl}" = "xyes" ])
 
+# AWS-LC (required for libngtcp2_crypto_aws_lc)
+have_aws_lc=no
+if test "x${request_aws_lc}" != "xno"; then
+  PKG_CHECK_MODULES([AWS_LC], [aws-lc >= 1.1.1],
+                    [have_aws_lc=yes], [have_aws_lc=no])
+  if test "x${have_aws_lc}" = "xno"; then
+    AC_MSG_NOTICE($AWS_LC_PKG_ERRORS)
+  fi
+fi
+
+if test "x${request_aws_lc}" = "xyes" &&
+   test "x${have_aws_lc}" != "xyes"; then
+  AC_MSG_ERROR([AWS-LC was requested (--with-aws-lc) but not found])
+fi
+
+AM_CONDITIONAL([HAVE_AWS_LC], [ test "x${have_aws_lc}" = "xyes" ])
+
 # Picotls openssl backend (required for libngtcp2_crypto_picotls)
 have_picotls=no
 if test "x${request_picotls}" != "xno"; then
@@ -451,6 +477,7 @@ if test "x${have_quictls}" = "xyes" ||
    test "x${have_libressl}" = "xyes" ||
    test "x${have_gnutls}" = "xyes" ||
    test "x${have_boringssl}" = "xyes" ||
+   test "x${have_aws_lc}" = "xyes" ||
    test "x${have_picotls}" = "xyes" ||
    test "x${have_wolfssl}" = "xyes" ||
    test "x${have_ossl}" = "xyes"; then
@@ -573,6 +600,7 @@ AM_CONDITIONAL([ENABLE_EXAMPLE_QUICTLS], [ test "x${enable_examples}" = "xyes" &
 AM_CONDITIONAL([ENABLE_EXAMPLE_LIBRESSL], [ test "x${enable_examples}" = "xyes" && test "x${have_libressl}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_GNUTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_gnutls}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_BORINGSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_boringssl}" = "xyes" ])
+AM_CONDITIONAL([ENABLE_EXAMPLE_AWS_LC], [ test "x${enable_examples}" = "xyes" && test "x${have_aws_lc}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_PICOTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_picotls}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_WOLFSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_wolfssl}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_OSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_ossl}" = "xyes" ])
@@ -582,6 +610,7 @@ AC_SUBST([EXAMPLES_QUICTLS], "${have_quictls}")
 AC_SUBST([EXAMPLES_LIBRESSL], "${have_libressl}")
 AC_SUBST([EXAMPLES_GNUTLS], "${have_gnutls}")
 AC_SUBST([EXAMPLES_BORINGSSL], "${have_boringssl}")
+AC_SUBST([EXAMPLES_AWS_LC], "${have_aws_lc}")
 AC_SUBST([EXAMPLES_PICOTLS], "${have_picotls}")
 AC_SUBST([EXAMPLES_WOLFSSL], "${have_wolfssl}")
 AC_SUBST([EXAMPLES_OSSL], "${have_ossl}")
@@ -815,6 +844,8 @@ AC_CONFIG_FILES([
   crypto/gnutls/libngtcp2_crypto_gnutls.pc
   crypto/boringssl/Makefile
   crypto/boringssl/libngtcp2_crypto_boringssl.pc
+  crypto/aws-lc/Makefile
+  crypto/aws-lc/libngtcp2_crypto_aws_lc.pc
   crypto/picotls/Makefile
   crypto/picotls/libngtcp2_crypto_picotls.pc
   crypto/wolfssl/Makefile
@@ -860,6 +891,7 @@ AC_MSG_NOTICE([summary of build options:
       libngtcp2_crypto_libressl:  ${have_libressl}
       libngtcp2_crypto_gnutls:    ${have_gnutls}
       libngtcp2_crypto_boringssl: ${have_boringssl}
+      libngtcp2_crypto_aws_lc: ${have_aws_lc}
       libngtcp2_crypto_picotls:   ${have_picotls}
       libngtcp2_crypto_wolfssl:   ${have_wolfssl}
       libngtcp2_crypto_ossl:      ${have_ossl}
@@ -873,6 +905,7 @@ AC_MSG_NOTICE([summary of build options:
       Jemalloc:       ${have_jemalloc} (CFLAGS='${JEMALLOC_CFLAGS}' LIBS='${JEMALLOC_LIBS}')
       GnuTLS:         ${have_gnutls} (CFLAGS='${GNUTLS_CFLAGS}' LIBS='${GNUTLS_LIBS}')
       BoringSSL:      ${have_boringssl} (CFLAGS='${BORINGSSL_CFLAGS}' LIBS='${BORINGSSL_LIBS}')
+      AWS-LC:         ${have_aws_lc} (CFLAGS='${AWS_LC_CFLAGS}' LIBS='${AWS_LC_LIBS}')
       Picotls:        ${have_picotls} (CFLAGS='${PICOTLS_CFLAGS}' LIBS='${PICOTLS_LIBS}')
       wolfSSL:        ${have_wolfssl} (CFLAGS='${WOLFSSL_CFLAGS}' LIBS='${WOLFSSL_LIBS}')
       Libbrotlienc:   ${have_libbrotlienc} (CFLAGS='${LIBBROTLIENC_CFLAGS}' LIBS='${LIBBROTLIENC_LIBS}')
