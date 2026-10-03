@@ -8990,6 +8990,15 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
       dcid.bytes_sent = 0;
       dcid.bytes_recv = 0;
       dcid.flags &= (uint8_t)~NGTCP2_DCID_FLAG_PATH_VALIDATED;
+
+      /* The copy carries the old path's max UDP payload size, which
+         may not hold for a new IP address; a port-only change
+         (e.g. NAT rebinding) keeps it, as it keeps congestion
+         state. */
+      if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_CMP_FLAG_ADDR |
+                                                NGTCP2_ADDR_CMP_FLAG_FAMILY))) {
+        dcid.max_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
+      }
     }
 
     ngtcp2_dcid_set_path(&dcid, path);
