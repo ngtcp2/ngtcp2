@@ -41,7 +41,7 @@ foreach(name libngtcp2_crypto_ossl.pc)
 endforeach()
 
 # Public shared library
-if(ENABLE_SHARED_LIB)
+if(NGTCP2_ENABLE_SHARED_LIB)
   add_library(ngtcp2_crypto_ossl SHARED ${ngtcp2_crypto_ossl_SOURCES})
   set_target_properties(ngtcp2_crypto_ossl PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
@@ -61,7 +61,7 @@ if(ENABLE_SHARED_LIB)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
-if(ENABLE_STATIC_LIB)
+if(NGTCP2_ENABLE_STATIC_LIB)
   # Public static library
   add_library(ngtcp2_crypto_ossl_static STATIC ${ngtcp2_crypto_ossl_SOURCES})
   set_target_properties(ngtcp2_crypto_ossl_static PROPERTIES
