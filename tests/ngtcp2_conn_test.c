@@ -83,6 +83,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_recv_new_connection_id),
   munit_void_test(test_ngtcp2_conn_recv_retire_connection_id),
   munit_void_test(test_ngtcp2_conn_server_path_validation),
+  munit_void_test(test_ngtcp2_conn_server_peer_ip_change_pmtu),
   munit_void_test(test_ngtcp2_conn_client_connection_migration),
   munit_void_test(test_ngtcp2_conn_recv_path_challenge),
   munit_void_test(test_ngtcp2_conn_disable_active_migration),
@@ -11270,6 +11271,118 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
   assert_false(conn->pv->flags & NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK);
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_server_peer_ip_change_pmtu(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ngtcp2_ssize spktlen;
+  ngtcp2_tstamp t = 900;
+  ngtcp2_frame fr;
+  ngtcp2_frame frs[2];
+  int rv;
+  ngtcp2_path_storage new_ip_path, new_port_path;
+  ngtcp2_tpe tpe;
+
+  path_init(&new_ip_path, 0, 0, 2, 0);
+  path_init(&new_port_path, 0, 0, 0, 2);
+
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1200,
+  };
+
+  /* The client's IP address changes but it keeps its DCID, as when a
+     client's network changes under a socket bound to the wildcard
+     address.  The new path must not inherit the old path's maximum
+     UDP payload size. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  /* As if PMTUD had confirmed 1400 bytes on the original path. */
+  ngtcp2_conn_stop_pmtud(conn);
+  conn->dcid.current.max_udp_payload_size = 1400;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_ip_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_path_eq(&new_ip_path.path, &conn->dcid.current.ps.path));
+  assert_size(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==,
+              conn->dcid.current.max_udp_payload_size);
+
+  /* PMTUD runs again once the new path is validated. */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_not_null(conn->pv);
+  assert_null(conn->pmtud);
+
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_ip_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pmtud);
+
+  ngtcp2_conn_del(conn);
+
+  /* If validating the new path fails, the original path comes back
+     with its own maximum UDP payload size. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  ngtcp2_conn_stop_pmtud(conn);
+  conn->dcid.current.max_udp_payload_size = 1400;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_ip_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==,
+              conn->dcid.current.max_udp_payload_size);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_not_null(conn->pv);
+
+  t += conn->pv->timeout;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  assert_size(1400, ==, conn->dcid.current.max_udp_payload_size);
+
+  ngtcp2_conn_del(conn);
+
+  /* A port-only change (e.g. NAT rebinding) keeps the maximum UDP
+     payload size. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  ngtcp2_conn_stop_pmtud(conn);
+  conn->dcid.current.max_udp_payload_size = 1400;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_port_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_path_eq(&new_port_path.path, &conn->dcid.current.ps.path));
+  assert_size(1400, ==, conn->dcid.current.max_udp_payload_size);
 
   ngtcp2_conn_del(conn);
 }
