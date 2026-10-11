@@ -12670,7 +12670,7 @@ conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     .reason = (uint8_t *)reason,
   };
 
-  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
+  if ((conn->server || !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) &&
       pkt_type != NGTCP2_PKT_INITIAL) {
     if (in_pktns && conn->server) {
       nwrite = ngtcp2_conn_write_single_frame_pkt(
@@ -12793,6 +12793,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
   ngtcp2_ssize res = 0;
   ngtcp2_frame fr;
   uint64_t server_tx_left;
+  uint8_t pkt_type;
 
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
@@ -12823,17 +12824,26 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
     destlen = (size_t)ngtcp2_min((uint64_t)destlen, server_tx_left);
   }
 
-  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
-    nwrite = conn_write_connection_close(
-      conn, pi, dest, destlen,
-      conn->hs_pktns->crypto.tx.ckm ? NGTCP2_PKT_HANDSHAKE : NGTCP2_PKT_INITIAL,
-      NGTCP2_APPLICATION_ERROR, NULL, 0, ts);
-    if (nwrite < 0) {
-      return nwrite;
+  if (conn->server || !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
+    if (conn->hs_pktns && conn->hs_pktns->crypto.tx.ckm) {
+      pkt_type = NGTCP2_PKT_HANDSHAKE;
+    } else if (conn->in_pktns && conn->in_pktns->crypto.tx.ckm) {
+      pkt_type = NGTCP2_PKT_INITIAL;
+    } else {
+      pkt_type = NGTCP2_PKT_1RTT;
     }
-    res = nwrite;
-    dest += nwrite;
-    destlen -= (size_t)nwrite;
+
+    if (pkt_type != NGTCP2_PKT_1RTT) {
+      nwrite =
+        conn_write_connection_close(conn, pi, dest, destlen, pkt_type,
+                                    NGTCP2_APPLICATION_ERROR, NULL, 0, ts);
+      if (nwrite < 0) {
+        return nwrite;
+      }
+      res = nwrite;
+      dest += nwrite;
+      destlen -= (size_t)nwrite;
+    }
   }
 
   if (conn->state != NGTCP2_CS_POST_HANDSHAKE &&
