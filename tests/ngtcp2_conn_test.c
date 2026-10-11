@@ -13805,8 +13805,40 @@ void test_ngtcp2_conn_write_connection_close(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Server has confirmed handshake */
+  /* Server has confirmed handshake but still has handshake key */
   setup_default_server(&conn);
+
+  ngtcp2_ccerr_set_transport_error(&ccerr, NGTCP2_NO_ERROR, NULL, 0);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, >, spktlen);
+  assert_not_null(conn->hs_pktns);
+
+  p = buf;
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, p, (size_t)spktlen);
+
+  assert_ptrdiff(0, <, shdlen);
+  assert_uint8(NGTCP2_PKT_HANDSHAKE, ==, hd.type);
+
+  p += shdlen + (ngtcp2_ssize)hd.len;
+  spktlen -= shdlen + (ngtcp2_ssize)hd.len;
+
+  shdlen = ngtcp2_pkt_decode_hd_short(&hd, p, (size_t)spktlen,
+                                      conn->dcid.current.cid.datalen);
+
+  assert_ptrdiff(0, <, shdlen);
+  assert_uint8(NGTCP2_PKT_1RTT, ==, hd.type);
+
+  ngtcp2_conn_del(conn);
+
+  /* Server has confirmed handshake and discarded handshake key */
+  setup_default_server(&conn);
+
+  ngtcp2_conn_discard_handshake_state(conn, 0);
 
   ngtcp2_ccerr_set_transport_error(&ccerr, NGTCP2_NO_ERROR, NULL, 0);
 
@@ -14097,6 +14129,22 @@ void test_ngtcp2_conn_write_application_close(void) {
 
   p = buf;
 
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, p, (size_t)spktlen);
+
+  assert_ptrdiff(0, <, shdlen);
+  assert_uint8(NGTCP2_PKT_INITIAL, ==, hd.type);
+
+  p += shdlen + (ngtcp2_ssize)hd.len;
+  spktlen -= shdlen + (ngtcp2_ssize)hd.len;
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, p, (size_t)spktlen);
+
+  assert_ptrdiff(0, <, shdlen);
+  assert_uint8(NGTCP2_PKT_HANDSHAKE, ==, hd.type);
+
+  p += shdlen + (ngtcp2_ssize)hd.len;
+  spktlen -= shdlen + (ngtcp2_ssize)hd.len;
+
   shdlen = ngtcp2_pkt_decode_hd_short(&hd, p, (size_t)spktlen,
                                       conn->dcid.current.cid.datalen);
 
@@ -14105,8 +14153,39 @@ void test_ngtcp2_conn_write_application_close(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Server has confirmed handshake */
+  /* Server has confirmed handshake but still has handshake key */
   setup_default_server(&conn);
+
+  ngtcp2_ccerr_set_application_error(&ccerr, app_err_code, NULL, 0);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(NGTCP2_MAX_UDP_PAYLOAD_SIZE, >, spktlen);
+
+  p = buf;
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, p, (size_t)spktlen);
+
+  assert_ptrdiff(0, <, shdlen);
+  assert_uint8(NGTCP2_PKT_HANDSHAKE, ==, hd.type);
+
+  p += shdlen + (ngtcp2_ssize)hd.len;
+  spktlen -= shdlen + (ngtcp2_ssize)hd.len;
+
+  shdlen = ngtcp2_pkt_decode_hd_short(&hd, p, (size_t)spktlen,
+                                      conn->dcid.current.cid.datalen);
+
+  assert_ptrdiff(0, <, shdlen);
+  assert_uint8(NGTCP2_PKT_1RTT, ==, hd.type);
+
+  ngtcp2_conn_del(conn);
+
+  /* Server has confirmed handshake and discarded handshake key */
+  setup_default_server(&conn);
+
+  ngtcp2_conn_discard_handshake_state(conn, 0);
 
   ngtcp2_ccerr_set_application_error(&ccerr, app_err_code, NULL, 0);
 
