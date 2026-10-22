@@ -31,6 +31,8 @@
 #include <memory>
 #include <fstream>
 #include <iomanip>
+#include <limits>
+#include <utility>
 
 #include <unistd.h>
 #include <getopt.h>
@@ -216,6 +218,11 @@ Stream::open_file(const std::filesystem::path &path) {
     close(fd);
   } else {
     fe.fd = fd;
+    // A file larger than the address space cannot be mapped.
+    if (std::cmp_greater(st.st_size, std::numeric_limits<size_t>::max())) {
+      close(fd);
+      return std::unexpected{Error::INTEGER_OVERFLOW};
+    }
     fe.len = static_cast<size_t>(st.st_size);
     if (fe.len) {
       fe.map = mmap(nullptr, fe.len, PROT_READ, MAP_SHARED, fd, 0);
