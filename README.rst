@@ -173,7 +173,7 @@ Build with libressl
 
 .. code-block:: shell
 
-   $ LIBRESSL_VERSION=v4.3.2
+   $ LIBRESSL_VERSION=v4.4.0
    $ git clone --depth 1 -b $LIBRESSL_VERSION https://github.com/libressl/portable.git libressl
    $ cd libressl
    $ # Workaround autogen.sh failure
