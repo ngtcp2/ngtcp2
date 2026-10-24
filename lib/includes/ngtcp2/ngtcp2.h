@@ -6909,7 +6909,8 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_get_send_quantum2` returns the maximum number of bytes
- * that can be sent in one go without packet spacing.
+ * that can be sent in one go without packet spacing.  It is at least
+ * `ngtcp2_conn_get_path_max_tx_udp_payload_size2` bytes.
  *
  * .. version-added:: 1.23.0
  */

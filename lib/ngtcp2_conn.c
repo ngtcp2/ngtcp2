@@ -9062,23 +9062,31 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
     ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
 
+    /* Restore the maximum UDP payload size of the validated path
+       before resetting congestion state because it derives its
+       parameters (e.g., send_quantum lower bound) from it. */
+    if (validated_path) {
+      ngtcp2_dcid_apply_validated_path(&conn->dcid.current, validated_path);
+    }
+
     if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_CMP_FLAG_ADDR |
                                               NGTCP2_ADDR_CMP_FLAG_FAMILY))) {
       conn_reset_congestion_state(conn, ts);
+    } else {
+      /* Congestion state is kept, but the maximum UDP payload size of
+         the path may have changed. */
+      conn->cstat.max_tx_udp_payload_size =
+        ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn);
     }
 
     conn_reset_ecn_validation_state(conn);
 
     ngtcp2_conn_stop_pmtud(conn);
 
-    if (validated_path) {
-      ngtcp2_dcid_apply_validated_path(&conn->dcid.current, validated_path);
-
-      if (!conn->local.settings.no_pmtud) {
-        rv = conn_start_pmtud(conn);
-        if (rv != 0) {
-          return rv;
-        }
+    if (validated_path && !conn->local.settings.no_pmtud) {
+      rv = conn_start_pmtud(conn);
+      if (rv != 0) {
+        return rv;
       }
     }
   }
@@ -13984,13 +13992,18 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
 
   ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
 
-  conn_reset_congestion_state(conn, ts);
-  conn_reset_ecn_validation_state(conn);
-
+  /* Restore the maximum UDP payload size of the validated path
+     before resetting congestion state because it derives its
+     parameters (e.g., send_quantum lower bound) from it. */
   validated_path = ngtcp2_conn_find_path_history(conn, path, ts);
   if (validated_path) {
     ngtcp2_dcid_apply_validated_path(&conn->dcid.current, validated_path);
+  }
 
+  conn_reset_congestion_state(conn, ts);
+  conn_reset_ecn_validation_state(conn);
+
+  if (validated_path) {
     if (!conn->local.settings.no_pmtud) {
       rv = conn_start_pmtud(conn);
       if (rv != 0) {
@@ -14342,7 +14355,12 @@ size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn) {
 }
 
 size_t ngtcp2_conn_get_send_quantum2(const ngtcp2_conn *conn) {
-  return conn->cstat.send_quantum;
+  /* Congestion controller updates send_quantum only when it processes
+     ACK, but the maximum UDP payload size of the current path may
+     grow in between (e.g., migrating back to the validated path).
+     Ensure that at least one full-sized packet fits. */
+  return ngtcp2_max(conn->cstat.send_quantum,
+                    ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn));
 }
 
 size_t ngtcp2_conn_get_stream_loss_count(ngtcp2_conn *conn, int64_t stream_id) {

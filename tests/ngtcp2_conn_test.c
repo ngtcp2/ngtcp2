@@ -11455,6 +11455,9 @@ void test_ngtcp2_conn_server_peer_ip_change_pmtu(void) {
   int rv;
   ngtcp2_path_storage new_ip_path, new_port_path;
   ngtcp2_tpe tpe;
+  ngtcp2_dcid dcid;
+  ngtcp2_settings settings;
+  conn_options opts;
 
   path_init(&new_ip_path, 0, 0, 2, 0);
   path_init(&new_port_path, 0, 0, 0, 2);
@@ -11554,6 +11557,85 @@ void test_ngtcp2_conn_server_peer_ip_change_pmtu(void) {
   assert_size(1400, ==, conn->dcid.current.max_udp_payload_size);
 
   ngtcp2_conn_del(conn);
+
+  /* If the client migrates back to the validated path, congestion
+     state follows the restored maximum UDP payload size. */
+  server_default_settings(&settings);
+  settings.no_tx_udp_payload_size_shaping = 0;
+
+  opts = (conn_options){
+    .settings = &settings,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  ngtcp2_conn_stop_pmtud(conn);
+  conn->dcid.current.max_udp_payload_size = 1400;
+  conn->cstat.max_tx_udp_payload_size = 1400;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_ip_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==,
+              conn->dcid.current.max_udp_payload_size);
+  assert_size(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==,
+              conn->cstat.max_tx_udp_payload_size);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_ip_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  assert_size(1400, ==, conn->dcid.current.max_udp_payload_size);
+  assert_size(1400, ==, conn->cstat.max_tx_udp_payload_size);
+
+  ngtcp2_conn_del(conn);
+
+  /* The same applies to a port-only change which keeps congestion
+     state. */
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  ngtcp2_dcid_copy(&dcid, &conn->dcid.current);
+  ngtcp2_dcid_set_path(&dcid, &new_port_path.path);
+  dcid.max_udp_payload_size = 1400;
+
+  ngtcp2_conn_add_path_history(conn, &dcid, t);
+
+  assert_size(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==,
+              conn->cstat.max_tx_udp_payload_size);
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_port_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&new_port_path.path, &conn->dcid.current.ps.path));
+  assert_size(1400, ==, conn->dcid.current.max_udp_payload_size);
+  assert_size(1400, ==, conn->cstat.max_tx_udp_payload_size);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_client_connection_migration(void) {
@@ -11575,6 +11657,9 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   ngtcp2_path_storage to_path;
   ngtcp2_tpe tpe;
   ngtcp2_path_history_entry *ph_ent;
+  ngtcp2_settings settings;
+  conn_options opts;
+  ngtcp2_dcid dcid;
 
   /* immediate migration */
   setup_default_client(&conn);
@@ -11697,6 +11782,50 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   assert_null(conn->pv);
   assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
   assert_true(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
+
+  ngtcp2_conn_del(conn);
+
+  /* Congestion state follows the maximum UDP payload size restored by
+     migrating to the validated path. */
+  client_default_settings(&settings);
+  settings.no_tx_udp_payload_size_shaping = 0;
+
+  opts = (conn_options){
+    .settings = &settings,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr[0].new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid,
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  ngtcp2_dcid_copy(&dcid, &conn->dcid.current);
+  ngtcp2_dcid_set_path(&dcid, &new_path.path);
+  dcid.max_udp_payload_size = 1400;
+
+  ngtcp2_conn_add_path_history(conn, &dcid, t);
+
+  assert_size(NGTCP2_MAX_UDP_PAYLOAD_SIZE, ==,
+              conn->cstat.max_tx_udp_payload_size);
+
+  rv = ngtcp2_conn_initiate_immediate_migration(conn, &new_path.path, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&new_path.path, &conn->dcid.current.ps.path));
+  assert_size(1400, ==, conn->dcid.current.max_udp_payload_size);
+  assert_size(1400, ==, conn->cstat.max_tx_udp_payload_size);
 
   ngtcp2_conn_del(conn);
 }
@@ -19337,6 +19466,36 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
   assert_uint8(NGTCP2_ECN_NOT_ECT, ==, pi.ecn);
   assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
   assert_size(1, ==, ud.write_pkt.num_write_left);
+
+  ngtcp2_conn_del(conn);
+
+  /* send_quantum is smaller than a single packet */
+  opt = (conn_options){
+    .user_data = &ud,
+  };
+
+  setup_default_client_with_options(&conn, opt);
+  ngtcp2_path_storage_zero(&ps);
+  pi = (ngtcp2_pkt_info){0};
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  ud.write_pkt.stream_id = stream_id;
+  ud.write_pkt.num_write_left = 10;
+
+  conn->cstat.send_quantum =
+    ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn) - 1;
+
+  spktlen = ngtcp2_conn_write_aggregate_pkt(conn, &ps.path, &pi, buf,
+                                            sizeof(buf), &gsolen, write_pkt, t);
+
+  assert_ptrdiff(
+    (ngtcp2_ssize)ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn), ==,
+    spktlen);
+  assert_size(ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn), ==, gsolen);
+  assert_size(9, ==, ud.write_pkt.num_write_left);
 
   ngtcp2_conn_del(conn);
 }
