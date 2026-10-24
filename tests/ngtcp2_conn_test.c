@@ -14776,6 +14776,61 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
   assert_ptrdiff(0, ==, spktlen);
 
   ngtcp2_conn_del(conn);
+
+  /* Skip stale frames, and do not visit the same packet twice */
+  setup_default_client(&conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  for (i = 0; i < 3; ++i) {
+    ngtcp2_conn_extend_max_offset(conn, conn->rx.window);
+
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+    assert_ptrdiff(0, <, spktlen);
+
+    it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+    assert_false(ngtcp2_ksl_it_end(&it));
+
+    ent = ngtcp2_ksl_it_get(&it);
+
+    assert_uint64(NGTCP2_FRAME_MAX_DATA, ==, ent->frc->fr.hd.type);
+  }
+
+  assert_size(4, ==, ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+  assert_int64(-1, ==, conn->pktns.rtb.pto_reclaim_pkt_num);
+
+  nwrite = ngtcp2_rtb_reclaim_on_pto(&conn->pktns.rtb, conn, &conn->pktns, 1);
+
+  assert_ptrdiff(1, ==, nwrite);
+  assert_int64(0, ==, conn->pktns.rtb.pto_reclaim_pkt_num);
+  assert_uint64(NGTCP2_FRAME_NEW_CONNECTION_ID, ==,
+                conn->pktns.tx.frq->fr.hd.type);
+
+  ngtcp2_frame_chain_list_objalloc_del(conn->pktns.tx.frq, &conn->frc_objalloc,
+                                       conn->mem);
+  conn->pktns.tx.frq = NULL;
+
+  nwrite = ngtcp2_rtb_reclaim_on_pto(&conn->pktns.rtb, conn, &conn->pktns, 1);
+
+  assert_ptrdiff(1, ==, nwrite);
+  assert_int64(3, ==, conn->pktns.rtb.pto_reclaim_pkt_num);
+  assert_size(0, ==, conn->pktns.rtb.num_retransmittable);
+  assert_uint64(NGTCP2_FRAME_MAX_DATA, ==, conn->pktns.tx.frq->fr.hd.type);
+  assert_uint64(conn->rx.max_offset, ==,
+                conn->pktns.tx.frq->fr.max_data.max_data);
+  assert_null(conn->pktns.tx.frq->next);
+
+  nwrite = ngtcp2_rtb_reclaim_on_pto(&conn->pktns.rtb, conn, &conn->pktns, 1);
+
+  assert_ptrdiff(0, ==, nwrite);
+  assert_int64(3, ==, conn->pktns.rtb.pto_reclaim_pkt_num);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_rtb_reclaim_on_pto_datagram(void) {
