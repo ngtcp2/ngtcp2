@@ -10804,6 +10804,8 @@ void test_ngtcp2_conn_server_path_validation(void) {
   ngtcp2_tpe tpe;
   ngtcp2_transport_params params, remote_params;
   conn_options opts;
+  int64_t stream_id;
+  ngtcp2_tstamp timeout_ts;
 
   path_init(&new_path1, 0, 0, 2, 0);
   path_init(&new_path2, 0, 0, 3, 0);
@@ -11505,6 +11507,82 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
   assert_false(conn->pv->flags & NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK);
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
+
+  ngtcp2_conn_del(conn);
+
+  /* Path validation times out while server is blocked by
+     anti-amplification limit, and is unable to send another
+     PATH_CHALLENGE. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 200,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path1.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&new_path1.path, &conn->dcid.current.ps.path));
+
+  ++t;
+
+  for (;;) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                       NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                       null_data, sizeof(null_data), t);
+
+    assert_ptrdiff(0, <=, spktlen);
+
+    if (spktlen == 0) {
+      break;
+    }
+  }
+
+  assert_uint64(3 * conn->dcid.current.bytes_recv, ==,
+                conn->dcid.current.bytes_sent);
+  assert_size(NGTCP2_PV_NUM_PROBE_PKT, ==,
+              ngtcp2_ringbuf_len(&conn->pv->ents.rb));
+
+  timeout_ts = conn->pv->started_ts + conn->pv->timeout;
+
+  for (;;) {
+    t = ngtcp2_conn_get_expiry2(conn);
+
+    assert_uint64(timeout_ts, >=, t);
+
+    rv = ngtcp2_conn_handle_expiry(conn, t);
+
+    assert_int(0, ==, rv);
+
+    if (t == timeout_ts) {
+      break;
+    }
+
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+    assert_ptrdiff(0, ==, spktlen);
+    assert_not_null(conn->pv);
+    assert_size(NGTCP2_PV_NUM_PROBE_PKT, ==,
+                ngtcp2_ringbuf_len(&conn->pv->ents.rb));
+  }
+
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
 
   ngtcp2_conn_del(conn);
 }

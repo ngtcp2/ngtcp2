@@ -183,7 +183,7 @@ void test_ngtcp2_pv_cancel_expired_timer(void) {
   ngtcp2_pv_cancel_expired_timer(pv, 30 * NGTCP2_MILLISECONDS);
 
   assert_true(pv->flags & NGTCP2_PV_FLAG_CANCEL_TIMER);
-  assert_uint64(UINT64_MAX, ==, ngtcp2_pv_next_expiry(pv));
+  assert_uint64(3 * NGTCP2_SECONDS, ==, ngtcp2_pv_next_expiry(pv));
 
   ngtcp2_pv_del(pv);
 }
