@@ -11925,6 +11925,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   ngtcp2_transport_params params;
   ngtcp2_tpe tpe;
   conn_options opts;
+  size_t i;
 
   setup_default_server(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
@@ -12199,6 +12200,132 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   assert_int(0, ==, rv);
   assert_size(0, <, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+
+  ngtcp2_conn_del(conn);
+
+  /* Client responding to PATH_CHALLENGE from the path it is
+     validating is subject to the anti-amplification limit. */
+  setup_default_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid,
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_initiate_migration(conn, &new_path.path, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+
+  /* PATH_CHALLENGE sent by client is not limited, and not charged to
+     the limit. */
+  for (i = 0; i < NGTCP2_PV_NUM_PROBE_PKT; ++i) {
+    ngtcp2_path_storage_zero(&ps);
+
+    spktlen =
+      ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
+
+    assert_ptrdiff(1200, <=, spktlen);
+    assert_true(ngtcp2_path_eq(&new_path.path, &ps.path));
+  }
+
+  assert_uint64(0, ==, conn->pv->dcid.bytes_sent);
+
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
+  frs[1].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data2,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(2, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_uint64(pktlen, ==, conn->pv->dcid.bytes_recv);
+
+  ngtcp2_path_storage_zero(&ps);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(3 * (ngtcp2_ssize)pktlen, ==, spktlen);
+  assert_true(ngtcp2_path_eq(&new_path.path, &ps.path));
+  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_uint64((uint64_t)spktlen, ==, conn->pv->dcid.bytes_sent);
+
+  /* The limit has been reached.  The second PATH_RESPONSE is not
+     sent. */
+  ngtcp2_path_storage_zero(&ps);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <=, spktlen);
+  assert_false(ngtcp2_path_eq(&new_path.path, &ps.path));
+  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_uint64(3 * pktlen, ==, conn->pv->dcid.bytes_sent);
+
+  ngtcp2_conn_del(conn);
+
+  /* Client expands PATH_RESPONSE if PATH_CHALLENGE from the path it
+     is validating is expanded. */
+  setup_default_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid,
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_initiate_migration(conn, &new_path.path, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1200,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+
+  ngtcp2_path_storage_zero(&ps);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+  assert_true(ngtcp2_path_eq(&new_path.path, &ps.path));
+  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_uint64((uint64_t)spktlen, ==, conn->pv->dcid.bytes_sent);
 
   ngtcp2_conn_del(conn);
 }
