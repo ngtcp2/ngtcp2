@@ -9409,7 +9409,13 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         return NGTCP2_ERR_DISCARD_PKT;
       }
 
-      if (!conn->early.ckm) {
+      /* TLS stack might install 0-RTT key before it decides to send
+         HelloRetryRequest.  Local transport parameters are not
+         committed and remote transport parameters are not applied
+         until 1-RTT tx key is installed.  Do not process 0-RTT packet
+         until then.  Server which sends HelloRetryRequest must not
+         process 0-RTT packets anyway. */
+      if (!conn->early.ckm || !conn->pktns.crypto.tx.ckm) {
         return (ngtcp2_ssize)pktlen;
       }
 
