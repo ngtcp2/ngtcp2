@@ -11278,8 +11278,12 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
   int rv;
 
   assert(ivlen >= 8);
-  assert(!pktns->crypto.rx.hp_ctx.native_handle);
-  assert(!pktns->crypto.rx.ckm);
+
+  /* Graceful connection closure for TLS stack does not follow RFC
+     9001, section 6. */
+  if (pktns->crypto.rx.hp_ctx.native_handle || pktns->crypto.rx.ckm) {
+    return NGTCP2_ERR_INVALID_STATE;
+  }
 
   rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, secret, secretlen, aead_ctx,
                             iv, ivlen, conn->mem);
@@ -11325,8 +11329,11 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
   int rv;
 
   assert(ivlen >= 8);
-  assert(!pktns->crypto.tx.hp_ctx.native_handle);
-  assert(!pktns->crypto.tx.ckm);
+
+  /* See the comment in ngtcp2_conn_install_rx_key. */
+  if (pktns->crypto.tx.hp_ctx.native_handle || pktns->crypto.tx.ckm) {
+    return NGTCP2_ERR_INVALID_STATE;
+  }
 
   rv = ngtcp2_crypto_km_new(&pktns->crypto.tx.ckm, secret, secretlen, aead_ctx,
                             iv, ivlen, conn->mem);
