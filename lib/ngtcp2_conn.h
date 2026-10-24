@@ -93,6 +93,10 @@ typedef enum {
    value, it is truncated. */
 #define NGTCP2_CCERR_MAX_REASONLEN 1024
 
+/* NGTCP2_MAX_TOKENLEN is the maximum length of token given in
+   ngtcp2_settings.token that client sends in its Initial packet. */
+#define NGTCP2_MAX_TOKENLEN 512
+
 /* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_WRITE_PKT_FLAG_NONE 0x00U
 /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet other
@@ -193,6 +197,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    Initial CRYPTO frame into pieces as a countermeasure against Deep
    Packet Inspection. */
 #define NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO 0x40000U
+/* NGTCP2_CONN_FLAG_CLIENT_INITIAL_CALLED is set when
+   ngtcp2_callbacks.client_initial has been called successfully. */
+#define NGTCP2_CONN_FLAG_CLIENT_INITIAL_CALLED 0x80000U
 
 typedef struct ngtcp2_pktns {
   struct {

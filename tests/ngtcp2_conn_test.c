@@ -5325,6 +5325,26 @@ void test_ngtcp2_conn_handshake(void) {
   assert_ptrdiff(1200, ==, spktlen);
 
   ngtcp2_conn_del(conn);
+
+  /* Make sure that client_initial is called only once */
+  setup_handshake_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 16, ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
+  assert_uint64(217, ==, conn->in_pktns->crypto.strm.tx.offset);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 16, ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
+  assert_uint64(217, ==, conn->in_pktns->crypto.strm.tx.offset);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+  assert_uint64(217, ==, conn->in_pktns->crypto.strm.tx.offset);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_handshake_error(void) {
@@ -13279,6 +13299,52 @@ void test_ngtcp2_conn_send_initial_token(void) {
   assert_ptrdiff(0, <, shdlen);
   assert_size(sizeof(token), ==, hd.tokenlen);
   assert_memory_equal(sizeof(token), token, hd.token);
+
+  ngtcp2_conn_del(conn);
+
+  /* The longest token */
+  client_default_settings(&settings);
+
+  settings.token = null_data;
+  settings.tokenlen = NGTCP2_MAX_TOKENLEN;
+
+  opts = (conn_options){
+    .settings = &settings,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
+
+  assert_ptrdiff(0, <, shdlen);
+  assert_size(NGTCP2_MAX_TOKENLEN, ==, hd.tokenlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* The token is too long */
+  client_default_settings(&settings);
+
+  settings.token = null_data;
+  settings.tokenlen = NGTCP2_MAX_TOKENLEN + 1;
+
+  opts = (conn_options){
+    .settings = &settings,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
+
+  assert_ptrdiff(0, <, shdlen);
+  assert_size(0, ==, hd.tokenlen);
 
   ngtcp2_conn_del(conn);
 }

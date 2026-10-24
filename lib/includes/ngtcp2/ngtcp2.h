@@ -1913,7 +1913,7 @@ typedef struct ngtcp2_settings {
    * :member:`token_type` field.
    *
    * Client sets this field if it intends to send token in its Initial
-   * packet.
+   * packet.  A token longer than 512 bytes is ignored.
    *
    * `ngtcp2_conn_server_new` and `ngtcp2_conn_client_new` make a copy
    * of token.

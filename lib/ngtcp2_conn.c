@@ -1406,13 +1406,18 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->local.settings = *settings;
 
   if (settings->tokenlen) {
-    tokenbuf = ngtcp2_mem_malloc(mem, settings->tokenlen);
-    if (tokenbuf == NULL) {
-      rv = NGTCP2_ERR_NOMEM;
-      goto fail_token;
+    if (settings->tokenlen > NGTCP2_MAX_TOKENLEN) {
+      (*pconn)->local.settings.token = NULL;
+      (*pconn)->local.settings.tokenlen = 0;
+    } else {
+      tokenbuf = ngtcp2_mem_malloc(mem, settings->tokenlen);
+      if (tokenbuf == NULL) {
+        rv = NGTCP2_ERR_NOMEM;
+        goto fail_token;
+      }
+      memcpy(tokenbuf, settings->token, settings->tokenlen);
+      (*pconn)->local.settings.token = tokenbuf;
     }
-    memcpy(tokenbuf, settings->token, settings->tokenlen);
-    (*pconn)->local.settings.token = tokenbuf;
   } else {
     (*pconn)->local.settings.token = NULL;
   }
@@ -3086,9 +3091,13 @@ static ngtcp2_ssize conn_write_client_initial(ngtcp2_conn *conn,
                                               ngtcp2_tstamp ts) {
   int rv;
 
-  rv = conn_call_client_initial(conn);
-  if (rv != 0) {
-    return rv;
+  if (!(conn->flags & NGTCP2_CONN_FLAG_CLIENT_INITIAL_CALLED)) {
+    rv = conn_call_client_initial(conn);
+    if (rv != 0) {
+      return rv;
+    }
+
+    conn->flags |= NGTCP2_CONN_FLAG_CLIENT_INITIAL_CALLED;
   }
 
   return conn_write_handshake_pkt(
