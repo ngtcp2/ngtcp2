@@ -248,6 +248,9 @@ ngtcp2_ksl_it ngtcp2_rtb_head(const ngtcp2_rtb *rtb);
  *     User callback failed
  * NGTCP2_ERR_NOMEM
  *     Out of memory
+ * NGTCP2_ERR_PROTO
+ *     |fr| acknowledges a skipped packet number, or a packet that was
+ *     sent after |pkt_ts|.
  */
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
                                  ngtcp2_conn_stat *cstat, ngtcp2_conn *conn,

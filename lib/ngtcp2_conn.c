@@ -5727,7 +5727,8 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  * NGTCP2_ERR_PROTO
- *     |fr| acknowledges a packet this endpoint has not sent.
+ *     |fr| acknowledges a packet this endpoint has not sent, or a
+ *     packet which was sent after |pkt_ts|.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
  */

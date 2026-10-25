@@ -876,7 +876,10 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
     ent = ngtcp2_ksl_it_get(&it);
 
-    if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP) {
+    /* A packet cannot acknowledge a packet which was sent after it
+       had been received.  This could happen with a buffered
+       packet. */
+    if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP) || pkt_ts < ent->ts) {
       rv = NGTCP2_ERR_PROTO;
       goto fail;
     }
@@ -909,7 +912,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
       ent = ngtcp2_ksl_it_get(&it);
 
-      if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP) {
+      if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP) || pkt_ts < ent->ts) {
         rv = NGTCP2_ERR_PROTO;
         goto fail;
       }

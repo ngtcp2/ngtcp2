@@ -189,6 +189,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_conn_stat cstat;
   ngtcp2_cc_reno cc;
   ngtcp2_pkt_hd hd;
+  ngtcp2_rtb_entry *ent;
   ngtcp2_ssize num_acked;
   ngtcp2_rst rst;
   ngtcp2_objalloc frc_objalloc;
@@ -359,6 +360,51 @@ void test_ngtcp2_rtb_recv_ack(void) {
 
   num_acked = ngtcp2_rtb_recv_ack(&rtb, &fr, &cstat, NULL, &pktns, 1000000009,
                                   1000000009);
+
+  assert_ptrdiff(NGTCP2_ERR_PROTO, ==, num_acked);
+
+  ngtcp2_rtb_free(&rtb);
+
+  /* acknowledging packet sent after the packet containing ACK frame
+     is received in the first block */
+  conn_stat_init(&cstat);
+  ngtcp2_cc_reno_init(&cc, &log, &cstat);
+  ngtcp2_rtb_init(&rtb, &rst, &cc.cc, 0, &log, NULL, &rtb_entry_objalloc,
+                  &frc_objalloc, mem);
+  ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, 1000000010, 0,
+                                NGTCP2_RTB_ENTRY_FLAG_NONE,
+                                &rtb_entry_objalloc);
+  ngtcp2_rtb_add(&rtb, ent, &cstat);
+
+  fr = (ngtcp2_ack){0};
+
+  num_acked = ngtcp2_rtb_recv_ack(&rtb, &fr, &cstat, NULL, &pktns, 1000000009,
+                                  1000000011);
+
+  assert_ptrdiff(NGTCP2_ERR_PROTO, ==, num_acked);
+
+  ngtcp2_rtb_free(&rtb);
+
+  /* acknowledging packet sent after the packet containing ACK frame
+     is received in the second block */
+  conn_stat_init(&cstat);
+  ngtcp2_cc_reno_init(&cc, &log, &cstat);
+  ngtcp2_rtb_init(&rtb, &rst, &cc.cc, 0, &log, NULL, &rtb_entry_objalloc,
+                  &frc_objalloc, mem);
+  ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, 1000000010, 0,
+                                NGTCP2_RTB_ENTRY_FLAG_NONE,
+                                &rtb_entry_objalloc);
+  ngtcp2_rtb_add(&rtb, ent, &cstat);
+
+  fr = (ngtcp2_ack){
+    .largest_ack = 2,
+    .rangecnt = 1,
+    .ranges = ack_ranges,
+  };
+  ack_ranges[0] = (ngtcp2_ack_range){0};
+
+  num_acked = ngtcp2_rtb_recv_ack(&rtb, &fr, &cstat, NULL, &pktns, 1000000009,
+                                  1000000011);
 
   assert_ptrdiff(NGTCP2_ERR_PROTO, ==, num_acked);
 
