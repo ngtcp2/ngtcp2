@@ -12142,6 +12142,39 @@ void test_ngtcp2_conn_key_update(void) {
   assert_false(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR);
 
   ngtcp2_conn_del(conn);
+
+  /* The remote endpoint sends the maximum packet number with the old
+     key after the local endpoint initiates key update */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->crypto.key_update.new_rx_ckm);
+
+  rv = ngtcp2_conn_initiate_key_update(conn, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->crypto.key_update.old_rx_ckm);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR);
+
+  conn->pktns.acktr.max_pkt_num = NGTCP2_MAX_PKT_NUM - 1;
+  tpe.app.last_pkt_num = NGTCP2_MAX_PKT_NUM - 1;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_int64(NGTCP2_MAX_PKT_NUM, ==, conn->pktns.acktr.max_pkt_num);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_crypto_buffer_exceeded(void) {

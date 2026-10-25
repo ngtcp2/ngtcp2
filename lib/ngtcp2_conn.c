@@ -11347,7 +11347,11 @@ static int conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  conn_rotate_keys(conn, NGTCP2_MAX_PKT_NUM, /* initiator = */ 1);
+  /* No packet protected by the new key has been received yet.  Use
+     INT64_MAX instead of NGTCP2_MAX_PKT_NUM because the latter is a
+     valid packet number that the remote endpoint can send with the
+     old key. */
+  conn_rotate_keys(conn, INT64_MAX, /* initiator = */ 1);
 
   return 0;
 }
