@@ -175,6 +175,9 @@ int ngtcp2_pv_validate(ngtcp2_pv *pv, uint8_t *pflags,
 
 /*
  * ngtcp2_pv_handle_entry_expiry checks expiry of existing entries.
+ * If the last entry has expired, it starts new round.  Calling this
+ * function again has no effect until new entry is added by
+ * ngtcp2_pv_add_entry.
  */
 void ngtcp2_pv_handle_entry_expiry(ngtcp2_pv *pv, ngtcp2_tstamp ts);
 
