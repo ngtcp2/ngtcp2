@@ -1393,11 +1393,6 @@ int ngtcp2_rtb_reclaim_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
       }
     }
 
-    /* We never send PING only probe packet because we should have
-       CRYPTO data or just nothing.  If we have nothing, then we do
-       not send probe packet. */
-    assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE));
-
     /* We never get ACK before Retry packet. */
     assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
     assert(0 == rtb->num_lost_pkts);
