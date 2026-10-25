@@ -28,6 +28,7 @@
 #include <stdio.h>
 
 #include "ngtcp2_map.h"
+#include "ngtcp2_macro.h"
 
 static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_map),
@@ -36,6 +37,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_map_clear),
   munit_void_test(test_ngtcp2_map_free),
   munit_void_test(test_ngtcp2_map_remove),
+  munit_void_test(test_ngtcp2_map_seed),
   munit_test_end(),
 };
 
@@ -253,4 +255,35 @@ void test_ngtcp2_map_remove(void) {
   assert_int(NGTCP2_ERR_INVALID_ARGUMENT, ==, ngtcp2_map_remove(&map, 0));
 
   ngtcp2_map_free(&map);
+}
+
+void test_ngtcp2_map_seed(void) {
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  const uint64_t seeds[] = {
+    0, 1, 0x0123456789ABCDEFULL, 0xFFFFFFFF00000000ULL, UINT64_MAX,
+  };
+  ngtcp2_map map;
+  ngtcp2_map_key_type key;
+  size_t i;
+
+  /* The keys are chosen without knowing seed so that the products of
+     them and the multipliers used by the hash function are close to
+     each other.  They must be scattered over the table, and the table
+     must not grow beyond what the load factor requires. */
+  for (i = 0; i < ngtcp2_arraylen(seeds); ++i) {
+    ngtcp2_map_init(&map, seeds[i], mem);
+
+    for (key = 0; key < 65536; ++key) {
+      if ((key * 0xF1357AEA2E62A9C5ULL * 0x9E3779B97F4A7C15ULL) >> 56) {
+        continue;
+      }
+
+      assert_int(0, ==, ngtcp2_map_insert(&map, key, &map));
+    }
+
+    assert_size(257, ==, ngtcp2_map_size(&map));
+    assert_size(9, ==, map.hashbits);
+
+    ngtcp2_map_free(&map);
+  }
 }
