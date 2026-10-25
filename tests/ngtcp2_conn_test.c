@@ -9053,7 +9053,7 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
 void test_ngtcp2_conn_writev_stream(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
-  ngtcp2_ssize spktlen;
+  ngtcp2_ssize spktlen, hs_spktlen;
   ngtcp2_tstamp t = 0;
   int rv;
   int64_t stream_id;
@@ -9478,6 +9478,163 @@ void test_ngtcp2_conn_writev_stream(void) {
                               NGTCP2_WRITE_STREAM_FLAG_MORE, -1, NULL, 0, ++t);
 
   assert_ptrdiff(1200, <=, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* 0RTT: Stream data blocked without NGTCP2_WRITE_STREAM_FLAG_MORE
+     after an empty packet is left open */
+  setup_early_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1200, ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  strm->tx.max_offset = 0;
+
+  /* This will send STREAM_DATA_BLOCKED */
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_STREAM_DATA_BLOCKED, ==, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_STREAM_DATA_BLOCKED, ==, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
+
+  ngtcp2_conn_del(conn);
+
+  /* 1RTT: Stream data blocked without NGTCP2_WRITE_STREAM_FLAG_MORE
+     after an empty packet is left open */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  strm->tx.max_offset = 0;
+
+  /* This will send STREAM_DATA_BLOCKED */
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_STREAM_DATA_BLOCKED, ==, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_STREAM_DATA_BLOCKED, ==, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
+
+  ngtcp2_conn_del(conn);
+
+  /* 1RTT: Stream data blocked without NGTCP2_WRITE_STREAM_FLAG_MORE
+     after an empty packet is left open behind Handshake packet */
+  setup_handshake_server(&conn);
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 1200,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 111);
+
+  ngtcp2_conn_install_rx_key(conn, null_secret, sizeof(null_secret),
+                             &null_aead_ctx, null_iv, sizeof(null_iv),
+                             &null_hp_ctx);
+  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret),
+                             &null_aead_ctx, null_iv, sizeof(null_iv),
+                             &null_hp_ctx);
+
+  conn->tx.uni.max_streams = 1;
+  conn->tx.max_offset = 1000;
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  /* This will send STREAM_DATA_BLOCKED */
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+
+  /* The next datagram starts with Handshake packet. */
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+                                 null_data, 111);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_STREAM_DATA_BLOCKED, ==, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
+  assert_ptrdiff(0, <, conn->pkt.hs_spktlen);
+
+  hs_spktlen = conn->pkt.hs_spktlen;
+
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(hs_spktlen, ==, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING);
+
+  /* Handshake packet must not be reported again. */
+  spktlen = ngtcp2_conn_writev_stream(conn, NULL, NULL, buf, 1200, &datalen,
+                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                      &datav, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_STREAM_DATA_BLOCKED, ==, spktlen);
   assert_ptrdiff(-1, ==, datalen);
 
   ngtcp2_conn_del(conn);

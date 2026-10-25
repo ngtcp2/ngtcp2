@@ -4527,6 +4527,13 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         conn->pkt.hd_logged = hd_logged;
         conn->pkt.require_padding = require_padding;
         conn->flags |= NGTCP2_CONN_FLAG_PPE_PENDING;
+      } else {
+        /* The packet might have been left open by the previous call
+           with NGTCP2_WRITE_PKT_FLAG_MORE.  It is still empty, and
+           nothing is going to be added to it, so discard it.
+           Otherwise, NGTCP2_CONN_FLAG_PPE_PENDING is left set after
+           returning to the application. */
+        conn_reset_ppe_pending(conn);
       }
 
       return NGTCP2_ERR_STREAM_DATA_BLOCKED;
