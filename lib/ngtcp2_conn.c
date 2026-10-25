@@ -4995,6 +4995,8 @@ static int dcidtr_on_retire(const ngtcp2_dcid *dcid, void *user_data) {
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
+ * NGTCP2_ERR_CONNECTION_ID_LIMIT
+ *     The number of unacknowledged retirement exceeds the limit.
  */
 static int conn_retire_active_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
                                    ngtcp2_tstamp ts) {
@@ -5022,6 +5024,8 @@ static int conn_retire_active_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
  *
  * NGTCP2_ERR_CONN_ID_BLOCKED
  *     No unused DCID is available
+ * NGTCP2_ERR_CONNECTION_ID_LIMIT
+ *     The number of unacknowledged retirement exceeds the limit.
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
@@ -5148,6 +5152,8 @@ static ngtcp2_ssize conn_write_pmtud_probe(ngtcp2_conn *conn,
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
+ * NGTCP2_ERR_CONNECTION_ID_LIMIT
+ *     The number of unacknowledged retirement exceeds the limit.
  */
 static int conn_stop_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv = 0;
@@ -5197,6 +5203,8 @@ fin:
  *     Out of memory
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
+ * NGTCP2_ERR_CONNECTION_ID_LIMIT
+ *     The number of unacknowledged retirement exceeds the limit.
  */
 static int conn_abort_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_pv *pv = conn->pv;
@@ -5392,6 +5400,8 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
  *     Out of memory
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
+ * NGTCP2_ERR_CONNECTION_ID_LIMIT
+ *     The number of unacknowledged retirement exceeds the limit.
  */
 static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
                                              ngtcp2_path *path,
@@ -5446,7 +5456,7 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
 
     rv = conn_bind_dcid(conn, &dcid, &pcent->ps.path, ts);
     if (rv != 0) {
-      if (ngtcp2_err_is_fatal(rv)) {
+      if (rv != NGTCP2_ERR_CONN_ID_BLOCKED) {
         return rv;
       }
       return 0;
@@ -8982,6 +8992,8 @@ static int conn_revert_client_migration(ngtcp2_conn *conn,
  *
  * NGTCP2_ERR_CONN_ID_BLOCKED
  *     No DCID is available
+ * NGTCP2_ERR_CONNECTION_ID_LIMIT
+ *     The number of unacknowledged retirement exceeds the limit.
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
@@ -9156,6 +9168,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
       "path migration is aborted because new migration has started");
     rv = conn_abort_pv(conn, ts);
     if (rv != 0) {
+      ngtcp2_pv_del(pv);
       return rv;
     }
   }
@@ -9176,6 +9189,8 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
  *
  * NGTCP2_ERR_CONN_ID_BLOCKED
  *     No unused DCID is available
+ * NGTCP2_ERR_CONNECTION_ID_LIMIT
+ *     The number of unacknowledged retirement exceeds the limit.
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
@@ -9939,24 +9954,16 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         !conn_path_validation_in_progress(conn, path)) {
       rv = conn_recv_non_probing_pkt_on_new_path(conn, path, dgramlen,
                                                  new_cid_used, ts);
-      if (rv != 0) {
-        if (ngtcp2_err_is_fatal(rv)) {
-          return rv;
-        }
-
-        /* DCID is not available.  Just continue. */
-        assert(NGTCP2_ERR_CONN_ID_BLOCKED == rv);
+      /* If DCID is not available, just continue. */
+      if (rv != 0 && rv != NGTCP2_ERR_CONN_ID_BLOCKED) {
+        return rv;
       }
     } else {
       rv = conn_recv_pkt_from_new_path(conn, path, dgramlen,
                                        path_challenge_recved, ts);
-      if (rv != 0) {
-        if (ngtcp2_err_is_fatal(rv)) {
-          return rv;
-        }
-
-        /* DCID is not available.  Just continue. */
-        assert(NGTCP2_ERR_CONN_ID_BLOCKED == rv);
+      /* If DCID is not available, just continue. */
+      if (rv != 0 && rv != NGTCP2_ERR_CONN_ID_BLOCKED) {
+        return rv;
       }
     }
   } else if (!conn->server && hd.type == NGTCP2_PKT_1RTT && conn->pv &&
