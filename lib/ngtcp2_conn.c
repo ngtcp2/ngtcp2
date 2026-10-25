@@ -3517,6 +3517,15 @@ static int conn_should_send_data_blocked(const ngtcp2_conn *conn) {
 }
 
 /*
+ * strm_can_send_short_stream returns nonzero if a STREAM frame which
+ * is shorter than NGTCP2_MIN_STREAM_DATALEN because of flow control
+ * can be sent to |strm|.
+ */
+static int strm_can_send_short_stream(const ngtcp2_strm *strm) {
+  return ngtcp2_strm_get_acked_offset(strm) >= strm->tx.last_short_offset;
+}
+
+/*
  * conn_reset_ppe_pending clears NGTCP2_CONN_FLAG_PPE_PENDING flag and
  * nullifies conn->pkt.
  */
@@ -3616,6 +3625,12 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       /* 0 length STREAM frame is allowed */
       if (ndatalen || datalen == 0) {
         send_stream = 1;
+
+        if (ndatalen != datalen && ndatalen < NGTCP2_MIN_STREAM_DATALEN &&
+            !strm_can_send_short_stream(vmsg->stream.strm) &&
+            ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
+          return NGTCP2_ERR_INTERNAL;
+        }
       } else {
         stream_blocked = 1;
       }
@@ -4351,6 +4366,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     vmsg->stream.strm->tx.offset += wdatalen;
     conn->tx.offset += wdatalen;
     vmsg->stream.strm->flags |= NGTCP2_STRM_FLAG_ANY_SENT;
+
+    if (ndatalen < datalen && ndatalen < NGTCP2_MIN_STREAM_DATALEN) {
+      vmsg->stream.strm->tx.last_short_offset = vmsg->stream.strm->tx.offset;
+    }
 
     if (nfrc->fr.stream.fin) {
       ngtcp2_strm_shutdown(vmsg->stream.strm, NGTCP2_STRM_FLAG_SHUT_WR);

@@ -137,6 +137,10 @@ struct ngtcp2_strm {
         /* last_blocked_offset is the largest offset where the
            transmission of stream data is blocked. */
         uint64_t last_blocked_offset;
+        /* last_short_offset is the offset just after the last STREAM
+           frame that is shorter than NGTCP2_MIN_STREAM_DATALEN
+           because of flow control. */
+        uint64_t last_short_offset;
         /* last_max_stream_data_ts is the timestamp when last
            MAX_STREAM_DATA frame is sent. */
         ngtcp2_tstamp last_max_stream_data_ts;
