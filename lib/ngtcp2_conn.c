@@ -8923,6 +8923,37 @@ static int conn_path_validation_in_progress(const ngtcp2_conn *conn,
 }
 
 /*
+ * conn_revert_client_migration handles the case that server observed
+ * that client is migrated back to the original path during the path
+ * validation or after that.
+ */
+static int conn_revert_client_migration(ngtcp2_conn *conn,
+                                        const ngtcp2_dcid *dcid,
+                                        size_t dgramlen, ngtcp2_tstamp ts) {
+  int rv;
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
+                  "path is migrated back to the original path");
+
+  ngtcp2_dcid_copy(&conn->dcid.current, dcid);
+  conn_reset_congestion_state(conn, ts);
+  conn->dcid.current.bytes_recv += dgramlen;
+  conn_reset_ecn_validation_state(conn);
+
+  rv = conn_abort_pv(conn, ts);
+  if (rv != 0) {
+    return rv;
+  }
+
+  /* Run PMTUD just in case if it is prematurely aborted */
+  if (!conn->pmtud && !conn->local.settings.no_pmtud) {
+    return conn_start_pmtud(conn);
+  }
+
+  return 0;
+}
+
+/*
  * conn_recv_non_probing_pkt_on_new_path is called when non-probing
  * packet is received via new path.  It starts path validation against
  * the new path.
@@ -8951,31 +8982,22 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   assert(conn->server);
 
-  if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
-      ngtcp2_path_eq(&conn->pv->fallback_dcid.ps.path, path)) {
-    /* If new path equals fallback path, that means connection
-       migrated back to the original path.  Fallback path is
-       considered to be validated. */
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
-                    "path is migrated back to the original path");
-    ngtcp2_dcid_copy(&conn->dcid.current, &conn->pv->fallback_dcid);
-    conn_reset_congestion_state(conn, ts);
-    conn->dcid.current.bytes_recv += dgramlen;
-    conn_reset_ecn_validation_state(conn);
-
-    rv = conn_abort_pv(conn, ts);
-    if (rv != 0) {
-      return rv;
+  if (conn->pv) {
+    if ((conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) &&
+        ngtcp2_path_eq(&conn->pv->fallback_dcid.ps.path, path)) {
+      /* If new path equals fallback path, that means connection
+         migrated back to the original path.  Fallback path is
+         considered to be validated. */
+      return conn_revert_client_migration(conn, &conn->pv->fallback_dcid,
+                                          dgramlen, ts);
     }
 
-    /* Run PMTUD just in case if it is prematurely aborted */
-    assert(!conn->pmtud);
-
-    if (!conn->local.settings.no_pmtud) {
-      return conn_start_pmtud(conn);
+    if ((conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE) &&
+        ngtcp2_path_eq(&conn->pv->dcid.ps.path, path)) {
+      /* Client migrated back to the original path after successful
+         validation. */
+      return conn_revert_client_migration(conn, &conn->pv->dcid, dgramlen, ts);
     }
-
-    return 0;
   }
 
   remote_addr_cmp =
