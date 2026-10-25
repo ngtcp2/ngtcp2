@@ -6202,6 +6202,25 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
  * conn_reset_congestion_state resets congestion state.
  */
 static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  /* If no packet sent since the previous reset has been
+     acknowledged, congestion state is still in its initial state,
+     and the reset would only forget the in-flight packets, which
+     stay in rtb until they are acknowledged or declared lost.  A
+     remote endpoint which keeps changing its address without sending
+     ACK would get a fresh initial congestion window per packet and
+     grow rtb without bound.  Keep the congestion state as we do for
+     a port-only change. */
+  if (conn->rst.delivered == 0 && conn->cstat.bytes_in_flight) {
+    conn->cstat.max_tx_udp_payload_size =
+      ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn);
+
+    /* The timer might have been canceled due to amplification limit
+       on the previous path. */
+    ngtcp2_conn_set_loss_detection_timer(conn, ts);
+
+    return;
+  }
+
   conn_reset_conn_stat_cc(conn, &conn->cstat);
 
   if (conn->cc.reset) {

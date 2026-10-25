@@ -84,6 +84,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_recv_retire_connection_id),
   munit_void_test(test_ngtcp2_conn_server_path_validation),
   munit_void_test(test_ngtcp2_conn_server_peer_ip_change_pmtu),
+  munit_void_test(test_ngtcp2_conn_server_peer_ip_change_in_flight),
   munit_void_test(test_ngtcp2_conn_client_connection_migration),
   munit_void_test(test_ngtcp2_conn_recv_path_challenge),
   munit_void_test(test_ngtcp2_conn_disable_active_migration),
@@ -11974,6 +11975,96 @@ void test_ngtcp2_conn_server_peer_ip_change_pmtu(void) {
   assert_true(ngtcp2_path_eq(&new_port_path.path, &conn->dcid.current.ps.path));
   assert_size(1400, ==, conn->dcid.current.max_udp_payload_size);
   assert_size(1400, ==, conn->cstat.max_tx_udp_payload_size);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_server_peer_ip_change_in_flight(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ngtcp2_ssize spktlen;
+  ngtcp2_tstamp t = 900;
+  ngtcp2_frame frs[2];
+  int rv;
+  ngtcp2_path_storage new_ip_path;
+  ngtcp2_tpe tpe;
+  uint64_t bytes_in_flight;
+  int64_t cc_pkt_num;
+  int64_t stream_id;
+
+  path_init(&new_ip_path, 0, 0, 2, 0);
+
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_uint64(0, <, conn->cstat.bytes_in_flight);
+
+  /* The in-flight packets are forgotten if a client that has
+     acknowledged a packet changes its IP address. */
+  frs[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(0, <, conn->rst.delivered);
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 1024, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_uint64(0, <, conn->cstat.bytes_in_flight);
+
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1200,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_ip_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_path_eq(&new_ip_path.path, &conn->dcid.current.ps.path));
+  assert_uint64(0, ==, conn->cstat.bytes_in_flight);
+  assert_uint64(0, ==, conn->pktns.rtb.cc_bytes_in_flight);
+  assert_int64(conn->pktns.tx.last_pkt_num + 1, ==, conn->pktns.rtb.cc_pkt_num);
+  assert_uint64(0, ==, conn->rst.delivered);
+
+  /* They are kept if the client changes its IP address again without
+     acknowledging any packet sent since then. */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_uint64(0, <, conn->cstat.bytes_in_flight);
+
+  bytes_in_flight = conn->cstat.bytes_in_flight;
+  cc_pkt_num = conn->pktns.rtb.cc_pkt_num;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  assert_uint64(bytes_in_flight, ==, conn->cstat.bytes_in_flight);
+  assert_uint64(bytes_in_flight, ==, conn->pktns.rtb.cc_bytes_in_flight);
+  assert_int64(cc_pkt_num, ==, conn->pktns.rtb.cc_pkt_num);
+  assert_uint64(UINT64_MAX, !=, conn->cstat.loss_detection_timer);
 
   ngtcp2_conn_del(conn);
 }
