@@ -19069,10 +19069,11 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
   my_user_data ud;
   conn_options opt;
   size_t gsolen;
-  ngtcp2_frame frs[2];
+  ngtcp2_frame frs[3];
   int rv;
   size_t pktlen;
   ngtcp2_tpe tpe;
+  ngtcp2_settings settings;
 
   opt = (conn_options){
     .user_data = &ud,
@@ -19267,6 +19268,75 @@ void test_ngtcp2_conn_write_aggregate_pkt(void) {
   assert_true(ngtcp2_path_eq(&null_path.path, &ps.path));
   assert_uint8(NGTCP2_ECN_ECT_0, ==, pi.ecn);
   assert_size(9, ==, ud.write_pkt.num_write_left);
+
+  ngtcp2_conn_del(conn);
+
+  /* Full sized PATH_RESPONSE to the path other than the current path
+     stops aggregation. */
+  server_default_settings(&settings);
+  settings.max_tx_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
+
+  opt = (conn_options){
+    .settings = &settings,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opt);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  ngtcp2_path_storage_zero(&ps);
+  pi = (ngtcp2_pkt_info){0};
+
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data =
+      {
+        .data = {0x11},
+      },
+  };
+  frs[1].new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid =
+      {
+        .data = {0xFE},
+        .datalen = 11,
+      },
+    .token =
+      {
+        .data = {0xAB},
+      },
+  };
+  frs[2].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1100,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 3);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+
+  open_stream(conn, 0);
+
+  ud.write_pkt.stream_id = 0;
+  ud.write_pkt.num_write_left = 2;
+
+  spktlen = ngtcp2_conn_write_aggregate_pkt(
+    conn, &ps.path, &pi, buf, sizeof(buf), &gsolen, write_pkt, ++t);
+
+  /* Anti-amplification limit allows the full sized PATH_RESPONSE, but
+     it is sent to the new path, and must not be followed by the
+     packets to the current path. */
+  assert_ptrdiff(
+    (ngtcp2_ssize)ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn), ==,
+    spktlen);
+  assert_size((size_t)spktlen, ==, gsolen);
+  assert_true(ngtcp2_path_eq(&new_path.path, &ps.path));
+  assert_uint8(NGTCP2_ECN_NOT_ECT, ==, pi.ecn);
+  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_size(1, ==, ud.write_pkt.num_write_left);
 
   ngtcp2_conn_del(conn);
 }

@@ -14403,6 +14403,7 @@ ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt2_versioned(
   int first_pkt;
   ngtcp2_pkt_info pi_discard;
   ngtcp2_path_storage path_discard;
+  ngtcp2_path_storage path_start;
   (void)pkt_info_version;
 
   assert(buflen >= path_max_udp_payloadlen);
@@ -14410,6 +14411,8 @@ ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt2_versioned(
   if (num_pkts == 0) {
     num_pkts = SIZE_MAX;
   }
+
+  ngtcp2_path_storage_init2(&path_start, &conn->dcid.current.ps.path);
 
   for (;;) {
     ecn_state = conn->tx.ecn.state;
@@ -14440,7 +14443,8 @@ ngtcp2_ssize ngtcp2_conn_write_aggregate_pkt2_versioned(
 
       if ((size_t)nwrite != path_max_udp_payloadlen ||
           buflen < path_max_udp_payloadlen || ecn_state != conn->tx.ecn.state ||
-          num_pkts == 0) {
+          num_pkts == 0 || (path && !ngtcp2_path_eq(path, &path_start.path)) ||
+          !ngtcp2_path_eq(&conn->dcid.current.ps.path, &path_start.path)) {
         nwrite = wbuf - buf;
         break;
       }
