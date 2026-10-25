@@ -1316,6 +1316,17 @@ static int rtb_reclaim_frame_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
         break;
       }
 
+      /* 0 length STREAM frame with offset == 0 must be retransmitted
+         only if no non-empty data are sent to this stream, and fin
+         flag is not set.  Otherwise, it shares the offset with the
+         first non-empty (or fin ) STREAM frame, and
+         ngtcp2_strm_streamfrq_push fails. */
+      if (sfr->offset == 0 && sfr->datacnt == 0 && !sfr->fin &&
+          (strm->tx.offset || (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR))) {
+        ngtcp2_frame_chain_objalloc_del(frc, rtb->frc_objalloc, rtb->mem);
+        break;
+      }
+
       rv = ngtcp2_strm_streamfrq_push(strm, frc);
       if (rv != 0) {
         ngtcp2_frame_chain_objalloc_del(frc, rtb->frc_objalloc, rtb->mem);
