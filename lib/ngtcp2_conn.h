@@ -488,12 +488,6 @@ struct ngtcp2_conn {
          accept. */
       uint64_t max_streams;
     } uni;
-
-    struct {
-      /* pkt_num is the lowest incoming packet number of the packet
-         that server verified preferred address usage of client. */
-      int64_t pkt_num;
-    } preferred_addr;
   } rx;
 
   struct {
