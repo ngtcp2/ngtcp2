@@ -136,7 +136,7 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   assert_ptr_equal(&buf[6 + NGTCP2_MAX_CIDLEN + 1], vc.scid);
 
   /* Fail if header is truncated. */
-  for (i = 1; i < (size_t)(p - buf); ++i) {
+  for (i = 0; i < (size_t)(p - buf); ++i) {
     rv = ngtcp2_pkt_decode_version_cid(&vc, buf, i, 0);
 
     assert_ptrdiff(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
@@ -162,7 +162,7 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   assert_ptr_equal(&buf[6 + NGTCP2_MAX_CIDLEN + 1], vc.scid);
 
   /* Fail if header is truncated. */
-  for (i = 1; i < (size_t)(p - buf); ++i) {
+  for (i = 0; i < (size_t)(p - buf); ++i) {
     rv = ngtcp2_pkt_decode_version_cid(&vc, buf, i, 0);
 
     assert_ptrdiff(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
@@ -232,7 +232,7 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   assert_ptr_equal(&buf[6 + NGTCP2_MAX_CIDLEN + 1], vc.scid);
 
   /* Fail if header is truncated. */
-  for (i = 1; i < (size_t)(p - buf); ++i) {
+  for (i = 0; i < (size_t)(p - buf); ++i) {
     rv = ngtcp2_pkt_decode_version_cid(&vc, buf, i, 0);
 
     assert_ptrdiff(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
@@ -286,7 +286,7 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   assert_size(0, ==, vc.scidlen);
 
   /* Fail if header is truncated. */
-  for (i = 1; i < (size_t)(p - buf); ++i) {
+  for (i = 0; i < (size_t)(p - buf); ++i) {
     rv = ngtcp2_pkt_decode_version_cid(&vc, buf, i, NGTCP2_MAX_CIDLEN);
 
     assert_ptrdiff(NGTCP2_ERR_INVALID_ARGUMENT, ==, rv);
