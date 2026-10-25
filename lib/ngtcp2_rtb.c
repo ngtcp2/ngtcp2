@@ -106,6 +106,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_rst *rst, ngtcp2_cc *cc,
   rtb->cc_bytes_in_flight = 0;
   rtb->num_lost_pkts = 0;
   rtb->num_lost_ignore_pkts = 0;
+  rtb->pto_reclaim_pkt_num = -1;
 }
 
 void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
@@ -371,6 +372,18 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
       }
 
       break;
+    case NGTCP2_FRAME_MAX_STREAMS_BIDI:
+      if (fr->max_streams.max_streams < conn->rx.bidi.max_streams) {
+        continue;
+      }
+
+      break;
+    case NGTCP2_FRAME_MAX_STREAMS_UNI:
+      if (fr->max_streams.max_streams < conn->rx.uni.max_streams) {
+        continue;
+      }
+
+      break;
     case NGTCP2_FRAME_MAX_STREAM_DATA:
       strm = ngtcp2_conn_find_stream(conn, fr->max_stream_data.stream_id);
       if (strm == NULL || !ngtcp2_strm_require_retransmit_max_stream_data(
@@ -379,10 +392,22 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
       }
 
       break;
+    case NGTCP2_FRAME_MAX_DATA:
+      if (fr->max_data.max_data < conn->rx.max_offset) {
+        continue;
+      }
+
+      break;
     case NGTCP2_FRAME_STREAM_DATA_BLOCKED:
       strm = ngtcp2_conn_find_stream(conn, fr->stream_data_blocked.stream_id);
       if (strm == NULL || !ngtcp2_strm_require_retransmit_stream_data_blocked(
                             strm, &fr->stream_data_blocked)) {
+        continue;
+      }
+
+      break;
+    case NGTCP2_FRAME_DATA_BLOCKED:
+      if (fr->data_blocked.max_data != conn->tx.max_offset) {
         continue;
       }
 
@@ -1485,10 +1510,12 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   ngtcp2_ssize reclaimed;
   size_t atmost = num_pkts;
 
-  it = ngtcp2_ksl_end(&rtb->ents);
+  it = ngtcp2_ksl_lower_bound(&rtb->ents, &rtb->pto_reclaim_pkt_num);
   for (; !ngtcp2_ksl_it_begin(&it) && num_pkts;) {
     ngtcp2_ksl_it_prev(&it);
     ent = ngtcp2_ksl_it_get(&it);
+
+    rtb->pto_reclaim_pkt_num = ent->hd.pkt_num;
 
     if ((ent->flags & (NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED |
                        NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED)) ||

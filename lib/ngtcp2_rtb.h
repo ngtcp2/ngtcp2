@@ -195,6 +195,11 @@ typedef struct ngtcp2_rtb {
      excluded from lost byte count.  If only those packets are lost,
      congestion event is not triggered. */
   size_t num_lost_ignore_pkts;
+  /* pto_reclaim_pkt_num is the largest packet number among the
+     entries that ngtcp2_rtb_reclaim_on_pto has visited, or -1 if it
+     has not visited any entry yet.  The entries up to this packet
+     number have been reclaimed, or never will be. */
+  int64_t pto_reclaim_pkt_num;
 } ngtcp2_rtb;
 
 /*
