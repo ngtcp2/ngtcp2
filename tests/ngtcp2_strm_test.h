@@ -39,5 +39,6 @@ munit_void_test_decl(test_ngtcp2_strm_streamfrq_pop)
 munit_void_test_decl(test_ngtcp2_strm_streamfrq_unacked_offset)
 munit_void_test_decl(test_ngtcp2_strm_streamfrq_unacked_pop)
 munit_void_test_decl(test_ngtcp2_strm_discard_ordered_data)
+munit_void_test_decl(test_ngtcp2_strm_recv_reordering)
 
 #endif /* !defined(NGTCP2_STRM_TEST_H) */
