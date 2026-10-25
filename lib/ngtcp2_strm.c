@@ -146,10 +146,6 @@ ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
     if (strm->rx.cont_offset) {
       ngtcp2_rob_remove_prefix(strm->rx.rob, strm->rx.cont_offset);
     }
-
-    if (strm->flags & NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING) {
-      ngtcp2_rob_discard_data(strm->rx.rob);
-    }
   }
 
   nwrite = ngtcp2_rob_push(strm->rx.rob, offset, data, datalen);
@@ -750,9 +746,8 @@ int ngtcp2_strm_require_retransmit_stream_data_blocked(
          !(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
 }
 
-uint64_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm,
-                                          uint64_t rx_offset) {
-  uint64_t datalen;
+size_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm, uint64_t rx_offset) {
+  size_t datalen;
   const uint8_t *data;
   uint64_t orig_rx_offset = rx_offset;
 
@@ -771,19 +766,5 @@ uint64_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm,
     rx_offset += datalen;
   }
 
-  return rx_offset - orig_rx_offset;
-}
-
-void ngtcp2_strm_stop_buffering_reordered_data(ngtcp2_strm *strm) {
-  if (strm->flags & NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING) {
-    return;
-  }
-
-  strm->flags |= NGTCP2_STRM_FLAG_NO_REORDERED_DATA_BUFFERING;
-
-  if (!strm->rx.rob) {
-    return;
-  }
-
-  ngtcp2_rob_discard_data(strm->rx.rob);
+  return (size_t)(rx_offset - orig_rx_offset);
 }
