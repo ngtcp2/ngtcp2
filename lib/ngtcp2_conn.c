@@ -8711,7 +8711,8 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
  * negative error codes:
  *
  * NGTCP2_ERR_PROTO
- *     Server received HANDSHAKE_DONE frame.
+ *     Server received HANDSHAKE_DONE frame; or client received it
+ *     before it could send Finished.
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  * NGTCP2_ERR_CALLBACK_FAILURE
@@ -8726,6 +8727,17 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) {
     return 0;
+  }
+
+  /* Server sends HANDSHAKE_DONE only after it has received client
+     Finished (RFC 9001 Section 4.1.2).  Client moves to
+     post-handshake state and discards Initial packet number space no
+     later than it sends Finished.  If either has not happened yet,
+     the remote endpoint is misbehaving, and Handshake packet number
+     space is still in use by conn_read_handshake and
+     conn_write_handshake, which must not see it discarded. */
+  if (conn->state != NGTCP2_CS_POST_HANDSHAKE || conn->in_pktns) {
+    return NGTCP2_ERR_PROTO;
   }
 
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED |
