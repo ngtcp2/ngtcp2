@@ -4031,6 +4031,16 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                                NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                                NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
             pfrc = &(*pfrc)->next;
+
+            /* An application might have shut down or extended the
+               flow control window of any stream inside the callback
+               function.  strm might not be the top of conn->tx.strmq
+               anymore, and its flags might have been changed.  Start
+               over from the top of the queue. */
+            if (ngtcp2_conn_tx_strmq_top(conn) != strm ||
+                (strm->flags & NGTCP2_STRM_FLAG_SEND_RESET_STREAM)) {
+              continue;
+            }
           }
         }
 
@@ -4320,7 +4330,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   left = ngtcp2_ppe_left(ppe);
 
+  /* An application might have shut down the stream inside
+     stream_stop_sending callback function called above. */
   if (*pfrc == NULL && send_stream && ngtcp2_pq_empty(&conn->tx.strmq) &&
+      !(vmsg->stream.strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) &&
       (wdatalen = ngtcp2_pkt_stream_max_datalen(
          vmsg->stream.strm->stream_id, vmsg->stream.strm->tx.offset, ndatalen,
          left)) != (size_t)-1 &&
@@ -4571,6 +4584,13 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           stream_blocked) {
         return NGTCP2_ERR_STREAM_DATA_BLOCKED;
       }
+
+      /* In case when stream is shutted down inside stop_sending
+         callback */
+      if (vmsg->stream.strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) {
+        return NGTCP2_ERR_STREAM_SHUT_WR;
+      }
+
       break;
     case NGTCP2_VMSG_TYPE_DATAGRAM:
       if (send_datagram && ngtcp2_ppe_left(ppe)) {
@@ -11067,6 +11087,7 @@ conn_client_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         break;
       }
       /* fall through */
+    case NGTCP2_ERR_STREAM_SHUT_WR:
     case NGTCP2_ERR_WRITE_MORE:
       conn->pkt.hs_spktlen = spktlen;
       break;
@@ -12791,6 +12812,7 @@ fin:
       break;
     }
     /* fall through */
+  case NGTCP2_ERR_STREAM_SHUT_WR:
   case NGTCP2_ERR_WRITE_MORE:
     conn->pkt.hs_spktlen = res;
     break;
