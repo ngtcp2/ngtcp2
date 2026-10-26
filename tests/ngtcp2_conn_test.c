@@ -352,6 +352,17 @@ static int client_initial_null(ngtcp2_conn *conn, void *user_data) {
   return 0;
 }
 
+static int client_initial_large_crypto(ngtcp2_conn *conn, void *user_data) {
+  (void)user_data;
+
+  /* Initial CRYPTO data which is larger than a couple of typical
+     datagrams. */
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                 null_data, 3000);
+
+  return 0;
+}
+
 static int client_initial_early_data(ngtcp2_conn *conn, void *user_data) {
   (void)user_data;
 
@@ -5467,6 +5478,10 @@ void test_ngtcp2_conn_handshake(void) {
   ngtcp2_conn_tls_handshake_completed(conn);
   tpe.app.ckm = conn->pktns.crypto.rx.ckm;
 
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
   fr.handshake_done = (ngtcp2_handshake_done){
     .type = NGTCP2_FRAME_HANDSHAKE_DONE,
   };
@@ -5477,6 +5492,125 @@ void test_ngtcp2_conn_handshake(void) {
 
   assert_int(0, ==, rv);
   assert_true(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED);
+  assert_null(conn->hs_pktns);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive HANDSHAKE_DONE before sending Finished */
+  client_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 1200,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  tpe.handshake.ckm = conn->hs_pktns->crypto.rx.ckm;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  tpe.app.ckm = conn->pktns.crypto.rx.ckm;
+
+  fr.handshake_done = (ngtcp2_handshake_done){
+    .type = NGTCP2_FRAME_HANDSHAKE_DONE,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_PROTO, ==, rv);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED);
+  assert_not_null(conn->hs_pktns);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receive HANDSHAKE_DONE in post-handshake state, but client has
+     been sending Initial packets only. */
+  client_default_callbacks(&callbacks);
+  callbacks.client_initial = client_initial_large_crypto;
+  callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1200, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 1200,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  tpe.handshake.ckm = conn->hs_pktns->crypto.rx.ckm;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  tpe.app.ckm = conn->pktns.crypto.rx.ckm;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1200, ++t);
+
+  assert_ptrdiff(1200, ==, spktlen);
+  assert_enum(ngtcp2_conn_state, NGTCP2_CS_POST_HANDSHAKE, ==, conn->state);
+  assert_not_null(conn->in_pktns);
+
+  fr.handshake_done = (ngtcp2_handshake_done){
+    .type = NGTCP2_FRAME_HANDSHAKE_DONE,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_PROTO, ==, rv);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED);
+  assert_not_null(conn->hs_pktns);
 
   ngtcp2_conn_del(conn);
 
