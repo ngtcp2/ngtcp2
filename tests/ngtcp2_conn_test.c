@@ -2812,13 +2812,34 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
 
   assert_int(0, ==, rv);
   assert_uint64(1024, ==, conn->rx.offset);
-  assert_uint64(128 * 1024 + 1024, ==, conn->rx.unsent_max_offset);
+  assert_uint64(128 * 1024, ==, conn->rx.unsent_max_offset);
 
   /* Receiving same RESET_STREAM does not increase rx offsets. */
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 3);
 
   assert_int(0, ==, rv);
   assert_uint64(1024, ==, conn->rx.offset);
+  assert_uint64(128 * 1024, ==, conn->rx.unsent_max_offset);
+
+  /* Closing the stream extends the connection flow control budget
+     that it holds */
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 0x00, 4, 0xAE);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 4);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 5);
+
+  assert_int(0, ==, rv);
   assert_uint64(128 * 1024 + 1024, ==, conn->rx.unsent_max_offset);
 
   ngtcp2_conn_del(conn);
@@ -2864,7 +2885,28 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
 
   assert_int(0, ==, rv);
   assert_not_null(ngtcp2_conn_find_stream(conn, 4));
-  assert_uint64(128 * 1024 + 956 + 1, ==, conn->rx.unsent_max_offset);
+  assert_uint64(128 * 1024, ==, conn->rx.unsent_max_offset);
+
+  /* Closing the stream extends the connection flow control budget
+     that it holds */
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 0x00, 4, 0xAE);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 5);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 6);
+
+  assert_int(0, ==, rv);
+  assert_uint64(128 * 1024 + 957, ==, conn->rx.unsent_max_offset);
 
   ngtcp2_conn_del(conn);
 }
@@ -7717,7 +7759,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   assert_int(0, ==, rv);
   assert_not_null(ngtcp2_conn_find_stream(conn, 0));
-  assert_uint64(199, ==,
+  assert_uint64(0, ==,
                 conn->rx.unsent_max_offset -
                   conn->local.transport_params.initial_max_data);
 
@@ -7737,7 +7779,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   assert_int(0, ==, rv);
   assert_int64(-1, ==, ud.stream_data.stream_id);
-  assert_uint64(199, ==,
+  assert_uint64(0, ==,
                 conn->rx.unsent_max_offset -
                   conn->local.transport_params.initial_max_data);
 
@@ -7759,6 +7801,27 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   assert_int(0, ==, rv);
   assert_int64(-1, ==, ud.stream_data.stream_id);
+  assert_uint64(0, ==,
+                conn->rx.unsent_max_offset -
+                  conn->local.transport_params.initial_max_data);
+
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 0, 0, 0xAE);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
   assert_uint64(199, ==,
                 conn->rx.unsent_max_offset -
                   conn->local.transport_params.initial_max_data);

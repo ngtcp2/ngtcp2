@@ -7958,11 +7958,6 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
 
   conn->rx.offset += datalen;
 
-  /* Extend connection flow control window for the amount of data
-     which are not passed to application. */
-  ngtcp2_conn_extend_max_offset(conn,
-                                fr->final_size - ngtcp2_strm_rx_offset(strm));
-
   strm->rx.last_offset = fr->final_size;
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD |
                  NGTCP2_STRM_FLAG_RESET_STREAM_RECVED |
@@ -13080,6 +13075,11 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
     assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
     return rv;
   }
+
+  /* Extend connection flow control window for the amount of data
+     which are not passed to application. */
+  ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
+                                        ngtcp2_strm_rx_offset(strm));
 
   if (ngtcp2_strm_is_tx_queued(strm)) {
     ngtcp2_pq_remove(&conn->tx.strmq, &strm->pe);
