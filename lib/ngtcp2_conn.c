@@ -11523,7 +11523,21 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_conn_remove_lost_pkt(conn, ts);
 
   if (conn->pv) {
-    ngtcp2_pv_cancel_expired_timer(conn->pv, ts);
+    /* conn_write_path_challenge also checks the timeout, but it might
+       not get a chance to send another PATH_CHALLENGE (e.g., server
+       is blocked by anti-amplification limit, or congestion window is
+       depleted).  Path validation must time out regardless. */
+    if (ngtcp2_pv_validation_timed_out(conn->pv, ts)) {
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
+                      "path validation was timed out");
+
+      rv = conn_on_path_validation_failed(conn, conn->pv, ts);
+      if (rv != 0) {
+        return rv;
+      }
+    } else {
+      ngtcp2_pv_cancel_expired_timer(conn->pv, ts);
+    }
   }
 
   if (conn->pmtud) {
