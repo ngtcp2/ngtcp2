@@ -8623,6 +8623,71 @@ void test_ngtcp2_conn_recv_early_data(void) {
   assert_uint64(999, ==, strm->rx.last_offset);
 
   ngtcp2_conn_del(conn);
+
+  /* 0-RTT packet is not processed until 1-RTT tx key is installed
+     (e.g., TLS stack gives 0-RTT key, and then sends
+     HelloRetryRequest) */
+  server_early_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data_server;
+  callbacks.recv_stream_data = recv_stream_data;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_early_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
+  tpe.initial.last_pkt_num = pkt_num;
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 1221,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->early.ckm);
+  assert_null(conn->pktns.crypto.tx.ckm);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .stream_id = 4,
+    .fin = 1,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 911,
+      },
+  };
+
+  tpe.app.last_pkt_num = pkt_num;
+  tpe.early.ckm = &null_ckm;
+
+  pktlen = ngtcp2_tpe_write_0rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  ud = (my_user_data){0};
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_int64(0, ==, ud.stream_data.stream_id);
+  assert_null(ngtcp2_conn_find_stream(conn, 4));
+  assert_int64(-1, ==, conn->pktns.acktr.max_pkt_num);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_compound_pkt(void) {
