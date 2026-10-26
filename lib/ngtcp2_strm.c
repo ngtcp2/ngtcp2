@@ -115,9 +115,21 @@ uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm) {
 }
 
 /* strm_rob_heavily_fragmented returns nonzero if the number of gaps
-   in |rob| exceeds the limit. */
-static int strm_rob_heavily_fragmented(const ngtcp2_rob *rob) {
-  return ngtcp2_ksl_len(&rob->gapksl) >= 4000;
+   in strm->rx.rob exceeds the limit.  A gap costs memory no matter
+   how small it is, while flow control only charges the remote
+   endpoint for the offset range that the reorder buffer covers.
+   Therefore, beyond a fixed allowance, each gap must be backed by
+   NGTCP2_MIN_STREAM_DATALEN bytes of that range. */
+static int strm_rob_heavily_fragmented(const ngtcp2_strm *strm) {
+  size_t ngap = ngtcp2_ksl_len(&strm->rx.rob->gapksl);
+  uint64_t rx_offset = ngtcp2_rob_first_gap_offset(strm->rx.rob);
+  uint64_t span;
+
+  assert(strm->rx.last_offset >= rx_offset);
+
+  span = strm->rx.last_offset - rx_offset;
+
+  return ngap >= 4000 || ngap > 128 + span / NGTCP2_MIN_STREAM_DATALEN;
 }
 
 ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
@@ -145,7 +157,7 @@ ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
     return nwrite;
   }
 
-  if (strm_rob_heavily_fragmented(strm->rx.rob)) {
+  if (strm_rob_heavily_fragmented(strm)) {
     return NGTCP2_ERR_INTERNAL;
   }
 

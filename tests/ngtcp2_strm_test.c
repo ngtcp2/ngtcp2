@@ -36,6 +36,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_strm_streamfrq_unacked_offset),
   munit_void_test(test_ngtcp2_strm_streamfrq_unacked_pop),
   munit_void_test(test_ngtcp2_strm_discard_ordered_data),
+  munit_void_test(test_ngtcp2_strm_recv_reordering),
   munit_test_end(),
 };
 
@@ -834,6 +835,74 @@ void test_ngtcp2_strm_discard_ordered_data(void) {
   ngtcp2_strm_discard_ordered_data(&strm, 1000000007);
 
   assert_uint64(1000001031, ==, ngtcp2_strm_rx_offset(&strm));
+
+  ngtcp2_strm_free(&strm);
+}
+
+void test_ngtcp2_strm_recv_reordering(void) {
+  ngtcp2_strm strm;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_ssize nwrite;
+  uint64_t offset;
+  size_t i;
+
+  /* Gaps are limited in proportion to the offset range that the
+     reorder buffer covers. */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, NULL, mem);
+
+  for (i = 0; i < 128; ++i) {
+    offset = 2 + i * 2;
+    strm.rx.last_offset = offset + 1;
+
+    nwrite = ngtcp2_strm_recv_reordering(&strm, nulldata, 1, offset);
+
+    assert_ptrdiff(1, ==, nwrite);
+  }
+
+  offset = 2 + 128 * 2;
+  strm.rx.last_offset = offset + 1;
+
+  nwrite = ngtcp2_strm_recv_reordering(&strm, nulldata, 1, offset);
+
+  assert_ptrdiff(NGTCP2_ERR_INTERNAL, ==, nwrite);
+
+  ngtcp2_strm_free(&strm);
+
+  /* The same number of gaps is fine if they span a larger range. */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, NULL, mem);
+
+  for (i = 0; i < 129; ++i) {
+    offset = NGTCP2_MIN_STREAM_DATALEN + i * NGTCP2_MIN_STREAM_DATALEN;
+    strm.rx.last_offset = offset + 1;
+
+    nwrite = ngtcp2_strm_recv_reordering(&strm, nulldata, 1, offset);
+
+    assert_ptrdiff(1, ==, nwrite);
+  }
+
+  ngtcp2_strm_free(&strm);
+
+  /* The range is measured from the current read offset. */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, NULL, mem);
+
+  ngtcp2_strm_update_rx_offset(&strm, 1000000007);
+  strm.rx.last_offset = 1000000007;
+
+  for (i = 0; i < 128; ++i) {
+    offset = 1000000007 + 2 + i * 2;
+    strm.rx.last_offset = offset + 1;
+
+    nwrite = ngtcp2_strm_recv_reordering(&strm, nulldata, 1, offset);
+
+    assert_ptrdiff(1, ==, nwrite);
+  }
+
+  offset = 1000000007 + 2 + 128 * 2;
+  strm.rx.last_offset = offset + 1;
+
+  nwrite = ngtcp2_strm_recv_reordering(&strm, nulldata, 1, offset);
+
+  assert_ptrdiff(NGTCP2_ERR_INTERNAL, ==, nwrite);
 
   ngtcp2_strm_free(&strm);
 }
