@@ -4562,6 +4562,8 @@ NGTCP2_EXTERN int ngtcp2_conn_install_0rtt_key(
  *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGTCP2_ERR_INVALID_STATE`
+ *     `ngtcp2_conn_install_rx_key` has already been called.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_rx_key(
   ngtcp2_conn *conn, const uint8_t *secret, size_t secretlen,
@@ -4593,6 +4595,8 @@ NGTCP2_EXTERN int ngtcp2_conn_install_rx_key(
  *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
+ * :macro:`NGTCP2_ERR_INVALID_STATE`
+ *     `ngtcp2_conn_install_tx_key` has already been called.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_tx_key(
   ngtcp2_conn *conn, const uint8_t *secret, size_t secretlen,
