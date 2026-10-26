@@ -17770,12 +17770,14 @@ void test_ngtcp2_conn_pmtud_loss(void) {
 void test_ngtcp2_conn_amplification(void) {
   ngtcp2_conn *conn;
   ngtcp2_frame fr;
+  ngtcp2_frame frs[2];
   size_t pktlen;
   uint8_t buf[2048];
   ngtcp2_tstamp t = 0;
   ngtcp2_ssize spktlen;
   int rv;
   ngtcp2_tpe tpe;
+  int64_t stream_id;
 
   /* ACK only frame should not be sent due to amplification limit. */
   setup_early_server(&conn);
@@ -17885,6 +17887,58 @@ void test_ngtcp2_conn_amplification(void) {
   assert_int(0, ==, rv);
   assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
   assert_size(1, ==, conn->in_pktns->rtb.probe_pkt_left);
+
+  ngtcp2_conn_del(conn);
+
+  /* Disarm loss detection due to amplification limit after
+     handshake */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 300,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_nat_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_path_eq(&new_nat_path.path, &conn->dcid.current.ps.path));
+  assert_false(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
+
+  for (;;) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                       NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                       null_data, 1024, ++t);
+
+    if (spktlen == 0) {
+      break;
+    }
+
+    assert_ptrdiff(0, <, spktlen);
+    assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
+  }
+
+  assert_uint64(conn->dcid.current.bytes_recv * 3, ==,
+                conn->dcid.current.bytes_sent);
+  assert_size(0, <, conn->pktns.rtb.num_pto_eliciting);
+  assert_uint64(UINT64_MAX, ==, ngtcp2_conn_loss_detection_expiry(conn));
+
+  /* Re-arm loss detection timer when receiving more packets */
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_nat_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_false(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
+  assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
 
   ngtcp2_conn_del(conn);
 }

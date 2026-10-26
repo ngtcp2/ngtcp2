@@ -10541,7 +10541,24 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
     ngtcp2_unreachable();
   }
 
-  return conn_recv_cpkt(conn, path, pi, pkt, pktlen, ts);
+  rv = conn_recv_cpkt(conn, path, pi, pkt, pktlen, ts);
+  if (rv != 0) {
+    return rv;
+  }
+
+  /* If server hits amplification limit, it cancels loss detection
+     timer.  The limit is lifted if server receives more bytes on the
+     current path, the path gets validated, or server migrates to
+     another path.  Server does not necessarily send an ack-eliciting
+     packet after that (e.g., it is congestion limited).  Re-arm the
+     timer here, otherwise in-flight packets are never declared
+     lost. */
+  if (conn->server && conn->cstat.loss_detection_timer == UINT64_MAX &&
+      conn_server_tx_left(conn, &conn->dcid.current)) {
+    ngtcp2_conn_set_loss_detection_timer(conn, ts);
+  }
+
+  return 0;
 }
 
 int ngtcp2_conn_continue_handshake(ngtcp2_conn *conn, ngtcp2_tstamp ts) {

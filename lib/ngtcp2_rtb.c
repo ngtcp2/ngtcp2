@@ -819,7 +819,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   size_t i;
   int rv;
   ngtcp2_ksl_it it;
-  size_t num_acked = 0;
+  size_t num_acked = 0, num_cc_acked = 0;
   int64_t pkt_num;
   ngtcp2_cc *cc = rtb->cc;
   ngtcp2_rtb_entry *acked_ent = NULL;
@@ -949,8 +949,10 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
         rtb_on_pkt_acked(rtb, ent, cstat, pktns, ts);
 
-        ++num_acked;
+        ++num_cc_acked;
       }
+
+      ++num_acked;
 
       acked_ent = ent->next;
       ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
@@ -961,6 +963,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     for (ent = acked_ent; ent; ent = acked_ent) {
       rtb_on_pkt_acked(rtb, ent, cstat, pktns, ts);
       acked_ent = ent->next;
+      ++num_cc_acked;
       ++num_acked;
       ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
                                     rtb->frc_objalloc, rtb->mem);
@@ -972,9 +975,11 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     rtb->cc->on_spurious_congestion(cc, cstat, ts);
   }
 
-  if (num_acked) {
+  if (num_cc_acked) {
     ngtcp2_rst_on_ack_recv(rtb->rst, cstat);
+  }
 
+  if (num_acked) {
     if (conn) {
       rv = rtb_detect_lost_pkt(rtb, &cc_ack, conn, pktns, cstat, ts);
       if (rv != 0) {
