@@ -3106,16 +3106,17 @@ static ngtcp2_ssize conn_write_client_initial(ngtcp2_conn *conn,
 }
 
 /*
- * dcid_tx_left returns the maximum number of bytes that server is
- * allowed to send to an unvalidated path associated to |dcid|.
+ * dcid_tx_left returns the maximum number of bytes that an endpoint
+ * is allowed to send to an unvalidated path associated to |dcid|.
  */
 static uint64_t dcid_tx_left(const ngtcp2_dcid *dcid) {
   if (dcid->flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
     return SIZE_MAX;
   }
-  /* From QUIC spec: Prior to validating the client address, servers
-     MUST NOT send more than three times as many bytes as the number
-     of bytes they have received. */
+  /* From QUIC spec: After receiving packets from an address that is
+     not yet validated, an endpoint MUST limit the amount of data it
+     sends to the unvalidated address to three times the amount of
+     data received from that address. */
   assert(dcid->bytes_recv * 3 >= dcid->bytes_sent);
 
   return dcid->bytes_recv * 3 - dcid->bytes_sent;
@@ -5368,7 +5369,11 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
 
   if (ngtcp2_path_eq(&pv->dcid.ps.path, &conn->dcid.current.ps.path)) {
     conn->dcid.current.bytes_sent += (uint64_t)nwrite;
-  } else {
+  } else if (conn->server) {
+    /* Client starts path validation before it receives anything from
+       the path.  Its probes are not charged to the anti-amplification
+       limit, which only restricts what client sends in response to
+       the packets received from that path. */
     pv->dcid.bytes_sent += (uint64_t)nwrite;
   }
 
@@ -5449,8 +5454,12 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
 
   destlen = ngtcp2_min(destlen, NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
-  if (conn->server && !(dcid->flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
-    tx_left = conn_server_tx_left(conn, dcid);
+  /* |dcid| is not bound to the current path here.  Client is also
+     subject to the anti-amplification limit because the path it is
+     validating might lead to an address chosen by server (e.g.,
+     preferred address). */
+  if (!(dcid->flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
+    tx_left = dcid_tx_left(dcid);
     destlen = (size_t)ngtcp2_min((uint64_t)destlen, tx_left);
     if (destlen == 0) {
       return 0;
@@ -9901,6 +9910,13 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         assert(NGTCP2_ERR_CONN_ID_BLOCKED == rv);
       }
     }
+  } else if (!conn->server && hd.type == NGTCP2_PKT_1RTT && conn->pv &&
+             !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
+             ngtcp2_path_eq(&conn->pv->dcid.ps.path, path)) {
+    /* Account for the bytes received from the path which client is
+       validating so that PATH_RESPONSE sent to that path is subject
+       to the anti-amplification limit. */
+    conn->pv->dcid.bytes_recv += dgramlen;
   }
 
   if (hd.type == NGTCP2_PKT_1RTT) {
