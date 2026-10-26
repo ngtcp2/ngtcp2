@@ -3769,7 +3769,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge.rb);
 
           pkt_empty = 0;
-          rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
+          rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                             NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING;
           require_padding = require_padding || !conn->server ||
                             destlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE;
           /* We don't retransmit PATH_RESPONSE. */

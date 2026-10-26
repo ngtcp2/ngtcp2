@@ -12406,6 +12406,58 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   assert_uint64((uint64_t)spktlen, ==, conn->pv->dcid.bytes_sent);
 
   ngtcp2_conn_del(conn);
+
+  /* PATH_RESPONSE sent to the current path arms loss detection timer
+     so that it does not occupy congestion window forever when it is
+     lost. */
+  setup_default_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(0, ==, ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+  assert_uint64(UINT64_MAX, ==, ngtcp2_conn_loss_detection_expiry(conn));
+
+  fr.path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(0, <, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_uint64((uint64_t)spktlen, ==, conn->cstat.bytes_in_flight);
+  assert_size(1, ==, conn->pktns.rtb.num_pto_eliciting);
+  assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
+
+  t = ngtcp2_conn_loss_detection_expiry(conn);
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+  assert_size(2, ==, conn->pktns.rtb.probe_pkt_left);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_disable_active_migration(void) {
