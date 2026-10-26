@@ -11525,6 +11525,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_not_null(conn->pv);
   assert_true(ngtcp2_path_eq(&null_path.path, &conn->pv->dcid.ps.path));
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
+  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
 
   /* A remote endpoint migrates back to the old path.  Path validation
      is skipped because old path is considered to be validated. */
@@ -11534,8 +11535,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   assert(!ngtcp2_ksl_it_end(&it));
 
-  new_cid = &(((ngtcp2_scid *)ngtcp2_ksl_it_get(&it))->cid);
-  tpe.dcid = *new_cid;
+  tpe.dcid = conn->oscid;
 
   pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
 
