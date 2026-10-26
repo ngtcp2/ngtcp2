@@ -117,7 +117,12 @@ int ngtcp2_pv_validate(ngtcp2_pv *pv, uint8_t *pflags,
 void ngtcp2_pv_handle_entry_expiry(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
   ngtcp2_pv_entry *ent;
 
-  if (ngtcp2_ringbuf_len(&pv->ents.rb) == 0) {
+  /* Do not start new round until at least one PATH_CHALLENGE is sent
+     in the current round.  It might not be sent (e.g., server is
+     blocked by anti-amplification limit), and the last entry remains
+     expired. */
+  if (ngtcp2_ringbuf_len(&pv->ents.rb) == 0 ||
+      pv->probe_pkt_left == NGTCP2_PV_NUM_PROBE_PKT) {
     return;
   }
 

@@ -86,15 +86,28 @@ void test_ngtcp2_pv_add_entry(void) {
 
   ngtcp2_pv_handle_entry_expiry(pv, 100);
 
+  assert_size(1, ==, pv->round);
   assert_size(2, ==, pv->probe_pkt_left);
   assert_true(ngtcp2_pv_should_send_probe(pv));
   assert_uint64(100, ==, ngtcp2_pv_next_expiry(pv));
+
+  /* New round does not start until new entry is added. */
+  ngtcp2_pv_handle_entry_expiry(pv, 100);
+  ngtcp2_pv_handle_entry_expiry(pv, 101);
+
+  assert_size(1, ==, pv->round);
+  assert_size(2, ==, pv->probe_pkt_left);
 
   ngtcp2_pv_add_entry(pv, &data, 111, NGTCP2_PV_ENTRY_FLAG_NONE, 100);
 
   assert_size(1, ==, pv->probe_pkt_left);
   assert_true(ngtcp2_pv_should_send_probe(pv));
   assert_uint64(111, ==, ngtcp2_pv_next_expiry(pv));
+
+  ngtcp2_pv_handle_entry_expiry(pv, 111);
+
+  assert_size(2, ==, pv->round);
+  assert_size(2, ==, pv->probe_pkt_left);
 
   ngtcp2_pv_del(pv);
 }
