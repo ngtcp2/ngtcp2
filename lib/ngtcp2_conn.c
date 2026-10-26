@@ -9056,18 +9056,19 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   }
 
   if (!pref_addr_migration || validated_path) {
-    if (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
-      ngtcp2_conn_add_path_history(conn, &conn->dcid.current, ts);
-    }
-
-    ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
-
     /* Restore the maximum UDP payload size of the validated path
        before resetting congestion state because it derives its
        parameters (e.g., send_quantum lower bound) from it. */
     if (validated_path) {
-      ngtcp2_dcid_apply_validated_path(&conn->dcid.current, validated_path);
+      ngtcp2_dcid_apply_validated_path(&dcid, validated_path);
     }
+
+    if (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
+      ngtcp2_conn_add_path_history(conn, &conn->dcid.current, ts);
+      /* Now validated_path may point to the different object. */
+    }
+
+    ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
 
     if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_CMP_FLAG_ADDR |
                                               NGTCP2_ADDR_CMP_FLAG_FAMILY))) {
