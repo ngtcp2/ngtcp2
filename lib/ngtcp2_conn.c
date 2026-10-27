@@ -5190,6 +5190,7 @@ static int conn_stop_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   }
 
   if (pv->dcid.cid.datalen && pv->dcid.seq != conn->dcid.current.seq &&
+      !(pv->flags & NGTCP2_PV_FLAG_DONT_RETIRE_DCID) &&
       (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) ||
        !(pv->flags & NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK) ||
        pv->dcid.seq != pv->fallback_dcid.seq)) {
@@ -9142,6 +9143,14 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
       conn->pv->flags |= NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK;
     } else if (!pref_addr_migration) {
       ngtcp2_pv_set_fallback(pv, &conn->dcid.current, pto);
+
+      if (conn->pv && conn->pv->dcid.seq == conn->dcid.current.seq) {
+        /* The ongoing path validation uses the current DCID (e.g., it
+           probes the old path after NAT rebinding), which is now the
+           fallback DCID of the new path validation.  Set the flag bit
+           so that conn_stop_pv does not retire DCID. */
+        conn->pv->flags |= NGTCP2_PV_FLAG_DONT_RETIRE_DCID;
+      }
     }
   }
 

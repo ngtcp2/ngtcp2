@@ -85,6 +85,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_server_path_validation),
   munit_void_test(test_ngtcp2_conn_server_peer_ip_change_pmtu),
   munit_void_test(test_ngtcp2_conn_server_peer_ip_change_in_flight),
+  munit_void_test(test_ngtcp2_conn_server_migrate_after_nat_rebinding),
   munit_void_test(test_ngtcp2_conn_client_connection_migration),
   munit_void_test(test_ngtcp2_conn_recv_path_challenge),
   munit_void_test(test_ngtcp2_conn_disable_active_migration),
@@ -12757,6 +12758,115 @@ void test_ngtcp2_conn_server_peer_ip_change_in_flight(void) {
   assert_uint64(bytes_in_flight, ==, conn->pktns.rtb.cc_bytes_in_flight);
   assert_int64(cc_pkt_num, ==, conn->pktns.rtb.cc_pkt_num);
   assert_uint64(UINT64_MAX, !=, conn->cstat.loss_detection_timer);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_server_migrate_after_nat_rebinding(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ngtcp2_ssize spktlen;
+  ngtcp2_tstamp t = 900;
+  ngtcp2_frame frs[2];
+  int rv;
+  static const ngtcp2_cid cid = {
+    .datalen = 4,
+    .data = {0x0F, 0x00, 0x00, 0x00},
+  };
+  static const ngtcp2_stateless_reset_token token = {
+    .data = {0xFF},
+  };
+  ngtcp2_path_storage rebound_path, new_local_path;
+  ngtcp2_tpe tpe;
+
+  path_init(&rebound_path, 0, 0, 2, 0);
+  path_init(&new_local_path, 1, 0, 2, 0);
+
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  frs[0].new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid,
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  /* NAT rebinding.  Server keeps using the current DCID because
+     client does not change its DCID. */
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1200,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &rebound_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_uint64(0, ==, conn->dcid.current.seq);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
+
+  frs[0].path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &rebound_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_path_eq(&rebound_path.path, &conn->dcid.current.ps.path));
+
+  /* Server is now probing the old path with the same DCID. */
+  assert_not_null(conn->pv);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
+  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->pv->dcid.ps.path));
+  assert_uint64(0, ==, conn->pv->dcid.seq);
+
+  /* Server receives a packet on the different local address, which
+     requires new DCID.  DCID of the aborted path validation must not
+     be retired because it is a fallback DCID of the new one. */
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_local_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(1, ==, conn->dcid.current.seq);
+  assert_not_null(conn->pv);
+  assert_uint64(1, ==, conn->pv->dcid.seq);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
+  assert_uint64(0, ==, conn->pv->fallback_dcid.seq);
+  assert_size(0, ==, conn->dcid.dtr.retire_unacked.len);
+  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.dtr.retired.rb));
+
+  /* Client comes back to the fallback path. */
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &rebound_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&rebound_path.path, &conn->dcid.current.ps.path));
+  assert_uint64(0, ==, conn->dcid.current.seq);
+  assert_size(1, ==, conn->dcid.dtr.retire_unacked.len);
+  assert_uint64(1, ==, conn->dcid.dtr.retire_unacked.seqs[0]);
 
   ngtcp2_conn_del(conn);
 }
