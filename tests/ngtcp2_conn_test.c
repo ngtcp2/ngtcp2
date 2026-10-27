@@ -12085,6 +12085,195 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* Client migrates to the preferred address while server is
+     validating the new path with a fallback.  Server goes back to the
+     fallback path, and retires DCID of the abandoned path. */
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  frs[0].new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid,
+    .token = token,
+  };
+  frs[1].new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 2,
+    .cid =
+      {
+        .datalen = 4,
+        .data = {0x1F, 0x00, 0x00, 0x00},
+      },
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  it = ngtcp2_ksl_begin(&conn->scid.set);
+
+  assert(!ngtcp2_ksl_it_end(&it));
+
+  new_cid = &(((ngtcp2_scid *)ngtcp2_ksl_it_get(&it))->cid);
+  tpe.dcid = *new_cid;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path1.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
+  assert_true(ngtcp2_path_eq(&new_path1.path, &conn->dcid.current.ps.path));
+  assert_uint64(1, ==, conn->dcid.current.seq);
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path3.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_false(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
+  assert_true(ngtcp2_path_eq(&new_path3.path, &conn->pv->dcid.ps.path));
+  assert_uint64(2, ==, conn->pv->dcid.seq);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  assert_uint64(0, ==, conn->dcid.current.seq);
+  assert_size(1, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_true(ngtcp2_dcidtr_check_retired_seq_tracked(&conn->dcid.dtr, 1));
+
+  /* Path validation against the preferred address fails.  Server
+     stays on the original path. */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
+
+  t += conn->pv->timeout;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <=, spktlen);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  assert_uint64(0, ==, conn->dcid.current.seq);
+  assert_size(2, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_true(ngtcp2_dcidtr_check_retired_seq_tracked(&conn->dcid.dtr, 1));
+  assert_true(ngtcp2_dcidtr_check_retired_seq_tracked(&conn->dcid.dtr, 2));
+
+  ngtcp2_conn_del(conn);
+
+  /* Client migrates back to the validated path with a new DCID while
+     no path validation is in progress.  The DCID of the previous
+     path is retired. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  frs[0].ping.type = NGTCP2_FRAME_PING;
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1200,
+  };
+
+  it = ngtcp2_ksl_begin(&conn->scid.set);
+
+  assert(!ngtcp2_ksl_it_end(&it));
+
+  new_cid = &(((ngtcp2_scid *)ngtcp2_ksl_it_get(&it))->cid);
+  tpe.dcid = *new_cid;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path1.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_uint64(1, ==, conn->dcid.current.seq);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
+
+  fr.path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+    .data =
+      ((ngtcp2_pv_entry *)ngtcp2_ringbuf_get(&conn->pv->ents.rb, 0))->data,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path1.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_path_eq(&new_path1.path, &conn->dcid.current.ps.path));
+  assert_true(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
+
+  /* Server starts path validation against old path.  Let it time
+     out. */
+  assert_not_null(conn->pv);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  t += conn->pv->timeout;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <=, spktlen);
+  assert_null(conn->pv);
+  assert_uint64(1, ==, conn->dcid.current.seq);
+  assert_size(1, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_true(ngtcp2_dcidtr_check_retired_seq_tracked(&conn->dcid.dtr, 0));
+
+  /* Client migrates back to the original path, which has been
+     validated, with a new DCID.  Path validation is skipped. */
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  ngtcp2_ksl_it_next(&it);
+
+  assert(!ngtcp2_ksl_it_end(&it));
+
+  new_cid = &(((ngtcp2_scid *)ngtcp2_ksl_it_get(&it))->cid);
+  tpe.dcid = *new_cid;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  assert_true(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
+  assert_uint64(2, ==, conn->dcid.current.seq);
+  assert_size(2, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_true(ngtcp2_dcidtr_check_retired_seq_tracked(&conn->dcid.dtr, 1));
+
+  ngtcp2_conn_del(conn);
+
   /* client uses zero-length CID as its Source Connection ID. */
   server_default_remote_transport_params(&remote_params);
   remote_params.initial_scid = zerolen_cid;
