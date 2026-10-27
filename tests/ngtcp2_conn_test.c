@@ -335,6 +335,10 @@ typedef struct {
     uint64_t app_error_code;
     size_t ncalled;
   } stop_sending;
+  struct {
+    int64_t shutdown_stream_id;
+    size_t ncalled;
+  } stream_stop_sending;
 } my_user_data;
 
 static int client_initial(ngtcp2_conn *conn, void *user_data) {
@@ -725,6 +729,30 @@ static int recv_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
     ud->stop_sending.stream_id = stream_id;
     ud->stop_sending.app_error_code = app_error_code;
     ++ud->stop_sending.ncalled;
+  }
+
+  return 0;
+}
+
+static int stream_stop_sending_shutdown_stream(ngtcp2_conn *conn,
+                                               int64_t stream_id,
+                                               uint64_t app_error_code,
+                                               void *user_data,
+                                               void *stream_user_data) {
+  my_user_data *ud = user_data;
+  int rv;
+  (void)stream_user_data;
+
+  ++ud->stream_stop_sending.ncalled;
+
+  if (stream_id != 4) {
+    return 0;
+  }
+
+  rv = ngtcp2_conn_shutdown_stream(
+    conn, 0, ud->stream_stop_sending.shutdown_stream_id, app_error_code);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   return 0;
@@ -2106,9 +2134,15 @@ void test_ngtcp2_conn_shutdown_stream_read(void) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_frame_chain *frc;
   ngtcp2_frame fr;
+  ngtcp2_frame frs[2];
   ngtcp2_tstamp t = 0;
   size_t pktlen;
   ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
+  my_user_data ud;
+  ngtcp2_ssize nwrite;
+  size_t i;
 
   /* Stream not found */
   setup_default_server(&conn);
@@ -2244,6 +2278,268 @@ void test_ngtcp2_conn_shutdown_stream_read(void) {
   assert_uint64(NGTCP2_APP_ERR01, ==, strm->app_error_code);
   assert_false(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING);
   assert_false(strm->flags & NGTCP2_STRM_FLAG_SEND_STOP_SENDING);
+
+  ngtcp2_conn_del(conn);
+
+  /* Shutdown the stream that has the smaller stream ID inside
+     stream_stop_sending callback while the stream has data to
+     retransmit. */
+  server_default_callbacks(&callbacks);
+  callbacks.stream_stop_sending = stream_stop_sending_shutdown_stream;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  frs[0].stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 11,
+      },
+  };
+  frs[1].stream = frs[0].stream;
+  frs[1].stream.stream_id = 4;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  for (i = 0; i < 5; ++i) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                       &nwrite, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                       4, null_data, 1500, ++t);
+
+    assert_ptrdiff(0, <, spktlen);
+    assert_ptrdiff(1500, ==, nwrite);
+  }
+
+  /* The first 2 packets are declared lost. */
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 4);
+
+  assert_size(2, ==, ngtcp2_ksl_len(strm->tx.streamfrq));
+  assert_size(1, ==, ngtcp2_pq_size(&conn->tx.strmq));
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, 4, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  ud = (my_user_data){0};
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(2, ==, ud.stream_stop_sending.ncalled);
+  assert_size(1, ==, ngtcp2_ksl_len(strm->tx.streamfrq));
+  assert_size(1, ==, ngtcp2_pq_size(&conn->tx.strmq));
+  assert_ptr_equal(strm, ngtcp2_conn_tx_strmq_top(conn));
+  assert_false(ngtcp2_strm_is_tx_queued(ngtcp2_conn_find_stream(conn, 0)));
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  assert_uint64(NGTCP2_FRAME_STOP_SENDING, ==, frc->fr.hd.type);
+  assert_int64(4, ==, frc->fr.stop_sending.stream_id);
+
+  frc = frc->next;
+
+  assert_uint64(NGTCP2_FRAME_RESET_STREAM, ==, frc->fr.hd.type);
+  assert_int64(0, ==, frc->fr.reset_stream.stream_id);
+
+  frc = frc->next;
+
+  assert_uint64(NGTCP2_FRAME_STOP_SENDING, ==, frc->fr.hd.type);
+  assert_int64(0, ==, frc->fr.stop_sending.stream_id);
+
+  frc = frc->next;
+
+  assert_uint64(NGTCP2_FRAME_STREAM, ==, frc->fr.hd.type);
+  assert_int64(4, ==, frc->fr.stream.stream_id);
+  assert_null(frc->next);
+
+  /* Stream 4 is still queued once.  Send the rest. */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(2, ==, ud.stream_stop_sending.ncalled);
+  assert_true(ngtcp2_pq_empty(&conn->tx.strmq));
+
+  ngtcp2_conn_del(conn);
+
+  /* Shutdown the same stream inside stream_stop_sending callback */
+  server_default_callbacks(&callbacks);
+  callbacks.stream_stop_sending = stream_stop_sending_shutdown_stream;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  frs[0].stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 11,
+      },
+  };
+  frs[1].stream = frs[0].stream;
+  frs[1].stream.stream_id = 4;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, 4, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  ud = (my_user_data){
+    .stream_stop_sending.shutdown_stream_id = 4,
+  };
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(1, ==, ud.stream_stop_sending.ncalled);
+  assert_true(ngtcp2_pq_empty(&conn->tx.strmq));
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  assert_uint64(NGTCP2_FRAME_STOP_SENDING, ==, frc->fr.hd.type);
+  assert_int64(4, ==, frc->fr.stop_sending.stream_id);
+
+  frc = frc->next;
+
+  assert_uint64(NGTCP2_FRAME_RESET_STREAM, ==, frc->fr.hd.type);
+  assert_int64(4, ==, frc->fr.reset_stream.stream_id);
+  assert_null(frc->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* Shutdown the stream that an application is writing to inside
+     stream_stop_sending callback */
+  server_default_callbacks(&callbacks);
+  callbacks.stream_stop_sending = stream_stop_sending_shutdown_stream;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  frs[0].stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 11,
+      },
+  };
+  frs[1].stream = frs[0].stream;
+  frs[1].stream.stream_id = 4;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 0, 4, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  ud = (my_user_data){0};
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &nwrite, NGTCP2_WRITE_STREAM_FLAG_MORE, 0,
+                                     null_data, 100, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_STREAM_SHUT_WR, ==, spktlen);
+  assert_ptrdiff(-1, ==, nwrite);
+  assert_size(2, ==, ud.stream_stop_sending.ncalled);
+  assert_true(ngtcp2_pq_empty(&conn->tx.strmq));
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  assert_uint64(0, ==, strm->tx.offset);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(2, ==, ud.stream_stop_sending.ncalled);
+  assert_true(ngtcp2_pq_empty(&conn->tx.strmq));
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  assert_uint64(NGTCP2_FRAME_STOP_SENDING, ==, frc->fr.hd.type);
+  assert_int64(4, ==, frc->fr.stop_sending.stream_id);
+
+  frc = frc->next;
+
+  assert_uint64(NGTCP2_FRAME_RESET_STREAM, ==, frc->fr.hd.type);
+  assert_int64(0, ==, frc->fr.reset_stream.stream_id);
+  assert_uint64(0, ==, frc->fr.reset_stream.final_size);
+
+  frc = frc->next;
+
+  assert_uint64(NGTCP2_FRAME_STOP_SENDING, ==, frc->fr.hd.type);
+  assert_int64(0, ==, frc->fr.stop_sending.stream_id);
+  assert_null(frc->next);
 
   ngtcp2_conn_del(conn);
 }
