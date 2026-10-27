@@ -1616,7 +1616,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->tx.last_max_data_ts = UINT64_MAX;
   (*pconn)->tx.pacing.next_ts = UINT64_MAX;
   (*pconn)->tx.last_blocked_offset = UINT64_MAX;
-  (*pconn)->rx.preferred_addr.pkt_num = -1;
   (*pconn)->early.discard_started_ts = UINT64_MAX;
 
   conn_reset_ecn_validation_state(*pconn);
@@ -6285,8 +6284,8 @@ static int conn_server_preferred_addr_migration(const ngtcp2_conn *conn,
   return 0;
 }
 
-static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                                   ngtcp2_path_response *fr, ngtcp2_tstamp ts) {
+static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
+                                   ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_pv *pv = conn->pv, *npv = NULL;
   uint8_t ent_flags;
@@ -6321,12 +6320,6 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
       conn_reset_congestion_state(conn, ts);
       conn_reset_ecn_validation_state(conn);
-
-      if (conn->server && conn->rx.preferred_addr.pkt_num == -1 &&
-          conn_server_preferred_addr_migration(
-            conn, &conn->dcid.current.ps.path.local)) {
-        conn->rx.preferred_addr.pkt_num = hd->pkt_num;
-      }
     }
 
     assert(ngtcp2_path_eq(&pv->dcid.ps.path, &conn->dcid.current.ps.path));
@@ -9559,17 +9552,6 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
   if (hd.type == NGTCP2_PKT_1RTT) {
-    if (conn->server && conn->rx.preferred_addr.pkt_num != -1 &&
-        conn->rx.preferred_addr.pkt_num < hd.pkt_num &&
-        ngtcp2_sockaddr_eq((const ngtcp2_sockaddr *)&conn->hs_local_addr,
-                           path->local.addr)) {
-      ngtcp2_log_infof(
-        &conn->log, NGTCP2_LOG_EVENT_PKT, "pkt=", hd.pkt_num,
-        " is discarded because it was received on handshake local "
-        "address after preferred address migration");
-      return NGTCP2_ERR_DISCARD_PKT;
-    }
-
     key_phase_bit_changed = conn_key_phase_changed(conn, &hd);
   }
 
@@ -9861,7 +9843,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       path_challenge_recved = 1;
       break;
     case NGTCP2_FRAME_PATH_RESPONSE:
-      rv = conn_recv_path_response(conn, &hd, &fr.path_response, ts);
+      rv = conn_recv_path_response(conn, &fr.path_response, ts);
       if (rv != 0) {
         return rv;
       }
