@@ -70,7 +70,9 @@ int ngtcp2_pkt_decode_version_cid(ngtcp2_version_cid *dest, const uint8_t *data,
   size_t dcidlen, scidlen;
   int supported_version;
 
-  assert(datalen);
+  if (datalen == 0) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
 
   if (data[0] & NGTCP2_HEADER_FORM_BIT) {
     /* 1 byte (Header Form, Fixed Bit, Long Packet Type, Type-Specific bits)
