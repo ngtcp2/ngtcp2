@@ -88,6 +88,10 @@ typedef struct ngtcp2_dcid {
   /* max_udp_payload_size is the maximum size of UDP datagram payload
      that is allowed to be sent to this path. */
   size_t max_udp_payload_size;
+  /* scid_seq is the sequence number of the Source Connection ID that
+     a remote endpoint put in the Destination Connection ID field of
+     the latest packet received on an associated path. */
+  uint64_t scid_seq;
   /* flags is bitwise OR of zero or more of NGTCP2_DCID_FLAG_*. */
   uint8_t flags;
   /* token is a stateless reset token received along with this
