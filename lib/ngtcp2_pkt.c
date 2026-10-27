@@ -2822,7 +2822,7 @@ void ngtcp2_pkt_permutate_vec(ngtcp2_vec *data, size_t datacnt,
   }
 
   for (i = datacnt - 1; i > 0; --i) {
-    j = ngtcp2_pcg32_rand_n(pcg, (uint32_t)i);
+    j = ngtcp2_pcg32_rand_n(pcg, (uint32_t)i + 1);
 
     if (i == j) {
       continue;

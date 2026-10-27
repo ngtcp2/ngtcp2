@@ -2441,22 +2441,22 @@ void test_ngtcp2_pkt_permutate_vec(void) {
 
   ngtcp2_pkt_permutate_vec(data, ngtcp2_arraylen(data), offsets, &pcg);
 
-  assert_size(4, ==, data[0].len);
-  assert_ptr_equal(null_data + 6, data[0].base);
+  assert_size(1, ==, data[0].len);
+  assert_ptr_equal(null_data, data[0].base);
 
-  assert_size(1, ==, data[1].len);
-  assert_ptr_equal(null_data, data[1].base);
+  assert_size(3, ==, data[1].len);
+  assert_ptr_equal(null_data + 3, data[1].base);
 
   assert_size(2, ==, data[2].len);
   assert_ptr_equal(null_data + 1, data[2].base);
 
-  assert_size(3, ==, data[3].len);
-  assert_ptr_equal(null_data + 3, data[3].base);
+  assert_size(4, ==, data[3].len);
+  assert_ptr_equal(null_data + 6, data[3].base);
 
-  assert_uint64(6, ==, offsets[0]);
-  assert_uint64(0, ==, offsets[1]);
+  assert_uint64(0, ==, offsets[0]);
+  assert_uint64(3, ==, offsets[1]);
   assert_uint64(1, ==, offsets[2]);
-  assert_uint64(3, ==, offsets[3]);
+  assert_uint64(6, ==, offsets[3]);
 }
 
 void test_ngtcp2_pkt_remove_vec_partial(void) {
