@@ -5122,6 +5122,57 @@ void test_ngtcp2_conn_recv_retry(void) {
   assert_null(ent->frc->next);
 
   ngtcp2_conn_del(conn);
+
+  /* Initial keys for the other version installed before Retry are
+     derived from the original DCID.  They must be discarded when
+     Retry is received so that they are derived from Retry SCID. */
+  client_default_callbacks(&callbacks);
+  callbacks.recv_retry = recv_retry;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  /* QUIC v2 Initial packet header with empty DCID, SCID, and token,
+     and zero length. */
+  buf[0] = NGTCP2_HEADER_FORM_BIT | NGTCP2_FIXED_BIT_MASK |
+           (NGTCP2_PKT_TYPE_INITIAL_V2 << 4);
+  ngtcp2_put_uint32be(&buf[1], NGTCP2_PROTO_VER_V2);
+  buf[5] = 0;
+  buf[6] = 0;
+  buf[7] = 0;
+  buf[8] = 0;
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, 9, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint32(NGTCP2_PROTO_VER_V2, ==, conn->vneg.version);
+  assert_not_null(conn->vneg.rx.ckm);
+  assert_not_null(conn->vneg.tx.ckm);
+
+  spktlen = ngtcp2_pkt_write_retry(
+    buf, sizeof(buf), NGTCP2_PROTO_VER_V1, &conn->oscid, &dcid,
+    ngtcp2_conn_get_dcid2(conn), token, ngtcp2_strlen_lit(token), null_encrypt,
+    &fake_aead, &null_aead_ctx);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, (size_t)spktlen,
+                            ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY);
+  assert_uint32(NGTCP2_PROTO_VER_V2, ==, conn->vneg.version);
+  assert_not_null(conn->vneg.rx.ckm);
+  assert_not_null(conn->vneg.tx.ckm);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {

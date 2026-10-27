@@ -6858,7 +6858,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
 
       if (hd.version != conn->client_chosen_version &&
-          !conn->negotiated_version && conn->vneg.version != hd.version) {
+          !conn->negotiated_version) {
         if (!vneg_available_versions_includes(conn->vneg.available_versions,
                                               conn->vneg.available_versionslen,
                                               hd.version)) {
@@ -6868,7 +6868,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         /* Install new Initial keys using QUIC version = hd.version */
         rv = conn_call_version_negotiation(
           conn, hd.version,
-          (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) ? &conn->dcid.current.cid
+          (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) ? &conn->retry_scid
                                                       : &conn->rcid);
         if (rv != 0) {
           return rv;
@@ -7004,15 +7004,6 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     return NGTCP2_ERR_PROTO;
   }
 
-  if (!conn->server && hd.version != conn->client_chosen_version &&
-      !conn->negotiated_version) {
-    conn->negotiated_version = hd.version;
-
-    ngtcp2_log_infof(&conn->log, NGTCP2_LOG_EVENT_CON,
-                     "the negotiated version is 0x",
-                     hexw(conn->negotiated_version, 8));
-  }
-
   payload = conn->crypto.decrypt_buf.base;
   payloadlen = (size_t)nwrite;
 
@@ -7053,6 +7044,15 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
     return NGTCP2_ERR_PROTO;
+  }
+
+  if (!conn->server && hd.version != conn->client_chosen_version &&
+      !conn->negotiated_version) {
+    conn->negotiated_version = hd.version;
+
+    ngtcp2_log_infof(&conn->log, NGTCP2_LOG_EVENT_CON,
+                     "the negotiated version is 0x",
+                     hexw(conn->negotiated_version, 8));
   }
 
   if (hd.type == NGTCP2_PKT_INITIAL &&
