@@ -1859,6 +1859,8 @@ void test_ngtcp2_pkt_adjust_pkt_num(void) {
                ngtcp2_pkt_adjust_pkt_num(NGTCP2_MAX_PKT_NUM, 0xAB, 1));
   assert_int64(0x4000000000000000ULL, ==,
                ngtcp2_pkt_adjust_pkt_num(NGTCP2_MAX_PKT_NUM, 0x00, 1));
+  assert_int64(0x3fffffffffffff7fULL, ==,
+               ngtcp2_pkt_adjust_pkt_num(NGTCP2_MAX_PKT_NUM - 1, 0x7f, 1));
   assert_int64(250, ==, ngtcp2_pkt_adjust_pkt_num(255, 250, 1));
   assert_int64(8, ==, ngtcp2_pkt_adjust_pkt_num(50, 8, 1));
   assert_int64(0, ==, ngtcp2_pkt_adjust_pkt_num(-1, 0, 1));

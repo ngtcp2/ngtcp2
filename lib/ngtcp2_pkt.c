@@ -2193,8 +2193,7 @@ int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
   uint64_t mask = win - 1;
   uint64_t cand = (expected & ~mask) | (uint64_t)pkt_num;
 
-  if (cand + hwin <= expected) {
-    assert(cand <= NGTCP2_MAX_VARINT - win);
+  if (cand + hwin <= expected && cand <= NGTCP2_MAX_VARINT - win) {
     return (int64_t)(cand + win);
   }
 
