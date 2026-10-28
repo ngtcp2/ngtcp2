@@ -248,7 +248,8 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
         fr->stream.offset + ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt);
       range = ngtcp2_range_intersect(&range, &gap);
 
-      if (ngtcp2_range_len(&range) == 0 && !fr->stream.fin &&
+      if (ngtcp2_range_len(&range) == 0 &&
+          (!fr->stream.fin || (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED)) &&
           /* 0 length STREAM frame with offset == 0 must be
              retransmitted if no non-empty data are sent to this
              stream, fin flag is not set, and no data in this stream
@@ -1566,15 +1567,22 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     assert(rtb->num_retransmittable);
     --rtb->num_retransmittable;
 
+    /* If nothing is reclaimed, no packet is sent on behalf of ent.
+       Keep ent PTO eliciting so that loss detection timer stays armed,
+       and PING is sent as a probe.  Otherwise, if ent and the packets
+       reclaimed earlier are lost, nothing removes them from bytes in
+       flight. */
+    if (reclaimed == 0) {
+      continue;
+    }
+
     if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING) {
       ent->flags &= (uint16_t)~NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING;
       assert(rtb->num_pto_eliciting);
       --rtb->num_pto_eliciting;
     }
 
-    if (reclaimed) {
-      --num_pkts;
-    }
+    --num_pkts;
   }
 
   return (ngtcp2_ssize)(atmost - num_pkts);
