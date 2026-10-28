@@ -1218,7 +1218,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_cc_ack *cc_ack,
     }
   }
 
-  ngtcp2_rtb_remove_excessive_lost_pkt(rtb, (size_t)pkt_thres);
+  ngtcp2_rtb_remove_excessive_lost_pkt(rtb, (size_t)pkt_thres, cstat, ts);
 
   return 0;
 }
@@ -1234,7 +1234,34 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                              conn, pktns, cstat, ts);
 }
 
-void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
+/*
+ * rtb_on_lost_pkt_removed is called when a lost packet |ent| is
+ * removed from |rtb| without being acknowledged.  It tells the
+ * congestion controller that the loss is not spurious.
+ */
+static void rtb_on_lost_pkt_removed(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
+                                    ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
+  ngtcp2_cc *cc = rtb->cc;
+
+  assert(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED);
+
+  --rtb->num_lost_pkts;
+
+  if (ent->flags &
+      (NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE | NGTCP2_RTB_ENTRY_FLAG_SKIP)) {
+    --rtb->num_lost_ignore_pkts;
+
+    return;
+  }
+
+  if (cc->on_pkt_lost_confirmed) {
+    cc->on_pkt_lost_confirmed(cc, cstat, ts);
+  }
+}
+
+void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n,
+                                          ngtcp2_conn_stat *cstat,
+                                          ngtcp2_tstamp ts) {
   ngtcp2_ksl_it it = ngtcp2_ksl_end(&rtb->ents);
   ngtcp2_rtb_entry *ent;
   int rv;
@@ -1250,12 +1277,7 @@ void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
     ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC,
                      "removing stale lost pkn=", ent->hd.pkt_num);
 
-    --rtb->num_lost_pkts;
-
-    if (ent->flags &
-        (NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE | NGTCP2_RTB_ENTRY_FLAG_SKIP)) {
-      --rtb->num_lost_ignore_pkts;
-    }
+    rtb_on_lost_pkt_removed(rtb, ent, cstat, ts);
 
     rv = ngtcp2_ksl_remove_hint(&rtb->ents, &it, &it, &ent->hd.pkt_num);
     assert(0 == rv);
@@ -1266,6 +1288,7 @@ void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
 
 void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb,
                                         ngtcp2_duration timeout,
+                                        ngtcp2_conn_stat *cstat,
                                         ngtcp2_tstamp ts) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
@@ -1293,12 +1316,7 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb,
     ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC,
                      "removing stale lost pkn=", ent->hd.pkt_num);
 
-    --rtb->num_lost_pkts;
-
-    if (ent->flags &
-        (NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE | NGTCP2_RTB_ENTRY_FLAG_SKIP)) {
-      --rtb->num_lost_ignore_pkts;
-    }
+    rtb_on_lost_pkt_removed(rtb, ent, cstat, ts);
 
     rv = ngtcp2_ksl_remove_hint(&rtb->ents, &it, &it, &ent->hd.pkt_num);
     assert(0 == rv);

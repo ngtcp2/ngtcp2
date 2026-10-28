@@ -11773,14 +11773,17 @@ void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   if (conn->in_pktns) {
     timeout = ngtcp2_conn_compute_pto(conn, conn->in_pktns) * 3;
-    ngtcp2_rtb_remove_expired_lost_pkt(&conn->in_pktns->rtb, timeout, ts);
+    ngtcp2_rtb_remove_expired_lost_pkt(&conn->in_pktns->rtb, timeout,
+                                       &conn->cstat, ts);
   }
   if (conn->hs_pktns) {
     timeout = ngtcp2_conn_compute_pto(conn, conn->hs_pktns) * 3;
-    ngtcp2_rtb_remove_expired_lost_pkt(&conn->hs_pktns->rtb, timeout, ts);
+    ngtcp2_rtb_remove_expired_lost_pkt(&conn->hs_pktns->rtb, timeout,
+                                       &conn->cstat, ts);
   }
   timeout = ngtcp2_conn_compute_pto(conn, &conn->pktns) * 3;
-  ngtcp2_rtb_remove_expired_lost_pkt(&conn->pktns.rtb, timeout, ts);
+  ngtcp2_rtb_remove_expired_lost_pkt(&conn->pktns.rtb, timeout, &conn->cstat,
+                                     ts);
 }
 
 /*

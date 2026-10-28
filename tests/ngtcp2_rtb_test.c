@@ -498,13 +498,13 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
   assert_size(5, ==, rtb.num_lost_pkts);
   assert_size(1, ==, rtb.num_lost_ignore_pkts);
 
-  ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777219);
+  ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, &cstat, 16777219);
 
   assert_size(5, ==, ngtcp2_ksl_len(&rtb.ents));
   assert_size(3, ==, rtb.num_lost_pkts);
   assert_size(0, ==, rtb.num_lost_ignore_pkts);
 
-  ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777222);
+  ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, &cstat, 16777222);
 
   assert_size(2, ==, ngtcp2_ksl_len(&rtb.ents));
   assert_size(0, ==, rtb.num_lost_pkts);
@@ -559,7 +559,7 @@ void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
   assert_size(5, ==, rtb.num_lost_pkts);
   assert_size(1, ==, rtb.num_lost_ignore_pkts);
 
-  ngtcp2_rtb_remove_excessive_lost_pkt(&rtb, 2);
+  ngtcp2_rtb_remove_excessive_lost_pkt(&rtb, 2, &cstat, 16777222);
 
   assert_size(4, ==, ngtcp2_ksl_len(&rtb.ents));
   assert_size(2, ==, rtb.num_lost_pkts);
