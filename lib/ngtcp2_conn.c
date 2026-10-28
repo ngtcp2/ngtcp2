@@ -2760,18 +2760,9 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
       }
       /* We had pktns->rtb.num_retransmittable > 0 but the contents of
          those packets have been acknowledged (i.e., retransmission in
-         another packet).  For server, in this case, we don't have to
-         send any probe packet.  Client needs to send probe packets
-         until it knows that server has completed address
-         validation. */
-      if (pktns->rtb.num_pto_eliciting == 0 &&
-          (conn->server ||
-           (conn->flags & NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED))) {
-        pktns->rtb.probe_pkt_left = 0;
-        ngtcp2_conn_set_loss_detection_timer(conn, ts);
-        /* TODO If packet is empty, we should return now if cwnd is
-           zero. */
-      }
+         another packet).  Those packets are still in flight, and we
+         have to send PING as a probe packet to know whether they are
+         lost or not. */
     }
 
     if (!(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) &&
@@ -4322,16 +4313,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       }
 
       /* We had pktns->rtb.num_retransmittable > 0 but we were unable
-         to reclaim any frame.  In this case, we do not have to send
-         any probe packet. */
-      if (pktns->rtb.num_pto_eliciting == 0) {
-        pktns->rtb.probe_pkt_left = 0;
-        ngtcp2_conn_set_loss_detection_timer(conn, ts);
-
-        if (pkt_empty && conn_cwnd_is_zero(conn) && !require_padding) {
-          return 0;
-        }
-      }
+         to reclaim any frame.  Those packets are still in flight, and
+         we have to send PING as a probe packet to know whether they
+         are lost or not. */
     }
   } else {
     pfrc = conn->pkt.pfrc;
