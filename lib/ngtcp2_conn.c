@@ -10867,7 +10867,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   ngtcp2_ssize res = 0, nwrite = 0, early_spktlen = 0;
   size_t origlen = destlen;
   uint64_t pending_early_datalen;
-  ngtcp2_preferred_addr *paddr;
   ngtcp2_stateless_reset_token token;
 
   switch (conn->state) {
@@ -10991,19 +10990,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
     assert(conn->remote.transport_params);
-
-    if (conn->remote.transport_params->preferred_addr_present) {
-      assert(!ngtcp2_dcidtr_unused_full(&conn->dcid.dtr));
-
-      paddr = &conn->remote.transport_params->preferred_addr;
-      memcpy(token.data, paddr->stateless_reset_token, sizeof(token.data));
-      ngtcp2_dcidtr_push_unused(&conn->dcid.dtr, 1, &paddr->cid, &token);
-
-      rv = ngtcp2_gaptr_push(&conn->dcid.seqgap, 1, 1);
-      if (rv != 0) {
-        return (ngtcp2_ssize)rv;
-      }
-    }
 
     if (conn->remote.transport_params->stateless_reset_token_present &&
         conn->dcid.current.seq == 0) {
@@ -11989,6 +11975,8 @@ ngtcp2_conn_server_negotiate_version(ngtcp2_conn *conn,
 
 int ngtcp2_conn_set_remote_transport_params(
   ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
+  const ngtcp2_preferred_addr *paddr;
+  ngtcp2_stateless_reset_token token;
   int rv;
 
   /* We expect this function is called once per QUIC connection, but
@@ -12064,6 +12052,22 @@ int ngtcp2_conn_set_remote_transport_params(
     rv = conn_client_validate_transport_params(conn, params);
     if (rv != 0) {
       return rv;
+    }
+
+    /* Server can send NEW_CONNECTION_ID frames in 0.5 RTT packets.
+       Store the Connection ID in preferred_address now so that those
+       frames are verified against it. */
+    if (params->preferred_addr_present) {
+      assert(!ngtcp2_dcidtr_unused_full(&conn->dcid.dtr));
+
+      rv = ngtcp2_gaptr_push(&conn->dcid.seqgap, 1, 1);
+      if (rv != 0) {
+        return rv;
+      }
+
+      paddr = &params->preferred_addr;
+      memcpy(token.data, paddr->stateless_reset_token, sizeof(token.data));
+      ngtcp2_dcidtr_push_unused(&conn->dcid.dtr, 1, &paddr->cid, &token);
     }
   }
 

@@ -11975,6 +11975,106 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_size(2, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
 
   ngtcp2_conn_del(conn);
+
+  /* Connection ID in preferred_address is taken into account when
+     NEW_CONNECTION_ID is received in 0.5 RTT data */
+  client_default_transport_params(&params);
+  params.active_connection_id_limit = 2;
+
+  client_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+
+  opts = (conn_options){
+    .params = &params,
+    .callbacks = &callbacks,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 1200,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  /* recv_crypto_data_client_handshake does not override these
+     transport parameters. */
+  params = (ngtcp2_transport_params){
+    .active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT,
+    .max_udp_payload_size = 1200,
+    .initial_scid = conn->dcid.current.cid,
+    .initial_scid_present = 1,
+    .original_dcid = conn->rcid,
+    .original_dcid_present = 1,
+    .preferred_addr =
+      {
+        .cid = cid,
+      },
+    .preferred_addr_present = 1,
+  };
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  assert_int(0, ==, rv);
+
+  tpe.handshake.ckm = conn->hs_pktns->crypto.rx.ckm;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  tpe.app.ckm = conn->pktns.crypto.rx.ckm;
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid2,
+    .token = token2,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
+
+  dcid = ngtcp2_ringbuf_get(&conn->dcid.dtr.unused.rb, 0);
+
+  assert_uint64(1, ==, dcid->seq);
+  assert_true(ngtcp2_cid_eq(&cid, &dcid->cid));
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 2,
+    .cid = cid3,
+    .token = token3,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_CONNECTION_ID_LIMIT, ==, rv);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_retire_connection_id(void) {
