@@ -87,9 +87,6 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent,
 /* NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK prevents the fallback
    Destination Connection ID from being retired. */
 #define NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK 0x20U
-/* NGTCP2_PV_FLAG_DONT_RETIRE_DCID prevents the Destination Connection
-   ID which is being validated from being retired. */
-#define NGTCP2_PV_FLAG_DONT_RETIRE_DCID 0x40U
 
 typedef struct ngtcp2_pv ngtcp2_pv;
 
