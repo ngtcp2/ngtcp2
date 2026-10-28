@@ -1489,7 +1489,8 @@ void test_ngtcp2_conn_stream_open_close(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 2);
 
   assert_int(0, ==, rv);
-  assert_uint32(NGTCP2_STRM_FLAG_SHUT_RD, ==, strm->flags);
+  assert_uint32((NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RX_FIN_DELIVERED),
+                ==, strm->flags);
   assert_uint64(fr.stream.offset, ==, strm->rx.last_offset);
   assert_uint64(fr.stream.offset, ==, ngtcp2_strm_rx_offset(strm));
 
@@ -8390,6 +8391,69 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   assert_int64(4, ==, ud.stream_data.stream_id);
   assert_false(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   assert_size(599, ==, ud.stream_data.datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* ngtcp2_conn_shutdown_stream_read is called in recv_stream_data
+     callback after all stream data including fin has been received.
+     Further recv_stream_data callback must not be called. */
+  server_default_callbacks(&callbacks);
+  callbacks.recv_stream_data = recv_stream_data_shutdown_stream_read;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  tpe.app.last_pkt_num = pkt_num;
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .fin = 1,
+    .stream_id = 4,
+    .offset = 599,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 1,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  ud = (my_user_data){0};
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_int64(0, ==, ud.stream_data.stream_id);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .stream_id = 4,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 599,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  ud = (my_user_data){0};
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_int64(4, ==, ud.stream_data.stream_id);
+  assert_false(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
+  assert_uint64(0, ==, ud.stream_data.offset);
+  assert_size(599, ==, ud.stream_data.datalen);
+  assert_uint64(1, ==,
+                conn->rx.unsent_max_offset -
+                  conn->local.transport_params.initial_max_data);
 
   ngtcp2_conn_del(conn);
 

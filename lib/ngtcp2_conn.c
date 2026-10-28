@@ -7405,6 +7405,7 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
     if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
         rx_offset == strm->rx.last_offset) {
       sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
+      strm->flags |= NGTCP2_STRM_FLAG_RX_FIN_DELIVERED;
     }
     if (!handshake_completed) {
       sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
@@ -7789,6 +7790,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
 
       if (fin) {
         sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
+        strm->flags |= NGTCP2_STRM_FLAG_RX_FIN_DELIVERED;
       }
       if (!conn_is_tls_handshake_completed(conn)) {
         sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
@@ -13296,8 +13298,11 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
       (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RESET_STREAM_RECVED)) {
     return 0;
   }
-  if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-      ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) {
+  /* ngtcp2_strm_rx_offset() must not be used here.  If this function
+     is called inside ngtcp2_callbacks.recv_stream_data, all stream
+     data might have been received, but some of them might still be
+     buffered, and have not been passed to an application yet. */
+  if (strm->flags & NGTCP2_STRM_FLAG_RX_FIN_DELIVERED) {
     return 0;
   }
 
