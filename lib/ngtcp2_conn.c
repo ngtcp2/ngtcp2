@@ -6620,6 +6620,9 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
  *     Generic QUIC protocol error.
  * NGTCP2_ERR_INTERNAL
  *     Suspicious remote endpoint activity exceeded threshold.
+ * NGTCP2_ERR_AEAD_LIMIT_REACHED
+ *     The number of packets that fail authentication reached the
+ *     limit.
  *
  * In addition to the above error codes, error codes returned from
  * conn_recv_pkt are also returned.
@@ -7007,6 +7010,14 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
     }
+
+    /* Initial keys are not secret, and there is no limit for them. */
+    if (hd.type == NGTCP2_PKT_HANDSHAKE &&
+        ++conn->crypto.decryption_failure_count >=
+          pktns->crypto.ctx.max_decryption_failure) {
+      return NGTCP2_ERR_AEAD_LIMIT_REACHED;
+    }
+
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "could not decrypt packet payload");
     return NGTCP2_ERR_DISCARD_PKT;
@@ -9494,6 +9505,9 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
  *     Frame has strictly larger end offset than it is permitted.
  * NGTCP2_ERR_INTERNAL
  *     Suspicious remote endpoint activity exceeded threshold.
+ * NGTCP2_ERR_AEAD_LIMIT_REACHED
+ *     The number of packets that fail authentication reached the
+ *     limit.
  */
 static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                   const ngtcp2_pkt_info *pi, const uint8_t *pkt,
@@ -9714,9 +9728,12 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     assert(NGTCP2_ERR_DECRYPT == nwrite);
 
-    if (hd.type == NGTCP2_PKT_1RTT &&
-        ++conn->crypto.decryption_failure_count >=
-          pktns->crypto.ctx.max_decryption_failure) {
+    /* Packets that fail authentication are counted across all keys,
+       including Handshake and 0-RTT keys. */
+    if (++conn->crypto.decryption_failure_count >=
+        (hd.type == NGTCP2_PKT_0RTT
+           ? conn->early.ctx.max_decryption_failure
+           : pktns->crypto.ctx.max_decryption_failure)) {
       return NGTCP2_ERR_AEAD_LIMIT_REACHED;
     }
 

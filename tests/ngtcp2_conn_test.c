@@ -63,6 +63,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_conn_recv_stateless_reset),
   munit_void_test(test_ngtcp2_conn_recv_retry),
   munit_void_test(test_ngtcp2_conn_recv_delayed_handshake_pkt),
+  munit_void_test(test_ngtcp2_conn_recv_decryption_failure),
   munit_void_test(test_ngtcp2_conn_recv_max_streams),
   munit_void_test(test_ngtcp2_conn_handshake),
   munit_void_test(test_ngtcp2_conn_handshake_error),
@@ -5226,6 +5227,177 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
 
   assert_int(0, ==, rv);
   assert_size(1, ==, ngtcp2_ksl_len(&conn->hs_pktns->acktr.ents));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_recv_decryption_failure(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ngtcp2_frame fr;
+  ngtcp2_tstamp t = 0;
+  int rv;
+  ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
+
+  /* 1-RTT packet */
+  server_default_callbacks(&callbacks);
+  callbacks.decrypt = fail_decrypt;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  conn->crypto.decryption_failure_count =
+    fake_crypto_ctx.max_decryption_failure - 2;
+
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(fake_crypto_ctx.max_decryption_failure - 1, ==,
+                conn->crypto.decryption_failure_count);
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_AEAD_LIMIT_REACHED, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Handshake packet after handshake completion */
+  client_default_callbacks(&callbacks);
+  callbacks.decrypt = fail_decrypt;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  conn->crypto.decryption_failure_count =
+    fake_crypto_ctx.max_decryption_failure - 2;
+
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(fake_crypto_ctx.max_decryption_failure - 1, ==,
+                conn->crypto.decryption_failure_count);
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_AEAD_LIMIT_REACHED, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Handshake packet during handshake.  Initial packet is not
+     counted. */
+  setup_handshake_server(&conn);
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 1200,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  conn->callbacks.decrypt = fail_decrypt;
+  conn->crypto.decryption_failure_count =
+    fake_crypto_ctx.max_decryption_failure - 2;
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(fake_crypto_ctx.max_decryption_failure - 2, ==,
+                conn->crypto.decryption_failure_count);
+
+  tpe.handshake.ckm = conn->hs_pktns->crypto.rx.ckm;
+
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(fake_crypto_ctx.max_decryption_failure - 1, ==,
+                conn->crypto.decryption_failure_count);
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_AEAD_LIMIT_REACHED, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* 0-RTT packet */
+  setup_early_server(&conn);
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 1200,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  conn->callbacks.decrypt = fail_decrypt;
+  conn->crypto.decryption_failure_count =
+    fake_crypto_ctx.max_decryption_failure - 2;
+
+  tpe.early.ckm = conn->early.ckm;
+
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_0rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(fake_crypto_ctx.max_decryption_failure - 1, ==,
+                conn->crypto.decryption_failure_count);
+
+  pktlen = ngtcp2_tpe_write_0rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_AEAD_LIMIT_REACHED, ==, rv);
 
   ngtcp2_conn_del(conn);
 }
