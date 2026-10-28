@@ -101,6 +101,11 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 /* NGTCP2_STRM_FLAG_SEND_STREAM_DATA_BLOCKED is set when
    STREAM_DATA_BLOCKED and/or DATA_BLOCKED frame should be sent. */
 #define NGTCP2_STRM_FLAG_SEND_STREAM_DATA_BLOCKED 0x20000U
+/* NGTCP2_STRM_FLAG_RX_FIN_DELIVERED is set when all stream data up to
+   the final offset have been passed to an application via
+   ngtcp2_callbacks.recv_stream_data with
+   NGTCP2_STREAM_DATA_FLAG_FIN. */
+#define NGTCP2_STRM_FLAG_RX_FIN_DELIVERED 0x40000U
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 
