@@ -9298,9 +9298,18 @@ void test_ngtcp2_conn_send_early_data(void) {
   ngtcp2_ssize spktlen;
   ngtcp2_ssize datalen;
   uint8_t buf[1024];
-  int64_t stream_id;
+  int64_t stream_id, uni_stream_id;
   int rv;
   ngtcp2_tstamp t = 0;
+  ngtcp2_strm *strm;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_frame_chain *frc;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   setup_early_client(&conn);
 
@@ -9402,6 +9411,136 @@ void test_ngtcp2_conn_send_early_data(void) {
 
   assert_ptrdiff(0, <, spktlen);
   assert_ptrdiff(-1, ==, datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* RESET_STREAM and STOP_SENDING submitted during handshake are sent
+     in 0-RTT packet. */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 199, ++t);
+
+  assert_ptrdiff(sizeof(buf), ==, spktlen);
+  assert_ptrdiff(199, ==, datalen);
+
+  rv = ngtcp2_conn_shutdown_stream(conn, 0, stream_id, NGTCP2_APP_ERR01);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_true(ngtcp2_strm_is_tx_queued(strm));
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_false(ngtcp2_strm_is_tx_queued(strm));
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_uint8(NGTCP2_PKT_0RTT, ==, ent->hd.type);
+  assert_uint64(NGTCP2_FRAME_RESET_STREAM, ==, ent->frc->fr.hd.type);
+  assert_uint64(NGTCP2_FRAME_STOP_SENDING, ==, ent->frc->next->fr.hd.type);
+  assert_null(ent->frc->next->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* MAX_STREAM_DATA submitted before client gets in post-handshake
+     state is sent even if stream data is given in the next write. */
+  client_early_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_early_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &uni_stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_FIN,
+                                     stream_id, null_data, 199, ++t);
+
+  assert_ptrdiff(sizeof(buf), ==, spktlen);
+  assert_ptrdiff(199, ==, datalen);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 198,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  tpe.handshake.ckm = conn->hs_pktns->crypto.rx.ckm;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_conn_get_handshake_completed2(conn));
+  assert_enum(ngtcp2_conn_state, NGTCP2_CS_CLIENT_WAIT_HANDSHAKE, ==,
+              conn->state);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  rv = ngtcp2_conn_extend_max_stream_offset(conn, stream_id, strm->rx.window);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_strm_is_tx_queued(strm));
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     uni_stream_id, null_data, 199, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(199, ==, datalen);
+  assert_enum(ngtcp2_conn_state, NGTCP2_CS_POST_HANDSHAKE, ==, conn->state);
+  assert_false(ngtcp2_strm_is_tx_queued(strm));
+  assert_uint64(strm->rx.unsent_max_offset, ==, strm->rx.max_offset);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_uint8(NGTCP2_PKT_1RTT, ==, ent->hd.type);
+
+  /* Skip NEW_CONNECTION_ID frames */
+  for (frc = ent->frc; frc->fr.hd.type == NGTCP2_FRAME_NEW_CONNECTION_ID;
+       frc = frc->next)
+    ;
+
+  assert_uint64(NGTCP2_FRAME_MAX_STREAM_DATA, ==, frc->fr.hd.type);
+  assert_int64(stream_id, ==, frc->fr.max_stream_data.stream_id);
+
+  frc = frc->next;
+
+  assert_uint64(NGTCP2_FRAME_STREAM, ==, frc->fr.hd.type);
+  assert_int64(uni_stream_id, ==, frc->fr.stream.stream_id);
+  assert_null(frc->next);
 
   ngtcp2_conn_del(conn);
 }

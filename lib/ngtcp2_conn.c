@@ -2025,8 +2025,11 @@ static int conn_cwnd_is_zero(const ngtcp2_conn *conn) {
 
 /*
  * conn_retry_early_payloadlen returns the estimated wire length of
- * the first STREAM frame of 0-RTT packet which should be
- * retransmitted due to Retry packet.
+ * the first frame of 0-RTT packet which is generated from
+ * conn->tx.strmq.  It is either STREAM frame which should be
+ * retransmitted due to Retry packet, or the other stream related
+ * frame (e.g., RESET_STREAM, STOP_SENDING, STREAM_DATA_BLOCKED, and
+ * MAX_STREAM_DATA).
  */
 static uint64_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
   ngtcp2_frame_chain *frc;
@@ -2037,24 +2040,28 @@ static uint64_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
     return 0;
   }
 
-  for (; !ngtcp2_pq_empty(&conn->tx.strmq);) {
-    strm = ngtcp2_conn_tx_strmq_top(conn);
-    if (ngtcp2_strm_streamfrq_empty(strm)) {
-      ngtcp2_conn_tx_strmq_pop(conn);
-      continue;
-    }
-
-    frc = ngtcp2_strm_streamfrq_top(strm);
-
-    len = ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt) +
-          NGTCP2_STREAM_OVERHEAD;
-
-    /* Take the min because in conn_should_pad_pkt we take max in
-       order to deal with unbreakable DATAGRAM. */
-    return ngtcp2_min(len, NGTCP2_MIN_COALESCED_PAYLOADLEN);
+  if (ngtcp2_pq_empty(&conn->tx.strmq)) {
+    return 0;
   }
 
-  return 0;
+  strm = ngtcp2_conn_tx_strmq_top(conn);
+  if (ngtcp2_strm_streamfrq_empty(strm)) {
+    /* strm has no STREAM frame to send, but is queued to send the
+       other stream related frames (e.g., RESET_STREAM, STOP_SENDING,
+       or MAX_STREAM_DATA).  Do not remove it from the queue here,
+       otherwise those frames are never sent.  conn_write_pkt writes
+       them, and removes strm from the queue. */
+    return NGTCP2_STREAM_OVERHEAD;
+  }
+
+  frc = ngtcp2_strm_streamfrq_top(strm);
+
+  len = ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt) +
+        NGTCP2_STREAM_OVERHEAD;
+
+  /* Take the min because in conn_should_pad_pkt we take max in order
+     to deal with unbreakable DATAGRAM. */
+  return ngtcp2_min(len, NGTCP2_MIN_COALESCED_PAYLOADLEN);
 }
 
 /*
