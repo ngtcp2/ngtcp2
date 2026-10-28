@@ -42,6 +42,10 @@ if HAVE_BORINGSSL
 SUBDIRS += boringssl
 endif
 
+if HAVE_AWS_LC
+SUBDIRS += aws-lc
+endif
+
 if HAVE_PICOTLS
 SUBDIRS += picotls
 endif
