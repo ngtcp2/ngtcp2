@@ -1133,7 +1133,10 @@ static int ossl_yield_secret(SSL *ssl, uint32_t ossl_level, int direction,
       return 0;
     }
 
-    ossl_ctx->tx_level = level;
+    /* CRYPTO data is never sent in 0-RTT packet. */
+    if (level != NGTCP2_ENCRYPTION_LEVEL_0RTT) {
+      ossl_ctx->tx_level = level;
+    }
 
     return 1;
   }
