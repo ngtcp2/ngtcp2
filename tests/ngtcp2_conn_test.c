@@ -11513,92 +11513,6 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Exceeding the limit for the number of unacknowledged
-     RETIRE_CONNECTION_ID by binding Destination Connection ID to a
-     new path when sending PATH_RESPONSE leads to
-     NGTCP2_ERR_CONNECTION_ID_LIMIT. */
-  setup_default_server(&conn);
-  ngtcp2_tpe_init_conn(&tpe, conn);
-
-  /* This will send NEW_CONNECTION_ID frames */
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
-
-  assert_ptrdiff(0, <, spktlen);
-
-  for (i = 0; i < NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE; ++i) {
-    frs[i].new_connection_id = (ngtcp2_new_connection_id){
-      .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
-      .seq = i + 1,
-      .cid =
-        {
-          .datalen = 4,
-          .data = {(uint8_t)i, 0xF1, 0xF2, 0xF3},
-        },
-      .token = token,
-    };
-  }
-
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs,
-                                 NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE);
-  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
-
-  assert_int(0, ==, rv);
-
-  fr.path_challenge = (ngtcp2_path_challenge){
-    .type = NGTCP2_FRAME_PATH_CHALLENGE,
-  };
-
-  for (i = 0; i < NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE; ++i) {
-    path_init(&ps, 0, 0, (uint32_t)(i + 3), 0);
-
-    pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
-    rv = ngtcp2_conn_read_pkt(conn, &ps.path, NULL, buf, pktlen, ++t);
-
-    assert_int(0, ==, rv);
-
-    /* This will send PATH_RESPONSE frame */
-    spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
-
-    assert_ptrdiff(0, <, spktlen);
-  }
-
-  assert_true(ngtcp2_dcidtr_bound_full(&conn->dcid.dtr));
-  assert_true(ngtcp2_dcidtr_unused_empty(&conn->dcid.dtr));
-  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
-
-  /* No Destination Connection ID is available for this path. */
-  path_init(&ps, 0, 0, (uint32_t)(i + 3), 0);
-
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
-  rv = ngtcp2_conn_read_pkt(conn, &ps.path, NULL, buf, pktlen, ++t);
-
-  assert_int(0, ==, rv);
-  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
-
-  fr.new_connection_id = (ngtcp2_new_connection_id){
-    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
-    .seq = NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE + 1,
-    .cid = cid,
-    .token = token,
-  };
-
-  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
-  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
-
-  assert_int(0, ==, rv);
-
-  for (i = 0; i < ngtcp2_arraylen(conn->dcid.dtr.retire_unacked.seqs); ++i) {
-    rv = ngtcp2_dcidtr_track_retired_seq(&conn->dcid.dtr, 1000 + i);
-
-    assert_int(0, ==, rv);
-  }
-
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
-
-  assert_ptrdiff(NGTCP2_ERR_CONNECTION_ID_LIMIT, ==, spktlen);
-
-  ngtcp2_conn_del(conn);
-
   /* Retiring seq=0 Connection ID in 0.5 RTT data */
   client_default_callbacks(&callbacks);
   callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
@@ -13811,6 +13725,112 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   assert_ptrdiff(0, <, shdlen);
   assert_true(ngtcp2_cid_eq(&cid, &hd.dcid));
+
+  ngtcp2_conn_del(conn);
+
+  /* PATH_CHALLENGE which cannot be answered because no Destination
+     Connection ID is available is dropped, and does not block the
+     others. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid,
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  frs[0].path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
+  frs[1].padding = (ngtcp2_padding){
+    .type = NGTCP2_FRAME_PADDING,
+    .len = 1200,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(ngtcp2_dcidtr_unused_empty(&conn->dcid.dtr));
+
+  path_init(&ps, 0, 0, 3, 0);
+
+  frs[0].path_challenge.data = data2;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &ps.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(2, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_null(ngtcp2_dcidtr_find_bound_dcid(&conn->dcid.dtr, &ps.path));
+
+  ngtcp2_path_storage_zero(&ps);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+  assert_true(ngtcp2_path_eq(&new_path.path, &ps.path));
+  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_size(1, ==, ngtcp2_dcidtr_bound_len(&conn->dcid.dtr));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_len(&conn->dcid.dtr));
+
+  ngtcp2_conn_del(conn);
+
+  /* PATH_CHALLENGE which cannot be answered due to the
+     anti-amplification limit is dropped. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid,
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  fr.path_challenge = (ngtcp2_path_challenge){
+    .type = NGTCP2_FRAME_PATH_CHALLENGE,
+    .data = data,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+
+  dcid = ngtcp2_dcidtr_find_bound_dcid(&conn->dcid.dtr, &new_path.path);
+
+  assert_not_null(dcid);
+
+  dcid->bytes_sent = 3 * dcid->bytes_recv;
+
+  ngtcp2_path_storage_zero(&ps);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(ngtcp2_path_eq(&null_path.path, &ps.path));
+  assert_size(0, ==, ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb));
+  assert_uint64(3 * dcid->bytes_recv, ==, dcid->bytes_sent);
 
   ngtcp2_conn_del(conn);
 
