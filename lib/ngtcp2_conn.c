@@ -2043,10 +2043,9 @@ static uint64_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
 
 /*
  * conn_verify_dcid verifies that destination connection ID in |hd| is
- * valid for the connection.  If it is successfully verified and the
- * remote endpoint uses new DCID in the packet, nonzero value is
- * assigned to |*pnew_cid_used| if it is not NULL.  Otherwise 0 is
- * assigned to it.
+ * valid for the connection.  If it is successfully verified, and
+ * |pseq| is not NULL, the sequence number of the connection ID is
+ * assigned to |*pseq|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2056,7 +2055,7 @@ static uint64_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     |dcid| is not known to the local endpoint.
  */
-static int conn_verify_dcid(ngtcp2_conn *conn, int *pnew_cid_used,
+static int conn_verify_dcid(ngtcp2_conn *conn, uint64_t *pseq,
                             const ngtcp2_pkt_hd *hd) {
   ngtcp2_ksl_it it;
   ngtcp2_scid *scid;
@@ -2081,12 +2080,10 @@ static int conn_verify_dcid(ngtcp2_conn *conn, int *pnew_cid_used,
         return rv;
       }
     }
+  }
 
-    if (pnew_cid_used) {
-      *pnew_cid_used = 1;
-    }
-  } else if (pnew_cid_used) {
-    *pnew_cid_used = 0;
+  if (pseq) {
+    *pseq = scid->seq;
   }
 
   return 0;
@@ -9006,7 +9003,8 @@ static int conn_revert_client_migration(ngtcp2_conn *conn,
 /*
  * conn_recv_non_probing_pkt_on_new_path is called when non-probing
  * packet is received via new path.  It starts path validation against
- * the new path.
+ * the new path.  |scid_seq| is the sequence number of the connection
+ * ID in Destination Connection ID field of the packet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -9021,7 +9019,7 @@ static int conn_revert_client_migration(ngtcp2_conn *conn,
 static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
                                                  const ngtcp2_path *path,
                                                  size_t dgramlen,
-                                                 int new_cid_used,
+                                                 uint64_t scid_seq,
                                                  ngtcp2_tstamp ts) {
   ngtcp2_dcid dcid;
   ngtcp2_pv *pv = NULL;
@@ -9090,7 +9088,8 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     }
   } else {
     if (conn->dcid.current.cid.datalen &&
-        ((new_cid_used && remote_addr_cmp) || !local_addr_eq)) {
+        ((scid_seq != conn->dcid.current.scid_seq && remote_addr_cmp) ||
+         !local_addr_eq)) {
       /* New DCID is required. */
       if (ngtcp2_dcidtr_unused_empty(&conn->dcid.dtr)) {
         return NGTCP2_ERR_CONN_ID_BLOCKED;
@@ -9124,6 +9123,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   }
 
   dcid.bytes_recv += dgramlen;
+  dcid.scid_seq = scid_seq;
 
   validated_path = ngtcp2_conn_find_path_history(conn, path, ts);
   if (validated_path) {
@@ -9475,7 +9475,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   int key_phase_bit_changed = 0;
   int force_decrypt_failure = 0;
   int recv_ncid = 0;
-  int new_cid_used = 0;
+  uint64_t scid_seq = 0;
   int path_challenge_recved = 0;
   size_t num_ack_processed = 0;
 
@@ -9747,7 +9747,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       ngtcp2_unreachable();
     }
   } else {
-    rv = conn_verify_dcid(conn, &new_cid_used, &hd);
+    rv = conn_verify_dcid(conn, &scid_seq, &hd);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
@@ -10001,8 +10001,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       !ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
     if (non_probing_pkt && pktns->acktr.max_pkt_num < hd.pkt_num &&
         !conn_path_validation_in_progress(conn, path)) {
-      rv = conn_recv_non_probing_pkt_on_new_path(conn, path, dgramlen,
-                                                 new_cid_used, ts);
+      rv = conn_recv_non_probing_pkt_on_new_path(conn, path, dgramlen, scid_seq,
+                                                 ts);
       /* If DCID is not available, just continue. */
       if (rv != 0 && rv != NGTCP2_ERR_CONN_ID_BLOCKED) {
         return rv;
@@ -10038,6 +10038,10 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
 
     if (ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
+      if (pktns->acktr.max_pkt_num < hd.pkt_num) {
+        conn->dcid.current.scid_seq = scid_seq;
+      }
+
       conn_update_keep_alive_last_ts(conn, ts);
     }
   }
