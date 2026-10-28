@@ -168,9 +168,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    supports Greasing QUIC Bit extension. */
 #define NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT 0x0400U
 /* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update is
-   not confirmed by the local endpoint.  That is, it has not received
-   ACK frame which acknowledges packet which is encrypted with new
-   key. */
+   not confirmed by the local endpoint.  That is, it has received
+   neither ACK frame which acknowledges packet which is encrypted with
+   new key, nor packet which is encrypted with new key. */
 #define NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED 0x0800U
 /* NGTCP2_CONN_FLAG_PPE_PENDING is set when
    NGTCP2_WRITE_STREAM_FLAG_MORE is used and the intermediate state of

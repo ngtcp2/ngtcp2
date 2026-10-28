@@ -8970,6 +8970,33 @@ static void conn_rotate_keys(ngtcp2_conn *conn, int64_t pkt_num,
 }
 
 /*
+ * conn_handle_unconfirmed_key_update_from_local deals with key update
+ * which has not been confirmed yet and initiated by the local
+ * endpoint.  |ckm| is the key which decrypted an incoming packet.
+ *
+ * If key update was initiated by the local endpoint, receiving a
+ * packet encrypted with the new key tells that the remote endpoint
+ * has updated its keys.  The remote endpoint may initiate the next
+ * key update as soon as that packet is acknowledged.  Do not wait for
+ * an acknowledgement for a packet that the local endpoint sent, which
+ * might be lost.
+ */
+static void conn_handle_unconfirmed_key_update_from_local(
+  ngtcp2_conn *conn, const ngtcp2_crypto_km *ckm, ngtcp2_tstamp ts) {
+  if (!(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
+      !(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR) ||
+      ckm != conn->pktns.crypto.rx.ckm) {
+    return;
+  }
+
+  conn->flags &= (uint32_t)~(NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED |
+                             NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR);
+  conn->crypto.key_update.confirmed_ts = ts;
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CRY, "key update confirmed");
+}
+
+/*
  * conn_path_validation_in_progress returns nonzero if path validation
  * against |path| is underway.  Ignore the path validation with
  * NGTCP2_PV_FLAG_DONT_CARE flag set, that is performed after the
@@ -10048,6 +10075,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     } else if (ckm->pkt_num > hd.pkt_num) {
       ckm->pkt_num = hd.pkt_num;
     }
+
+    conn_handle_unconfirmed_key_update_from_local(conn, ckm, ts);
 
     if (conn->server && conn->early.ckm &&
         conn->early.discard_started_ts == UINT64_MAX) {
@@ -11542,6 +11571,13 @@ static int conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       !conn->crypto.key_update.new_tx_ckm ||
       !conn->crypto.key_update.new_rx_ckm ||
       ngtcp2_tstamp_not_elapsed(confirmed_ts, 3 * pto, ts)) {
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  /* A subsequent key update must not be initiated until a packet
+     encrypted with the current key is acknowledged. */
+  if (confirmed_ts != UINT64_MAX && conn->pktns.rtb.largest_acked_tx_pkt_num <
+                                      conn->pktns.crypto.tx.ckm->pkt_num) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 

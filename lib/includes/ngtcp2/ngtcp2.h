@@ -4623,7 +4623,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_tx_key(
  *     The handshake has not been confirmed yet; or the connection is
  *     in the closing or draining period; or the previous key update
  *     has not been confirmed yet; or key update is too frequent; or
- *     new keys are not available yet.
+ *     new keys are not available yet; or no packet encrypted with the
+ *     current key has been acknowledged since the previous key
+ *     update.
  */
 NGTCP2_EXTERN int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn,
                                                   ngtcp2_tstamp ts);
