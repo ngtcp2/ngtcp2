@@ -2834,6 +2834,13 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
         (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
       padded = 1;
     }
+
+    if (!hd_logged) {
+      hd_logged = 1;
+      ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
+      ngtcp2_qlog_pkt_sent_start(&conn->qlog);
+    }
+
     ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
     ngtcp2_qlog_write_frame(&conn->qlog, &lfr);
   }
@@ -4656,6 +4663,13 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       padded = 1;
     }
     lfr.padding.type = NGTCP2_FRAME_PADDING;
+
+    if (!hd_logged) {
+      hd_logged = 1;
+      ngtcp2_log_tx_pkt_hd(&conn->log, hd);
+      ngtcp2_qlog_pkt_sent_start(&conn->qlog);
+    }
+
     ngtcp2_log_tx_fr(&conn->log, hd, &lfr);
     ngtcp2_qlog_write_frame(&conn->qlog, &lfr);
   }
