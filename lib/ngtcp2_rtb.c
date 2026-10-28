@@ -345,6 +345,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
 
       rv = ngtcp2_bind_frame_chains(frc, nfrc, rtb->mem);
       if (rv != 0) {
+        ngtcp2_frame_chain_objalloc_del(nfrc, rtb->frc_objalloc, rtb->mem);
         return rv;
       }
 
@@ -423,6 +424,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
 
     rv = ngtcp2_bind_frame_chains(frc, nfrc, rtb->mem);
     if (rv != 0) {
+      ngtcp2_frame_chain_objalloc_del(nfrc, rtb->frc_objalloc, rtb->mem);
       return rv;
     }
 
