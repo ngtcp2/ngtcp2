@@ -5918,10 +5918,6 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
   }
 
   if (strm->tx.max_offset >= fr->max_stream_data) {
-    if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-      return NGTCP2_ERR_INTERNAL;
-    }
-
     return 0;
   }
 
@@ -5929,10 +5925,6 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
 
   /* Don't call callback if stream is half-closed local */
   if (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) {
-    if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-      return NGTCP2_ERR_INTERNAL;
-    }
-
     return 0;
   }
 
@@ -7639,7 +7631,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
   uint64_t datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
   uint32_t sdflags = NGTCP2_STREAM_DATA_FLAG_NONE;
   ngtcp2_ssize nwrite;
-  int new_strm = 0;
 
   local_stream = conn_local_stream(conn, fr->stream_id);
   bidi = bidi_stream(fr->stream_id);
@@ -7706,8 +7697,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
       return rv;
     }
 
-    new_strm = 1;
-
     rv = conn_call_stream_open(conn, strm);
     if (rv != 0) {
       return rv;
@@ -7748,18 +7737,10 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
   if (fr->fin) {
     if (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) {
       if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
-        if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-          return NGTCP2_ERR_INTERNAL;
-        }
-
         return 0;
       }
 
       if (rx_offset == fr_end_offset) {
-        if (!new_strm && ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-          return NGTCP2_ERR_INTERNAL;
-        }
-
         return 0;
       }
     } else {
@@ -7770,19 +7751,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
   } else {
     strm->rx.last_offset = ngtcp2_max(strm->rx.last_offset, fr_end_offset);
 
-    if (fr_end_offset <= rx_offset) {
-      if (!new_strm && ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-        return NGTCP2_ERR_INTERNAL;
-      }
-
-      return 0;
-    }
-
-    if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
-      if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-        return NGTCP2_ERR_INTERNAL;
-      }
-
+    if (fr_end_offset <= rx_offset ||
+        (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED)) {
       return 0;
     }
   }
@@ -7836,10 +7806,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
                                          fr->data[0].len, fr->offset);
     if (nwrite < 0) {
       return (int)nwrite;
-    }
-
-    if (nwrite == 0 && ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-      return NGTCP2_ERR_INTERNAL;
     }
   }
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
@@ -8019,10 +7985,6 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   }
 
   if (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) {
-    if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-      return NGTCP2_ERR_INTERNAL;
-    }
-
     return 0;
   }
 
@@ -8145,10 +8107,6 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   }
 
   if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING_RECVED) {
-    if (ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-      return NGTCP2_ERR_INTERNAL;
-    }
-
     return 0;
   }
 
