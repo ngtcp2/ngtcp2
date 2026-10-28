@@ -395,6 +395,14 @@ static int client_initial_null_early_data(ngtcp2_conn *conn, void *user_data) {
   return 0;
 }
 
+static int tls_early_data_rejected(ngtcp2_conn *conn, void *user_data) {
+  (void)user_data;
+
+  assert_null(conn->early.ckm);
+
+  return 0;
+}
+
 static int client_initial_large_crypto_early_data(ngtcp2_conn *conn,
                                                   void *user_data) {
   (void)user_data;
@@ -18329,6 +18337,8 @@ void test_ngtcp2_conn_tls_early_data_rejected(void) {
   ngtcp2_transport_params params;
   ngtcp2_tstamp t = 0;
   ngtcp2_tpe tpe;
+  ngtcp2_callbacks callbacks;
+  conn_options opts;
 
   setup_early_client(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
@@ -18454,6 +18464,72 @@ void test_ngtcp2_conn_tls_early_data_rejected(void) {
                 conn->rx.uni.max_streams);
   assert_uint64(conn->local.transport_params.initial_max_streams_uni, ==,
                 conn->rx.uni.unsent_max_streams);
+
+  ngtcp2_conn_del(conn);
+
+  /* Early data is rejected in the middle of handshake (e.g.,
+     HelloRetryRequest) with tls_early_data_rejected callback set.
+     Early key must be discarded, and Initial packet must be padded
+     because no 0RTT packet follows. */
+  client_early_callbacks(&callbacks);
+  callbacks.tls_early_data_rejected = tls_early_data_rejected;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_early_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &bidi_stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_FIN,
+                                     bidi_stream_id, null_data, 1024, ++t);
+
+  assert_ptrdiff((ngtcp2_ssize)sizeof(buf), ==, spktlen);
+  assert_ptrdiff(670, ==, datalen);
+  assert_not_null(conn->early.ckm);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 88,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_tls_early_data_rejected(conn);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->early.ckm);
+  assert_null(ngtcp2_conn_find_stream(conn, bidi_stream_id));
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, 217);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &bidi_stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_FIN,
+                                     bidi_stream_id, null_data, 1024, ++t);
+
+  assert_ptrdiff((ngtcp2_ssize)sizeof(buf), ==, spktlen);
+  assert_ptrdiff(-1, ==, datalen);
 
   ngtcp2_conn_del(conn);
 }
