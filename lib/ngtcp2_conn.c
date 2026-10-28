@@ -4627,8 +4627,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
       if (rv != 0) {
         assert(rv == NGTCP2_ERR_NOBUF);
-        /* TODO If buffer is too small, PING cannot be written if
-           packet is still empty. */
+        /* ngtcp2_ppe_encode_hd ensures that an empty packet has the
+           space for PING.  If we get here, the packet is not
+           empty. */
+        assert(!pkt_empty);
       } else {
         rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
         if (conn->pktns.rtb.probe_pkt_left) {

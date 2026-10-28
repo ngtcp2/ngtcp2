@@ -87,6 +87,39 @@ void test_ngtcp2_ppe_encode_hd(void) {
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
 
   assert_int(NGTCP2_ERR_NOBUF, ==, rv);
+
+  /* Insufficient buffer size; 4 bytes packet number leaves no space
+     for payload. */
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL, 0,
+                     4, NGTCP2_PROTO_VER_V1);
+
+  ngtcp2_ppe_init(&ppe, buf, 1 + dcid.datalen + 4 + NGTCP2_FAKE_AEAD_OVERHEAD,
+                  0, &cc);
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+
+  assert_int(NGTCP2_ERR_NOBUF, ==, rv);
+
+  /* 4 bytes packet number with the space for 1 byte payload */
+  ngtcp2_ppe_init(&ppe, buf,
+                  1 + dcid.datalen + 4 + 1 + NGTCP2_FAKE_AEAD_OVERHEAD, 0, &cc);
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ngtcp2_ppe_left(&ppe));
+
+  /* 3 bytes packet number leaves the space for 1 byte payload */
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL, 0,
+                     3, NGTCP2_PROTO_VER_V1);
+
+  ngtcp2_ppe_init(&ppe, buf, 1 + dcid.datalen + 4 + NGTCP2_HP_SAMPLELEN, 0,
+                  &cc);
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ngtcp2_ppe_left(&ppe));
 }
 
 static void set_padding_range(uint8_t *buf, size_t buflen, size_t offset,
