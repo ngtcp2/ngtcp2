@@ -6524,6 +6524,70 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* Loss of DATAGRAM frame is notified even if the packet has been
+     reclaimed on PTO */
+  client_default_remote_transport_params(&remote_params);
+  remote_params.max_datagram_frame_size = 65535;
+
+  client_default_callbacks(&callbacks);
+  callbacks.lost_datagram = lost_datagram;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .remote_params = &remote_params,
+    .user_data = &ud,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_MORE,
+                                     stream_id, null_data, 126, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+  assert_ptrdiff(126, ==, datalen);
+
+  datav.base = null_data;
+  datav.len = 99;
+
+  spktlen = ngtcp2_conn_writev_datagram(
+    conn, NULL, NULL, buf, sizeof(buf), &accepted,
+    NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 1000000009, &datav, 1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_true(accepted);
+
+  /* PTO fires and the packet is reclaimed. */
+  t = ngtcp2_conn_get_expiry2(conn);
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ngtcp2_ksl_it_next(&it);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_int64(0, ==, ent->hd.pkt_num);
+  assert_true(ent->flags & NGTCP2_RTB_ENTRY_FLAG_DATAGRAM);
+  assert_true(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED);
+
+  /* Kick delayed ACK timer */
+  t += NGTCP2_SECONDS;
+
+  conn->pktns.tx.last_pkt_num = 1000000009;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
+  ud = (my_user_data){0};
+  ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
+
+  assert_uint64(1000000009, ==, ud.lost_datagram.dgram_id);
+
+  ngtcp2_conn_del(conn);
+
   /* Retransmit an empty STREAM frame */
   setup_default_client(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);

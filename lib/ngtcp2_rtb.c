@@ -505,30 +505,31 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
     }
   }
 
+  /* DATAGRAM frame is not reclaimed on PTO, so its loss must be
+     notified even if the packet has already been reclaimed on
+     PTO. */
+  if (conn->callbacks.lost_datagram &&
+      (ent->flags & NGTCP2_RTB_ENTRY_FLAG_DATAGRAM)) {
+    rv = conn_process_lost_datagram(conn, ent);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
     ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC, "pkn=", ent->hd.pkt_num,
                      " has already been reclaimed on PTO");
     assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
     assert(UINT64_MAX == ent->lost_ts);
-  } else {
-    if (conn->callbacks.lost_datagram &&
-        (ent->flags & NGTCP2_RTB_ENTRY_FLAG_DATAGRAM)) {
-      rv = conn_process_lost_datagram(conn, ent);
-      if (rv != 0) {
-        return rv;
-      }
-    }
+  } else if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) {
+    assert(ent->frc);
+    assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
+    assert(UINT64_MAX == ent->lost_ts);
 
-    if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) {
-      assert(ent->frc);
-      assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
-      assert(UINT64_MAX == ent->lost_ts);
-
-      reclaimed =
-        rtb_reclaim_frame(rtb, NGTCP2_RECLAIM_FLAG_ON_LOSS, conn, pktns, ent);
-      if (reclaimed < 0) {
-        return (int)reclaimed;
-      }
+    reclaimed =
+      rtb_reclaim_frame(rtb, NGTCP2_RECLAIM_FLAG_ON_LOSS, conn, pktns, ent);
+    if (reclaimed < 0) {
+      return (int)reclaimed;
     }
   }
 
