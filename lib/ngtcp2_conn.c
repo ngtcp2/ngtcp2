@@ -5451,7 +5451,6 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
   ngtcp2_dcid *dcid = NULL;
   ngtcp2_frame lfr;
   ngtcp2_ssize nwrite;
-  int rv;
   uint64_t tx_left;
 
   for (; ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb);) {
@@ -5475,31 +5474,29 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
     }
 
     if (conn->server) {
-      break;
+      /* conn_recv_pkt_from_new_path binds DCID to the path, and
+         credits the received bytes to it when PATH_CHALLENGE is
+         received.  Do not bind new DCID here because it has no
+         credit, and nothing can be sent with it. */
+      dcid = ngtcp2_dcidtr_find_bound_dcid(&conn->dcid.dtr, &pcent->ps.path);
+      if (dcid && dcid_tx_left(dcid)) {
+        break;
+      }
     }
 
     /* Client does not expect to respond to path validation against
-       unknown path */
+       unknown path.  Server has no DCID bound to the path, or is
+       blocked by the anti-amplification limit.  Waiting does not help
+       because they are only resolved by receiving another packet from
+       the path, which carries new PATH_CHALLENGE if a remote endpoint
+       still needs the path.  Drop this entry so that it does not
+       block the others. */
     ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge.rb);
     pcent = NULL;
   }
 
   if (pcent == NULL) {
     return 0;
-  }
-
-  if (dcid == NULL) {
-    /* client is expected to have |path| in conn->dcid.current or
-       conn->pv. */
-    assert(conn->server);
-
-    rv = conn_bind_dcid(conn, &dcid, &pcent->ps.path, ts);
-    if (rv != 0) {
-      if (rv != NGTCP2_ERR_CONN_ID_BLOCKED) {
-        return rv;
-      }
-      return 0;
-    }
   }
 
   destlen = ngtcp2_min(destlen, NGTCP2_MAX_UDP_PAYLOAD_SIZE);
