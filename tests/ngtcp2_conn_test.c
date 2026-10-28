@@ -14368,8 +14368,29 @@ void test_ngtcp2_conn_key_update(void) {
   assert_not_null(conn->crypto.key_update.new_tx_ckm);
   assert_not_null(conn->crypto.key_update.new_rx_ckm);
 
-  /* The local endpoint initiates key update */
+  /* The local endpoint cannot initiate key update until a packet
+     encrypted with the current key is acknowledged. */
   t += ngtcp2_conn_get_pto2(conn) * 2;
+
+  rv = ngtcp2_conn_initiate_key_update(conn, t);
+
+  assert_int(NGTCP2_ERR_INVALID_STATE, ==, rv);
+
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  tpe.app.ckm = conn->pktns.crypto.rx.ckm;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  /* The local endpoint initiates key update */
+  t += ngtcp2_conn_get_pto2(conn) * 3;
 
   rv = ngtcp2_conn_initiate_key_update(conn, t);
 
@@ -14511,6 +14532,75 @@ void test_ngtcp2_conn_key_update(void) {
   assert_int(NGTCP2_ERR_INVALID_STATE, ==, rv);
   assert_not_null(conn->crypto.key_update.new_tx_ckm);
   assert_not_null(conn->crypto.key_update.new_rx_ckm);
+
+  ngtcp2_conn_del(conn);
+
+  /* The local endpoint initiates key update, and then receives a
+     packet that is encrypted with the new key, but never receives an
+     acknowledgement for the packet that it sent.  The remote endpoint
+     initiates the next key update. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_not_null(conn->crypto.key_update.new_tx_ckm);
+  assert_not_null(conn->crypto.key_update.new_rx_ckm);
+
+  rv = ngtcp2_conn_initiate_key_update(conn, ++t);
+
+  assert_int(0, ==, rv);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR);
+
+  tpe.app.ckm = conn->pktns.crypto.rx.ckm;
+  tpe.flags = NGTCP2_PKT_FLAG_KEY_PHASE;
+
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->crypto.key_update.old_rx_ckm);
+  assert_null(conn->crypto.key_update.new_tx_ckm);
+  assert_null(conn->crypto.key_update.new_rx_ckm);
+  assert_uint64(t, ==, conn->crypto.key_update.confirmed_ts);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR);
+
+  t += ngtcp2_conn_get_pto2(conn) + 1;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_null(conn->crypto.key_update.old_rx_ckm);
+  assert_not_null(conn->crypto.key_update.new_tx_ckm);
+  assert_not_null(conn->crypto.key_update.new_rx_ckm);
+
+  /* The local endpoint still cannot initiate the next key update
+     because no packet encrypted with the current key has been
+     acknowledged. */
+  t += ngtcp2_conn_get_pto2(conn) * 2;
+
+  rv = ngtcp2_conn_initiate_key_update(conn, t);
+
+  assert_int(NGTCP2_ERR_INVALID_STATE, ==, rv);
+
+  tpe.app.ckm = conn->crypto.key_update.new_rx_ckm;
+  tpe.flags = NGTCP2_PKT_FLAG_NONE;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_ptr_equal(tpe.app.ckm, conn->pktns.crypto.rx.ckm);
+  assert_uint64(0, ==, conn->crypto.decryption_failure_count);
+  assert_true(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR);
 
   ngtcp2_conn_del(conn);
 }
