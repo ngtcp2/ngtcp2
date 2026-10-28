@@ -3325,6 +3325,10 @@ typedef enum ngtcp2_connection_id_status_type {
  * :type:`ngtcp2_connection_id_status` is a callback function which is
  * called when the status of Destination Connection ID changes.
  *
+ * This callback function is not called before handshake completes.
+ * When handshake completes, it is called for Destination Connection
+ * ID in use at that time.
+ *
  * |token| is the associated stateless reset token, and it is ``NULL``
  * if no token is present.
  *
@@ -3598,6 +3602,10 @@ typedef int (*ngtcp2_get_new_connection_id2)(
  *
  * :type:`ngtcp2_connection_id_status2` is a callback function which
  * is called when the status of Destination Connection ID changes.
+ *
+ * This callback function is not called before handshake completes.
+ * When handshake completes, it is called for Destination Connection
+ * ID in use at that time.
  *
  * |token| is the associated stateless reset token, and it is ``NULL``
  * if no token is present.
