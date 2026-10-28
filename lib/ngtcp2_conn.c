@@ -505,6 +505,22 @@ static int conn_call_dcid_status(ngtcp2_conn *conn,
                                  const ngtcp2_dcid *dcid) {
   int rv;
 
+  switch (conn->state) {
+  case NGTCP2_CS_CLIENT_INITIAL:
+  case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
+  case NGTCP2_CS_SERVER_INITIAL:
+  case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
+    /* The current Destination Connection ID is activated when
+       handshake completes.  Until then, ngtcp2_conn_get_active_dcid3
+       returns nothing, and an application which closes the connection
+       has no means to forget Destination Connection ID which
+       NEW_CONNECTION_ID frame in 0-RTT or 0.5-RTT packet made a local
+       endpoint use. */
+    return 0;
+  default:
+    break;
+  }
+
   if (conn->callbacks.dcid_status2) {
     rv = conn->callbacks.dcid_status2(
       conn, type, dcid->seq, &dcid->cid,

@@ -340,6 +340,11 @@ typedef struct {
     int64_t shutdown_stream_id;
     size_t ncalled;
   } stream_stop_sending;
+  struct {
+    ngtcp2_connection_id_status_type type;
+    uint64_t seq;
+    size_t ncalled;
+  } dcid_status;
 } my_user_data;
 
 static int client_initial(ngtcp2_conn *conn, void *user_data) {
@@ -754,6 +759,25 @@ static int stream_stop_sending_shutdown_stream(ngtcp2_conn *conn,
     conn, 0, ud->stream_stop_sending.shutdown_stream_id, app_error_code);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int dcid_status2(ngtcp2_conn *conn,
+                        ngtcp2_connection_id_status_type type, uint64_t seq,
+                        const ngtcp2_cid *cid,
+                        const ngtcp2_stateless_reset_token *token,
+                        void *user_data) {
+  my_user_data *ud = user_data;
+  (void)conn;
+  (void)cid;
+  (void)token;
+
+  if (ud) {
+    ud->dcid_status.type = type;
+    ud->dcid_status.seq = seq;
+    ++ud->dcid_status.ncalled;
   }
 
   return 0;
@@ -10752,6 +10776,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   ngtcp2_callbacks callbacks;
   conn_options opts;
   ngtcp2_path_storage ps;
+  my_user_data ud;
 
   setup_default_client(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
@@ -11632,6 +11657,172 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   assert_ptrdiff(0, <, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Server changes the current Destination Connection ID in response
+     to NEW_CONNECTION_ID in 0-RTT packet.  It is not activated until
+     handshake completes. */
+  server_early_callbacks(&callbacks);
+  callbacks.dcid_status2 = dcid_status2;
+
+  ud = (my_user_data){0};
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_early_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn_handshake_server(&tpe, conn, &null_ckm);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 1199,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .retire_prior_to = 1,
+    .cid = cid,
+    .token = token,
+  };
+
+  tpe.early.ckm = conn->early.ckm;
+
+  pktlen = ngtcp2_tpe_write_0rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(1, ==, conn->dcid.current.seq);
+  assert_size(1, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_size(0, ==, ud.dcid_status.ncalled);
+  assert_size(0, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  ngtcp2_conn_install_rx_key(conn, null_secret, sizeof(null_secret),
+                             &null_aead_ctx, null_iv, sizeof(null_iv),
+                             &null_hp_ctx);
+  ngtcp2_conn_tls_handshake_completed(conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 57,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_enum(ngtcp2_conn_state, NGTCP2_CS_POST_HANDSHAKE, ==, conn->state);
+  assert_size(1, ==, ud.dcid_status.ncalled);
+  assert_enum(ngtcp2_connection_id_status_type,
+              NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE, ==,
+              ud.dcid_status.type);
+  assert_uint64(1, ==, ud.dcid_status.seq);
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+
+  ngtcp2_conn_del(conn);
+
+  /* Client changes the current Destination Connection ID in response
+     to NEW_CONNECTION_ID in 0.5-RTT packet.  It is activated just
+     once. */
+  client_default_callbacks(&callbacks);
+  callbacks.recv_crypto_data = recv_crypto_data_client_handshake;
+  callbacks.dcid_status2 = dcid_status2;
+
+  ud = (my_user_data){0};
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_CRYPTO,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 1200,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  tpe.handshake.ckm = conn->hs_pktns->crypto.rx.ckm;
+
+  pktlen = ngtcp2_tpe_write_handshake(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  tpe.app.ckm = conn->pktns.crypto.rx.ckm;
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .retire_prior_to = 1,
+    .cid = cid,
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_enum(ngtcp2_conn_state, NGTCP2_CS_CLIENT_WAIT_HANDSHAKE, ==,
+              conn->state);
+  assert_uint64(1, ==, conn->dcid.current.seq);
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(0, ==, ud.dcid_status.ncalled);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_enum(ngtcp2_conn_state, NGTCP2_CS_POST_HANDSHAKE, ==, conn->state);
+  assert_size(1, ==, ud.dcid_status.ncalled);
+  assert_enum(ngtcp2_connection_id_status_type,
+              NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE, ==,
+              ud.dcid_status.type);
+  assert_uint64(1, ==, ud.dcid_status.seq);
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
 
   ngtcp2_conn_del(conn);
 }
