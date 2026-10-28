@@ -243,6 +243,7 @@ void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log,
         .congestion_event = ngtcp2_cc_cubic_cc_congestion_event,
         .on_spurious_congestion = ngtcp2_cc_cubic_cc_on_spurious_congestion,
         .on_persistent_congestion = ngtcp2_cc_cubic_cc_on_persistent_congestion,
+        .on_pkt_lost_confirmed = ngtcp2_cc_cubic_cc_on_pkt_lost_confirmed,
         .reset = ngtcp2_cc_cubic_cc_reset,
       },
     .rst = rst,
@@ -578,6 +579,21 @@ void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *cc,
   cstat->congestion_recovery_start_ts = UINT64_MAX;
 
   set_pacing_rate(cstat);
+}
+
+void ngtcp2_cc_cubic_cc_on_pkt_lost_confirmed(ngtcp2_cc *cc,
+                                              ngtcp2_conn_stat *cstat,
+                                              ngtcp2_tstamp ts) {
+  ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
+  (void)cstat;
+  (void)ts;
+
+  /* The loss is real.  Discard the snapshot so that a spurious
+     congestion detected later does not restore the state from before
+     this loss. */
+  cubic_vars_reset(&cubic->undo.v);
+  cubic->undo.cwnd = 0;
+  cubic->undo.ssthresh = 0;
 }
 
 void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,

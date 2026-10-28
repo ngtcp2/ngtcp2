@@ -272,6 +272,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
  */
 void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb,
                                         ngtcp2_duration timeout,
+                                        ngtcp2_conn_stat *cstat,
                                         ngtcp2_tstamp ts);
 
 /*
@@ -310,7 +311,9 @@ void ngtcp2_rtb_reset_cc_state(ngtcp2_rtb *rtb, int64_t cc_pkt_num);
  * ngtcp2_rtb_remove_excessive_lost_pkt ensures that the number of
  * lost packets is at most |n|.
  */
-void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n);
+void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n,
+                                          ngtcp2_conn_stat *cstat,
+                                          ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_reclaim_on_pto reclaims up to |num_pkts| packets which
