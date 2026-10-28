@@ -11517,9 +11517,8 @@ static int conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_tstamp confirmed_ts = conn->crypto.key_update.confirmed_ts;
   ngtcp2_duration pto = ngtcp2_conn_compute_pto(conn, &conn->pktns);
 
-  assert(conn->state == NGTCP2_CS_POST_HANDSHAKE);
-
-  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) ||
+  if (conn->state != NGTCP2_CS_POST_HANDSHAKE ||
+      !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) ||
       (conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
       !conn->crypto.key_update.new_tx_ckm ||
       !conn->crypto.key_update.new_rx_ckm ||

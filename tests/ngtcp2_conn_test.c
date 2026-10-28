@@ -13795,6 +13795,7 @@ void test_ngtcp2_conn_key_update(void) {
   int64_t stream_id;
   ngtcp2_ssize nwrite;
   ngtcp2_tpe tpe;
+  ngtcp2_ccerr ccerr;
 
   setup_default_server(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
@@ -13903,6 +13904,78 @@ void test_ngtcp2_conn_key_update(void) {
   assert_int(0, ==, rv);
   assert_int64(NGTCP2_MAX_PKT_NUM, ==, conn->pktns.acktr.max_pkt_num);
   assert_true(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED);
+
+  ngtcp2_conn_del(conn);
+
+  /* Initiating key update during handshake is an error (server) */
+  setup_handshake_server(&conn);
+
+  rv = ngtcp2_conn_initiate_key_update(conn, ++t);
+
+  assert_int(NGTCP2_ERR_INVALID_STATE, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Initiating key update during handshake is an error (client) */
+  setup_handshake_client(&conn);
+
+  rv = ngtcp2_conn_initiate_key_update(conn, ++t);
+
+  assert_int(NGTCP2_ERR_INVALID_STATE, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Initiating key update in the closing period is an error */
+  setup_default_server(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_not_null(conn->crypto.key_update.new_tx_ckm);
+  assert_not_null(conn->crypto.key_update.new_rx_ckm);
+
+  ngtcp2_ccerr_default(&ccerr);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_enum(ngtcp2_conn_state, NGTCP2_CS_CLOSING, ==, conn->state);
+
+  rv = ngtcp2_conn_initiate_key_update(conn, ++t);
+
+  assert_int(NGTCP2_ERR_INVALID_STATE, ==, rv);
+  assert_not_null(conn->crypto.key_update.new_tx_ckm);
+  assert_not_null(conn->crypto.key_update.new_rx_ckm);
+
+  ngtcp2_conn_del(conn);
+
+  /* Initiating key update in the draining period is an error */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_not_null(conn->crypto.key_update.new_tx_ckm);
+  assert_not_null(conn->crypto.key_update.new_rx_ckm);
+
+  fr.connection_close = (ngtcp2_connection_close){
+    .type = NGTCP2_FRAME_CONNECTION_CLOSE,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_DRAINING, ==, rv);
+  assert_enum(ngtcp2_conn_state, NGTCP2_CS_DRAINING, ==, conn->state);
+
+  rv = ngtcp2_conn_initiate_key_update(conn, ++t);
+
+  assert_int(NGTCP2_ERR_INVALID_STATE, ==, rv);
+  assert_not_null(conn->crypto.key_update.new_tx_ckm);
+  assert_not_null(conn->crypto.key_update.new_rx_ckm);
 
   ngtcp2_conn_del(conn);
 }
