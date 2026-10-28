@@ -3371,6 +3371,16 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
       return rv;
     }
 
+    /* Allocate scid before calling get_new_connection_id callback.
+       An application associates a new Connection ID with conn inside
+       the callback, and relies on conn->scid.set to remove the
+       association later. */
+    scid = ngtcp2_mem_malloc(conn->mem, sizeof(*scid));
+    if (scid == NULL) {
+      rv = NGTCP2_ERR_NOMEM;
+      goto fail;
+    }
+
     nfrc->fr.new_connection_id.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
     nfrc->fr.new_connection_id.seq = ++conn->scid.last_seq;
     nfrc->fr.new_connection_id.retire_prior_to = 0;
@@ -3397,18 +3407,14 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
       goto fail;
     }
 
-    scid = ngtcp2_mem_malloc(conn->mem, sizeof(*scid));
-    if (scid == NULL) {
-      rv = NGTCP2_ERR_NOMEM;
-      goto fail;
-    }
-
     ngtcp2_scid_init(scid, nfrc->fr.new_connection_id.seq,
                      &nfrc->fr.new_connection_id.cid);
 
     rv = ngtcp2_ksl_insert(&conn->scid.set, NULL, &scid->cid, scid);
     if (rv != 0) {
-      ngtcp2_mem_free(conn->mem, scid);
+      /* Let an application remove the association it has just
+         made. */
+      conn_call_remove_connection_id(conn, &scid->cid);
       goto fail;
     }
 
@@ -3423,6 +3429,7 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
   return 0;
 
 fail:
+  ngtcp2_mem_free(conn->mem, scid);
   ngtcp2_frame_chain_objalloc_del(nfrc, &conn->frc_objalloc, conn->mem);
 
   return rv;
