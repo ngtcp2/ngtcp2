@@ -328,9 +328,7 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   }
 
   if (auto rv = h->handle_expiry(); !rv) {
-    if (rv.error() == Error::CLOSE_WAIT) {
-      ev_timer_stop(loop, w);
-    } else {
+    if (rv.error() != Error::CLOSE_WAIT) {
       s->remove(h);
     }
 
