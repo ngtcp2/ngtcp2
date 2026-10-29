@@ -605,6 +605,26 @@ void test_ngtcp2_vec_merge(void) {
   assert_size(1, ==, bcnt);
   assert_ptr_equal(nulldata, b[0].base);
   assert_size(55, ==, b[0].len);
+
+  /* Empty destination; left < b[0] */
+  acnt = 0;
+  bcnt = 1;
+
+  a[0] = (ngtcp2_vec){0};
+  b[0] = (ngtcp2_vec){
+    .base = (uint8_t *)nulldata,
+    .len = 100,
+  };
+
+  nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 99, 1);
+
+  assert_size(99, ==, nmerged);
+  assert_size(1, ==, acnt);
+  assert_ptr_equal(nulldata, a[0].base);
+  assert_size(99, ==, a[0].len);
+  assert_size(1, ==, bcnt);
+  assert_ptr_equal(nulldata + 99, b[0].base);
+  assert_size(1, ==, b[0].len);
 }
 
 void test_ngtcp2_vec_len_varint(void) {
