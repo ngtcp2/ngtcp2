@@ -1688,7 +1688,9 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
   int64_t stream_id;
   ngtcp2_tpe tpe;
   ngtcp2_transport_params remote_params;
+  ngtcp2_settings settings;
   conn_options opts;
+  ngtcp2_tstamp t = 0;
 
   client_default_remote_transport_params(&remote_params);
   remote_params.initial_max_stream_data_bidi_remote = 2047;
@@ -1775,6 +1777,157 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   assert_ptrdiff(0, <, spktlen);
   assert_ptrdiff(1024, ==, nwrite);
+
+  ngtcp2_conn_del(conn);
+
+  /* write_stream_data_thresh prevents small STREAM frame write */
+  client_default_settings(&settings);
+  settings.write_stream_data_thresh = 255;
+
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_stream_data_bidi_remote = 1024;
+
+  opts = (conn_options){
+    .settings = &settings,
+    .remote_params = &remote_params,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &nwrite, NGTCP2_WRITE_STREAM_FLAG_MORE,
+                                     stream_id, null_data, 1024 - 255, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+  assert_uint64(255, ==, ngtcp2_conn_get_max_stream_data_left(conn, stream_id));
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &nwrite, NGTCP2_WRITE_STREAM_FLAG_MORE,
+                                     stream_id, null_data, 256, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_STREAM_DATA_BLOCKED, ==, spktlen);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.max_stream_data = (ngtcp2_max_stream_data){
+    .type = NGTCP2_FRAME_MAX_STREAM_DATA,
+    .stream_id = stream_id,
+    .max_stream_data = 1025,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_not_null(strm);
+  assert_uint64(1025, ==, strm->tx.max_offset);
+  assert_uint64(1025 - 256, ==, strm->tx.offset);
+  assert_uint64(256, ==, ngtcp2_conn_get_max_stream_data_left(conn, stream_id));
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &nwrite, NGTCP2_WRITE_STREAM_FLAG_MORE,
+                                     stream_id, null_data, 256, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+  assert_ptrdiff(256, ==, nwrite);
+  assert_uint64(1025, ==, strm->tx.offset);
+  assert_uint64(0, ==, ngtcp2_conn_get_max_stream_data_left(conn, stream_id));
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* write_stream_data_thresh does not prevent small STREAM frame
+     write if the given data is smaller than or equal to the
+     threshold */
+  client_default_settings(&settings);
+  settings.write_stream_data_thresh = 255;
+
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_stream_data_bidi_remote = 1024;
+
+  opts = (conn_options){
+    .settings = &settings,
+    .remote_params = &remote_params,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &nwrite, NGTCP2_WRITE_STREAM_FLAG_MORE,
+                                     stream_id, null_data, 1024 - 255, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+  assert_ptrdiff(1024 - 255, ==, nwrite);
+  assert_uint64(255, ==, ngtcp2_conn_get_max_stream_data_left(conn, stream_id));
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &nwrite, NGTCP2_WRITE_STREAM_FLAG_MORE,
+                                     stream_id, null_data, 255, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+  assert_ptrdiff(255, ==, nwrite);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_not_null(strm);
+  assert_uint64(1024, ==, strm->tx.offset);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* write_stream_data_thresh makes
+     ngtcp2_conn_get_max_data_left_write_thresh return 0 if the
+     remaining conneciton flow credit is less than or equal to
+     write_stream_data_thresh */
+  client_default_settings(&settings);
+  settings.write_stream_data_thresh = 255;
+
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_data = 1024;
+
+  opts = (conn_options){
+    .settings = &settings,
+    .remote_params = &remote_params,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+  assert_uint64(1024, ==, ngtcp2_conn_get_max_data_left_write_thresh(conn));
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &nwrite, NGTCP2_WRITE_STREAM_FLAG_MORE,
+                                     stream_id, null_data, 1024 - 255, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_WRITE_MORE, ==, spktlen);
+  assert_ptrdiff(1024 - 255, ==, nwrite);
+  assert_uint64(0, ==, ngtcp2_conn_get_max_data_left_write_thresh(conn));
+  assert_uint64(255, ==, ngtcp2_conn_get_max_data_left(conn));
 
   ngtcp2_conn_del(conn);
 }

@@ -1861,7 +1861,8 @@ typedef enum ngtcp2_token_type {
 #define NGTCP2_SETTINGS_V2 2
 #define NGTCP2_SETTINGS_V3 3
 #define NGTCP2_SETTINGS_V4 4
-#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V4
+#define NGTCP2_SETTINGS_V5 5
+#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V5
 
 /**
  * @struct
@@ -2117,6 +2118,29 @@ typedef struct ngtcp2_settings {
    * .. version-added:: 1.23.0
    */
   ngtcp2_log_write log_write;
+  /* The following fields have been added since NGTCP2_SETTINGS_V5. */
+  /**
+   * :member:`write_stream_data_thresh` is the threshold for the
+   * length of STREAM frame payload that the local endpoint sends.  If
+   * there is data more than this value to send, and the flow control
+   * does not allow sending more than this length, the data is not
+   * sent, waiting for the window update from the remote endpoint.
+   * This effectively means that flow control credit less than or
+   * equal to :member:`write_stream_data_thresh` is considered 0.  It
+   * implies that the connection to the remote endpoint that only
+   * grants less than or equal to :member:`write_stream_data_thresh`
+   * stalls.  But normally the endpoint offers far more flow control
+   * credits.  Those that only gives small credit are most likely
+   * badly configured or manipulated by an attacker, and no need to be
+   * supported.  If nonzero value is set to this field, the
+   * application should use
+   * `ngtcp2_conn_get_max_data_left_write_thresh` instead of
+   * `ngtcp2_conn_get_max_data_left`, so that the streams are not
+   * blocked by the connection-level flow control.
+   *
+   * .. version-added:: 1.26.0
+   */
+  size_t write_stream_data_thresh;
 } ngtcp2_settings;
 
 /**
@@ -6221,8 +6245,26 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn);
  * connection-level flow control.
  *
  * .. version-added:: 1.23.0
+ *
+ * .. seealso::
+ *   `ngtcp2_conn_get_max_data_left_write_thresh`
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left2(const ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_max_data_left_write_thresh` returns the number of
+ * bytes that this local endpoint can send in this connection without
+ * violating connection-level flow control.  If the remaining credit
+ * is less than or equal to
+ * :member:`ngtcp2_settings.write_stream_data_thresh`, this function
+ * returns 0.
+ *
+ * .. version-added:: 1.26.0
+ */
+NGTCP2_EXTERN uint64_t
+ngtcp2_conn_get_max_data_left_write_thresh(const ngtcp2_conn *conn);
 
 /**
  * @function

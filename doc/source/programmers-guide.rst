@@ -458,7 +458,7 @@ payload:
        int fin = 0;
        size_t veccnt = 0;
 
-       if (ngtcp2_conn_get_max_data_left2(conn)) {
+       if (ngtcp2_conn_get_max_data_left_write_thresh(conn)) {
 	 /* Get application stream data here.
 	    Fill stream_id, fin, vec, and veccnt. */
 	 ...
@@ -514,8 +514,8 @@ payload:
    }
 
 Do not try to write the application stream data while
-`ngtcp2_conn_get_max_data_left2()` returns 0.  This ensures that
-:macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED` from
+`ngtcp2_conn_get_max_data_left_write_thresh()` returns 0.  This
+ensures that :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED` from
 `ngtcp2_conn_writev_stream()` is caused by stream-level flow control.
 Note that ``ndatalen`` could be 0, which is a valid write signal
 (e.g., only write fin without data).

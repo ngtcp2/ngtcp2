@@ -3542,15 +3542,6 @@ static int conn_should_send_data_blocked(const ngtcp2_conn *conn) {
 }
 
 /*
- * strm_can_send_short_stream returns nonzero if a STREAM frame which
- * is shorter than NGTCP2_MIN_STREAM_DATALEN because of flow control
- * can be sent to |strm|.
- */
-static int strm_can_send_short_stream(const ngtcp2_strm *strm) {
-  return ngtcp2_strm_get_acked_offset(strm) >= strm->tx.last_short_offset;
-}
-
-/*
  * conn_reset_ppe_pending clears NGTCP2_CONN_FLAG_PPE_PENDING flag and
  * nullifies conn->pkt.
  */
@@ -3648,14 +3639,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       datalen = ngtcp2_vec_len(vmsg->stream.data, vmsg->stream.datacnt);
       ndatalen = conn_enforce_flow_control(conn, vmsg->stream.strm, datalen);
       /* 0 length STREAM frame is allowed */
-      if (ndatalen || datalen == 0) {
+      if (datalen == 0 ||
+          (ndatalen &&
+           (datalen <= conn->local.settings.write_stream_data_thresh ||
+            ndatalen > conn->local.settings.write_stream_data_thresh))) {
         send_stream = 1;
-
-        if (ndatalen != datalen && ndatalen < NGTCP2_MIN_STREAM_DATALEN &&
-            !strm_can_send_short_stream(vmsg->stream.strm) &&
-            ngtcp2_ratelim_drain(&conn->glitch_rlim, 1, ts) != 0) {
-          return NGTCP2_ERR_INTERNAL;
-        }
       } else {
         stream_blocked = 1;
       }
@@ -4398,10 +4386,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     vmsg->stream.strm->tx.offset += wdatalen;
     conn->tx.offset += wdatalen;
     vmsg->stream.strm->flags |= NGTCP2_STRM_FLAG_ANY_SENT;
-
-    if (ndatalen < datalen && ndatalen < NGTCP2_MIN_STREAM_DATALEN) {
-      vmsg->stream.strm->tx.last_short_offset = vmsg->stream.strm->tx.offset;
-    }
 
     if (nfrc->fr.stream.fin) {
       ngtcp2_strm_shutdown(vmsg->stream.strm, NGTCP2_STRM_FLAG_SHUT_WR);
@@ -5928,6 +5912,11 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
     return 0;
   }
 
+  if (strm->tx.max_offset <=
+      strm->tx.offset + conn->local.settings.write_stream_data_thresh) {
+    return 0;
+  }
+
   return conn_call_extend_max_stream_data(conn, strm, fr->stream_id,
                                           fr->max_stream_data);
 }
@@ -5936,17 +5925,18 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
  * conn_recv_max_data processes received MAX_DATA frame |fr|.
  */
 static int conn_recv_max_data(ngtcp2_conn *conn, const ngtcp2_max_data *fr) {
-  int rv;
-
-  if (fr->max_data > conn->tx.max_offset) {
-    conn->tx.max_offset = fr->max_data;
-    rv = conn_call_extend_max_data(conn, fr->max_data);
-    if (rv != 0) {
-      return rv;
-    }
+  if (fr->max_data <= conn->tx.max_offset) {
+    return 0;
   }
 
-  return 0;
+  conn->tx.max_offset = fr->max_data;
+
+  if (conn->tx.max_offset <=
+      conn->tx.offset + conn->local.settings.write_stream_data_thresh) {
+    return 0;
+  }
+
+  return conn_call_extend_max_data(conn, fr->max_data);
 }
 
 /*
@@ -14305,6 +14295,16 @@ uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn) {
 
 uint64_t ngtcp2_conn_get_max_data_left2(const ngtcp2_conn *conn) {
   return conn->tx.max_offset - conn->tx.offset;
+}
+
+uint64_t ngtcp2_conn_get_max_data_left_write_thresh(const ngtcp2_conn *conn) {
+  uint64_t n = conn->tx.max_offset - conn->tx.offset;
+
+  if (n <= conn->local.settings.write_stream_data_thresh) {
+    return 0;
+  }
+
+  return n;
 }
 
 uint64_t ngtcp2_conn_get_max_stream_data_left(ngtcp2_conn *conn,
