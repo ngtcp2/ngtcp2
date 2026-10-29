@@ -778,6 +778,7 @@ Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.handshake_timeout = config.handshake_timeout;
   settings.no_pmtud = config.no_pmtud;
   settings.ack_thresh = config.ack_thresh;
+  settings.write_stream_data_thresh = config.write_stream_data_thresh;
   if (config.max_udp_payload_size) {
     settings.max_tx_udp_payload_size = config.max_udp_payload_size;
     settings.no_tx_udp_payload_size_shaping = 1;
@@ -2668,6 +2669,15 @@ Options:
               to send  per an event  loop in a single  connection.  It
               defaults  to 0,  which means  it is  not limited  by the
               configuration.
+  --write-stream-data-thresh=<SIZE>
+              The  threshold for  the length  of STREAM  frame payload
+              that the  local endpoint sends.   If there is  data more
+              than this value  to send, and the flow  control does not
+              allow sending  more than  this length,  the data  is not
+              sent,  waiting for  the  window update  from the  remote
+              endpoint.
+              Default: )"
+            << config.write_stream_data_thresh << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -2742,6 +2752,7 @@ int main(int argc, char **argv) {
       {"no-gso", no_argument, &flag, 35},
       {"show-stat", no_argument, &flag, 36},
       {"gso-burst", required_argument, &flag, 37},
+      {"write-stream-data-thresh", required_argument, &flag, 38},
       {},
     };
 
@@ -3170,6 +3181,25 @@ int main(int argc, char **argv) {
         }
 
         config.gso_burst = static_cast<size_t>(*n);
+
+        break;
+      }
+      case 38: {
+        // --write-stream-data-thresh
+        auto n = util::parse_uint_iec(optarg);
+        if (!n) {
+          std::println(stderr, "write-stream-data-thresh: invalid argument");
+          exit(EXIT_FAILURE);
+        }
+
+        if (auto max = std::numeric_limits<size_t>::max(); *n > max) {
+          std::println(
+            stderr,
+            "write-stream-data-thresh: must be less than or equal to {}", max);
+          exit(EXIT_FAILURE);
+        }
+
+        config.write_stream_data_thresh = static_cast<size_t>(*n);
 
         break;
       }
