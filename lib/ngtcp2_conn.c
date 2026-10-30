@@ -9090,6 +9090,36 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "non-probing packet was received from new remote address");
 
+  if (conn->pv) {
+    /* Stop the current path validation.  If the current path is not
+       validated, and pv has fallback path, set the fallback path to
+       the current path. */
+    if (!(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) &&
+        (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT)) {
+      if (conn->dcid.current.cid.datalen &&
+          conn->dcid.current.seq != conn->pv->dcid.seq &&
+          conn->dcid.current.seq != conn->pv->fallback_dcid.seq) {
+        rv = conn_retire_active_dcid(conn, &conn->dcid.current, ts);
+        if (rv != 0) {
+          return rv;
+        }
+      }
+
+      ngtcp2_dcid_copy(&conn->dcid.current, &conn->pv->fallback_dcid);
+      conn_reset_congestion_state(conn, ts);
+      conn_reset_ecn_validation_state(conn);
+    }
+
+    ngtcp2_log_info(
+      &conn->log, NGTCP2_LOG_EVENT_PTV,
+      "path migration is aborted because new migration has started");
+
+    rv = conn_abort_pv(conn, ts);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
   if (ngtcp2_dcidtr_pop_bound_dcid(&conn->dcid.dtr, &dcid, path) == 0) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "Found DCID which has already been bound to the new path");
@@ -9140,28 +9170,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   dcid.scid_seq = scid_seq;
 
   validated_path = ngtcp2_conn_find_path_history(conn, path, ts);
-  if (validated_path) {
-    /* No path validation takes place, and no ngtcp2_pv takes over
-       the current DCID.  Abort the ongoing path validation first so
-       that conn_stop_pv sees the DCID which is replaced, and then
-       retire the current DCID if it is replaced by the new one. */
-    if (conn->pv) {
-      ngtcp2_log_info(
-        &conn->log, NGTCP2_LOG_EVENT_PTV,
-        "path migration is aborted because new migration has started");
-      rv = conn_abort_pv(conn, ts);
-      if (rv != 0) {
-        return rv;
-      }
-    }
-
-    if (conn->dcid.current.cid.datalen && conn->dcid.current.seq != dcid.seq) {
-      rv = conn_retire_active_dcid(conn, &conn->dcid.current, ts);
-      if (rv != 0) {
-        return rv;
-      }
-    }
-  } else {
+  if (!validated_path) {
     pto = ngtcp2_conn_compute_pto(conn, &conn->pktns);
 
     rv = ngtcp2_pv_new(&pv, &dcid, conn_compute_pv_timeout_pto(conn, pto),
@@ -9170,36 +9179,11 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
       return rv;
     }
 
-    if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT)) {
-      if (pref_addr_migration) {
-        /* The current DCID is kept until the preferred address is
-           validated, but it is not validated either, and the new pv
-           does not hold it.  Fall back to the validated path so that
-           conn_stop_pv retires the DCID of the abandoned path. */
-        ngtcp2_dcid_copy(&conn->dcid.current, &conn->pv->fallback_dcid);
-        conn_reset_congestion_state(conn, ts);
-        conn_reset_ecn_validation_state(conn);
-      } else {
-        ngtcp2_pv_set_fallback(pv, &conn->pv->fallback_dcid,
-                               conn->pv->fallback_pto);
-        /* Set the flag bit so that conn_stop_pv does not retire
-           DCID. */
-        conn->pv->flags |= NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK;
-      }
-    } else if (!pref_addr_migration) {
-      if (conn->pv && conn->pv->dcid.seq == conn->dcid.current.seq) {
-        ngtcp2_log_info(
-          &conn->log, NGTCP2_LOG_EVENT_PTV,
-          "path migration is aborted because new migration has started");
-
-        rv = conn_abort_pv(conn, ts);
-        if (rv != 0) {
-          return rv;
-        }
-      }
-
+    if (!pref_addr_migration) {
       ngtcp2_pv_set_fallback(pv, &conn->dcid.current, pto);
     }
+
+    conn->pv = pv;
   }
 
   if (!pref_addr_migration || validated_path) {
@@ -9213,6 +9197,16 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     if (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
       ngtcp2_conn_add_path_history(conn, &conn->dcid.current, ts);
       /* Now validated_path may point to the different object. */
+    }
+
+    if (conn->dcid.current.cid.datalen && dcid.seq != conn->dcid.current.seq &&
+        (!pv || (pv->dcid.seq != conn->dcid.current.seq &&
+                 (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT) ||
+                  pv->fallback_dcid.seq != conn->dcid.current.seq)))) {
+      rv = conn_retire_active_dcid(conn, &conn->dcid.current, ts);
+      if (rv != 0) {
+        return rv;
+      }
     }
 
     ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
@@ -9240,19 +9234,10 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   }
 
   if (conn->pv) {
-    ngtcp2_log_info(
-      &conn->log, NGTCP2_LOG_EVENT_PTV,
-      "path migration is aborted because new migration has started");
-    rv = conn_abort_pv(conn, ts);
-    if (rv != 0) {
-      ngtcp2_pv_del(pv);
-      return rv;
-    }
+    return conn_call_begin_path_validation(conn, conn->pv);
   }
 
-  conn->pv = pv;
-
-  return conn_call_begin_path_validation(conn, conn->pv);
+  return 0;
 }
 
 /*
