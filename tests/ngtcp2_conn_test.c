@@ -9953,6 +9953,38 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   assert_int((int)NGTCP2_CS_SERVER_INITIAL, ==, (int)conn->state);
 
   ngtcp2_conn_del(conn);
+
+  /* Client discards Initial packet on frame error without updating
+     peer SCID or setting NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED. */
+  setup_handshake_client(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  tpe.scid = (ngtcp2_cid)make_dcid();
+
+  rv = (int)ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_int(0, <, rv);
+
+  fr.stream = (ngtcp2_stream){
+    .type = NGTCP2_FRAME_STREAM,
+    .stream_id = 0,
+    .datacnt = 1,
+    .data =
+      &(ngtcp2_vec){
+        .base = null_data,
+        .len = 10,
+      },
+  };
+
+  pktlen = ngtcp2_tpe_write_initial(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(1, ==, conn->cstat.pkt_discarded);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED);
+  assert_true(ngtcp2_cid_eq(&conn->rcid, ngtcp2_conn_get_dcid2(conn)));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_writev_stream(void) {

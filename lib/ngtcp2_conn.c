@@ -7074,14 +7074,6 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                      hexw(conn->negotiated_version, 8));
   }
 
-  if (hd.type == NGTCP2_PKT_INITIAL &&
-      !(conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED)) {
-    conn->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED;
-    if (!conn->server) {
-      conn->dcid.current.cid = hd.scid;
-    }
-  }
-
   ngtcp2_qlog_pkt_received_start(&conn->qlog);
 
   for (; payloadlen;) {
@@ -7171,6 +7163,14 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num, pi, require_ack, pkt_ts);
   if (rv != 0) {
     return rv;
+  }
+
+  if (hd.type == NGTCP2_PKT_INITIAL &&
+      !(conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED)) {
+    conn->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED;
+    if (!conn->server) {
+      conn->dcid.current.cid = hd.scid;
+    }
   }
 
   /* Initial and Handshake are always acknowledged without delay.  No
