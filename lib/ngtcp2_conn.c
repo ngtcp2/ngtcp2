@@ -1362,6 +1362,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     buflen += NGTCP2_LOG_BUFLEN;
   }
 
+  // buflen_align() aligns lengths, buf_align() addresses: when malloc
+  // returns only 4-byte aligned memory (ESP-IDF heap), the sections
+  // start up to 7 bytes later than computed.
+  buflen += 0x7U;
+
   buf = ngtcp2_mem_calloc(mem, 1, buflen);
   if (buf == NULL) {
     return NGTCP2_ERR_NOMEM;
