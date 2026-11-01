@@ -1711,7 +1711,9 @@ void Server::on_read(const Endpoint &ep) {
           stderr,
           "Received packet: local={} remote={} if={} ecn={:#x} {} bytes",
           util::straddr(*local_addr), util::straddr(remote_addr),
-          if_indextoname(local_addr->ifindex, ifname.data()), pi.ecn, datalen);
+          if_indextoname(local_addr->ifindex, ifname.data()) ? ifname.data()
+                                                             : "(unknown)",
+          pi.ecn, datalen);
       }
 
       // Packets less than 21 bytes never be a valid QUIC packet.
