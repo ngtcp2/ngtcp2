@@ -64,9 +64,9 @@ directory require at least one of the following TLS backends:
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1w+quic>`_
   (deprecated)
 - GnuTLS >= 3.7.5
-- BoringSSL (commit 22a0079b189c391b95689813a41982ce11876f0a);
+- BoringSSL (commit ed9209cff8b5a2fbc6c10050f29b3355048bda85);
   or aws-lc >= 1.39.0
-- Picotls (commit f07f1c8c68b237f1468bc1f1fe1b68aba3ff23b4)
+- Picotls (commit a2d95de4c875d6dcb27658e476e3b624f4381bf0)
 - wolfSSL >= 5.5.0
 - LibreSSL >= v3.9.2
 - OpenSSL >= 3.5.0 (experimental)
@@ -85,7 +85,7 @@ Build with wolfSSL
 
 .. code-block:: shell
 
-   $ git clone --depth 1 -b v5.9.2-stable https://github.com/wolfSSL/wolfssl
+   $ git clone --depth 1 -b v5.9.4-stable https://github.com/wolfSSL/wolfssl
    $ cd wolfssl
    $ autoreconf -i
    $ # For wolfSSL < v5.6.6, append --enable-quic.
@@ -118,7 +118,7 @@ Build with BoringSSL
 
    $ git clone https://boringssl.googlesource.com/boringssl
    $ cd boringssl
-   $ git checkout 22a0079b189c391b95689813a41982ce11876f0a
+   $ git checkout ed9209cff8b5a2fbc6c10050f29b3355048bda85
    $ cmake -B build -DCMAKE_POSITION_INDEPENDENT_CODE=ON
    $ make -j$(nproc) -C build
    $ cd ..
@@ -145,7 +145,7 @@ Build with aws-lc
 
 .. code-block:: shell
 
-   $ git clone --depth 1 -b v5.4.0 https://github.com/aws/aws-lc
+   $ git clone --depth 1 -b v5.12.0 https://github.com/aws/aws-lc
    $ cd aws-lc
    $ cmake -B build -DDISABLE_GO=ON
    $ make -j$(nproc) -C build

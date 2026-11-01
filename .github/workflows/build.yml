@@ -11,10 +11,10 @@ concurrency:
 env:
   OPENSSL1_VERSION: 1_1_1w+quic
   OPENSSL3_VERSION: 3.1.7+quic
-  BORINGSSL_VERSION: 22a0079b189c391b95689813a41982ce11876f0a
-  AWSLC_VERSION: v5.4.0
-  PICOTLS_VERSION: f07f1c8c68b237f1468bc1f1fe1b68aba3ff23b4
-  WOLFSSL_VERSION: v5.9.2-stable
+  BORINGSSL_VERSION: ed9209cff8b5a2fbc6c10050f29b3355048bda85
+  AWSLC_VERSION: v5.12.0
+  PICOTLS_VERSION: a2d95de4c875d6dcb27658e476e3b624f4381bf0
+  WOLFSSL_VERSION: v5.9.4-stable
   LIBRESSL_VERSION: v4.4.0
   NGHTTP3_VERSION: head
 
@@ -668,6 +668,10 @@ jobs:
         # gtlsserver and bsslclient that causes early data test
         # failure; see https://gitlab.com/gnutls/gnutls/-/issues/1403
         EXPR="not (gnutls-boringssl and earlydata)"
+
+        # As of picotls a2d95de4c875d6dcb27658e476e3b624f4381bf0, it
+        # does not work with osslclient.
+        EXPR="$EXPR and not (picotls-ossl and (resume or earlydata))"
 
         if [ "${{ matrix.tls.openssl }}" = "libressl" ]; then
           # libressl does not support resumption, earlydata,
