@@ -11383,8 +11383,22 @@ int ngtcp2_conn_install_0rtt_key(ngtcp2_conn *conn,
   int rv;
 
   assert(ivlen >= 8);
-  assert(!conn->early.hp_ctx.native_handle);
-  assert(!conn->early.ckm);
+
+  /* Some TLS stack (e.g., OpenSSL 3.6) attempts to install 0RTT key
+     twice when it receives HRR from server.  After HRR, TLS client
+     cannot send 0RTT data, 0RTT key is useless.*/
+  if (conn->early.ckm) {
+    conn_call_delete_crypto_aead_ctx(conn, &conn->early.ckm->aead_ctx);
+    ngtcp2_crypto_km_del(conn->early.ckm, conn->mem);
+    conn->early.ckm = NULL;
+  }
+
+  if (conn->early.hp_ctx.native_handle) {
+    conn_call_delete_crypto_cipher_ctx(conn, &conn->early.hp_ctx);
+    conn->early.hp_ctx = (ngtcp2_crypto_cipher_ctx){0};
+  }
+
+  conn->flags &= ~NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED;
 
   rv = ngtcp2_crypto_km_new(&conn->early.ckm, NULL, 0, aead_ctx, iv, ivlen,
                             conn->mem);
