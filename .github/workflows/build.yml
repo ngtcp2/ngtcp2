@@ -669,6 +669,10 @@ jobs:
         # failure; see https://gitlab.com/gnutls/gnutls/-/issues/1403
         EXPR="not (gnutls-boringssl and earlydata)"
 
+        # As of picotls a2d95de4c875d6dcb27658e476e3b624f4381bf0, it
+        # does not work with osslclient.
+        EXPR="$EXPR and not (picotls-ossl and (resume or earlydata))"
+
         if [ "${{ matrix.tls.openssl }}" = "libressl" ]; then
           # libressl does not support resumption, earlydata,
           # TLS_AES_128_CCM_SHA256, and X25519.  Resumption does not
