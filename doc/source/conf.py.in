@@ -92,3 +92,11 @@ highlight_language = 'c'
 version = '@PACKAGE_VERSION@'
 # The full version, including alpha/beta/rc tags.
 release = '@PACKAGE_VERSION@'
+
+# -- Options for manual pages output
+man_pages = [
+        ('index', 'ngtcp2', 'ngtcp2 complete manual', ['ngtcp2 contributors'], '3'),
+        ('programmers-guide', 'ngtcp2-guide', 'ngtcp2 programmers\' guide', ['ngtcp2 contributors'], '3'),
+        ('apiref', 'ngtcp2-api', 'ngtcp2 API reference', ['ngtcp2 contributors'], '3'),
+        ('crypto_apiref', 'ngtcp2-crypto-api', 'ngtcp2 crypto API reference', ['ngtcp2 contributors'], '3'),
+]
