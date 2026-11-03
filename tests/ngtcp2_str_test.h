@@ -43,5 +43,6 @@ munit_void_test_decl(test_ngtcp2_encode_hex)
 munit_void_test_decl(test_ngtcp2_encode_uint_hex)
 munit_void_test_decl(test_ngtcp2_encode_uint_hexlen)
 munit_void_test_decl(test_ngtcp2_secure_clear)
+munit_void_test_decl(test_ngtcp2_encode_hex_byte)
 
 #endif /* !defined(NGTCP2_STR_TEST_H) */

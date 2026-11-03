@@ -74,6 +74,13 @@ uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
   return dest;
 }
 
+uint8_t *ngtcp2_encode_hex_byte(uint8_t *dest, uint8_t b) {
+  *dest++ = (uint8_t)LOWER_XDIGITS[b >> 4];
+  *dest++ = (uint8_t)LOWER_XDIGITS[b & 0xFU];
+
+  return dest;
+}
+
 size_t ngtcp2_encode_uint_hexlen(uint64_t n) {
   size_t i;
   uint8_t d;
