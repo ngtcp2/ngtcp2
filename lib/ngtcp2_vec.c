@@ -142,6 +142,8 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
 
       ngtcp2_vec_drop(b, left);
 
+      ++*pdstcnt;
+
       return left;
     }
 

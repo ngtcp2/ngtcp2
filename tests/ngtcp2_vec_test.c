@@ -344,6 +344,45 @@ void test_ngtcp2_vec_merge(void) {
   size_t acnt, bcnt;
   size_t nmerged;
 
+  /* Merge into empty destination partially; destination count must become
+     1 so the merged bytes are not lost. */
+  acnt = 0;
+
+  bcnt = 1;
+  b[0] = (ngtcp2_vec){
+    .len = 11,
+    .base = (uint8_t *)nulldata,
+  };
+
+  nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 10, 16);
+
+  assert_size(10, ==, nmerged);
+  assert_size(1, ==, acnt);
+  assert_uint64(10, ==, ngtcp2_vec_len(a, acnt));
+  assert_size(10, ==, a[0].len);
+  assert_ptr_equal(nulldata, a[0].base);
+  assert_size(1, ==, bcnt);
+  assert_size(1, ==, b[0].len);
+  assert_ptr_equal(nulldata + 10, b[0].base);
+
+  /* Merge into empty destination completely. */
+  acnt = 0;
+
+  bcnt = 1;
+  b[0] = (ngtcp2_vec){
+    .len = 11,
+    .base = (uint8_t *)nulldata,
+  };
+
+  nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 11, 16);
+
+  assert_size(11, ==, nmerged);
+  assert_size(1, ==, acnt);
+  assert_uint64(11, ==, ngtcp2_vec_len(a, acnt));
+  assert_size(11, ==, a[0].len);
+  assert_ptr_equal(nulldata, a[0].base);
+  assert_size(0, ==, bcnt);
+
   /* Merge one ngtcp2_vec completely */
   acnt = 1;
   a[0] = (ngtcp2_vec){
