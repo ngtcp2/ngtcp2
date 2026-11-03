@@ -46,7 +46,8 @@ EXTRA_DIST = \
 	cmake/FindJemalloc.cmake \
 	cmake/PickyWarningsC.cmake \
 	cmake/PickyWarningsCXX.cmake \
-	cmake/Version.cmake
+	cmake/Version.cmake \
+	SECURITY.md
 
 # Format source files using clang-format.  Don't format source files
 # under third-party directory since we are not responsible for their
