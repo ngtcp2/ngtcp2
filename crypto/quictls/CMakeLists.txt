@@ -50,7 +50,7 @@ foreach(name lib${ngtcp2_crypto_lib}.pc)
 endforeach()
 
 # Public shared library
-if(ENABLE_SHARED_LIB)
+if(NGTCP2_ENABLE_SHARED_LIB)
   add_library(${ngtcp2_crypto_lib} SHARED ${ngtcp2_crypto_quictls_SOURCES})
   set_target_properties(${ngtcp2_crypto_lib} PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
@@ -69,7 +69,7 @@ if(ENABLE_SHARED_LIB)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
-if(ENABLE_STATIC_LIB)
+if(NGTCP2_ENABLE_STATIC_LIB)
   # Public static library
   add_library(${ngtcp2_crypto_lib}_static STATIC ${ngtcp2_crypto_quictls_SOURCES})
   set_target_properties(${ngtcp2_crypto_lib}_static PROPERTIES
