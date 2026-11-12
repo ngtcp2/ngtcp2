@@ -1366,7 +1366,7 @@ static int rtb_reclaim_frame_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
       sfr = &frc->fr.stream;
 
       strm = ngtcp2_conn_find_stream(conn, sfr->stream_id);
-      if (!strm) {
+      if (!strm || (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM)) {
         ngtcp2_frame_chain_objalloc_del(frc, rtb->frc_objalloc, rtb->mem);
         break;
       }
