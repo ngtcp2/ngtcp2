@@ -9069,13 +9069,6 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     }
   }
 
-  remote_addr_cmp =
-    ngtcp2_addr_cmp(&conn->dcid.current.ps.path.remote, &path->remote);
-  local_addr_eq =
-    ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local);
-  pref_addr_migration =
-    !local_addr_eq && conn_server_preferred_addr_migration(conn, &path->local);
-
   /*
    * When to change DCID?  RFC 9002 section 9.5 says:
    *
@@ -9124,6 +9117,13 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
       return rv;
     }
   }
+
+  remote_addr_cmp =
+    ngtcp2_addr_cmp(&conn->dcid.current.ps.path.remote, &path->remote);
+  local_addr_eq =
+    ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local);
+  pref_addr_migration =
+    !local_addr_eq && conn_server_preferred_addr_migration(conn, &path->local);
 
   if (ngtcp2_dcidtr_pop_bound_dcid(&conn->dcid.dtr, &dcid, path) == 0) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,

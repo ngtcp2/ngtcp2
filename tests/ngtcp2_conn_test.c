@@ -13711,13 +13711,41 @@ void test_ngtcp2_conn_server_path_validation(void) {
 void test_ngtcp2_conn_server_peer_ip_change_pmtu(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
-  size_t pktlen;
+  size_t pktlen, i;
+  static const struct {
+    const char *name;
+    uint32_t first_ip;
+    uint16_t first_port;
+    uint32_t second_ip;
+    uint16_t second_port;
+    size_t max_udp_payload_size;
+  } cases[] = {
+    {
+      .name = "IP change followed by a port change on the new IP",
+      .first_ip = 2,
+      .second_ip = 2,
+      .second_port = 2,
+      .max_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE,
+    },
+    {
+      .name = "Return to the original IP on a different port",
+      .first_ip = 2,
+      .second_port = 2,
+      .max_udp_payload_size = 1400,
+    },
+    {
+      .name = "Two port changes on the original IP",
+      .first_port = 1,
+      .second_port = 2,
+      .max_udp_payload_size = 1400,
+    },
+  };
   ngtcp2_ssize spktlen;
   ngtcp2_tstamp t = 900;
   ngtcp2_frame fr;
   ngtcp2_frame frs[2];
   int rv;
-  ngtcp2_path_storage new_ip_path, new_port_path;
+  ngtcp2_path_storage new_ip_path, new_port_path, first_path, second_path;
   ngtcp2_tpe tpe;
   ngtcp2_dcid dcid;
   ngtcp2_settings settings;
@@ -13900,6 +13928,50 @@ void test_ngtcp2_conn_server_peer_ip_change_pmtu(void) {
   assert_size(1400, ==, conn->cstat.max_tx_udp_payload_size);
 
   ngtcp2_conn_del(conn);
+
+  /* A second migration before validation completes must use address
+     comparisons against the restored fallback path. */
+  for (i = 0; i < ngtcp2_arraylen(cases); ++i) {
+    munit_logf(MUNIT_LOG_INFO, "%s", cases[i].name);
+
+    path_init(&first_path, 0, 0, cases[i].first_ip, cases[i].first_port);
+    path_init(&second_path, 0, 0, cases[i].second_ip, cases[i].second_port);
+
+    setup_default_server_with_options(&conn, opts);
+    ngtcp2_tpe_init_conn(&tpe, conn);
+
+    ngtcp2_conn_stop_pmtud(conn);
+    conn->dcid.current.max_udp_payload_size = 1400;
+    conn->cstat.max_tx_udp_payload_size = 1400;
+
+    pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+    rv = ngtcp2_conn_read_pkt(conn, &first_path.path, NULL, buf, pktlen, ++t);
+
+    assert_int(0, ==, rv);
+    assert_not_null(conn->pv);
+    assert_true(ngtcp2_path_eq(&first_path.path, &conn->dcid.current.ps.path));
+    assert_false(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
+
+    pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+    rv = ngtcp2_conn_read_pkt(conn, &second_path.path, NULL, buf, pktlen, ++t);
+
+    assert_int(0, ==, rv);
+    assert_not_null(conn->pv);
+    assert_true(ngtcp2_path_eq(&second_path.path, &conn->dcid.current.ps.path));
+    assert_true(ngtcp2_path_eq(&second_path.path, &conn->pv->dcid.ps.path));
+    assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
+    assert_true(ngtcp2_path_eq(&null_path.path,
+                              &conn->pv->fallback_dcid.ps.path));
+    assert_size(1400, ==, conn->pv->fallback_dcid.max_udp_payload_size);
+    assert_size(cases[i].max_udp_payload_size, ==,
+                conn->dcid.current.max_udp_payload_size);
+    assert_size(cases[i].max_udp_payload_size, ==,
+                conn->cstat.max_tx_udp_payload_size);
+
+    ngtcp2_conn_del(conn);
+  }
 }
 
 void test_ngtcp2_conn_server_peer_ip_change_in_flight(void) {
