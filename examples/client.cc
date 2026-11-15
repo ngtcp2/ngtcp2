@@ -1690,14 +1690,13 @@ Client::on_stream_close(int64_t stream_id,
     }
   }
 
-  auto it = streams_.find(stream_id);
-  if (it != std::ranges::end(streams_)) {
-    ++nstreams_closed_;
-
-    streams_.erase(it);
-  }
-
   return {};
+}
+
+void Client::remove_stream(int64_t stream_id) {
+  if (streams_.erase(stream_id)) {
+    ++nstreams_closed_;
+  }
 }
 
 std::expected<void, Error> Client::on_stream_reset(int64_t stream_id) {

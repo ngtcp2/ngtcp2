@@ -169,6 +169,8 @@ public:
 
   Stream *find_stream(int64_t stream_id) const;
 
+  void remove_stream(int64_t stream_id);
+
 private:
   std::vector<Endpoint> endpoints_;
   Address remote_addr_;

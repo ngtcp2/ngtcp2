@@ -87,14 +87,14 @@ public:
 
   void http_write_data(int64_t stream_id, std::span<const uint8_t> data);
 
-  static constexpr auto protocol = AppProtocol::H3;
-  static constexpr auto no_error = NGHTTP3_H3_NO_ERROR;
-
-private:
   void http_stream_close(int64_t stream_id,
                          std::optional<uint64_t> rx_app_error_code,
                          std::optional<uint64_t> tx_app_error_code);
 
+  static constexpr auto protocol = AppProtocol::H3;
+  static constexpr auto no_error = NGHTTP3_H3_NO_ERROR;
+
+private:
   Client *client_;
   ngtcp2_conn *conn_;
   ngtcp2_ccerr &last_error_;
