@@ -105,6 +105,8 @@ void ProtoCodec::http_stream_close(int64_t stream_id,
                  stream_id, util::format_app_error_code(rx_app_error_code),
                  util::format_app_error_code(tx_app_error_code));
   }
+
+  client_->remove_stream(stream_id);
 }
 
 std::expected<void, Error>
@@ -137,10 +139,10 @@ ProtoCodec::on_stream_close(int64_t stream_id,
       return std::unexpected{Error::HTTP3};
     }
 
+    http_stream_close(stream_id, rx_app_error_code, tx_app_error_code);
+
     return {};
   }
-
-  http_stream_close(stream_id, rx_app_error_code, tx_app_error_code);
 
   return {};
 }
@@ -522,6 +524,25 @@ int http_end_origin(nghttp3_conn *conn, void *conn_user_data) {
 }
 } // namespace
 
+namespace {
+int http_stream_close(nghttp3_conn *conn, uint32_t flags, int64_t stream_id,
+                      uint64_t rx_app_error_code, uint64_t tx_app_error_code,
+                      void *user_data, void *stream_user_data) {
+  auto pc = static_cast<ProtoCodec *>(user_data);
+
+  pc->http_stream_close(
+    stream_id,
+    (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET)
+      ? std::make_optional(rx_app_error_code)
+      : std::nullopt,
+    (flags & NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET)
+      ? std::make_optional(tx_app_error_code)
+      : std::nullopt);
+
+  return 0;
+}
+} // namespace
+
 std::expected<void, Error> ProtoCodec::setup_codec() {
   if (httpconn_) {
     return {};
@@ -548,6 +569,7 @@ std::expected<void, Error> ProtoCodec::setup_codec() {
     .end_origin = ::http_end_origin,
     .rand = rand_bytes,
     .recv_settings2 = ::http_recv_settings,
+    .stream_close2 = ::http_stream_close,
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);

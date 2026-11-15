@@ -93,6 +93,8 @@ ProtoCodec::on_stream_close(int64_t stream_id,
                  util::format_app_error_code(tx_app_error_code));
   }
 
+  client_->remove_stream(stream_id);
+
   return {};
 }
 
