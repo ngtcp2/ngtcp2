@@ -13962,8 +13962,8 @@ void test_ngtcp2_conn_server_peer_ip_change_pmtu(void) {
     assert_true(ngtcp2_path_eq(&second_path.path, &conn->dcid.current.ps.path));
     assert_true(ngtcp2_path_eq(&second_path.path, &conn->pv->dcid.ps.path));
     assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
-    assert_true(ngtcp2_path_eq(&null_path.path,
-                              &conn->pv->fallback_dcid.ps.path));
+    assert_true(
+      ngtcp2_path_eq(&null_path.path, &conn->pv->fallback_dcid.ps.path));
     assert_size(1400, ==, conn->pv->fallback_dcid.max_udp_payload_size);
     assert_size(cases[i].max_udp_payload_size, ==,
                 conn->dcid.current.max_udp_payload_size);
