@@ -729,8 +729,10 @@ int ngtcp2_strm_require_retransmit_reset_stream(const ngtcp2_strm *strm) {
 }
 
 int ngtcp2_strm_require_retransmit_stop_sending(const ngtcp2_strm *strm) {
-  return !(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) ||
-         ngtcp2_strm_rx_offset(strm) != strm->rx.last_offset;
+  return (!(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) ||
+          ngtcp2_strm_rx_offset(strm) != strm->rx.last_offset) &&
+         (!(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED) ||
+          ngtcp2_strm_rx_offset(strm) < strm->rx.reliable_offset);
 }
 
 int ngtcp2_strm_require_retransmit_max_stream_data(
