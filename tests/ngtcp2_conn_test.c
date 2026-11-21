@@ -22708,7 +22708,7 @@ void test_ngtcp2_conn_crumble_initial_pkt(void) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_callbacks callbacks;
   conn_options opts;
-  uint8_t *end_data;
+  uint8_t *end_data, *sni;
 
   ngtcp2_buf_init(&tls_buf, tls_rawbuf, sizeof(tls_rawbuf));
 
@@ -22740,6 +22740,7 @@ void test_ngtcp2_conn_crumble_initial_pkt(void) {
   tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 0);
   /* server_name extension */
   tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 0);
+  sni = tls_buf.last;
   tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 15);
   /* server_name_list */
   tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 13);
@@ -22876,6 +22877,7 @@ void test_ngtcp2_conn_crumble_initial_pkt(void) {
   /* This is the portion of removed data. */
   assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.hd.type);
   assert_uint64(341, ==, frc->fr.stream.offset);
+  assert_true(frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
   assert_size(1, ==, frc->fr.stream.datacnt);
   assert_size(4, ==, frc->fr.stream.data[0].len);
   assert_ptr_equal(end_data, frc->fr.stream.data[0].base);
@@ -23005,6 +23007,58 @@ void test_ngtcp2_conn_crumble_initial_pkt(void) {
   assert_size(1, ==, frc->fr.stream.datacnt);
   assert_size(100, ==, frc->fr.stream.data[0].len);
   assert_null(frc->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* A two-byte server name makes the removed range end at the first
+     vector's boundary.  Submit more CRYPTO data so another vector
+     follows it in the same packet. */
+  tls_buf.last = ngtcp2_put_uint16be(sni, 7);
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 5);
+  *tls_buf.last++ = 0;
+  tls_buf.last = ngtcp2_put_uint16be(tls_buf.last, 2);
+  tls_buf.last += 2;
+
+  setup_handshake_client_with_options(&conn, opts);
+  conn->flags |= NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO;
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      tls_buf.pos, ngtcp2_buf_len(&tls_buf));
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, 500);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, sizeof(null_data));
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ssize(0, <, spktlen);
+
+  it = ngtcp2_ksl_begin(conn->in_pktns->crypto.strm.tx.streamfrq);
+
+  assert_false(ngtcp2_ksl_it_end(&it));
+
+  frc = ngtcp2_ksl_it_get(&it);
+
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, frc->fr.hd.type);
+  assert_uint64(ngtcp2_buf_len(&tls_buf) - 1, ==, frc->fr.stream.offset);
+  assert_size(1, ==, frc->fr.stream.datacnt);
+  assert_size(1, ==, frc->fr.stream.data[0].len);
+  assert_false(frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
+
+  it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_not_null(ent->frc->next);
+  assert_uint64(ngtcp2_buf_len(&tls_buf), ==, ent->frc->next->fr.stream.offset);
+  assert_size(500, ==, ent->frc->next->fr.stream.data[0].len);
 
   ngtcp2_conn_del(conn);
 }

@@ -57,6 +57,7 @@ static void setup_strm_streamfrq_fixture(ngtcp2_strm *strm,
                    mem);
 
   ngtcp2_frame_chain_stream_datacnt_objalloc_new(&frc, 2, frc_objalloc, mem);
+  frc->flags |= NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT;
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
   frc->fr.stream.flags = 0;
   frc->fr.stream.fin = 0;
@@ -133,6 +134,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 128);
 
   assert_int(0, ==, rv);
+  assert_true(frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
   assert_size(2, ==, frc->fr.stream.datacnt);
 
   data = frc->fr.stream.data;
@@ -151,12 +153,14 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 272);
 
   assert_int(0, ==, rv);
-  assert_size(2, ==, frc->fr.stream.datacnt);
+  assert_false(frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
+  assert_size(3, ==, frc->fr.stream.datacnt);
 
   data = frc->fr.stream.data;
 
   assert_size(50, ==, data[0].len);
-  assert_size(78 + 60 + 84, ==, data[1].len);
+  assert_size(78 + 60, ==, data[1].len);
+  assert_size(84, ==, data[2].len);
   assert_size(1, ==, ngtcp2_ksl_len(strm.tx.streamfrq));
 
   ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
@@ -169,12 +173,14 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 271);
 
   assert_int(0, ==, rv);
-  assert_size(2, ==, frc->fr.stream.datacnt);
+  assert_true(frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
+  assert_size(3, ==, frc->fr.stream.datacnt);
 
   data = frc->fr.stream.data;
 
   assert_size(50, ==, data[0].len);
-  assert_size(78 + 60 + 83, ==, data[1].len);
+  assert_size(78 + 60, ==, data[1].len);
+  assert_size(83, ==, data[2].len);
   assert_size(2, ==, ngtcp2_ksl_len(strm.tx.streamfrq));
 
   ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
@@ -200,14 +206,16 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 273);
 
   assert_int(0, ==, rv);
-  assert_size(3, ==, frc->fr.stream.datacnt);
+  assert_true(frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
+  assert_size(4, ==, frc->fr.stream.datacnt);
 
   data = frc->fr.stream.data;
 
   assert_size(50, ==, data[0].len);
-  assert_size(78 + 60 + 84, ==, data[1].len);
-  assert_size(1, ==, data[2].len);
-  assert_ptr_equal(nulldata + 512, data[2].base);
+  assert_size(78 + 60, ==, data[1].len);
+  assert_size(84, ==, data[2].len);
+  assert_size(1, ==, data[3].len);
+  assert_ptr_equal(nulldata + 512, data[3].base);
   assert_size(1, ==, ngtcp2_ksl_len(strm.tx.streamfrq));
 
   ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
@@ -234,6 +242,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 129);
 
   assert_int(0, ==, rv);
+  assert_true(frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
   assert_uint64(0, ==, frc->fr.stream.offset);
   assert_size(2, ==, frc->fr.stream.datacnt);
 
@@ -303,6 +312,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
 
   assert_int(0, ==, rv);
+  assert_false(frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
   assert_size(1, ==, frc->fr.stream.datacnt);
   assert_size(11, ==, frc->fr.stream.data[0].len);
   assert_size(1, ==, ngtcp2_ksl_len(strm.tx.streamfrq));
@@ -340,6 +350,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
 
   assert_int(0, ==, rv);
+  assert_false(frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
   assert_true(frc->fr.stream.fin);
   assert_size(1, ==, frc->fr.stream.datacnt);
 
@@ -398,6 +409,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 18);
 
   assert_int(0, ==, rv);
+  assert_false(frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
   assert_false(frc->fr.stream.fin);
   assert_size(2, ==, frc->fr.stream.datacnt);
 

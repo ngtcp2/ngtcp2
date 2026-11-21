@@ -75,6 +75,11 @@ int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
 /* NGTCP2_FRAME_CHAIN_FLAG_MALLOC indicates that ngtcp2_frame_chain is
    allocated by ngtcp2_mem_malloc. */
 #define NGTCP2_FRAME_CHAIN_FLAG_MALLOC 0x1U
+/* NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT is set if the last element
+   of ngtcp2_vec array contained in ngtcp2_stream can merge with the
+   head of ngtcp2_vec array of the right ngtcp2_frame_chain if it
+   starts the left frame's exclusive stream end offset. */
+#define NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT 0x2U
 
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
