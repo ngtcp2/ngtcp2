@@ -75,8 +75,10 @@ typedef struct ngtcp2_cc_bbr {
 
   ngtcp2_duration min_rtt;
   ngtcp2_tstamp min_rtt_stamp;
+  int min_rtt_expired;
   ngtcp2_tstamp probe_rtt_done_stamp;
   int probe_rtt_round_done;
+  uint64_t probe_rtt_cwnd;
   int idle_restart;
   uint64_t prior_cwnd;
   ngtcp2_tstamp extra_acked_interval_start;
@@ -130,8 +132,6 @@ typedef struct ngtcp2_cc_bbr {
   size_t bw_probe_up_rounds;
   uint64_t bw_probe_up_acked;
   uint64_t inflight_longterm;
-  ngtcp2_duration probe_rtt_min_delay;
-  ngtcp2_tstamp probe_rtt_min_stamp;
   uint64_t round_count_at_recovery;
   uint64_t max_inflight;
   uint64_t bdp;

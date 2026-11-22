@@ -55,7 +55,6 @@
 #define NGTCP2_BBR_HEADROOM_NUMER 15
 #define NGTCP2_BBR_HEADROOM_DENOM 100
 
-#define NGTCP2_BBR_PROBE_RTT_INTERVAL (5 * NGTCP2_SECONDS)
 #define NGTCP2_BBR_MIN_RTT_FILTERLEN (10 * NGTCP2_SECONDS)
 
 #define NGTCP2_BBR_PROBE_RTT_DURATION (200 * NGTCP2_MILLISECONDS)
@@ -298,9 +297,11 @@ static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
   bbr->min_rtt =
     cstat->first_rtt_sample_ts == UINT64_MAX ? UINT64_MAX : cstat->smoothed_rtt;
   bbr->min_rtt_stamp = initial_ts;
+  bbr->min_rtt_expired = 0;
   /* remark: Use UINT64_MAX instead of 0 for consistency. */
   bbr->probe_rtt_done_stamp = UINT64_MAX;
   bbr->probe_rtt_round_done = 0;
+  bbr->probe_rtt_cwnd = UINT64_MAX;
   bbr->prior_cwnd = 0;
   bbr->idle_restart = 0;
   bbr->extra_acked_interval_start = initial_ts;
@@ -347,8 +348,6 @@ static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
   bbr->inflight_longterm = UINT64_MAX;
 
   bbr->probe_rtt_expired = 0;
-  bbr->probe_rtt_min_delay = UINT64_MAX;
-  bbr->probe_rtt_min_stamp = initial_ts;
 
   bbr->in_loss_recovery = 0;
   bbr->round_count_at_recovery = UINT64_MAX;
@@ -1103,22 +1102,17 @@ static uint64_t bbr_inflight_at_loss(const ngtcp2_cc_bbr *bbr,
 
 static void bbr_update_min_rtt(ngtcp2_cc_bbr *bbr, const ngtcp2_cc_ack *ack,
                                ngtcp2_tstamp ts) {
-  int min_rtt_expired;
+  bbr->min_rtt_expired = ts > bbr->min_rtt_stamp + NGTCP2_BBR_MIN_RTT_FILTERLEN;
 
-  bbr->probe_rtt_expired =
-    ts > bbr->probe_rtt_min_stamp + NGTCP2_BBR_PROBE_RTT_INTERVAL;
-
-  if (ack->rtt != UINT64_MAX &&
-      (ack->rtt < bbr->probe_rtt_min_delay || bbr->probe_rtt_expired)) {
-    bbr->probe_rtt_min_delay = ack->rtt;
-    bbr->probe_rtt_min_stamp = ts;
+  if (bbr->min_rtt_expired) {
+    bbr->probe_rtt_cwnd =
+      bbr_bdp_multiple(bbr, NGTCP2_BBR_PROBE_RTT_CWND_GAIN_H);
   }
 
-  min_rtt_expired = ts > bbr->min_rtt_stamp + NGTCP2_BBR_MIN_RTT_FILTERLEN;
-
-  if (bbr->probe_rtt_min_delay < bbr->min_rtt || min_rtt_expired) {
-    bbr->min_rtt = bbr->probe_rtt_min_delay;
-    bbr->min_rtt_stamp = bbr->probe_rtt_min_stamp;
+  if (ack->rtt != UINT64_MAX &&
+      (ack->rtt < bbr->min_rtt || bbr->min_rtt_expired)) {
+    bbr->min_rtt = ack->rtt;
+    bbr->min_rtt_stamp = ts;
 
     ngtcp2_log_infof(bbr->cc.log, NGTCP2_LOG_EVENT_CCA,
                      "bbr update min_rtt=", bbr->min_rtt);
@@ -1127,10 +1121,10 @@ static void bbr_update_min_rtt(ngtcp2_cc_bbr *bbr, const ngtcp2_cc_ack *ack,
 
 static void bbr_check_probe_rtt(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                                 ngtcp2_tstamp ts) {
-  if (bbr->state != NGTCP2_BBR_STATE_PROBE_RTT && bbr->probe_rtt_expired &&
+  if (bbr->state != NGTCP2_BBR_STATE_PROBE_RTT && bbr->min_rtt_expired &&
       !bbr->idle_restart) {
-    bbr_enter_probe_rtt(bbr);
     bbr_save_cwnd(bbr, cstat);
+    bbr_enter_probe_rtt(bbr);
 
     bbr->probe_rtt_done_stamp = UINT64_MAX;
     bbr->ack_phase = NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_STOPPING;
@@ -1185,7 +1179,7 @@ static void bbr_check_probe_rtt_done(ngtcp2_cc_bbr *bbr,
                                      ngtcp2_tstamp ts) {
   if (bbr->probe_rtt_done_stamp != UINT64_MAX &&
       ts > bbr->probe_rtt_done_stamp) {
-    bbr->probe_rtt_min_stamp = ts;
+    bbr->min_rtt_stamp = ts;
     bbr_restore_cwnd(bbr, cstat);
     bbr_exit_probe_rtt(bbr, ts);
   }
@@ -1300,11 +1294,10 @@ static void bbr_restore_cwnd(const ngtcp2_cc_bbr *bbr,
 
 static uint64_t bbr_probe_rtt_cwnd(ngtcp2_cc_bbr *bbr,
                                    const ngtcp2_conn_stat *cstat) {
-  uint64_t probe_rtt_cwnd =
-    bbr_bdp_multiple(bbr, NGTCP2_BBR_PROBE_RTT_CWND_GAIN_H);
-  uint64_t mpcwnd = min_pipe_cwnd(cstat->max_tx_udp_payload_size);
-
-  return ngtcp2_max(probe_rtt_cwnd, mpcwnd);
+  return ngtcp2_max(
+    ngtcp2_min(bbr_bdp_multiple(bbr, NGTCP2_BBR_PROBE_RTT_CWND_GAIN_H),
+               bbr->probe_rtt_cwnd),
+    min_pipe_cwnd(cstat->max_tx_udp_payload_size));
 }
 
 static void bbr_bound_cwnd_for_probe_rtt(ngtcp2_cc_bbr *bbr,
