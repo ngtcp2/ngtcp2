@@ -273,6 +273,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
         return rv;
       }
 
+      nfrc->flags |= frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT;
       nfrc->fr.stream.type = fr->stream.type;
       nfrc->fr.stream.flags = fr->stream.flags;
       nfrc->fr.stream.fin = fr->stream.fin;
@@ -317,6 +318,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
         return rv;
       }
 
+      nfrc->flags |= frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT;
       nfrc->fr.stream.type = fr->stream.type;
       nfrc->fr.stream.flags = 0;
       nfrc->fr.stream.fin = 0;

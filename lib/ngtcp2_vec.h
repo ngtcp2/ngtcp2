@@ -62,10 +62,14 @@ int64_t ngtcp2_vec_len_varint(const ngtcp2_vec *vec, size_t n);
  * object.  After split has done, this function updates |*psrccnt| and
  * |*pdstcnt|.  This function returns the number of bytes moved from
  * |src| to |dst|.  If split cannot be made because doing so exceeds
- * |maxcnt|, this function returns -1.
+ * |maxcnt|, this function returns -1. Set |*psrc_tail_split| to
+ * nonzero if the last vector of |src| was split in the somewhere in
+ * the middle.  It is updated according to the result of this split.
+ * |src_tail_split| can be NULL and it is treated as 0.
  */
 ngtcp2_ssize ngtcp2_vec_split(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
-                              size_t *psrccnt, size_t left, size_t maxcnt);
+                              size_t *psrccnt, int *psrc_tail_split,
+                              size_t left, size_t maxcnt);
 
 /*
  * ngtcp2_vec_merge merges |src| into |dst| by moving at most |left|
@@ -75,9 +79,13 @@ ngtcp2_ssize ngtcp2_vec_split(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
  * |*psrccnt| to the number of elements of |src|.  After merge has
  * done, this function updates |*psrccnt| and |*pdstcnt|.  This
  * function returns the number of bytes moved from |src| to |dst|.
+ * Specify |*pdst_tail_split| to nonzero if the last element of |src|
+ * was split in its middle.  It is updated according to the result of
+ * this merge.
  */
-size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
-                        size_t *psrccnt, size_t left, size_t maxcnt);
+size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, int *pdst_tail_split,
+                        ngtcp2_vec *src, size_t *psrccnt, size_t left,
+                        size_t maxcnt);
 
 /*
  * ngtcp2_vec_copy_at_most copies |src| of length |srccnt| to |dst| of

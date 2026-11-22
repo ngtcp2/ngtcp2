@@ -2363,6 +2363,14 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain *frc,
   }
 
   /* ngtcp2_frame_chain for the removed data */
+  if (ngtcp2_vec_end(removed_data) == ngtcp2_vec_end(&data[0])) {
+    if (datacnt == 1) {
+      removed_frc->flags |= frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT;
+    }
+  } else {
+    removed_frc->flags |= NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT;
+  }
+
   removed_frc->fr.stream.type = NGTCP2_FRAME_CRYPTO;
   removed_frc->fr.stream.flags = 0;
   removed_frc->fr.stream.fin = 0;
@@ -2395,6 +2403,7 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain *frc,
       return rv;
     }
 
+    right_frc->flags |= frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT;
     right_frc->fr.stream.type = NGTCP2_FRAME_CRYPTO;
     right_frc->fr.stream.flags = 0;
     right_frc->fr.stream.fin = 0;
@@ -2403,12 +2412,15 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain *frc,
       removed_frc->fr.stream.offset + removed_frc->fr.stream.data->len;
     right_frc->fr.stream.datacnt = 0;
     ngtcp2_vec_split(right_frc->fr.stream.data, &right_frc->fr.stream.datacnt,
-                     data, &datacnt, offset + removed_data->len, ndatacnt);
+                     data, &datacnt, NULL, offset + removed_data->len,
+                     ndatacnt);
 
     assert(ndatacnt == right_frc->fr.stream.datacnt);
     assert(1 == datacnt);
   }
 
+  /* removed_data is not a suffix of frc */
+  frc->flags |= NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT;
   frc->fr.stream.datacnt = 1;
   frc->fr.stream.data[0].len = offset;
   frc->next = right_frc;
