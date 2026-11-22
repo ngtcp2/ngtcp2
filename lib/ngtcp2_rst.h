@@ -45,6 +45,7 @@ typedef struct ngtcp2_rs {
   uint64_t prior_delivered;
   ngtcp2_tstamp prior_ts;
   uint64_t tx_in_flight;
+  uint64_t prior_lost;
   uint64_t lost;
   ngtcp2_duration send_elapsed;
   ngtcp2_duration ack_elapsed;

@@ -59,6 +59,8 @@ void ngtcp2_rst_reset_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
 
   rs->interval = UINT64_MAX;
   rs->prior_ts = UINT64_MAX;
+  rs->tx_in_flight = 0;
+  rs->lost = 0;
 
   cstat->delivery_rate_sec = 0;
 }
@@ -119,6 +121,8 @@ void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
   if (rs->prior_ts == UINT64_MAX || is_newest_pkt(ent, rs)) {
     rs->prior_delivered = ent->rst.delivered;
     rs->prior_ts = ent->rst.delivered_ts;
+    rs->tx_in_flight = ent->rst.tx_in_flight;
+    rs->prior_lost = ent->rst.lost;
     rs->is_app_limited = ent->rst.is_app_limited;
     rs->send_elapsed = ent->ts - ent->rst.first_sent_ts;
     rs->ack_elapsed = rst->delivered_ts - ent->rst.delivered_ts;

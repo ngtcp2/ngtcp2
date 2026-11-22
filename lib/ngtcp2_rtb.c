@@ -997,6 +997,11 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     }
   }
 
+  if (num_cc_acked) {
+    /* Include losses declared while processing this ACK. */
+    rtb->rst->rs.lost = rtb->rst->lost - rtb->rst->rs.prior_lost;
+  }
+
   if (conn && verify_ecn) {
     conn_verify_ecn(conn, pktns, rtb->cc, cstat, fr, ecn_acked, &cc_ack, ts);
   }
