@@ -131,7 +131,7 @@ static void set_padding_range(uint8_t *buf, size_t buflen, size_t offset,
 void test_ngtcp2_ppe_dgram_padding_size(void) {
   ngtcp2_ppe ppe;
   ngtcp2_crypto_cc cc = {0};
-  uint8_t buf[2048];
+  uint8_t buf[4096];
   uint8_t pkt[2048];
   size_t len;
 

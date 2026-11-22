@@ -530,11 +530,12 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
     .active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT,
   };
 
-  p = end = data;
-
-  if (datalen) {
-    end += datalen;
+  if (datalen == 0) {
+    goto fin;
   }
+
+  p = end = data;
+  end += datalen;
 
   for (; (size_t)(end - p) >= 2;) {
     if (decode_varint(&param_type, &p, end) != 0) {
@@ -779,6 +780,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
     return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
   }
 
+fin:
   if (transport_params_version != NGTCP2_TRANSPORT_PARAMS_VERSION) {
     ngtcp2_transport_params_convert_to_old(transport_params_version, dest,
                                            params);
