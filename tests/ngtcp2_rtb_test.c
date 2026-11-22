@@ -87,7 +87,7 @@ void test_ngtcp2_rtb_add(void) {
 
   assert_int(0, ==, rv);
 
-  ngtcp2_rtb_add(&rtb, ent, &cstat);
+  ngtcp2_rtb_add(&rtb, ent, &cstat, /* has_retained_lost_pkts = */ 0);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
                      1000000008, 2, NGTCP2_PROTO_VER_V1);
@@ -97,7 +97,7 @@ void test_ngtcp2_rtb_add(void) {
 
   assert_int(0, ==, rv);
 
-  ngtcp2_rtb_add(&rtb, ent, &cstat);
+  ngtcp2_rtb_add(&rtb, ent, &cstat, /* has_retained_lost_pkts = */ 0);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
                      1000000009, 4, NGTCP2_PROTO_VER_V1);
@@ -107,7 +107,7 @@ void test_ngtcp2_rtb_add(void) {
 
   assert_int(0, ==, rv);
 
-  ngtcp2_rtb_add(&rtb, ent, &cstat);
+  ngtcp2_rtb_add(&rtb, ent, &cstat, /* has_retained_lost_pkts = */ 0);
 
   it = ngtcp2_rtb_head(&rtb);
   ent = ngtcp2_ksl_it_get(&it);
@@ -149,7 +149,7 @@ static void add_rtb_entry_range_with_flags(ngtcp2_rtb *rtb,
     ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
                        base_pkt_num + (int64_t)i, 1, NGTCP2_PROTO_VER_V1);
     ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, 0, 0, flags, objalloc);
-    ngtcp2_rtb_add(rtb, ent, cstat);
+    ngtcp2_rtb_add(rtb, ent, cstat, /* has_retained_lost_pkts = */ 0);
   }
 }
 
@@ -374,7 +374,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, 1000000010, 0,
                                 NGTCP2_RTB_ENTRY_FLAG_NONE,
                                 &rtb_entry_objalloc);
-  ngtcp2_rtb_add(&rtb, ent, &cstat);
+  ngtcp2_rtb_add(&rtb, ent, &cstat, /* has_retained_lost_pkts = */ 0);
 
   fr = (ngtcp2_ack){0};
 
@@ -394,7 +394,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, 1000000010, 0,
                                 NGTCP2_RTB_ENTRY_FLAG_NONE,
                                 &rtb_entry_objalloc);
-  ngtcp2_rtb_add(&rtb, ent, &cstat);
+  ngtcp2_rtb_add(&rtb, ent, &cstat, /* has_retained_lost_pkts = */ 0);
 
   fr = (ngtcp2_ack){
     .largest_ack = 2,

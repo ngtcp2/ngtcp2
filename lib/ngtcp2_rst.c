@@ -52,6 +52,7 @@ void ngtcp2_rst_reset(ngtcp2_rst *rst) {
   rst->app_limited = 0;
   rst->is_cwnd_limited = 0;
   rst->lost = 0;
+  rst->reset_ts_next_on_pkt_sent = 1;
 }
 
 void ngtcp2_rst_reset_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
@@ -66,11 +67,18 @@ void ngtcp2_rst_reset_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
 }
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
-                            const ngtcp2_conn_stat *cstat) {
+                            const ngtcp2_conn_stat *cstat,
+                            int has_retained_lost_pkts) {
+  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP) {
+    return;
+  }
+
   /* cstat->bytes_in_flight includes ent->pktlen.  If they are the
      same, there is no in-flight packets. */
-  if (cstat->bytes_in_flight == ent->pktlen) {
+  if (rst->reset_ts_next_on_pkt_sent ||
+      (cstat->bytes_in_flight == ent->pktlen && !has_retained_lost_pkts)) {
     rst->first_sent_ts = rst->delivered_ts = ent->ts;
+    rst->reset_ts_next_on_pkt_sent = 0;
   }
   ent->rst.first_sent_ts = rst->first_sent_ts;
   ent->rst.delivered_ts = rst->delivered_ts;
@@ -114,6 +122,10 @@ static int is_newest_pkt(const ngtcp2_rtb_entry *ent, const ngtcp2_rs *rs) {
 void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts) {
   ngtcp2_rs *rs = &rst->rs;
+
+  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP) {
+    return;
+  }
 
   rst->delivered += ent->pktlen;
   rst->delivered_ts = ts;

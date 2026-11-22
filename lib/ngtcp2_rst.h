@@ -72,6 +72,9 @@ typedef struct ngtcp2_rst {
      number. */
   int64_t pkt_id;
   int is_cwnd_limited;
+  /* reset_ts_next_on_pkt_sent, if nonzero, resets timestamps when
+     ngtcp2_rst_on_pkt_sent is called next time. */
+  int reset_ts_next_on_pkt_sent;
 } ngtcp2_rst;
 
 void ngtcp2_rst_init(ngtcp2_rst *rst);
@@ -81,7 +84,8 @@ void ngtcp2_rst_reset(ngtcp2_rst *rst);
 void ngtcp2_rst_reset_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
-                            const ngtcp2_conn_stat *cstat);
+                            const ngtcp2_conn_stat *cstat,
+                            int has_retained_lost_pkts);
 void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
 void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts);

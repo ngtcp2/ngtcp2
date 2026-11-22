@@ -1175,6 +1175,12 @@ conn_set_local_transport_params(ngtcp2_conn *conn,
   p->version_info_present = 1;
 }
 
+static int conn_has_retained_lost_pkts(ngtcp2_conn *conn) {
+  return conn->pktns.rtb.num_lost_pkts ||
+         (conn->hs_pktns && conn->hs_pktns->rtb.num_lost_pkts) ||
+         (conn->in_pktns && conn->in_pktns->rtb.num_lost_pkts);
+}
+
 static void conn_update_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
   const int64_t min_gap = 3;
   uint8_t r;
@@ -1226,7 +1232,8 @@ static int conn_handle_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     return rv;
   }
 
-  rv = ngtcp2_rtb_add(&pktns->rtb, rtbent, &conn->cstat);
+  rv = ngtcp2_rtb_add(&pktns->rtb, rtbent, &conn->cstat,
+                      conn_has_retained_lost_pkts(conn));
   if (rv != 0) {
     ngtcp2_rtb_entry_objalloc_del(rtbent, &conn->rtb_entry_objalloc,
                                   &conn->frc_objalloc, conn->mem);
@@ -1968,7 +1975,8 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 
   /* This function implements OnPacketSent, but it handles only
      non-ACK-only packet. */
-  rv = ngtcp2_rtb_add(rtb, ent, &conn->cstat);
+  rv =
+    ngtcp2_rtb_add(rtb, ent, &conn->cstat, conn_has_retained_lost_pkts(conn));
   if (rv != 0) {
     return rv;
   }
