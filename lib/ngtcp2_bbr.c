@@ -1216,6 +1216,7 @@ static void bbr_handle_restart_from_idle(ngtcp2_cc_bbr *bbr,
 
     bbr->idle_restart = 1;
     bbr->extra_acked_interval_start = ts;
+    bbr->extra_acked_delivered = 0;
 
     if (bbr_is_in_probe_bw_state(bbr)) {
       bbr_set_pacing_rate_with_gain(bbr, cstat, 100);
