@@ -92,11 +92,12 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, int *pdst_tail_split,
  * length |dstcnt|.  The total number of bytes which the copied
  * ngtcp2_vec refers to is at most |left|.  The empty elements in
  * |src| are ignored.  This function returns the number of elements
- * copied.
+ * copied.  |*pdst_tail_split| is set to nonzero if copy ends in the
+ * middle of a single vector.
  */
 size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t dstcnt,
-                               const ngtcp2_vec *src, size_t srccnt,
-                               size_t left);
+                               int *pdst_tail_split, const ngtcp2_vec *src,
+                               size_t srccnt, size_t left);
 
 /*
  * ngtcp2_vec_copy copies |src| of length |cnt| to |dst|.  |dst| must

@@ -120,7 +120,8 @@ ngtcp2_ssize ProtoCodec::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
   for (;;) {
     int64_t stream_id = -1;
     size_t vcnt = 0;
-    uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
+    uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE |
+                     NGTCP2_WRITE_STREAM_FLAG_ALLOW_TAIL_SPLIT_MERGE;
     Stream *stream = nullptr;
 
     if (!sendq_.empty() && ngtcp2_conn_get_max_data_left2(conn_)) {

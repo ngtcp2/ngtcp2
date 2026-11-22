@@ -5253,6 +5253,19 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
 #define NGTCP2_WRITE_STREAM_FLAG_PADDING 0x04U
 
 /**
+ * @macro
+ *
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_ALLOW_TAIL_SPLIT_MERGE` indicates
+ * that a caller provides the same buffer next time when partial write
+ * happens and the write ends in the middle of a vector so that these
+ * adjacent vectors can be merged together into the single vector on
+ * retransmission.
+ *
+ * .. version-added:: 1.27.0
+ */
+#define NGTCP2_WRITE_STREAM_FLAG_ALLOW_TAIL_SPLIT_MERGE 0x08U
+
+/**
  * @function
  *
  * `ngtcp2_conn_write_stream` is just like

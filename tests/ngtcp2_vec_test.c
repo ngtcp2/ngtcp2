@@ -808,6 +808,7 @@ void test_ngtcp2_vec_len_varint(void) {
 
 void test_ngtcp2_vec_copy_at_most(void) {
   size_t n;
+  int tail_split;
 
   /* Skip 0 length vector */
   {
@@ -831,7 +832,7 @@ void test_ngtcp2_vec_copy_at_most(void) {
       },
     };
 
-    n = ngtcp2_vec_copy_at_most(dst, ngtcp2_arraylen(dst), src,
+    n = ngtcp2_vec_copy_at_most(dst, ngtcp2_arraylen(dst), &tail_split, src,
                                 ngtcp2_arraylen(src), 1 + 77 + 999);
 
     assert_size(3, ==, n);
@@ -841,6 +842,7 @@ void test_ngtcp2_vec_copy_at_most(void) {
     assert_size(src[2].len, ==, dst[1].len);
     assert_ptr_equal(src[3].base, dst[2].base);
     assert_size(src[3].len, ==, dst[2].len);
+    assert_false(tail_split);
   }
 
   /* Cut last byte */
@@ -857,7 +859,7 @@ void test_ngtcp2_vec_copy_at_most(void) {
       },
     };
 
-    n = ngtcp2_vec_copy_at_most(dst, ngtcp2_arraylen(dst), src,
+    n = ngtcp2_vec_copy_at_most(dst, ngtcp2_arraylen(dst), &tail_split, src,
                                 ngtcp2_arraylen(src), 106);
 
     assert_size(2, ==, n);
@@ -865,6 +867,7 @@ void test_ngtcp2_vec_copy_at_most(void) {
     assert_size(src[0].len, ==, dst[0].len);
     assert_ptr_equal(src[1].base, dst[1].base);
     assert_size(99, ==, dst[1].len);
+    assert_true(tail_split);
   }
 
   /* 0 length vectors */
@@ -872,9 +875,10 @@ void test_ngtcp2_vec_copy_at_most(void) {
     ngtcp2_vec dst[1];
     static const ngtcp2_vec src[1] = {0};
 
-    n = ngtcp2_vec_copy_at_most(dst, 0, src, 0, 100);
+    n = ngtcp2_vec_copy_at_most(dst, 0, &tail_split, src, 0, 100);
 
     assert_size(0, ==, n);
+    assert_false(tail_split);
   }
 
   /* left == 0 */
@@ -887,10 +891,11 @@ void test_ngtcp2_vec_copy_at_most(void) {
       },
     };
 
-    n = ngtcp2_vec_copy_at_most(dst, ngtcp2_arraylen(dst), src,
+    n = ngtcp2_vec_copy_at_most(dst, ngtcp2_arraylen(dst), &tail_split, src,
                                 ngtcp2_arraylen(src), 0);
 
     assert_size(0, ==, n);
+    assert_false(tail_split);
   }
 }
 

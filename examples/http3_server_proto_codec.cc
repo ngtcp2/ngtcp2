@@ -137,8 +137,9 @@ ngtcp2_ssize ProtoCodec::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
     auto v = vec.data();
     auto vcnt = static_cast<size_t>(sveccnt);
 
-    uint32_t flags =
-      NGTCP2_WRITE_STREAM_FLAG_MORE | NGTCP2_WRITE_STREAM_FLAG_PADDING;
+    uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE |
+                     NGTCP2_WRITE_STREAM_FLAG_PADDING |
+                     NGTCP2_WRITE_STREAM_FLAG_ALLOW_TAIL_SPLIT_MERGE;
     if (fin) {
       flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
     }
