@@ -618,7 +618,6 @@ static void bbr_update_round(ngtcp2_cc_bbr *bbr, const ngtcp2_cc_ack *ack) {
     bbr->round_start = 1;
 
     bbr->bytes_lost_in_round = 0;
-    bbr->loss_events_in_round = 0;
 
     bbr->rst->is_cwnd_limited = 0;
 
