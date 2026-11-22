@@ -65,6 +65,8 @@
 
 #define NGTCP2_BBR_MAX_BDP (10 * (1ULL << 30))
 
+#define NGTCP2_BBR_STARTUP_FULL_LOSS_CNT 6
+
 static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                         ngtcp2_tstamp initial_ts);
 
@@ -365,6 +367,7 @@ static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 
 static void bbr_reset_congestion_signals(ngtcp2_cc_bbr *bbr) {
   bbr->is_loss_in_round = 0;
+  bbr->loss_events_in_round = 0;
   bbr->bw_latest = 0;
   bbr->inflight_latest = 0;
 }
@@ -413,16 +416,22 @@ static void bbr_check_full_bw_reached(ngtcp2_cc_bbr *bbr,
 }
 
 static void bbr_check_startup_high_loss(ngtcp2_cc_bbr *bbr) {
-  if (bbr->full_bw_reached || bbr->loss_events_in_round <= 6 ||
-      (bbr->in_loss_recovery &&
-       bbr->round_count <= bbr->round_count_at_recovery) ||
-      !bbr_is_inflight_too_high(bbr, &bbr->rst->rs)) {
+  if (bbr->full_bw_reached || !bbr->loss_round_start ||
+      !bbr->in_loss_recovery) {
     return;
   }
 
+  if (bbr->loss_events_in_round < NGTCP2_BBR_STARTUP_FULL_LOSS_CNT) {
+    return;
+  }
+
+  if (!bbr_is_inflight_too_high(bbr, &bbr->rst->rs)) {
+    return;
+  }
+
+  bbr->undo_state = NGTCP2_BBR_STATE_STARTUP;
   bbr->full_bw_reached = 1;
-  bbr->inflight_longterm =
-    ngtcp2_max(bbr_bdp_multiple(bbr, bbr->cwnd_gain_h), bbr->inflight_latest);
+  bbr->inflight_longterm = ngtcp2_max(bbr->bdp, bbr->inflight_latest);
 }
 
 static void bbr_init_pacing_rate(const ngtcp2_cc_bbr *bbr,
@@ -528,6 +537,7 @@ static void bbr_advance_latest_delivery_signals(ngtcp2_cc_bbr *bbr,
   if (bbr->loss_round_start) {
     bbr->bw_latest = cstat->delivery_rate_sec;
     bbr->inflight_latest = bbr->rst->rs.delivered;
+    bbr->loss_events_in_round = 0;
   }
 }
 
@@ -538,7 +548,6 @@ static void bbr_update_congestion_signals(ngtcp2_cc_bbr *bbr,
 
   if (ack->bytes_lost) {
     bbr->bytes_lost_in_round += ack->bytes_lost;
-    ++bbr->loss_events_in_round;
   }
 
   if (!bbr->loss_round_start) {
@@ -1001,6 +1010,7 @@ static void bbr_note_loss(ngtcp2_cc_bbr *bbr, const ngtcp2_conn_stat *cstat) {
   }
 
   bbr->is_loss_in_round = 1;
+  ++bbr->loss_events_in_round;
 }
 
 static void bbr_save_state_upon_loss(ngtcp2_cc_bbr *bbr,
@@ -1017,6 +1027,7 @@ static void bbr_handle_spurious_loss_detection(ngtcp2_cc_bbr *bbr,
   bbr_restore_cwnd(bbr, cstat);
 
   bbr->is_loss_in_round = 0;
+  bbr->loss_events_in_round = 0;
 
   bbr_reset_full_bw(bbr);
 
