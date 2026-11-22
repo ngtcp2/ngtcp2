@@ -57,8 +57,8 @@ typedef enum ngtcp2_bbr_ack_phase {
 } ngtcp2_bbr_ack_phase;
 
 /*
- * ngtcp2_cc_bbr is BBR v2 congestion controller, described in
- * https://datatracker.ietf.org/doc/html/draft-cardwell-iccrg-bbr-congestion-control-01
+ * ngtcp2_cc_bbr is BBR congestion controller, described in
+ * https://ietf-wg-ccwg.github.io/draft-ietf-ccwg-bbr/draft-ietf-ccwg-bbr.html
  */
 typedef struct ngtcp2_cc_bbr {
   ngtcp2_cc cc;
