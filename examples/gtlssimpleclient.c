@@ -499,7 +499,8 @@ static int client_write_streams(struct client *c) {
   for (;;) {
     datavcnt = client_get_message(c, &stream_id, &fin, &datav, 1);
 
-    flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
+    flags = NGTCP2_WRITE_STREAM_FLAG_MORE |
+            NGTCP2_WRITE_STREAM_FLAG_ALLOW_TAIL_SPLIT_MERGE;
     if (fin) {
       flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
     }

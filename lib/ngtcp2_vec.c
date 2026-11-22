@@ -214,8 +214,8 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, int *pdst_tail_split,
 }
 
 size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t dstcnt,
-                               const ngtcp2_vec *src, size_t srccnt,
-                               size_t left) {
+                               int *pdst_tail_split, const ngtcp2_vec *src,
+                               size_t srccnt, size_t left) {
   size_t i, j;
 
   for (i = 0, j = 0; left > 0 && i < srccnt && j < dstcnt;) {
@@ -230,6 +230,8 @@ size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t dstcnt,
         .len = left,
       };
 
+      *pdst_tail_split = 1;
+
       return j + 1;
     }
 
@@ -238,6 +240,8 @@ size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t dstcnt,
     ++i;
     ++j;
   }
+
+  *pdst_tail_split = 0;
 
   return j;
 }

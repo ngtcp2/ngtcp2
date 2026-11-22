@@ -3643,6 +3643,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   const ngtcp2_cid *scid = NULL;
   int keep_alive_expired = 0;
   uint32_t version = 0;
+  int tail_split;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -4363,8 +4364,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       (wdatalen == ndatalen || wdatalen >= NGTCP2_MIN_STREAM_DATALEN) &&
       (wdatalen || datalen == 0)) {
     datacnt = ngtcp2_vec_copy_at_most(data, NGTCP2_MAX_STREAM_DATACNT,
-                                      vmsg->stream.data, vmsg->stream.datacnt,
-                                      (size_t)wdatalen);
+                                      &tail_split, vmsg->stream.data,
+                                      vmsg->stream.datacnt, (size_t)wdatalen);
     wdatalen = ngtcp2_vec_len(data, datacnt);
 
     assert((datacnt == 0 && datalen == 0) || (datacnt && datalen));
@@ -4374,6 +4375,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       return rv;
+    }
+
+    if (tail_split && (vmsg->stream.flags &
+                       NGTCP2_WRITE_STREAM_FLAG_ALLOW_TAIL_SPLIT_MERGE)) {
+      nfrc->flags |= NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT;
     }
 
     nfrc->fr.stream.type = NGTCP2_FRAME_STREAM;

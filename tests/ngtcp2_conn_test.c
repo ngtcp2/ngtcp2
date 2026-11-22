@@ -10855,6 +10855,38 @@ void test_ngtcp2_conn_writev_stream(void) {
   assert_ptrdiff(900, ==, spktlen);
 
   ngtcp2_conn_del(conn);
+
+  /* With NGTCP2_WRITE_STREAM_FLAG_ALLOW_TAIL_SPLIT_MERGE */
+  setup_default_client(&conn);
+
+  /* This will sends NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_writev_stream(
+    conn, NULL, NULL, buf, 1200, &datalen,
+    NGTCP2_WRITE_STREAM_FLAG_ALLOW_TAIL_SPLIT_MERGE, stream_id,
+    (&(ngtcp2_vec){
+      .base = null_data,
+      .len = sizeof(null_data),
+    }),
+    1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(1160, ==, datalen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  assert_true(ent->frc->flags & NGTCP2_FRAME_CHAIN_FLAG_VEC_TAIL_SPLIT);
+  assert_uint64(NGTCP2_FRAME_STREAM, ==, ent->frc->fr.hd.type);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_writev_datagram(void) {
