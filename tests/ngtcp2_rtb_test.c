@@ -44,6 +44,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_rtb_bbr_ecn),
   munit_void_test(test_ngtcp2_rtb_bbr_rtt),
   munit_void_test(test_ngtcp2_rtb_bbr_recovery_exit),
+  munit_void_test(test_ngtcp2_rtb_bbr_startup_high_loss),
   munit_test_end(),
 };
 
@@ -998,4 +999,57 @@ void test_ngtcp2_rtb_bbr_recovery_exit(void) {
   assert_uint64(UINT64_MAX, ==, bbr.round_count_at_recovery);
 
   free_bbr_test_conn(&conn);
+}
+
+static void check_bbr_startup_high_loss(ngtcp2_tstamp sent_ts,
+                                        ngtcp2_bbr_state expected_state) {
+  ngtcp2_conn conn = {0};
+  ngtcp2_conn_stat *cstat = &conn.cstat;
+  ngtcp2_cc_bbr bbr;
+  ngtcp2_pcg32 pcg;
+  ngtcp2_cc_ack ack = {
+    .bytes_delivered = 1200,
+    .pkt_delivered = 10000,
+    .largest_pkt_sent_ts = sent_ts,
+    .latest_acked_pkt_sent_ts = sent_ts,
+    .rtt = 10 * NGTCP2_MILLISECONDS,
+    .latest_rtt = 10 * NGTCP2_MILLISECONDS,
+  };
+
+  init_bbr_test_conn(&conn, &bbr, &pcg);
+  bbr.cc.congestion_event(&bbr.cc, cstat, 80 * NGTCP2_MILLISECONDS, &ack,
+                          100 * NGTCP2_MILLISECONDS);
+
+  assert_true(bbr.in_loss_recovery);
+
+  /* A loss-round boundary with enough loss events and a 5% loss rate. */
+  bbr.loss_round_delivered = ack.pkt_delivered;
+  bbr.loss_events_in_round = 6;
+  bbr.min_rtt = ack.latest_rtt;
+  conn.rst.delivered = ack.pkt_delivered + ack.bytes_delivered;
+  conn.rst.rs.prior_delivered = ack.pkt_delivered;
+  conn.rst.rs.delivered = ack.bytes_delivered;
+  conn.rst.rs.lost = 1200;
+  conn.rst.rs.tx_in_flight = 24000;
+  cstat->delivery_rate_sec = 120000;
+  cstat->bytes_in_flight = 9600;
+  cstat->send_quantum = 2400;
+
+  bbr.cc.on_ack_recv(&bbr.cc, cstat, &ack, sent_ts + ack.latest_rtt);
+
+  assert_true(bbr.loss_round_start);
+  assert_uint(expected_state, ==, bbr.state);
+  assert_int(expected_state == NGTCP2_BBR_STATE_STARTUP, ==,
+             bbr.in_loss_recovery);
+
+  free_bbr_test_conn(&conn);
+}
+
+void test_ngtcp2_rtb_bbr_startup_high_loss(void) {
+  check_bbr_startup_high_loss(91 * NGTCP2_MILLISECONDS,
+                              NGTCP2_BBR_STATE_STARTUP);
+  check_bbr_startup_high_loss(100 * NGTCP2_MILLISECONDS,
+                              NGTCP2_BBR_STATE_STARTUP);
+  check_bbr_startup_high_loss(101 * NGTCP2_MILLISECONDS,
+                              NGTCP2_BBR_STATE_DRAIN);
 }

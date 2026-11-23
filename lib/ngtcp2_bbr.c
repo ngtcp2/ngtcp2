@@ -94,7 +94,9 @@ static void bbr_set_pacing_rate(const ngtcp2_cc_bbr *bbr,
 
 static void bbr_enter_startup(ngtcp2_cc_bbr *bbr);
 
-static void bbr_check_startup_done(ngtcp2_cc_bbr *bbr);
+static void bbr_check_startup_done(ngtcp2_cc_bbr *bbr,
+                                   const ngtcp2_conn_stat *cstat,
+                                   const ngtcp2_cc_ack *ack);
 
 static void bbr_update_on_ack(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
@@ -418,9 +420,14 @@ static void bbr_check_full_bw_reached(ngtcp2_cc_bbr *bbr,
                    "bbr reached full bandwidth, full_bw=", bbr->full_bw);
 }
 
-static void bbr_check_startup_high_loss(ngtcp2_cc_bbr *bbr) {
+static void bbr_check_startup_high_loss(ngtcp2_cc_bbr *bbr,
+                                        const ngtcp2_conn_stat *cstat,
+                                        const ngtcp2_cc_ack *ack) {
+  /* A loss round can end on an ACK for a packet sent before recovery.
+     Require a packet-timed round that started during recovery. */
   if (bbr->full_bw_reached || !bbr->loss_round_start ||
-      !bbr->in_loss_recovery) {
+      !bbr->in_loss_recovery || ack->latest_acked_pkt_sent_ts == UINT64_MAX ||
+      ack->latest_acked_pkt_sent_ts <= cstat->congestion_recovery_start_ts) {
     return;
   }
 
@@ -478,8 +485,10 @@ static void bbr_enter_startup(ngtcp2_cc_bbr *bbr) {
   bbr->cwnd_gain_h = NGTCP2_BBR_DEFAULT_CWND_GAIN_H;
 }
 
-static void bbr_check_startup_done(ngtcp2_cc_bbr *bbr) {
-  bbr_check_startup_high_loss(bbr);
+static void bbr_check_startup_done(ngtcp2_cc_bbr *bbr,
+                                   const ngtcp2_conn_stat *cstat,
+                                   const ngtcp2_cc_ack *ack) {
+  bbr_check_startup_high_loss(bbr, cstat, ack);
 
   if (bbr->state == NGTCP2_BBR_STATE_STARTUP && bbr->full_bw_reached) {
     bbr_enter_drain(bbr);
@@ -545,7 +554,7 @@ static void bbr_update_model_and_state(ngtcp2_cc_bbr *bbr,
   bbr_update_congestion_signals(bbr, cstat, ack);
   bbr_update_ack_aggregation(bbr, cstat, ack, ts);
   bbr_check_full_bw_reached(bbr, cstat);
-  bbr_check_startup_done(bbr);
+  bbr_check_startup_done(bbr, cstat, ack);
   bbr_check_drain_done(bbr, cstat, ts);
   bbr_update_probe_bw_cycle_phase(bbr, cstat, ack, ts);
 
