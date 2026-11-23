@@ -92,6 +92,36 @@ void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
   ent->rst.pkt_id = ++rst->pkt_id;
 }
 
+static uint64_t compute_delivery_rate(uint64_t delivered,
+                                      ngtcp2_duration interval) {
+  const uint64_t scale = NGTCP2_SECONDS;
+  const uint64_t limit = UINT64_MAX / scale;
+  uint64_t whole, remainder, fractional;
+
+  if (delivered <= limit) {
+    return delivered * scale / interval;
+  }
+
+  whole = delivered / interval;
+  if (whole > limit) {
+    return 0;
+  }
+
+  whole *= scale;
+
+  remainder = delivered % interval;
+  if (remainder <= limit) {
+    fractional = remainder * scale / interval;
+  } else {
+    fractional =
+      (uint64_t)((double)remainder / (double)interval * (double)scale);
+    /* The exact fraction is below scale, but rounding can reach it. */
+    fractional = ngtcp2_min(fractional, scale - 1);
+  }
+
+  return fractional <= UINT64_MAX - whole ? whole + fractional : 0;
+}
+
 void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
   ngtcp2_rs *rs = &rst->rs;
 
@@ -115,7 +145,7 @@ void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
     return;
   }
 
-  cstat->delivery_rate_sec = rs->delivered * NGTCP2_SECONDS / rs->interval;
+  cstat->delivery_rate_sec = compute_delivery_rate(rs->delivered, rs->interval);
 }
 
 static int is_newest_pkt(const ngtcp2_rtb_entry *ent, const ngtcp2_rs *rs) {

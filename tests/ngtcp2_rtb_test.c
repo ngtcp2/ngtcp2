@@ -45,6 +45,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_rtb_bbr_rtt),
   munit_void_test(test_ngtcp2_rtb_bbr_recovery_exit),
   munit_void_test(test_ngtcp2_rtb_bbr_startup_high_loss),
+  munit_void_test(test_ngtcp2_rst_delivery_rate),
   munit_test_end(),
 };
 
@@ -1052,4 +1053,67 @@ void test_ngtcp2_rtb_bbr_startup_high_loss(void) {
                               NGTCP2_BBR_STATE_STARTUP);
   check_bbr_startup_high_loss(101 * NGTCP2_MILLISECONDS,
                               NGTCP2_BBR_STATE_DRAIN);
+}
+
+void test_ngtcp2_rst_delivery_rate(void) {
+  static const struct {
+    uint64_t delivered;
+    ngtcp2_duration interval;
+    uint64_t rate;
+  } cases[] = {
+    /* Fast path. */
+    {
+      .delivered = 1234567,
+      .interval = 3 * NGTCP2_SECONDS,
+      .rate = 411522,
+    },
+    /* The product overflows but the rate fits. */
+    {
+      .delivered = 20ULL << 30,
+      .interval = 2 * NGTCP2_SECONDS,
+      .rate = 10737418240ULL,
+    },
+    /* The remainder product overflows, and double rounds up to the scale. */
+    {
+      .delivered = UINT64_MAX - 2,
+      .interval = UINT64_MAX - 1,
+      .rate = 999999999,
+    },
+    /* Largest representable rate. */
+    {
+      .delivered = UINT64_MAX,
+      .interval = NGTCP2_SECONDS,
+      .rate = UINT64_MAX,
+    },
+    /* The whole part fits, but adding the fractional part overflows. */
+    {
+      .delivered = 73786976295ULL,
+      .interval = 4,
+    },
+    /* The whole part already overflows. */
+    {
+      .delivered = UINT64_MAX,
+      .interval = 1,
+    },
+    /* An interval of zero cannot yield a sample. */
+    {
+      .delivered = 1200,
+    },
+  };
+  ngtcp2_rst rst;
+  ngtcp2_conn_stat cstat = {0};
+  size_t i;
+
+  ngtcp2_rst_init(&rst);
+
+  for (i = 0; i < ngtcp2_arraylen(cases); ++i) {
+    ngtcp2_rst_reset_rate_sample(&rst, &cstat);
+    rst.delivered = cases[i].delivered;
+    rst.rs.prior_ts = 0;
+    rst.rs.send_elapsed = cases[i].interval;
+
+    ngtcp2_rst_on_ack_recv(&rst, &cstat);
+
+    assert_uint64(cases[i].rate, ==, cstat.delivery_rate_sec);
+  }
 }
