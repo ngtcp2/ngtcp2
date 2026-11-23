@@ -41,6 +41,7 @@ void ngtcp2_rs_init(ngtcp2_rs *rs) {
 
 void ngtcp2_rst_init(ngtcp2_rst *rst) {
   rst->pkt_id = -1;
+  rst->loss_recovery_id = 0;
   ngtcp2_rst_reset(rst);
 }
 
@@ -52,6 +53,9 @@ void ngtcp2_rst_reset(ngtcp2_rst *rst) {
   rst->app_limited = 0;
   rst->is_cwnd_limited = 0;
   rst->lost = 0;
+  rst->loss_recovery_pending = 0;
+  rst->loss_recovery_undo = 0;
+  rst->reset_ts_next_on_pkt_sent = 1;
 }
 
 void ngtcp2_rst_reset_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
@@ -59,16 +63,25 @@ void ngtcp2_rst_reset_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
 
   rs->interval = UINT64_MAX;
   rs->prior_ts = UINT64_MAX;
+  rs->tx_in_flight = 0;
+  rs->lost = 0;
 
   cstat->delivery_rate_sec = 0;
 }
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
-                            const ngtcp2_conn_stat *cstat) {
+                            const ngtcp2_conn_stat *cstat,
+                            int has_retained_lost_pkts) {
+  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP) {
+    return;
+  }
+
   /* cstat->bytes_in_flight includes ent->pktlen.  If they are the
      same, there is no in-flight packets. */
-  if (cstat->bytes_in_flight == ent->pktlen) {
+  if (rst->reset_ts_next_on_pkt_sent ||
+      (cstat->bytes_in_flight == ent->pktlen && !has_retained_lost_pkts)) {
     rst->first_sent_ts = rst->delivered_ts = ent->ts;
+    rst->reset_ts_next_on_pkt_sent = 0;
   }
   ent->rst.first_sent_ts = rst->first_sent_ts;
   ent->rst.delivered_ts = rst->delivered_ts;
@@ -77,6 +90,36 @@ void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
   ent->rst.tx_in_flight = cstat->bytes_in_flight;
   ent->rst.lost = rst->lost;
   ent->rst.pkt_id = ++rst->pkt_id;
+}
+
+static uint64_t compute_delivery_rate(uint64_t delivered,
+                                      ngtcp2_duration interval) {
+  const uint64_t scale = NGTCP2_SECONDS;
+  const uint64_t limit = UINT64_MAX / scale;
+  uint64_t whole, remainder, fractional;
+
+  if (delivered <= limit) {
+    return delivered * scale / interval;
+  }
+
+  whole = delivered / interval;
+  if (whole > limit) {
+    return 0;
+  }
+
+  whole *= scale;
+
+  remainder = delivered % interval;
+  if (remainder <= limit) {
+    fractional = remainder * scale / interval;
+  } else {
+    fractional =
+      (uint64_t)((double)remainder / (double)interval * (double)scale);
+    /* The exact fraction is below scale, but rounding can reach it. */
+    fractional = ngtcp2_min(fractional, scale - 1);
+  }
+
+  return fractional <= UINT64_MAX - whole ? whole + fractional : 0;
 }
 
 void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
@@ -102,7 +145,7 @@ void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
     return;
   }
 
-  cstat->delivery_rate_sec = rs->delivered * NGTCP2_SECONDS / rs->interval;
+  cstat->delivery_rate_sec = compute_delivery_rate(rs->delivered, rs->interval);
 }
 
 static int is_newest_pkt(const ngtcp2_rtb_entry *ent, const ngtcp2_rs *rs) {
@@ -113,22 +156,22 @@ void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts) {
   ngtcp2_rs *rs = &rst->rs;
 
+  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_SKIP) {
+    return;
+  }
+
   rst->delivered += ent->pktlen;
   rst->delivered_ts = ts;
 
   if (rs->prior_ts == UINT64_MAX || is_newest_pkt(ent, rs)) {
     rs->prior_delivered = ent->rst.delivered;
     rs->prior_ts = ent->rst.delivered_ts;
+    rs->tx_in_flight = ent->rst.tx_in_flight;
+    rs->prior_lost = ent->rst.lost;
     rs->is_app_limited = ent->rst.is_app_limited;
     rs->send_elapsed = ent->ts - ent->rst.first_sent_ts;
     rs->ack_elapsed = rst->delivered_ts - ent->rst.delivered_ts;
     rs->last_acked_pkt_id = ent->rst.pkt_id;
     rst->first_sent_ts = ent->ts;
   }
-}
-
-void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
-  (void)rst;
-  (void)cstat;
-  /* TODO Not implemented */
 }

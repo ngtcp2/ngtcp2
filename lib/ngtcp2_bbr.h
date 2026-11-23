@@ -48,17 +48,9 @@ typedef enum ngtcp2_bbr_state {
   NGTCP2_BBR_STATE_PROBE_RTT,
 } ngtcp2_bbr_state;
 
-typedef enum ngtcp2_bbr_ack_phase {
-  NGTCP2_BBR_ACK_PHASE_ACKS_INIT,
-  NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_STARTING,
-  NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_STOPPING,
-  NGTCP2_BBR_ACK_PHASE_ACKS_PROBE_FEEDBACK,
-  NGTCP2_BBR_ACK_PHASE_ACKS_REFILLING,
-} ngtcp2_bbr_ack_phase;
-
 /*
- * ngtcp2_cc_bbr is BBR v2 congestion controller, described in
- * https://datatracker.ietf.org/doc/html/draft-cardwell-iccrg-bbr-congestion-control-01
+ * ngtcp2_cc_bbr is BBR congestion controller, described in
+ * https://ietf-wg-ccwg.github.io/draft-ietf-ccwg-bbr/draft-ietf-ccwg-bbr.html
  */
 typedef struct ngtcp2_cc_bbr {
   ngtcp2_cc cc;
@@ -75,12 +67,16 @@ typedef struct ngtcp2_cc_bbr {
 
   ngtcp2_duration min_rtt;
   ngtcp2_tstamp min_rtt_stamp;
+  int min_rtt_expired;
   ngtcp2_tstamp probe_rtt_done_stamp;
   int probe_rtt_round_done;
+  uint64_t probe_rtt_cwnd;
   int idle_restart;
   uint64_t prior_cwnd;
   ngtcp2_tstamp extra_acked_interval_start;
   uint64_t extra_acked_delivered;
+  int is_bw_probe_stopping;
+  int check_probe_loss;
 
   /* Congestion signals */
   int is_loss_in_round;
@@ -90,6 +86,9 @@ typedef struct ngtcp2_cc_bbr {
   /* Lower bounds */
   uint64_t bw_shortterm;
   uint64_t inflight_shortterm;
+  /* ecn_recovery_start_ts is the time of the last CE backoff, or
+     UINT64_MAX if none. */
+  ngtcp2_tstamp ecn_recovery_start_ts;
 
   /* Round counting */
   uint64_t next_round_delivered;
@@ -125,19 +124,15 @@ typedef struct ngtcp2_cc_bbr {
   uint64_t offload_budget;
   uint64_t probe_up_acked_per_inc;
   ngtcp2_tstamp cycle_stamp;
-  ngtcp2_bbr_ack_phase ack_phase;
   ngtcp2_duration bw_probe_wait;
   size_t bw_probe_up_rounds;
   uint64_t bw_probe_up_acked;
   uint64_t inflight_longterm;
-  ngtcp2_duration probe_rtt_min_delay;
-  ngtcp2_tstamp probe_rtt_min_stamp;
   uint64_t round_count_at_recovery;
   uint64_t max_inflight;
   uint64_t bdp;
   uint64_t drain_start_round;
   int loss_round_start;
-  int is_bw_probe_sample;
   int probe_rtt_expired;
   int in_loss_recovery;
   int prev_probe_too_high;

@@ -1175,6 +1175,39 @@ conn_set_local_transport_params(ngtcp2_conn *conn,
   p->version_info_present = 1;
 }
 
+static int conn_has_retained_lost_pkts(ngtcp2_conn *conn) {
+  return conn->pktns.rtb.num_lost_pkts ||
+         (conn->hs_pktns && conn->hs_pktns->rtb.num_lost_pkts) ||
+         (conn->in_pktns && conn->in_pktns->rtb.num_lost_pkts);
+}
+
+static int pktns_has_pending_transmission(const ngtcp2_pktns *pktns) {
+  return pktns && (pktns->tx.frq || pktns->rtb.probe_pkt_left ||
+                   !ngtcp2_strm_streamfrq_empty(&pktns->crypto.strm));
+}
+
+static void conn_check_app_limited(ngtcp2_conn *conn, ngtcp2_tstamp ts,
+                                   int no_app_data) {
+  const ngtcp2_conn_stat *cstat = &conn->cstat;
+  ngtcp2_rst *rst = &conn->rst;
+
+  /* The caller owns unsent application data.  Without a no-data
+     write, infer an idle restart only after some data was delivered
+     and the flight has drained. */
+  if ((!no_app_data && (cstat->bytes_in_flight || !rst->delivered)) ||
+      cstat->bytes_in_flight >= cstat->cwnd ||
+      (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) ||
+      (conn->tx.pacing.next_ts != UINT64_MAX && conn->tx.pacing.next_ts > ts) ||
+      !ngtcp2_pq_empty(&conn->tx.strmq) ||
+      pktns_has_pending_transmission(&conn->pktns) ||
+      pktns_has_pending_transmission(conn->hs_pktns) ||
+      pktns_has_pending_transmission(conn->in_pktns)) {
+    return;
+  }
+
+  rst->app_limited = ngtcp2_max(rst->delivered + cstat->bytes_in_flight, 1);
+}
+
 static void conn_update_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
   const int64_t min_gap = 3;
   uint8_t r;
@@ -1226,7 +1259,8 @@ static int conn_handle_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     return rv;
   }
 
-  rv = ngtcp2_rtb_add(&pktns->rtb, rtbent, &conn->cstat);
+  rv = ngtcp2_rtb_add(&pktns->rtb, rtbent, &conn->cstat,
+                      conn_has_retained_lost_pkts(conn));
   if (rv != 0) {
     ngtcp2_rtb_entry_objalloc_del(rtbent, &conn->rtb_entry_objalloc,
                                   &conn->frc_objalloc, conn->mem);
@@ -1968,7 +2002,8 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 
   /* This function implements OnPacketSent, but it handles only
      non-ACK-only packet. */
-  rv = ngtcp2_rtb_add(rtb, ent, &conn->cstat);
+  rv =
+    ngtcp2_rtb_add(rtb, ent, &conn->cstat, conn_has_retained_lost_pkts(conn));
   if (rv != 0) {
     return rv;
   }
@@ -5798,6 +5833,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
     return NGTCP2_ERR_PROTO;
   }
 
+  conn_check_app_limited(conn, ts, /* no_app_data = */ 0);
   ngtcp2_acktr_recv_ack(&pktns->acktr, fr);
 
   num_acked =
@@ -11676,6 +11712,8 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return NGTCP2_ERR_IDLE_CLOSE;
   }
 
+  conn_check_app_limited(conn, ts, /* no_app_data = */ 0);
+
   ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
 
   conn_cancel_expired_keep_alive_timer(conn, ts);
@@ -12426,8 +12464,7 @@ conn_write_vmsg_wrapper(ngtcp2_conn *conn, ngtcp2_path *path,
   } else if (conn_pacing_pkt_tx_allowed(conn, ts) && !vmsg &&
              conn_no_app_data_written(conn) &&
              (!path || ngtcp2_path_eq(&conn->dcid.current.ps.path, path))) {
-    conn->rst.app_limited =
-      ngtcp2_max(conn->rst.delivered + cstat->bytes_in_flight, 1);
+    conn_check_app_limited(conn, ts, /* no_app_data = */ 1);
   }
 
   return nwrite;
@@ -12604,6 +12641,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     conn_shape_udp_payload(conn, &conn->dcid.current, destlen);
 
   if (!ppe_pending) {
+    conn_check_app_limited(conn, ts, /* no_app_data = */ 0);
+
     if (pi) {
       pi->ecn = NGTCP2_ECN_NOT_ECT;
     }
@@ -13795,6 +13834,8 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   if (cstat->loss_detection_timer == UINT64_MAX) {
     return 0;
   }
+
+  conn_check_app_limited(conn, ts, /* no_app_data = */ 0);
 
   conn_get_loss_time_and_pktns(conn, &earliest_loss_time, &loss_pktns);
 

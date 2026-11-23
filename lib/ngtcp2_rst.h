@@ -45,6 +45,7 @@ typedef struct ngtcp2_rs {
   uint64_t prior_delivered;
   ngtcp2_tstamp prior_ts;
   uint64_t tx_in_flight;
+  uint64_t prior_lost;
   uint64_t lost;
   ngtcp2_duration send_elapsed;
   ngtcp2_duration ack_elapsed;
@@ -70,7 +71,20 @@ typedef struct ngtcp2_rst {
      all packet number spaces, we can replace this with a packet
      number. */
   int64_t pkt_id;
+  /* All packet number spaces share the latest loss recovery episode.
+     Keep its ID across congestion resets because old RTB entries can
+     survive a reset. */
+  uint64_t loss_recovery_id;
+  /* Valid while loss_recovery_undo is set. */
+  size_t loss_recovery_pending;
+  /* loss_recovery_undo is nonzero while the latest loss recovery
+     episode is eligible for spurious-loss undo.  Undo requires
+     loss_recovery_pending to reach zero through acknowledgments. */
+  int loss_recovery_undo;
   int is_cwnd_limited;
+  /* reset_ts_next_on_pkt_sent, if nonzero, resets timestamps when
+     ngtcp2_rst_on_pkt_sent is called next time. */
+  int reset_ts_next_on_pkt_sent;
 } ngtcp2_rst;
 
 void ngtcp2_rst_init(ngtcp2_rst *rst);
@@ -80,10 +94,10 @@ void ngtcp2_rst_reset(ngtcp2_rst *rst);
 void ngtcp2_rst_reset_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
-                            const ngtcp2_conn_stat *cstat);
+                            const ngtcp2_conn_stat *cstat,
+                            int has_retained_lost_pkts);
 void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
 void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts);
-void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
 
 #endif /* !defined(NGTCP2_RST_H) */
