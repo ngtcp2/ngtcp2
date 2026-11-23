@@ -34,6 +34,7 @@
 #include "ngtcp2_rst.h"
 #include "ngtcp2_conn_stat.h"
 #include "ngtcp2_pcg.h"
+#include "ngtcp2_tstamp.h"
 
 #define NGTCP2_BBR_MAX_BW_FILTERLEN 2
 
@@ -353,6 +354,7 @@ static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 
   bbr->in_loss_recovery = 0;
   bbr->round_count_at_recovery = UINT64_MAX;
+  bbr->ecn_recovery_start_ts = UINT64_MAX;
 
   bbr->max_inflight = 0;
 
@@ -488,13 +490,46 @@ static void bbr_on_transmit(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
   bbr_handle_restart_from_idle(bbr, cstat, ts);
 }
 
+static void bbr_handle_ecn(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
+                           const ngtcp2_cc_ack *ack, uint64_t prior_cwnd,
+                           ngtcp2_tstamp ts) {
+  ngtcp2_tstamp start_ts = bbr->ecn_recovery_start_ts;
+  ngtcp2_tstamp sent_ts = ack->largest_pkt_sent_ts;
+  uint64_t cap;
+
+  /* If the largest acknowledged packet is no longer tracked, use
+     one smoothed RTT to limit the frequency of backoffs. */
+  if (start_ts != UINT64_MAX &&
+      (sent_ts == UINT64_MAX
+         ? !ngtcp2_tstamp_elapsed(
+             start_ts, ngtcp2_max(cstat->smoothed_rtt, NGTCP2_GRANULARITY), ts)
+         : sent_ts <= start_ts)) {
+    return;
+  }
+
+  bbr->ecn_recovery_start_ts = ts;
+  cap = ngtcp2_max(prior_cwnd * NGTCP2_BBR_BETA_NUMER / NGTCP2_BBR_BETA_DENOM,
+                   min_pipe_cwnd(cstat->max_tx_udp_payload_size));
+  bbr->inflight_shortterm = ngtcp2_min(bbr->inflight_shortterm, cap);
+
+  if (!ack->bytes_delivered) {
+    bbr_bound_cwnd_for_model(bbr, cstat);
+  }
+}
+
 static void bbr_update_on_ack(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
+  uint64_t prior_cwnd = cstat->cwnd;
+
   if (ack->bytes_delivered) {
     bbr_update_model_and_state(bbr, cstat, ack, ts);
   }
 
   bbr_handle_recovery(bbr, cstat, ack);
+
+  if (ack->ecn_ce) {
+    bbr_handle_ecn(bbr, cstat, ack, prior_cwnd, ts);
+  }
 
   if (ack->bytes_delivered) {
     bbr_update_control_parameters(bbr, cstat, ack);
@@ -1419,9 +1454,9 @@ static void bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_ack *ack,
                                     ngtcp2_tstamp ts) {
   ngtcp2_cc_bbr *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr, cc);
-  (void)ack;
 
-  if (bbr->in_loss_recovery || in_congestion_recovery(cstat, sent_ts)) {
+  if (ack->ecn_ce || bbr->in_loss_recovery ||
+      in_congestion_recovery(cstat, sent_ts)) {
     return;
   }
 

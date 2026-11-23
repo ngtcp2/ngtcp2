@@ -792,7 +792,7 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                             ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                             const ngtcp2_ack *fr, size_t ecn_acked,
-                            const ngtcp2_cc_ack *cc_ack, ngtcp2_tstamp ts) {
+                            ngtcp2_cc_ack *cc_ack, ngtcp2_tstamp ts) {
   if (conn->tx.ecn.state == NGTCP2_ECN_STATE_FAILED) {
     return;
   }
@@ -819,11 +819,20 @@ static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   }
 
   if (fr->type == NGTCP2_FRAME_ACK_ECN) {
-    if (cc->congestion_event && cc_ack->largest_pkt_sent_ts != UINT64_MAX &&
-        fr->ecn.ce > pktns->acktr.ecn.ack.ce) {
-      /* Acknowledging lost packets cannot undo a validated CE mark. */
-      pktns->rtb.rst->loss_recovery_undo = 0;
-      cc->congestion_event(cc, cstat, cc_ack->largest_pkt_sent_ts, cc_ack, ts);
+    if (fr->ecn.ce > pktns->acktr.ecn.ack.ce) {
+      cc_ack->ecn_ce = 1;
+
+      if (cc->congestion_event && cc_ack->largest_pkt_sent_ts != UINT64_MAX) {
+        cc->congestion_event(cc, cstat, cc_ack->largest_pkt_sent_ts, cc_ack,
+                             ts);
+      }
+
+      /* Only pass CE feedback for the current path to ACK processing.
+         Acknowledging lost packets cannot undo a validated CE mark. */
+      cc_ack->ecn_ce = fr->largest_ack >= pktns->rtb.cc_pkt_num;
+      if (cc_ack->ecn_ce) {
+        pktns->rtb.rst->loss_recovery_undo = 0;
+      }
     }
 
     pktns->acktr.ecn.ack.ect0 = fr->ecn.ect0;

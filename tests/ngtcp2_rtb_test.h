@@ -41,5 +41,6 @@ munit_void_test_decl(test_ngtcp2_rtb_lost_pkt_ts)
 munit_void_test_decl(test_ngtcp2_rtb_remove_expired_lost_pkt)
 munit_void_test_decl(test_ngtcp2_rtb_remove_excessive_lost_pkt)
 munit_void_test_decl(test_ngtcp2_rtb_bbr_spurious_loss)
+munit_void_test_decl(test_ngtcp2_rtb_bbr_ecn)
 
 #endif /* !defined(NGTCP2_RTB_TEST_H) */

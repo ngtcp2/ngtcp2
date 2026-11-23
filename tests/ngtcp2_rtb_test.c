@@ -41,6 +41,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_rtb_remove_expired_lost_pkt),
   munit_void_test(test_ngtcp2_rtb_remove_excessive_lost_pkt),
   munit_void_test(test_ngtcp2_rtb_bbr_spurious_loss),
+  munit_void_test(test_ngtcp2_rtb_bbr_ecn),
   munit_test_end(),
 };
 
@@ -582,7 +583,8 @@ typedef enum bbr_loss_resolution {
 } bbr_loss_resolution;
 
 static void add_bbr_test_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
-                             int64_t pkt_num, ngtcp2_tstamp ts) {
+                             int64_t pkt_num, ngtcp2_tstamp ts,
+                             uint16_t flags) {
   ngtcp2_pkt_hd hd;
   ngtcp2_rtb_entry *ent;
   uint8_t type = pktns->id == NGTCP2_PKTNS_ID_HANDSHAKE ? NGTCP2_PKT_HANDSHAKE
@@ -590,9 +592,40 @@ static void add_bbr_test_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 
   ngtcp2_pkt_hd_init(&hd, 0, type, NULL, NULL, pkt_num, 1, 0);
   assert_int(0, ==,
-             ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, ts, 1200, 0,
+             ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, ts, 1200, flags,
                                            &conn->rtb_entry_objalloc));
   assert_int(0, ==, ngtcp2_rtb_add(&pktns->rtb, ent, &conn->cstat, 0));
+
+  if (flags & NGTCP2_RTB_ENTRY_FLAG_ECN) {
+    ++pktns->tx.ecn.ect0;
+  }
+}
+
+static void init_bbr_test_conn(ngtcp2_conn *conn, ngtcp2_cc_bbr *bbr,
+                               ngtcp2_pcg32 *pcg) {
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_conn_stat *cstat = &conn->cstat;
+
+  ngtcp2_objalloc_init(&conn->frc_objalloc, 1024, mem);
+  ngtcp2_objalloc_init(&conn->rtb_entry_objalloc, 1024, mem);
+  conn_stat_init(cstat);
+  cstat->congestion_recovery_start_ts = UINT64_MAX;
+  cstat->first_rtt_sample_ts = UINT64_MAX;
+  cstat->smoothed_rtt = 10 * NGTCP2_MILLISECONDS;
+  conn->handshake_confirmed_ts = UINT64_MAX;
+  ngtcp2_rst_init(&conn->rst);
+  ngtcp2_log_init(&conn->log, NULL, NULL, NULL, NULL, 0, NULL);
+  ngtcp2_pcg32_init(pcg, 0);
+  ngtcp2_cc_bbr_init(bbr, &conn->log, cstat, &conn->rst, 0, pcg);
+  conn->pktns.id = NGTCP2_PKTNS_ID_APPLICATION;
+  ngtcp2_rtb_init(&conn->pktns.rtb, &conn->rst, &bbr->cc, 0, &conn->log, NULL,
+                  &conn->rtb_entry_objalloc, &conn->frc_objalloc, mem);
+}
+
+static void free_bbr_test_conn(ngtcp2_conn *conn) {
+  ngtcp2_rtb_free(&conn->pktns.rtb);
+  ngtcp2_objalloc_free(&conn->rtb_entry_objalloc);
+  ngtcp2_objalloc_free(&conn->frc_objalloc);
 }
 
 static void check_bbr_spurious_loss(bbr_loss_resolution resolution,
@@ -612,21 +645,8 @@ static void check_bbr_spurious_loss(bbr_loss_resolution resolution,
   ngtcp2_tstamp loss_ts = 20 * NGTCP2_MILLISECONDS;
   ngtcp2_tstamp ack_ts = 21 * NGTCP2_MILLISECONDS;
 
-  ngtcp2_objalloc_init(&conn.frc_objalloc, 1024, mem);
-  ngtcp2_objalloc_init(&conn.rtb_entry_objalloc, 1024, mem);
-  conn_stat_init(cstat);
-  cstat->congestion_recovery_start_ts = UINT64_MAX;
-  cstat->first_rtt_sample_ts = UINT64_MAX;
-  cstat->smoothed_rtt = 10 * NGTCP2_MILLISECONDS;
-  conn.handshake_confirmed_ts = UINT64_MAX;
-  ngtcp2_rst_init(&conn.rst);
-  ngtcp2_log_init(&conn.log, NULL, NULL, NULL, NULL, 0, NULL);
-  ngtcp2_pcg32_init(&pcg, 0);
-  ngtcp2_cc_bbr_init(&bbr, &conn.log, cstat, &conn.rst, 0, &pcg);
-  app->id = NGTCP2_PKTNS_ID_APPLICATION;
+  init_bbr_test_conn(&conn, &bbr, &pcg);
   ngtcp2_rtb_init(&hs.rtb, &conn.rst, &bbr.cc, 0, &conn.log, NULL,
-                  &conn.rtb_entry_objalloc, &conn.frc_objalloc, mem);
-  ngtcp2_rtb_init(&app->rtb, &conn.rst, &bbr.cc, 0, &conn.log, NULL,
                   &conn.rtb_entry_objalloc, &conn.frc_objalloc, mem);
 
   if (plateau) {
@@ -638,8 +658,8 @@ static void check_bbr_spurious_loss(bbr_loss_resolution resolution,
     bbr.check_probe_loss = 1;
   }
 
-  add_bbr_test_pkt(&conn, &hs, 0, 0);
-  add_bbr_test_pkt(&conn, app, 0, 0);
+  add_bbr_test_pkt(&conn, &hs, 0, 0, 0);
+  add_bbr_test_pkt(&conn, app, 0, 0, 0);
 
   hs.rtb.largest_acked_tx_pkt_num = app->rtb.largest_acked_tx_pkt_num = 3;
 
@@ -685,7 +705,7 @@ static void check_bbr_spurious_loss(bbr_loss_resolution resolution,
 
   if (resolution == BBR_LOSS_ACKED_WITH_NEW_LOSS) {
     /* The ACK for packet 0 also declares packet 1 lost. */
-    add_bbr_test_pkt(&conn, app, 1, ack_ts);
+    add_bbr_test_pkt(&conn, app, 1, ack_ts, 0);
     ack_ts += 20 * NGTCP2_MILLISECONDS;
   }
 
@@ -699,7 +719,7 @@ static void check_bbr_spurious_loss(bbr_loss_resolution resolution,
     assert_size(1, ==, conn.rst.loss_recovery_pending);
 
     /* An ACK for a later transmission ends ordinary recovery. */
-    add_bbr_test_pkt(&conn, app, 4, ack_ts);
+    add_bbr_test_pkt(&conn, app, 4, ack_ts, 0);
     ack.largest_ack = 4;
     ++ack_ts;
 
@@ -739,9 +759,7 @@ static void check_bbr_spurious_loss(bbr_loss_resolution resolution,
     ngtcp2_rtb_free(&hs.rtb);
   }
 
-  ngtcp2_rtb_free(&app->rtb);
-  ngtcp2_objalloc_free(&conn.rtb_entry_objalloc);
-  ngtcp2_objalloc_free(&conn.frc_objalloc);
+  free_bbr_test_conn(&conn);
 }
 
 void test_ngtcp2_rtb_bbr_spurious_loss(void) {
@@ -751,4 +769,128 @@ void test_ngtcp2_rtb_bbr_spurious_loss(void) {
   check_bbr_spurious_loss(BBR_LOSS_EXPIRED, 0);
   check_bbr_spurious_loss(BBR_LOSS_EVICTED, 0);
   check_bbr_spurious_loss(BBR_LOSS_DISCARDED, 0);
+}
+
+static void check_bbr_ecn_only(ngtcp2_bbr_state state) {
+  ngtcp2_conn conn = {0};
+  ngtcp2_pktns *app = &conn.pktns;
+  ngtcp2_conn_stat *cstat = &conn.cstat;
+  ngtcp2_cc_bbr bbr;
+  ngtcp2_pcg32 pcg;
+  ngtcp2_ack ack = {
+    .type = NGTCP2_FRAME_ACK_ECN,
+    .ecn.ce = 1,
+  };
+  ngtcp2_tstamp ack_ts = 20 * NGTCP2_MILLISECONDS;
+  uint64_t cap;
+
+  init_bbr_test_conn(&conn, &bbr, &pcg);
+  bbr.state = state;
+  bbr.full_bw_reached = state == NGTCP2_BBR_STATE_PROBE_BW_UP;
+  cap = cstat->cwnd * 7 / 10;
+
+  add_bbr_test_pkt(&conn, app, 0, 0, NGTCP2_RTB_ENTRY_FLAG_ECN);
+  add_bbr_test_pkt(&conn, app, 1, NGTCP2_MILLISECONDS,
+                   NGTCP2_RTB_ENTRY_FLAG_ECN);
+
+  assert_int64(
+    1, ==,
+    ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ack_ts, ack_ts));
+  assert_uint64(cap, ==, cstat->cwnd);
+  assert_uint64(cap, ==, bbr.inflight_shortterm);
+  assert_uint(state, ==, bbr.state);
+  assert_false(bbr.in_loss_recovery);
+  assert_size(0, ==, bbr.loss_events_in_round);
+
+  /* Feedback for a packet sent before the first backoff. */
+  ++ack.largest_ack;
+  ++ack.ecn.ce;
+  ++ack_ts;
+
+  assert_int64(
+    1, ==,
+    ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ack_ts, ack_ts));
+  assert_uint64(cap, ==, cstat->cwnd);
+
+  /* Feedback for a packet sent after the first backoff. */
+  add_bbr_test_pkt(&conn, app, 2, ack_ts, NGTCP2_RTB_ENTRY_FLAG_ECN);
+  ++ack.largest_ack;
+  ++ack.ecn.ce;
+  ack_ts += 10 * NGTCP2_MILLISECONDS;
+
+  assert_int64(
+    1, ==,
+    ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ack_ts, ack_ts));
+  cap = cap * 7 / 10;
+  assert_uint64(cap, ==, cstat->cwnd);
+
+  /* When the largest ACKed packet is untracked, pace backoffs by RTT. */
+  ++app->tx.ecn.ect0;
+  ++ack.largest_ack;
+  ++ack.ecn.ce;
+  ++ack_ts;
+  assert_int64(
+    0, ==,
+    ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ack_ts, ack_ts));
+  assert_uint64(cap, ==, cstat->cwnd);
+
+  ++app->tx.ecn.ect0;
+  ++ack.largest_ack;
+  ++ack.ecn.ce;
+  ack_ts += cstat->smoothed_rtt;
+
+  assert_int64(
+    0, ==,
+    ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ack_ts, ack_ts));
+  assert_uint64(4 * cstat->max_tx_udp_payload_size, ==, cstat->cwnd);
+
+  free_bbr_test_conn(&conn);
+}
+
+static void check_bbr_ecn_with_loss(void) {
+  ngtcp2_conn conn = {0};
+  ngtcp2_pktns *app = &conn.pktns;
+  ngtcp2_conn_stat *cstat = &conn.cstat;
+  ngtcp2_cc_bbr bbr;
+  ngtcp2_pcg32 pcg;
+  ngtcp2_ack ack = {
+    .type = NGTCP2_FRAME_ACK_ECN,
+    .largest_ack = 3,
+    .ecn.ce = 1,
+  };
+  ngtcp2_tstamp ack_ts = 20 * NGTCP2_MILLISECONDS;
+  uint64_t cap;
+
+  init_bbr_test_conn(&conn, &bbr, &pcg);
+  cap = cstat->cwnd * 7 / 10;
+  add_bbr_test_pkt(&conn, app, 0, 0, 0);
+  add_bbr_test_pkt(&conn, app, 3, NGTCP2_MILLISECONDS,
+                   NGTCP2_RTB_ENTRY_FLAG_ECN);
+
+  assert_int64(
+    1, ==,
+    ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ack_ts, ack_ts));
+  assert_size(1, ==, app->rtb.num_lost_pkts);
+  assert_true(bbr.in_loss_recovery);
+  assert_uint64(cap, ==, cstat->cwnd);
+  assert_false(conn.rst.loss_recovery_undo);
+
+  /* The late ACK proves the loss was spurious, but the CE cap remains. */
+  ack.largest_ack = 0;
+  ++ack_ts;
+
+  assert_int64(
+    1, ==,
+    ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ack_ts, ack_ts));
+  assert_size(0, ==, app->rtb.num_lost_pkts);
+  assert_uint64(cap, ==, cstat->cwnd);
+  assert_uint64(cap, ==, bbr.inflight_shortterm);
+
+  free_bbr_test_conn(&conn);
+}
+
+void test_ngtcp2_rtb_bbr_ecn(void) {
+  check_bbr_ecn_only(NGTCP2_BBR_STATE_STARTUP);
+  check_bbr_ecn_only(NGTCP2_BBR_STATE_PROBE_BW_UP);
+  check_bbr_ecn_with_loss();
 }

@@ -111,6 +111,11 @@ typedef struct ngtcp2_cc_ack {
    * sample is available.
    */
   ngtcp2_duration rtt;
+  /**
+   * :member:`ecn_ce` is nonzero if this ACK reports a validated
+   * increase in the ECN-CE count.
+   */
+  int ecn_ce;
 } ngtcp2_cc_ack;
 
 typedef struct ngtcp2_cc ngtcp2_cc;

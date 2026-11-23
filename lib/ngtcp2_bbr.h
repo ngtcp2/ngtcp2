@@ -86,6 +86,9 @@ typedef struct ngtcp2_cc_bbr {
   /* Lower bounds */
   uint64_t bw_shortterm;
   uint64_t inflight_shortterm;
+  /* ecn_recovery_start_ts is the time of the last CE backoff, or
+     UINT64_MAX if none. */
+  ngtcp2_tstamp ecn_recovery_start_ts;
 
   /* Round counting */
   uint64_t next_round_delivered;
