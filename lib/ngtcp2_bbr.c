@@ -1322,7 +1322,7 @@ static void bbr_update_max_inflight(ngtcp2_cc_bbr *bbr,
 
 static void bbr_update_offload_budget(ngtcp2_cc_bbr *bbr,
                                       const ngtcp2_conn_stat *cstat) {
-  bbr->offload_budget = 3 * cstat->send_quantum;
+  bbr->offload_budget = cstat->send_quantum;
 }
 
 static void bbr_advance_max_bw_filter(ngtcp2_cc_bbr *bbr) {
