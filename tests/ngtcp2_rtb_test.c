@@ -45,6 +45,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_rtb_bbr_rtt),
   munit_void_test(test_ngtcp2_rtb_bbr_recovery_exit),
   munit_void_test(test_ngtcp2_rtb_bbr_startup_high_loss),
+  munit_void_test(test_ngtcp2_rtb_bbr_ack_aggregation),
   munit_void_test(test_ngtcp2_rst_delivery_rate),
   munit_test_end(),
 };
@@ -1053,6 +1054,63 @@ void test_ngtcp2_rtb_bbr_startup_high_loss(void) {
                               NGTCP2_BBR_STATE_STARTUP);
   check_bbr_startup_high_loss(101 * NGTCP2_MILLISECONDS,
                               NGTCP2_BBR_STATE_DRAIN);
+}
+
+void test_ngtcp2_rtb_bbr_ack_aggregation(void) {
+  static const struct {
+    ngtcp2_duration interval;
+    uint64_t prior_delivered;
+    int reset_interval;
+  } cases[] = {
+    {
+      /* The product overflows, but the expected count is 18,750,000,000. */
+      .interval = 1500 * NGTCP2_MILLISECONDS,
+      .prior_delivered = 18750000001ULL,
+      .reset_interval = 0,
+    },
+    {
+      .interval = 1500 * NGTCP2_MILLISECONDS,
+      .prior_delivered = 18750000000ULL,
+      .reset_interval = 1,
+    },
+    {
+      /* The expected count itself overflows. */
+      .interval = 2000000000ULL * NGTCP2_SECONDS,
+      .prior_delivered = UINT64_MAX - 1200,
+      .reset_interval = 1,
+    },
+  };
+  const ngtcp2_cc_ack ack = {
+    .bytes_delivered = 1200,
+    .rtt = UINT64_MAX,
+    .latest_rtt = UINT64_MAX,
+  };
+  size_t i;
+
+  for (i = 0; i < ngtcp2_arraylen(cases); ++i) {
+    ngtcp2_conn conn = {0};
+    ngtcp2_cc_bbr bbr;
+    ngtcp2_pcg32 pcg;
+
+    init_bbr_test_conn(&conn, &bbr, &pcg);
+    bbr.bw = 12500000000ULL;
+    bbr.extra_acked_delivered = cases[i].prior_delivered;
+
+    bbr.cc.on_ack_recv(&bbr.cc, &conn.cstat, &ack, cases[i].interval);
+
+    if (cases[i].reset_interval) {
+      assert_uint64(cases[i].interval, ==, bbr.extra_acked_interval_start);
+      assert_uint64(ack.bytes_delivered, ==, bbr.extra_acked_delivered);
+      assert_uint64(ack.bytes_delivered, ==, bbr.extra_acked);
+    } else {
+      assert_uint64(0, ==, bbr.extra_acked_interval_start);
+      assert_uint64(cases[i].prior_delivered + ack.bytes_delivered, ==,
+                    bbr.extra_acked_delivered);
+      assert_uint64(ack.bytes_delivered + 1, ==, bbr.extra_acked);
+    }
+
+    free_bbr_test_conn(&conn);
+  }
 }
 
 void test_ngtcp2_rst_delivery_rate(void) {

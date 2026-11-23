@@ -709,12 +709,39 @@ static int bbr_is_probing_bw(const ngtcp2_cc_bbr *bbr) {
   }
 }
 
+static uint64_t bbr_expected_delivered(uint64_t bw, ngtcp2_duration interval,
+                                       uint64_t limit) {
+  const uint64_t scale = NGTCP2_SECONDS;
+  uint64_t whole, remainder, fraction;
+
+  if (bw == 0 || interval <= UINT64_MAX / bw) {
+    return ngtcp2_min(bw * interval / scale, limit);
+  }
+
+  /* Splitting both operands at scale leaves a fractional contribution
+     below interval.  Cap the result at the byte count that resets the
+     aggregation interval. */
+  whole = bw / scale;
+  if (whole > limit / interval) {
+    return limit;
+  }
+
+  whole *= interval;
+
+  remainder = bw % scale;
+  fraction =
+    remainder * (interval / scale) + remainder * (interval % scale) / scale;
+
+  return whole + ngtcp2_min(fraction, limit - whole);
+}
+
 static void bbr_update_ack_aggregation(ngtcp2_cc_bbr *bbr,
                                        const ngtcp2_conn_stat *cstat,
                                        const ngtcp2_cc_ack *ack,
                                        ngtcp2_tstamp ts) {
   ngtcp2_duration interval = ts - bbr->extra_acked_interval_start;
-  uint64_t expected_delivered = bbr->bw * interval / NGTCP2_SECONDS;
+  uint64_t expected_delivered =
+    bbr_expected_delivered(bbr->bw, interval, bbr->extra_acked_delivered);
   uint64_t extra;
 
   if (bbr->extra_acked_delivered <= expected_delivered) {
