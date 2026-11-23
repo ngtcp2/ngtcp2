@@ -145,9 +145,3 @@ void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
     rst->first_sent_ts = ent->ts;
   }
 }
-
-void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
-  (void)rst;
-  (void)cstat;
-  /* TODO Not implemented */
-}

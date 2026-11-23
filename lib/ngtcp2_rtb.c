@@ -148,7 +148,6 @@ static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   rtb->cc_bytes_in_flight += ent->pktlen;
 
   ngtcp2_rst_on_pkt_sent(rtb->rst, ent, cstat, has_retained_lost_pkts);
-  ngtcp2_rst_update_app_limited(rtb->rst, cstat);
 
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) {
     ++rtb->num_ack_eliciting;
