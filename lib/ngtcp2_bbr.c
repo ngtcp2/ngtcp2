@@ -1160,9 +1160,9 @@ static void bbr_update_min_rtt(ngtcp2_cc_bbr *bbr, const ngtcp2_cc_ack *ack,
       bbr_bdp_multiple(bbr, NGTCP2_BBR_PROBE_RTT_CWND_GAIN_H);
   }
 
-  if (ack->rtt != UINT64_MAX &&
-      (ack->rtt < bbr->min_rtt || bbr->min_rtt_expired)) {
-    bbr->min_rtt = ack->rtt;
+  if (ack->latest_rtt != UINT64_MAX &&
+      (ack->latest_rtt < bbr->min_rtt || bbr->min_rtt_expired)) {
+    bbr->min_rtt = ack->latest_rtt;
     bbr->min_rtt_stamp = ts;
 
     ngtcp2_log_infof(bbr->cc.log, NGTCP2_LOG_EVENT_CCA,

@@ -42,6 +42,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_rtb_remove_excessive_lost_pkt),
   munit_void_test(test_ngtcp2_rtb_bbr_spurious_loss),
   munit_void_test(test_ngtcp2_rtb_bbr_ecn),
+  munit_void_test(test_ngtcp2_rtb_bbr_rtt),
   munit_test_end(),
 };
 
@@ -893,4 +894,59 @@ void test_ngtcp2_rtb_bbr_ecn(void) {
   check_bbr_ecn_only(NGTCP2_BBR_STATE_STARTUP);
   check_bbr_ecn_only(NGTCP2_BBR_STATE_PROBE_BW_UP);
   check_bbr_ecn_with_loss();
+}
+
+void test_ngtcp2_rtb_bbr_rtt(void) {
+  ngtcp2_conn conn = {0};
+  ngtcp2_pktns *app = &conn.pktns;
+  ngtcp2_conn_stat *cstat = &conn.cstat;
+  ngtcp2_cc_bbr bbr;
+  ngtcp2_pcg32 pcg;
+  ngtcp2_ack_range range = {.len = 1};
+  ngtcp2_ack ack = {
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = 14,
+  };
+  ngtcp2_tstamp ts = 20 * NGTCP2_MILLISECONDS;
+
+  init_bbr_test_conn(&conn, &bbr, &pcg);
+  cstat->min_rtt = UINT64_MAX;
+  add_bbr_test_pkt(&conn, app, 10, 9 * NGTCP2_MILLISECONDS,
+                   NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING);
+  add_bbr_test_pkt(&conn, app, 11, 9500 * NGTCP2_MICROSECONDS,
+                   NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING);
+  add_bbr_test_pkt(&conn, app, 13, 9750 * NGTCP2_MICROSECONDS, 0);
+  add_bbr_test_pkt(&conn, app, 14, 10 * NGTCP2_MILLISECONDS, 0);
+
+  assert_int64(1, ==,
+               ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ts, ts));
+  assert_uint64(UINT64_MAX, ==, bbr.min_rtt);
+  assert_uint64(UINT64_MAX, ==, cstat->min_rtt);
+
+  /* Packet 14 was already acknowledged and packet 13 is not
+     ACK-eliciting.  BBR samples packet 11 in the next ACK range. */
+  ack.first_ack_range = 1;
+  ack.rangecnt = 1;
+  ack.ranges = &range;
+  ts = 24 * NGTCP2_MILLISECONDS;
+
+  assert_int64(3, ==,
+               ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ts, ts));
+  assert_uint64(14500 * NGTCP2_MICROSECONDS, ==, bbr.min_rtt);
+  assert_uint64(UINT64_MAX, ==, cstat->min_rtt);
+
+  /* QUIC samples packet 16 while BBR samples packet 15. */
+  add_bbr_test_pkt(&conn, app, 15, 30 * NGTCP2_MILLISECONDS,
+                   NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING);
+  add_bbr_test_pkt(&conn, app, 16, 31 * NGTCP2_MILLISECONDS, 0);
+  ack.largest_ack = 16;
+  ack.rangecnt = 0;
+  ts = 38 * NGTCP2_MILLISECONDS;
+
+  assert_int64(2, ==,
+               ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ts, ts));
+  assert_uint64(8 * NGTCP2_MILLISECONDS, ==, bbr.min_rtt);
+  assert_uint64(7 * NGTCP2_MILLISECONDS, ==, cstat->latest_rtt);
+
+  free_bbr_test_conn(&conn);
 }

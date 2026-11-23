@@ -112,6 +112,12 @@ typedef struct ngtcp2_cc_ack {
    */
   ngtcp2_duration rtt;
   /**
+   * :member:`latest_rtt` is the RTT of the most recently sent packet
+   * among the newly acknowledged ACK-eliciting packets in the current
+   * congestion control scope.  It is UINT64_MAX if there is no sample.
+   */
+  ngtcp2_duration latest_rtt;
+  /**
    * :member:`ecn_ce` is nonzero if this ACK reports a validated
    * increase in the ECN-CE count.
    */
