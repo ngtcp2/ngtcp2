@@ -294,8 +294,9 @@ static void bbr_handle_recovery(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 
 static void bbr_on_init(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                         ngtcp2_tstamp initial_ts) {
-  ngtcp2_wf_init(&bbr->max_bw_filter, NGTCP2_BBR_MAX_BW_FILTERLEN);
-  ngtcp2_wf_init(&bbr->extra_acked_filter, NGTCP2_BBR_EXTRA_ACKED_FILTERLEN);
+  ngtcp2_wf_init(&bbr->max_bw_filter, NGTCP2_BBR_MAX_BW_FILTERLEN - 1);
+  ngtcp2_wf_init(&bbr->extra_acked_filter,
+                 NGTCP2_BBR_EXTRA_ACKED_FILTERLEN - 1);
 
   bbr->min_rtt =
     cstat->first_rtt_sample_ts == UINT64_MAX ? UINT64_MAX : cstat->smoothed_rtt;
@@ -723,9 +724,9 @@ static void bbr_update_ack_aggregation(ngtcp2_cc_bbr *bbr,
   }
 
   if (bbr->full_bw_reached) {
-    bbr->extra_acked_filter.win = NGTCP2_BBR_EXTRA_ACKED_FILTERLEN;
+    bbr->extra_acked_filter.win = NGTCP2_BBR_EXTRA_ACKED_FILTERLEN - 1;
   } else {
-    bbr->extra_acked_filter.win = 1;
+    bbr->extra_acked_filter.win = 0;
   }
 
   ngtcp2_wf_update(&bbr->extra_acked_filter, extra, bbr->round_count);
