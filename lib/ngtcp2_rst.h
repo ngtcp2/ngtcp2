@@ -71,6 +71,16 @@ typedef struct ngtcp2_rst {
      all packet number spaces, we can replace this with a packet
      number. */
   int64_t pkt_id;
+  /* All packet number spaces share the latest loss recovery episode.
+     Keep its ID across congestion resets because old RTB entries can
+     survive a reset. */
+  uint64_t loss_recovery_id;
+  /* Valid while loss_recovery_undo is set. */
+  size_t loss_recovery_pending;
+  /* loss_recovery_undo is nonzero while the latest loss recovery
+     episode is eligible for spurious-loss undo.  Undo requires
+     loss_recovery_pending to reach zero through acknowledgments. */
+  int loss_recovery_undo;
   int is_cwnd_limited;
   /* reset_ts_next_on_pkt_sent, if nonzero, resets timestamps when
      ngtcp2_rst_on_pkt_sent is called next time. */

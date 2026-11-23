@@ -32,6 +32,7 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_frame_chain.h"
+#include "ngtcp2_bbr.h"
 
 static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_rtb_add),
@@ -39,6 +40,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_rtb_lost_pkt_ts),
   munit_void_test(test_ngtcp2_rtb_remove_expired_lost_pkt),
   munit_void_test(test_ngtcp2_rtb_remove_excessive_lost_pkt),
+  munit_void_test(test_ngtcp2_rtb_bbr_spurious_loss),
   munit_test_end(),
 };
 
@@ -569,4 +571,184 @@ void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
 
   ngtcp2_objalloc_free(&rtb_entry_objalloc);
   ngtcp2_objalloc_free(&frc_objalloc);
+}
+
+typedef enum bbr_loss_resolution {
+  BBR_LOSS_ACKED,
+  BBR_LOSS_ACKED_WITH_NEW_LOSS,
+  BBR_LOSS_EXPIRED,
+  BBR_LOSS_EVICTED,
+  BBR_LOSS_DISCARDED,
+} bbr_loss_resolution;
+
+static void add_bbr_test_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                             int64_t pkt_num, ngtcp2_tstamp ts) {
+  ngtcp2_pkt_hd hd;
+  ngtcp2_rtb_entry *ent;
+  uint8_t type = pktns->id == NGTCP2_PKTNS_ID_HANDSHAKE ? NGTCP2_PKT_HANDSHAKE
+                                                        : NGTCP2_PKT_1RTT;
+
+  ngtcp2_pkt_hd_init(&hd, 0, type, NULL, NULL, pkt_num, 1, 0);
+  assert_int(0, ==,
+             ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, ts, 1200, 0,
+                                           &conn->rtb_entry_objalloc));
+  assert_int(0, ==, ngtcp2_rtb_add(&pktns->rtb, ent, &conn->cstat, 0));
+}
+
+static void check_bbr_spurious_loss(bbr_loss_resolution resolution,
+                                    int plateau) {
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_conn conn = {0};
+  ngtcp2_pktns hs = {
+    .id = NGTCP2_PKTNS_ID_HANDSHAKE,
+  };
+  ngtcp2_pktns *app = &conn.pktns;
+  ngtcp2_conn_stat *cstat = &conn.cstat;
+  ngtcp2_cc_bbr bbr;
+  ngtcp2_pcg32 pcg;
+  ngtcp2_ack ack = {
+    .type = NGTCP2_FRAME_ACK,
+  };
+  ngtcp2_tstamp loss_ts = 20 * NGTCP2_MILLISECONDS;
+  ngtcp2_tstamp ack_ts = 21 * NGTCP2_MILLISECONDS;
+
+  ngtcp2_objalloc_init(&conn.frc_objalloc, 1024, mem);
+  ngtcp2_objalloc_init(&conn.rtb_entry_objalloc, 1024, mem);
+  conn_stat_init(cstat);
+  cstat->congestion_recovery_start_ts = UINT64_MAX;
+  cstat->first_rtt_sample_ts = UINT64_MAX;
+  cstat->smoothed_rtt = 10 * NGTCP2_MILLISECONDS;
+  conn.handshake_confirmed_ts = UINT64_MAX;
+  ngtcp2_rst_init(&conn.rst);
+  ngtcp2_log_init(&conn.log, NULL, NULL, NULL, NULL, 0, NULL);
+  ngtcp2_pcg32_init(&pcg, 0);
+  ngtcp2_cc_bbr_init(&bbr, &conn.log, cstat, &conn.rst, 0, &pcg);
+  app->id = NGTCP2_PKTNS_ID_APPLICATION;
+  ngtcp2_rtb_init(&hs.rtb, &conn.rst, &bbr.cc, 0, &conn.log, NULL,
+                  &conn.rtb_entry_objalloc, &conn.frc_objalloc, mem);
+  ngtcp2_rtb_init(&app->rtb, &conn.rst, &bbr.cc, 0, &conn.log, NULL,
+                  &conn.rtb_entry_objalloc, &conn.frc_objalloc, mem);
+
+  if (plateau) {
+    bbr.full_bw = 1000000;
+    bbr.full_bw_count = 2;
+  } else {
+    bbr.state = NGTCP2_BBR_STATE_PROBE_BW_UP;
+    bbr.full_bw_reached = 1;
+    bbr.check_probe_loss = 1;
+  }
+
+  add_bbr_test_pkt(&conn, &hs, 0, 0);
+  add_bbr_test_pkt(&conn, app, 0, 0);
+
+  hs.rtb.largest_acked_tx_pkt_num = app->rtb.largest_acked_tx_pkt_num = 3;
+
+  assert_int(0, ==,
+             ngtcp2_rtb_detect_lost_pkt(&hs.rtb, &conn, &hs, cstat, loss_ts));
+  assert_int(0, ==,
+             ngtcp2_rtb_detect_lost_pkt(&app->rtb, &conn, app, cstat, loss_ts));
+  assert_size(2, ==, conn.rst.loss_recovery_pending);
+  assert_true(bbr.in_loss_recovery);
+
+  if (plateau) {
+    assert_uint(NGTCP2_BBR_STATE_NONE, ==, bbr.undo_state);
+  } else {
+    assert_uint(NGTCP2_BBR_STATE_PROBE_BW_DOWN, ==, bbr.state);
+    assert_uint(NGTCP2_BBR_STATE_PROBE_BW_UP, ==, bbr.undo_state);
+  }
+
+  switch (resolution) {
+  case BBR_LOSS_ACKED_WITH_NEW_LOSS:
+  case BBR_LOSS_ACKED:
+    assert_int64(
+      1, ==,
+      ngtcp2_rtb_recv_ack(&hs.rtb, &ack, cstat, &conn, &hs, ack_ts, ack_ts));
+    assert_true(bbr.in_loss_recovery);
+    assert_size(1, ==, conn.rst.loss_recovery_pending);
+    break;
+  case BBR_LOSS_EXPIRED:
+    ngtcp2_rtb_remove_expired_lost_pkt(&hs.rtb, ack_ts - loss_ts, cstat,
+                                       ack_ts);
+    break;
+  case BBR_LOSS_EVICTED:
+    ngtcp2_rtb_remove_excessive_lost_pkt(&hs.rtb, 0, cstat, ack_ts);
+    break;
+  case BBR_LOSS_DISCARDED:
+    ngtcp2_rtb_free(&hs.rtb);
+    break;
+  }
+
+  if (plateau) {
+    assert_uint(NGTCP2_BBR_STATE_STARTUP, !=, bbr.state);
+    assert_true(bbr.full_bw_reached);
+  }
+
+  if (resolution == BBR_LOSS_ACKED_WITH_NEW_LOSS) {
+    /* The ACK for packet 0 also declares packet 1 lost. */
+    add_bbr_test_pkt(&conn, app, 1, ack_ts);
+    ack_ts += 20 * NGTCP2_MILLISECONDS;
+  }
+
+  assert_int64(
+    1, ==,
+    ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ack_ts, ack_ts));
+
+  if (resolution == BBR_LOSS_ACKED_WITH_NEW_LOSS) {
+    assert_true(bbr.in_loss_recovery);
+    assert_true(conn.rst.loss_recovery_undo);
+    assert_size(1, ==, conn.rst.loss_recovery_pending);
+
+    /* An ACK for a later transmission ends ordinary recovery. */
+    add_bbr_test_pkt(&conn, app, 4, ack_ts);
+    ack.largest_ack = 4;
+    ++ack_ts;
+
+    assert_int64(
+      1, ==,
+      ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ack_ts, ack_ts));
+    assert_false(bbr.in_loss_recovery);
+    assert_true(conn.rst.loss_recovery_undo);
+
+    /* The late ACK for packet 1 completes the proof. */
+    ack.largest_ack = 1;
+    ++ack_ts;
+
+    assert_int64(
+      1, ==,
+      ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ack_ts, ack_ts));
+  }
+
+  assert_false(conn.rst.loss_recovery_undo);
+
+  if (resolution == BBR_LOSS_ACKED ||
+      resolution == BBR_LOSS_ACKED_WITH_NEW_LOSS) {
+    assert_false(bbr.in_loss_recovery);
+    assert_uint64(UINT64_MAX, ==, bbr.inflight_longterm);
+    if (plateau) {
+      assert_uint(NGTCP2_BBR_STATE_STARTUP, !=, bbr.state);
+      assert_true(bbr.full_bw_reached);
+    } else if (resolution == BBR_LOSS_ACKED) {
+      assert_uint(NGTCP2_BBR_STATE_PROBE_BW_REFILL, ==, bbr.state);
+    }
+  } else {
+    assert_true(bbr.in_loss_recovery);
+    assert_uint64(UINT64_MAX, !=, bbr.inflight_longterm);
+  }
+
+  if (resolution != BBR_LOSS_DISCARDED) {
+    ngtcp2_rtb_free(&hs.rtb);
+  }
+
+  ngtcp2_rtb_free(&app->rtb);
+  ngtcp2_objalloc_free(&conn.rtb_entry_objalloc);
+  ngtcp2_objalloc_free(&conn.frc_objalloc);
+}
+
+void test_ngtcp2_rtb_bbr_spurious_loss(void) {
+  check_bbr_spurious_loss(BBR_LOSS_ACKED, 1);
+  check_bbr_spurious_loss(BBR_LOSS_ACKED, 0);
+  check_bbr_spurious_loss(BBR_LOSS_ACKED_WITH_NEW_LOSS, 0);
+  check_bbr_spurious_loss(BBR_LOSS_EXPIRED, 0);
+  check_bbr_spurious_loss(BBR_LOSS_EVICTED, 0);
+  check_bbr_spurious_loss(BBR_LOSS_DISCARDED, 0);
 }

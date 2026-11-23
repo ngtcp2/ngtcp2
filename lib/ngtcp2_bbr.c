@@ -208,7 +208,7 @@ static void bbr_handle_inflight_too_high(ngtcp2_cc_bbr *bbr,
                                          const ngtcp2_conn_stat *cstat,
                                          const ngtcp2_rs *rs, ngtcp2_tstamp ts);
 
-static void bbr_note_loss(ngtcp2_cc_bbr *bbr, const ngtcp2_conn_stat *cstat);
+static void bbr_note_loss(ngtcp2_cc_bbr *bbr);
 
 static void bbr_save_state_upon_loss(ngtcp2_cc_bbr *bbr,
                                      const ngtcp2_conn_stat *cstat);
@@ -1008,14 +1008,17 @@ static void bbr_handle_inflight_too_high(ngtcp2_cc_bbr *bbr,
   }
 
   if (bbr->state == NGTCP2_BBR_STATE_PROBE_BW_UP) {
+    if (bbr->undo_state == NGTCP2_BBR_STATE_NONE) {
+      bbr->undo_state = NGTCP2_BBR_STATE_PROBE_BW_UP;
+    }
+
     bbr_start_probe_bw_down(bbr, ts);
   }
 }
 
-static void bbr_note_loss(ngtcp2_cc_bbr *bbr, const ngtcp2_conn_stat *cstat) {
+static void bbr_note_loss(ngtcp2_cc_bbr *bbr) {
   if (!bbr->is_loss_in_round) {
     bbr->loss_round_delivered = bbr->rst->delivered;
-    bbr_save_state_upon_loss(bbr, cstat);
   }
 
   bbr->is_loss_in_round = 1;
@@ -1025,7 +1028,7 @@ static void bbr_note_loss(ngtcp2_cc_bbr *bbr, const ngtcp2_conn_stat *cstat) {
 static void bbr_save_state_upon_loss(ngtcp2_cc_bbr *bbr,
                                      const ngtcp2_conn_stat *cstat) {
   bbr_save_cwnd(bbr, cstat);
-  bbr->undo_state = bbr->state;
+  bbr->undo_state = NGTCP2_BBR_STATE_NONE;
   bbr->undo_bw_shortterm = bbr->bw_shortterm;
   bbr->undo_inflight_shortterm = bbr->inflight_shortterm;
   bbr->undo_inflight_longterm = bbr->inflight_longterm;
@@ -1068,7 +1071,7 @@ static void bbr_handle_lost_packet(ngtcp2_cc_bbr *bbr,
                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts) {
   ngtcp2_rs rs = {0};
 
-  bbr_note_loss(bbr, cstat);
+  bbr_note_loss(bbr);
 
   if (!bbr->check_probe_loss) {
     return;
@@ -1398,6 +1401,19 @@ static void bbr_cc_on_pkt_lost(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   bbr_handle_lost_packet(bbr, cstat, pkt, ts);
 }
 
+static int bbr_cc_on_loss_recovery_start(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                         ngtcp2_tstamp sent_ts) {
+  ngtcp2_cc_bbr *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr, cc);
+
+  if (bbr->in_loss_recovery || in_congestion_recovery(cstat, sent_ts)) {
+    return 0;
+  }
+
+  bbr_save_state_upon_loss(bbr, cstat);
+
+  return 1;
+}
+
 static void bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     ngtcp2_tstamp sent_ts,
                                     const ngtcp2_cc_ack *ack,
@@ -1474,6 +1490,7 @@ void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *bbr, ngtcp2_log *log,
       {
         .log = log,
         .on_pkt_lost = bbr_cc_on_pkt_lost,
+        .on_loss_recovery_start = bbr_cc_on_loss_recovery_start,
         .congestion_event = bbr_cc_congestion_event,
         .on_spurious_congestion = bbr_cc_on_spurious_congestion,
         .on_persistent_congestion = bbr_cc_on_persistent_congestion,

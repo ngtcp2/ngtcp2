@@ -134,6 +134,16 @@ typedef void (*ngtcp2_cc_on_pkt_acked)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 typedef void (*ngtcp2_cc_on_pkt_lost)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                       const ngtcp2_cc_pkt *pkt,
                                       ngtcp2_tstamp ts);
+
+/*
+ * on_loss_recovery_start is called before reporting the first
+ * congestion-relevant packet loss in a batch.  |sent_ts| is the send
+ * time used for the batch's congestion event.  Return nonzero to
+ * start tracking a new episode for spurious-loss undo.
+ */
+typedef int (*ngtcp2_cc_on_loss_recovery_start)(ngtcp2_cc *cc,
+                                                ngtcp2_conn_stat *cstat,
+                                                ngtcp2_tstamp sent_ts);
 /**
  * @functypedef
  *
@@ -233,6 +243,7 @@ typedef struct ngtcp2_cc {
    * a packet is lost.
    */
   ngtcp2_cc_on_pkt_lost on_pkt_lost;
+  ngtcp2_cc_on_loss_recovery_start on_loss_recovery_start;
   /**
    * :member:`congestion_event` is a callback function which is called
    * when congestion event happens (e.g., packet is lost).

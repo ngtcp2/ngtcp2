@@ -107,6 +107,9 @@ struct ngtcp2_rtb_entry {
       /* lost_ts is the time when this entry is declared to be
          lost. */
       ngtcp2_tstamp lost_ts;
+      /* loss_recovery_id is zero if this loss is not tracked for
+         spurious-loss undo. */
+      uint64_t loss_recovery_id;
       /* pktlen is the length of QUIC packet */
       size_t pktlen;
       struct {

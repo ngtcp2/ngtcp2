@@ -41,6 +41,7 @@ void ngtcp2_rs_init(ngtcp2_rs *rs) {
 
 void ngtcp2_rst_init(ngtcp2_rst *rst) {
   rst->pkt_id = -1;
+  rst->loss_recovery_id = 0;
   ngtcp2_rst_reset(rst);
 }
 
@@ -52,6 +53,8 @@ void ngtcp2_rst_reset(ngtcp2_rst *rst) {
   rst->app_limited = 0;
   rst->is_cwnd_limited = 0;
   rst->lost = 0;
+  rst->loss_recovery_pending = 0;
+  rst->loss_recovery_undo = 0;
   rst->reset_ts_next_on_pkt_sent = 1;
 }
 
