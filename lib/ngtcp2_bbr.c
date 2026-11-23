@@ -512,6 +512,11 @@ static void bbr_update_model_and_state(ngtcp2_cc_bbr *bbr,
   bbr_check_startup_done(bbr);
   bbr_check_drain_done(bbr, cstat, ts);
   bbr_update_probe_bw_cycle_phase(bbr, cstat, ack, ts);
+
+  if (bbr->round_start) {
+    bbr->rst->is_cwnd_limited = 0;
+  }
+
   bbr_update_min_rtt(bbr, ack, ts);
   bbr_check_probe_rtt(bbr, cstat, ts);
   bbr_advance_latest_delivery_signals(bbr, cstat);
@@ -625,8 +630,6 @@ static void bbr_update_round(ngtcp2_cc_bbr *bbr, const ngtcp2_cc_ack *ack) {
     bbr->round_start = 1;
 
     bbr->bytes_lost_in_round = 0;
-
-    bbr->rst->is_cwnd_limited = 0;
 
     return;
   }
