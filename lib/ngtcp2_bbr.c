@@ -1422,8 +1422,8 @@ static void bbr_handle_recovery(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
     return;
   }
 
-  if (ack->largest_pkt_sent_ts != UINT64_MAX &&
-      !in_congestion_recovery(cstat, ack->largest_pkt_sent_ts)) {
+  if (ack->latest_acked_pkt_sent_ts != UINT64_MAX &&
+      !in_congestion_recovery(cstat, ack->latest_acked_pkt_sent_ts)) {
     bbr->in_loss_recovery = 0;
     bbr->round_count_at_recovery = UINT64_MAX;
     bbr_restore_cwnd(bbr, cstat);

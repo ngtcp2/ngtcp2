@@ -43,6 +43,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_rtb_bbr_spurious_loss),
   munit_void_test(test_ngtcp2_rtb_bbr_ecn),
   munit_void_test(test_ngtcp2_rtb_bbr_rtt),
+  munit_void_test(test_ngtcp2_rtb_bbr_recovery_exit),
   munit_test_end(),
 };
 
@@ -947,6 +948,54 @@ void test_ngtcp2_rtb_bbr_rtt(void) {
                ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ts, ts));
   assert_uint64(8 * NGTCP2_MILLISECONDS, ==, bbr.min_rtt);
   assert_uint64(7 * NGTCP2_MILLISECONDS, ==, cstat->latest_rtt);
+
+  free_bbr_test_conn(&conn);
+}
+
+void test_ngtcp2_rtb_bbr_recovery_exit(void) {
+  ngtcp2_conn conn = {0};
+  ngtcp2_pktns *app = &conn.pktns;
+  ngtcp2_conn_stat *cstat = &conn.cstat;
+  ngtcp2_cc_bbr bbr;
+  ngtcp2_pcg32 pcg;
+  ngtcp2_ack ack = {
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = 3,
+  };
+  ngtcp2_tstamp ts = 20 * NGTCP2_MILLISECONDS;
+
+  init_bbr_test_conn(&conn, &bbr, &pcg);
+  add_bbr_test_pkt(&conn, app, 0, 0, NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING);
+  add_bbr_test_pkt(&conn, app, 1, 10 * NGTCP2_MILLISECONDS,
+                   NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING);
+  add_bbr_test_pkt(&conn, app, 3, 11 * NGTCP2_MILLISECONDS,
+                   NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING);
+
+  /* Acknowledging packet 3 declares packet 0 lost and starts recovery. */
+  assert_int64(1, ==,
+               ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ts, ts));
+  assert_size(1, ==, app->rtb.num_lost_pkts);
+  assert_true(bbr.in_loss_recovery);
+
+  /* Packet 1 was sent before recovery and cannot end it. */
+  ack.largest_ack = 1;
+  ts = 21 * NGTCP2_MILLISECONDS;
+
+  assert_int64(1, ==,
+               ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ts, ts));
+  assert_true(bbr.in_loss_recovery);
+
+  /* Packet 4 was sent during recovery.  Packet 5 is untracked. */
+  add_bbr_test_pkt(&conn, app, 4, 22 * NGTCP2_MILLISECONDS, 0);
+  ack.largest_ack = 5;
+  ack.first_ack_range = 1;
+  ts = 32 * NGTCP2_MILLISECONDS;
+
+  assert_int64(1, ==,
+               ngtcp2_rtb_recv_ack(&app->rtb, &ack, cstat, &conn, app, ts, ts));
+  assert_size(1, ==, app->rtb.num_lost_pkts);
+  assert_false(bbr.in_loss_recovery);
+  assert_uint64(UINT64_MAX, ==, bbr.round_count_at_recovery);
 
   free_bbr_test_conn(&conn);
 }

@@ -107,6 +107,12 @@ typedef struct ngtcp2_cc_ack {
    */
   ngtcp2_tstamp largest_pkt_sent_ts;
   /**
+   * :member:`latest_acked_pkt_sent_ts` is the latest send time among
+   * newly acknowledged packets in the current congestion control
+   * scope.  It is UINT64_MAX if there is no such packet.
+   */
+  ngtcp2_tstamp latest_acked_pkt_sent_ts;
+  /**
    * :member:`rtt` is the RTT sample.  It is UINT64_MAX if no RTT
    * sample is available.
    */
