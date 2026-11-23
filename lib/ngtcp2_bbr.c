@@ -490,8 +490,15 @@ static void bbr_on_transmit(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
 
 static void bbr_update_on_ack(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat,
                               const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
-  bbr_update_model_and_state(bbr, cstat, ack, ts);
-  bbr_update_control_parameters(bbr, cstat, ack);
+  if (ack->bytes_delivered) {
+    bbr_update_model_and_state(bbr, cstat, ack, ts);
+  }
+
+  bbr_handle_recovery(bbr, cstat, ack);
+
+  if (ack->bytes_delivered) {
+    bbr_update_control_parameters(bbr, cstat, ack);
+  }
 }
 
 static void bbr_update_model_and_state(ngtcp2_cc_bbr *bbr,
@@ -1438,12 +1445,6 @@ static void bbr_cc_on_persistent_congestion(ngtcp2_cc *cc,
 static void bbr_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   ngtcp2_cc_bbr *bbr = ngtcp2_struct_of(cc, ngtcp2_cc_bbr, cc);
-
-  bbr_handle_recovery(bbr, cstat, ack);
-
-  if (ack->bytes_delivered == 0) {
-    return;
-  }
 
   bbr_update_on_ack(bbr, cstat, ack, ts);
 }
