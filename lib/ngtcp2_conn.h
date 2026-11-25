@@ -348,6 +348,8 @@ struct ngtcp2_conn {
   ngtcp2_cid retry_scid;
   /* hs_local_addr is a local address used during handshake. */
   ngtcp2_sockaddr_union hs_local_addr;
+  /* hs_remote_addr is a remote address used during handshake. */
+  ngtcp2_sockaddr_union hs_remote_addr;
   ngtcp2_pktns *in_pktns;
   ngtcp2_pktns *hs_pktns;
   ngtcp2_pktns pktns;

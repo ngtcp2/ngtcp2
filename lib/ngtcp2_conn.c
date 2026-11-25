@@ -1496,6 +1496,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   memcpy(&(*pconn)->hs_local_addr, path->local.addr,
          (size_t)path->local.addrlen);
 
+  assert((size_t)path->remote.addrlen <= sizeof((*pconn)->hs_remote_addr));
+
+  memcpy(&(*pconn)->hs_remote_addr, path->remote.addr,
+         (size_t)path->remote.addrlen);
+
   rv = ngtcp2_gaptr_push(&(*pconn)->dcid.seqgap, 0, 1);
   if (rv != 0) {
     goto fail_seqgap_push;
@@ -10634,10 +10639,22 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
     return 0;
   }
 
-  /* client does not expect a packet from unknown path. */
-  if (!conn->server && !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
-      (!conn->pv || !ngtcp2_path_eq(&conn->pv->dcid.ps.path, path)) &&
-      !ngtcp2_dcidtr_check_path_retired(&conn->dcid.dtr, path)) {
+  /* client does not expect a packet from unknown server address (RFC
+     9000 Section 9).  The local address does not matter because
+     server might still be sending packets to the address that client
+     has left.  The server address used during handshake is never
+     unknown.  After client migrates to server's preferred address,
+     server keeps sending non-probing packets from its original
+     address until it validates the new path (RFC 9000 Section 9.6.2),
+     which may take much longer than the retired Destination
+     Connection ID bound to the handshake path is kept. */
+  if (!conn->server &&
+      !ngtcp2_addr_eq(&conn->dcid.current.ps.path.remote, &path->remote) &&
+      (!conn->pv ||
+       !ngtcp2_addr_eq(&conn->pv->dcid.ps.path.remote, &path->remote)) &&
+      !ngtcp2_dcidtr_check_path_retired(&conn->dcid.dtr, path) &&
+      !ngtcp2_sockaddr_eq((const ngtcp2_sockaddr *)&conn->hs_remote_addr,
+                          path->remote.addr)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "ignore packet from unknown path");
     ++conn->cstat.pkt_discarded;
