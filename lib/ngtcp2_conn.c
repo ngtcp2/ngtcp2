@@ -2482,6 +2482,9 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain *frc,
  * packet.  |crypto_offset| is the next smallest CRYPTO offset.
  * |crypto_strm| is the CRYPTO stream.
  *
+ * If there is too many vectors in CRYPTO frame, this function returns
+ * 0 and clears NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO.
+ *
  * This function returns the number of objects written to |data| and
  * |offsets|, or one of the following negative error codes:
  *
@@ -2524,6 +2527,12 @@ conn_crumble_initial_crypto(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
   }
 
   if (*pfrc == NULL) {
+    return 0;
+  }
+
+  if ((*pfrc)->fr.stream.datacnt > max_add_frames) {
+    /* Too many vectors */
+    conn->flags &= ~NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO;
     return 0;
   }
 
@@ -2742,35 +2751,45 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
         }
 
         if (datacnt == 0) {
-          break;
-        }
-
-        for (i = 0; i < (size_t)datacnt; ++i) {
-          if (data[i].base == NULL) {
-            if (data[i].len == 0) {
-              lfr.ping.type = NGTCP2_FRAME_PING;
-            } else {
-              lfr.padding = (ngtcp2_padding){
-                .type = NGTCP2_FRAME_PADDING,
-                .len = data[i].len,
-              };
-            }
-          } else {
-            lfr.stream = (ngtcp2_stream){
-              .type = NGTCP2_FRAME_CRYPTO,
-              .offset = offsets[i],
-              .datacnt = 1,
-              .data = &data[i],
-            };
+          if (conn->flags & NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO) {
+            break;
           }
 
-          rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
+          rv =
+            conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &nfrc->fr);
           if (rv != 0) {
             ngtcp2_unreachable();
           }
-        }
 
-        conn->frame_counts.crypto += (size_t)datacnt;
+          ++conn->frame_counts.crypto;
+        } else {
+          for (i = 0; i < (size_t)datacnt; ++i) {
+            if (data[i].base == NULL) {
+              if (data[i].len == 0) {
+                lfr.ping.type = NGTCP2_FRAME_PING;
+              } else {
+                lfr.padding = (ngtcp2_padding){
+                  .type = NGTCP2_FRAME_PADDING,
+                  .len = data[i].len,
+                };
+              }
+            } else {
+              lfr.stream = (ngtcp2_stream){
+                .type = NGTCP2_FRAME_CRYPTO,
+                .offset = offsets[i],
+                .datacnt = 1,
+                .data = &data[i],
+              };
+            }
+
+            rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
+            if (rv != 0) {
+              ngtcp2_unreachable();
+            }
+          }
+
+          conn->frame_counts.crypto += (size_t)datacnt;
+        }
       } else {
         left = ngtcp2_pkt_crypto_max_datalen(crypto_offset, left, left);
         if (left == (size_t)-1) {

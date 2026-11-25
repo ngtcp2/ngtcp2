@@ -448,3 +448,7 @@ size_t ngtcp2_tpe_write_1rtt(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
   return write_short_pkt(out, outlen, tpe->flags, &tpe->dcid,
                          ++tpe->app.last_pkt_num, fr, frlen, tpe->app.ckm);
 }
+
+size_t ngtcp2_pkt_numlen(const uint8_t *pkt) {
+  return (pkt[0] & NGTCP2_PKT_NUMLEN_MASK) + 1;
+}
