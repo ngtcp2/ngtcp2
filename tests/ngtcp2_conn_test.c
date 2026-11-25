@@ -20728,6 +20728,29 @@ void test_ngtcp2_conn_amplification(void) {
   assert_int(0, ==, rv);
   assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
   assert_size(1, ==, conn->in_pktns->rtb.probe_pkt_left);
+  assert_size(1, ==, conn->cstat.pto_count);
+
+  /* PTO backoff must be kept when loss detection timer is canceled
+     due to amplification limit because packets are still in
+     flight. */
+  rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                      null_data, sizeof(null_data));
+
+  assert_int(0, ==, rv);
+
+  for (;;) {
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+    if (spktlen == 0) {
+      break;
+    }
+
+    assert_ptrdiff(0, <, spktlen);
+  }
+
+  assert_size(0, <, conn->in_pktns->rtb.num_pto_eliciting);
+  assert_uint64(UINT64_MAX, ==, ngtcp2_conn_loss_detection_expiry(conn));
+  assert_size(1, ==, conn->cstat.pto_count);
 
   ngtcp2_conn_del(conn);
 
@@ -20780,6 +20803,45 @@ void test_ngtcp2_conn_amplification(void) {
   assert_int(0, ==, rv);
   assert_false(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
   assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
+
+  /* PTO backoff must be kept when loss detection timer is canceled
+     due to amplification limit because packets are still in
+     flight. */
+  t = ngtcp2_conn_loss_detection_expiry(conn);
+
+  rv = ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, conn->cstat.pto_count);
+  assert_size(2, ==, conn->pktns.rtb.probe_pkt_left);
+
+  for (;;) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                       NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                       null_data, 1024, ++t);
+
+    if (spktlen == 0) {
+      break;
+    }
+
+    assert_ptrdiff(0, <, spktlen);
+  }
+
+  assert_uint64(conn->dcid.current.bytes_recv * 3, ==,
+                conn->dcid.current.bytes_sent);
+  assert_size(0, <, conn->pktns.rtb.num_pto_eliciting);
+  assert_uint64(UINT64_MAX, ==, ngtcp2_conn_loss_detection_expiry(conn));
+  assert_size(1, ==, conn->cstat.pto_count);
+
+  /* PTO backoff is still in effect when the timer is re-armed. */
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_nat_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_false(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED);
+  assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
+  assert_size(1, ==, conn->cstat.pto_count);
 
   ngtcp2_conn_del(conn);
 }
