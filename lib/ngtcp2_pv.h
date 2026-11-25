@@ -88,6 +88,8 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent,
    Destination Connection ID from being retired. */
 #define NGTCP2_PV_FLAG_DONT_RETIRE_FALLBACK 0x20U
 
+#define NGTCP2_PV_FLAG_DONT_RETIRE_DCID 0x40U
+
 typedef struct ngtcp2_pv ngtcp2_pv;
 
 ngtcp2_static_ringbuf_def(pv_ents, NGTCP2_PV_MAX_ENTRIES,

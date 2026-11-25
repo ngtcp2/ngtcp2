@@ -64,6 +64,9 @@ typedef struct ngtcp2_scid {
 /* NGTCP2_DCID_FLAG_TOKEN_PRESENT indicates that a stateless reset
    token is set in token field. */
 #define NGTCP2_DCID_FLAG_TOKEN_PRESENT 0x02U
+/* NGTCP2_DCID_FLAG_ACTIVATED indicates that the Destination
+   Connection ID has been activated. */
+#define NGTCP2_DCID_FLAG_ACTIVATED 0x4U
 
 typedef struct ngtcp2_dcid {
   /* seq is the sequence number associated to the Connection ID. */
@@ -193,5 +196,8 @@ typedef struct ngtcp2_path_history_entry {
  */
 void ngtcp2_dcid_apply_validated_path(ngtcp2_dcid *dcid,
                                       const ngtcp2_path_history_entry *ent);
+
+void ngtcp2_cid_token2_from_dcid(ngtcp2_cid_token2 *dest,
+                                 const ngtcp2_dcid *src);
 
 #endif /* !defined(NGTCP2_CID_H) */

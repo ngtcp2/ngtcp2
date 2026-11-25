@@ -64,8 +64,7 @@ typedef struct ngtcp2_dcidtr {
      a remote endpoint.  They are considered inactive. */
   ngtcp2_static_ringbuf_dcid_unused unused;
   /* bound is a set of Destination Connection IDs which are bound to
-     particular paths.  These paths are not validated yet.  They are
-     considered inactive. */
+     particular paths.  These paths may be validated and/or active. */
   ngtcp2_static_ringbuf_dcid_bound bound;
   /* retired is a set of Destination Connection ID retired by local
      endpoint.  Keep them in 3*PTO to catch packets in flight along
@@ -81,7 +80,7 @@ typedef struct ngtcp2_dcidtr {
   } retire_unacked;
 } ngtcp2_dcidtr;
 
-typedef int (*ngtcp2_dcidtr_cb)(const ngtcp2_dcid *dcid, void *user_data);
+typedef int (*ngtcp2_dcidtr_cb)(ngtcp2_dcid *dcid, void *user_data);
 
 /*
  * ngtcp2_dcidtr_init initializes |dtr|.
@@ -245,6 +244,10 @@ void ngtcp2_dcidtr_clear_retired_dcid(ngtcp2_dcidtr *dtr);
 int ngtcp2_dcidtr_pop_bound_dcid(ngtcp2_dcidtr *dtr, ngtcp2_dcid *dest,
                                  const ngtcp2_path *path);
 
+int ngtcp2_dcidtr_push_bound_dcid(ngtcp2_dcidtr *dtr, const ngtcp2_dcid *dcid,
+                                  ngtcp2_tstamp ts, ngtcp2_dcidtr_cb on_retire,
+                                  void *user_data);
+
 /*
  * ngtcp2_dcidtr_earliest_bound_ts returns earliest timestamp when a
  * Destination Connection ID is bound.  If there is no bound
@@ -303,6 +306,11 @@ size_t ngtcp2_dcidtr_unused_len(const ngtcp2_dcidtr *dtr);
  * Connection ID.
  */
 size_t ngtcp2_dcidtr_bound_len(const ngtcp2_dcidtr *dtr);
+
+size_t ngtcp2_dcidtr_activated_bound_len(const ngtcp2_dcidtr *dtr);
+
+size_t ngtcp2_dcidtr_get_activated_bound_dcid(const ngtcp2_dcidtr *dtr,
+                                              ngtcp2_cid_token2 *dest);
 
 /*
  * ngtcp2_dcidtr_retired_len returns the number of retired Destination
