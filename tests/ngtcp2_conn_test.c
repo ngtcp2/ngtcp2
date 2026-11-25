@@ -7340,6 +7340,7 @@ void test_ngtcp2_conn_cancel_retransmission(void) {
   conn_options opts;
   uint8_t buf[2048];
   int64_t stream_id;
+  int64_t stream_id2;
   size_t pktlen;
   int rv;
 
@@ -7980,6 +7981,180 @@ void test_ngtcp2_conn_cancel_retransmission(void) {
 
   assert_ptrdiff(0, ==, spktlen);
   assert_true(ngtcp2_strm_streamfrq_empty(&conn->in_pktns->crypto.strm));
+
+  ngtcp2_conn_del(conn);
+
+  /* 0 length STREAM frame with fin is queued for retransmission, and
+     then acknowledged by late ACK.  It must not block the other
+     stream. */
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_streams_bidi = 2;
+
+  opts = (conn_options){
+    .remote_params = &remote_params,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  t = 0;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id2, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &ndatalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 100, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(100, ==, ndatalen);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &ndatalen, NGTCP2_WRITE_STREAM_FLAG_FIN,
+                                     stream_id, NULL, 0, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(0, ==, ndatalen);
+
+  t += 4 * NGTCP2_MILLISECONDS;
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &ndatalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id2, null_data, 100, t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(100, ==, ndatalen);
+
+  fr[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_size(2, ==, ngtcp2_ksl_len(strm->tx.streamfrq));
+  assert_true(ngtcp2_strm_is_tx_queued(strm));
+
+  fr[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+    .first_ack_range = 2,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED);
+  assert_uint64((uint64_t)-1, ==, ngtcp2_strm_streamfrq_unacked_offset(strm));
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &ndatalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id2, null_data, 100, t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(100, ==, ndatalen);
+  assert_true(ngtcp2_strm_streamfrq_empty(strm));
+  assert_false(ngtcp2_strm_is_tx_queued(strm));
+
+  ngtcp2_conn_del(conn);
+
+  /* 0 length STREAM frame without fin is queued for retransmission,
+     and then acknowledged by late ACK.  It must not block the other
+     stream. */
+  client_default_remote_transport_params(&remote_params);
+  remote_params.initial_max_streams_bidi = 2;
+
+  opts = (conn_options){
+    .remote_params = &remote_params,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+  t = 0;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id2, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &ndatalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, NULL, 0, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(0, ==, ndatalen);
+
+  t += 4 * NGTCP2_MILLISECONDS;
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &ndatalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id2, null_data, 100, t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(100, ==, ndatalen);
+
+  fr[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  t += 30 * NGTCP2_MILLISECONDS;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  assert_size(1, ==, ngtcp2_ksl_len(strm->tx.streamfrq));
+  assert_true(ngtcp2_strm_is_tx_queued(strm));
+  assert_uint64(0, ==, ngtcp2_strm_streamfrq_unacked_offset(strm));
+
+  fr[0].ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+    .first_ack_range = 1,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, t);
+
+  assert_int(0, ==, rv);
+  assert_true(strm->flags & NGTCP2_STRM_FLAG_ANY_ACKED);
+  assert_uint64((uint64_t)-1, ==, ngtcp2_strm_streamfrq_unacked_offset(strm));
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &ndatalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id2, null_data, 100, t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(100, ==, ndatalen);
+  assert_true(ngtcp2_strm_streamfrq_empty(strm));
+  assert_false(ngtcp2_strm_is_tx_queued(strm));
 
   ngtcp2_conn_del(conn);
 }

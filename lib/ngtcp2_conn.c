@@ -4295,7 +4295,16 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         }
 
         if (nfrc == NULL) {
-          /* TODO Why? */
+          if (ngtcp2_strm_streamfrq_empty(strm)) {
+            /* All remaining frames have been acknowledged, and
+               ngtcp2_strm_streamfrq_pop deleted them.  Remove strm
+               from the queue; otherwise it blocks the other streams
+               and new stream data. */
+            ngtcp2_conn_tx_strmq_pop(conn);
+            continue;
+          }
+
+          /* The space left is too small for the next frame. */
           break;
         }
 
