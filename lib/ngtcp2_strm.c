@@ -122,8 +122,14 @@ uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm) {
    NGTCP2_MIN_STREAM_DATALEN bytes of that range. */
 static int strm_rob_heavily_fragmented(const ngtcp2_strm *strm) {
   size_t ngap = ngtcp2_ksl_len(&strm->rx.rob->gapksl);
-  uint64_t rx_offset = ngtcp2_rob_first_gap_offset(strm->rx.rob);
+  uint64_t rx_offset;
   uint64_t span;
+
+  if (ngap <= 128) {
+    return 0;
+  }
+
+  rx_offset = ngtcp2_rob_first_gap_offset(strm->rx.rob);
 
   assert(strm->rx.last_offset >= rx_offset);
 
@@ -160,13 +166,21 @@ ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
   return nwrite;
 }
 
-void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset) {
+int ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset) {
   if (strm->rx.rob == NULL) {
     strm->rx.cont_offset = offset;
-    return;
+    return 0;
   }
 
   ngtcp2_rob_remove_prefix(strm->rx.rob, offset);
+
+  /* Advancing the read offset shrinks the range that backs the
+     remaining gaps. */
+  if (strm_rob_heavily_fragmented(strm)) {
+    return NGTCP2_ERR_INTERNAL;
+  }
+
+  return 0;
 }
 
 void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags) {
