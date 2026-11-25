@@ -342,7 +342,6 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
 
       rv = ngtcp2_strm_streamfrq_push(&pktns->crypto.strm, nfrc);
       if (rv != 0) {
-        assert(ngtcp2_err_is_fatal(rv));
         ngtcp2_frame_chain_objalloc_del(nfrc, rtb->frc_objalloc, rtb->mem);
         return rv;
       }
@@ -1481,7 +1480,6 @@ static int rtb_reclaim_frame_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
       rv = ngtcp2_strm_streamfrq_push(&pktns->crypto.strm, frc);
       if (rv != 0) {
-        assert(ngtcp2_err_is_fatal(rv));
         ngtcp2_frame_chain_objalloc_del(frc, rtb->frc_objalloc, rtb->mem);
         return rv;
       }

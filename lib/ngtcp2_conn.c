@@ -2374,6 +2374,8 @@ static uint8_t conn_pkt_flags_short(const ngtcp2_conn *conn) {
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
+ * NGTCP2_ERR_INTERNAL
+ *     Too many frames are queued for retransmission.
  */
 static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain *frc,
                                  ngtcp2_strm *crypto_strm,
@@ -2480,6 +2482,8 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain *frc,
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
+ * NGTCP2_ERR_INTERNAL
+ *     Too many frames are queued for retransmission.
  */
 static ngtcp2_ssize
 conn_crumble_initial_crypto(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
@@ -2726,7 +2730,6 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
         datacnt = conn_crumble_initial_crypto(
           conn, &nfrc, data, offsets, &pktns->crypto.strm, left, crypto_offset);
         if (datacnt < 0) {
-          assert(ngtcp2_err_is_fatal((int)datacnt));
           ngtcp2_frame_chain_list_objalloc_del(frq, &conn->frc_objalloc,
                                                conn->mem);
 

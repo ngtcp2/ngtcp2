@@ -270,6 +270,8 @@ void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags);
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
+ * NGTCP2_ERR_INTERNAL
+ *     Too many frames are queued for retransmission.
  */
 int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm, ngtcp2_frame_chain *frc);
 
