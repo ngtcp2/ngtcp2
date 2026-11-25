@@ -21,7 +21,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-add_definitions(-DBUILDING_NGTCP2)
+add_compile_definitions(-DBUILDING_NGTCP2)
 
 set(ngtcp2_crypto_wolfssl_SOURCES
   wolfssl.c
@@ -29,14 +29,10 @@ set(ngtcp2_crypto_wolfssl_SOURCES
 )
 
 set(ngtcp2_crypto_wolfssl_INCLUDE_DIRS
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../lib/includes"
-  "${CMAKE_CURRENT_BINARY_DIR}/../../lib/includes"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../crypto/includes"
-  "${CMAKE_CURRENT_BINARY_DIR}/../../crypto/includes"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../crypto"
-  "${CMAKE_CURRENT_BINARY_DIR}/../../crypto"
-  "${WOLFSSL_INCLUDE_DIRS}"
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../includes>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../lib>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 foreach(name libngtcp2_crypto_wolfssl.pc)
@@ -55,9 +51,10 @@ if(ENABLE_SHARED_LIB)
   )
   target_include_directories(ngtcp2_crypto_wolfssl PUBLIC
     ${ngtcp2_crypto_wolfssl_INCLUDE_DIRS})
-  target_link_libraries(ngtcp2_crypto_wolfssl ngtcp2 ${WOLFSSL_LIBRARIES})
+  target_link_libraries(ngtcp2_crypto_wolfssl PUBLIC ngtcp2 ${WOLFSSL_LINK_TARGET})
 
   install(TARGETS ngtcp2_crypto_wolfssl
+    EXPORT ${NGTCP2_TARGETS_EXPORT_NAME}
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
@@ -71,12 +68,14 @@ if(ENABLE_STATIC_LIB)
     ARCHIVE_OUTPUT_NAME ngtcp2_crypto_wolfssl${STATIC_LIB_SUFFIX}
     C_VISIBILITY_PRESET hidden
   )
-  target_compile_definitions(ngtcp2_crypto_wolfssl_static PUBLIC
-    "-DNGTCP2_STATICLIB")
   target_include_directories(ngtcp2_crypto_wolfssl_static PUBLIC
     ${ngtcp2_crypto_wolfssl_INCLUDE_DIRS})
+  # There is no linking for static lib, but it brings required include paths
+  # and compile definitions from dependencies
+  target_link_libraries(ngtcp2_crypto_wolfssl_static PUBLIC ngtcp2_static ${WOLFSSL_LINK_TARGET})
 
   install(TARGETS ngtcp2_crypto_wolfssl_static
+    EXPORT ${NGTCP2_TARGETS_EXPORT_NAME}
     DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif()
 
