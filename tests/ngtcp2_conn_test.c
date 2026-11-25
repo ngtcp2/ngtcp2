@@ -1228,7 +1228,8 @@ static void setup_default_server_with_options(ngtcp2_conn **pconn,
   (*pconn)->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED |
                      NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
-                     NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+                     NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED |
+                     NGTCP2_CONN_FLAG_DCID_STATUS_STARTED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   conn_set_scid_used(*pconn);
 
@@ -1321,7 +1322,8 @@ static void setup_default_client_with_options(ngtcp2_conn **pconn,
   (*pconn)->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED |
                      NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
-                     NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+                     NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED |
+                     NGTCP2_CONN_FLAG_DCID_STATUS_STARTED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   conn_set_scid_used(*pconn);
 
@@ -12545,7 +12547,19 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
               NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE, ==,
               ud.dcid_status.type);
   assert_uint64(1, ==, ud.dcid_status.seq);
-  assert_size(2, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+
+  /* The Destination Connection ID retired before handshake completes
+     has never been activated, and is not deactivated. */
+  assert_size(0, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+
+  t += 3 * ngtcp2_conn_get_pto2(conn);
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ud.dcid_status.ncalled);
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
 
   ngtcp2_conn_del(conn);
 
@@ -12612,7 +12626,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_enum(ngtcp2_conn_state, NGTCP2_CS_CLIENT_WAIT_HANDSHAKE, ==,
               conn->state);
   assert_uint64(1, ==, conn->dcid.current.seq);
-  assert_size(2, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(0, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
   assert_size(0, ==, ud.dcid_status.ncalled);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -12624,7 +12638,19 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
               NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE, ==,
               ud.dcid_status.type);
   assert_uint64(1, ==, ud.dcid_status.seq);
-  assert_size(2, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+
+  /* The Destination Connection ID retired before handshake completes
+     has never been activated, and is not deactivated. */
+  assert_size(0, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+
+  t += 3 * ngtcp2_conn_get_pto2(conn);
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+  assert_size(1, ==, ud.dcid_status.ncalled);
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
 
   ngtcp2_conn_del(conn);
 

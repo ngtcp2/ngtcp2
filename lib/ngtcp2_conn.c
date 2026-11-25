@@ -505,11 +505,7 @@ static int conn_call_dcid_status(ngtcp2_conn *conn,
                                  const ngtcp2_dcid *dcid) {
   int rv;
 
-  switch (conn->state) {
-  case NGTCP2_CS_CLIENT_INITIAL:
-  case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
-  case NGTCP2_CS_SERVER_INITIAL:
-  case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
+  if (!(conn->flags & NGTCP2_CONN_FLAG_DCID_STATUS_STARTED)) {
     /* The current Destination Connection ID is activated when
        handshake completes.  Until then, ngtcp2_conn_get_active_dcid3
        returns nothing, and an application which closes the connection
@@ -517,8 +513,6 @@ static int conn_call_dcid_status(ngtcp2_conn *conn,
        NEW_CONNECTION_ID frame in 0-RTT or 0.5-RTT packet made a local
        endpoint use. */
     return 0;
-  default:
-    break;
   }
 
   if (conn->callbacks.dcid_status2) {
@@ -551,6 +545,28 @@ static int conn_call_deactivate_dcid(ngtcp2_conn *conn,
                                      const ngtcp2_dcid *dcid) {
   return conn_call_dcid_status(
     conn, NGTCP2_CONNECTION_ID_STATUS_TYPE_DEACTIVATE, dcid);
+}
+
+/*
+ * conn_start_dcid_status starts notifying an application of the
+ * status of Destination Connection ID by activating the current
+ * Destination Connection ID.  It is called when handshake completes.
+ * Destination Connection IDs that have been retired by then are
+ * removed because they have never been activated, and thus must not
+ * be deactivated.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed.
+ */
+static int conn_start_dcid_status(ngtcp2_conn *conn) {
+  ngtcp2_dcidtr_clear_retired_dcid(&conn->dcid.dtr);
+
+  conn->flags |= NGTCP2_CONN_FLAG_DCID_STATUS_STARTED;
+
+  return conn_call_activate_dcid(conn, &conn->dcid.current);
 }
 
 static int conn_call_stream_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
@@ -10652,7 +10668,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
-    rv = conn_call_activate_dcid(conn, &conn->dcid.current);
+    rv = conn_start_dcid_status(conn);
     if (rv != 0) {
       return rv;
     }
@@ -11097,7 +11113,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       ngtcp2_dcid_set_token(&conn->dcid.current, &token);
     }
 
-    rv = conn_call_activate_dcid(conn, &conn->dcid.current);
+    rv = conn_start_dcid_status(conn);
     if (rv != 0) {
       return rv;
     }
@@ -14221,7 +14237,7 @@ size_t ngtcp2_conn_get_active_dcid3(const ngtcp2_conn *conn,
   const ngtcp2_dcid *dcid;
   size_t len, i;
 
-  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+  if (!(conn->flags & NGTCP2_CONN_FLAG_DCID_STATUS_STARTED)) {
     return 0;
   }
 
