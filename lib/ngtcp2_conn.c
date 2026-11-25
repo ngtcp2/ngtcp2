@@ -3989,6 +3989,15 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         break;
       case NGTCP2_FRAME_CRYPTO:
         ngtcp2_unreachable();
+      case NGTCP2_FRAME_NEW_TOKEN:
+        if ((*pfrc)->fr.new_token.seq + NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES <
+            conn->tx.token.next_seq) {
+          frc = *pfrc;
+          *pfrc = (*pfrc)->next;
+          ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
+          continue;
+        }
+        break;
       }
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &(*pfrc)->fr);
@@ -14042,6 +14051,7 @@ int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn, const uint8_t *token,
     return rv;
   }
 
+  nfrc->fr.new_token.seq = conn->tx.token.next_seq++;
   nfrc->next = conn->pktns.tx.frq;
   conn->pktns.tx.frq = nfrc;
 

@@ -22222,9 +22222,11 @@ void test_ngtcp2_conn_submit_new_token(void) {
   static const uint8_t large_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES + 1] = {
     0xEF};
   static const uint8_t small_token[NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES] = {0xFE};
+  static const uint8_t token[8] = {0xFC};
   uint8_t buf[1200];
   size_t pktlen;
   int rv;
+  size_t i;
 
   setup_default_server(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
@@ -22276,6 +22278,46 @@ void test_ngtcp2_conn_submit_new_token(void) {
 
   assert_true(ngtcp2_ksl_it_end(&it));
   assert_null(conn->pktns.tx.frq);
+
+  ngtcp2_conn_del(conn);
+
+  /* NEW_TOKEN frames that exceeds
+     NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES are discarded */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 0);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  for (i = 0; i < NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES + 1; ++i) {
+    rv = ngtcp2_conn_submit_new_token(conn, token, sizeof(token));
+
+    assert_int(0, ==, rv);
+    assert_uint64((uint64_t)i + 1, ==, conn->tx.token.next_seq);
+  }
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), 0);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+  frc = ent->frc;
+
+  for (i = 0; i < NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES; ++i) {
+    assert_uint64(NGTCP2_FRAME_NEW_TOKEN, ==, frc->fr.hd.type);
+    assert_uint64((uint64_t)NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES - i, ==,
+                  frc->fr.new_token.seq);
+
+    frc = frc->next;
+
+    if (i == NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES-1) {
+      assert_null(frc);
+    } else {
+      assert_not_null(frc);
+    }
+  }
 
   ngtcp2_conn_del(conn);
 }

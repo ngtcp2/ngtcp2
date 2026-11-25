@@ -97,6 +97,14 @@ typedef enum {
    ngtcp2_settings.token that client sends in its Initial packet. */
 #define NGTCP2_MAX_TOKENLEN 512
 
+/* NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES is the maximum number of
+   NEW_TOKEN frames that are eligible for sending and retransmission.
+   If NEW_TOKEN frame is generated that would exceed the limit,
+   ngtcp2_conn stops resending the oldest NEW_TOKEN frame.  This does
+   not stop submitting new NEW_TOKEN frame that would exceeds the
+   limit. */
+#define NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES 16
+
 /* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_WRITE_PKT_FLAG_NONE 0x00U
 /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet other
@@ -447,6 +455,15 @@ struct ngtcp2_conn {
          etc. */
       ngtcp2_duration compensation;
     } pacing;
+
+    struct {
+      /* next_seq is the sequence number of the next NEW_TOKEN frame.
+         It is incremented by 1 for each NEW_TOKEN.  Only the
+         NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES most recent submitted
+         NEW_TOKEN frames are eligible for transmission or
+         retransmission. */
+      uint64_t next_seq;
+    } token;
   } tx;
 
   struct {
