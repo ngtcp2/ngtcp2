@@ -6365,6 +6365,14 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   conn->tx.pacing.next_ts = UINT64_MAX;
   conn->tx.pacing.compensation = 0;
+
+  /* Resetting congestion state disarms loss detection timer, but the
+     packets sent before the reset stay in rtb until they are
+     acknowledged or declared lost.  The caller does not necessarily
+     receive or send a packet after this (e.g., path validation timed
+     out, and there is no more data to send).  Re-arm the timer here,
+     otherwise those packets are never declared lost. */
+  ngtcp2_conn_set_loss_detection_timer(conn, ts);
 }
 
 /*
