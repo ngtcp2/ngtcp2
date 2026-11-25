@@ -391,4 +391,10 @@ int ngtcp2_strm_require_retransmit_stream_data_blocked(
    of the buffered bytes discarded. */
 size_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm, uint64_t rx_offset);
 
+/*
+ * ngtcp2_strm_discard_rx_data discards all received data, including
+ * ordered and unordered data.
+ */
+void ngtcp2_strm_discard_rx_data(ngtcp2_strm *strm);
+
 #endif /* !defined(NGTCP2_STRM_H) */
