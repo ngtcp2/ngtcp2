@@ -692,6 +692,8 @@ int ngtcp2_crypto_picotls_configure_server_session(
   ngtcp2_crypto_picotls_ctx *cptls) {
   ptls_handshake_properties_t *hsprops = &cptls->handshake_properties;
 
+  cptls->server = 1;
+
   hsprops->collect_extension = ngtcp2_crypto_picotls_collect_extension;
   hsprops->collected_extensions = ngtcp2_crypto_picotls_collected_extensions;
 
@@ -701,6 +703,8 @@ int ngtcp2_crypto_picotls_configure_server_session(
 int ngtcp2_crypto_picotls_configure_client_session(
   ngtcp2_crypto_picotls_ctx *cptls, ngtcp2_conn *conn) {
   ptls_handshake_properties_t *hsprops = &cptls->handshake_properties;
+
+  cptls->server = 0;
 
   hsprops->client.max_early_data_size = calloc(1, sizeof(size_t));
   if (hsprops->client.max_early_data_size == NULL) {
@@ -730,7 +734,9 @@ void ngtcp2_crypto_picotls_deconfigure_session(
 
   hsprops = &cptls->handshake_properties;
 
-  free(hsprops->client.max_early_data_size);
+  if (!cptls->server) {
+    free(hsprops->client.max_early_data_size);
+  }
 
   exts = hsprops->additional_extensions;
   if (exts) {

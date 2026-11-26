@@ -50,6 +50,11 @@ typedef struct ngtcp2_crypto_picotls_ctx {
    * during this particular TLS handshake.
    */
   ptls_handshake_properties_t handshake_properties;
+  /**
+   * :member:`server` is set to nonzero if the context is configure as
+   * server.  Otherwise 0.
+   */
+  int server;
 } ngtcp2_crypto_picotls_ctx;
 
 /**
