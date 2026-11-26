@@ -13841,6 +13841,9 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
                       "loss detection timer canceled");
       ngtcp2_conn_cancel_loss_detection_timer(conn);
     }
+
+    cstat->pto_count = 0;
+
     return;
   }
 
@@ -13855,10 +13858,11 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 }
 
 void ngtcp2_conn_cancel_loss_detection_timer(ngtcp2_conn *conn) {
-  ngtcp2_conn_stat *cstat = &conn->cstat;
-
-  cstat->loss_detection_timer = UINT64_MAX;
-  cstat->pto_count = 0;
+  /* Do not reset pto_count here.  When the timer is canceled due to
+     amplification limit, packets are still in flight, and the timer
+     is re-armed when the limit is lifted.  PTO backoff must survive
+     that. */
+  conn->cstat.loss_detection_timer = UINT64_MAX;
 }
 
 int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
