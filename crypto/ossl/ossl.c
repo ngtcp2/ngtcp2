@@ -992,6 +992,11 @@ int ngtcp2_crypto_read_write_crypto_data(
       }
     }
 
+    /* Deal with the questionable behavior of OpenSSL */
+    if (!SSL_is_init_finished(ssl)) {
+      return 0;
+    }
+
     ngtcp2_conn_tls_handshake_completed(conn);
   }
 
