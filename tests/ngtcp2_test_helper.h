@@ -283,4 +283,8 @@ size_t ngtcp2_tpe_write_0rtt(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
 size_t ngtcp2_tpe_write_1rtt(ngtcp2_tpe *tpe, uint8_t *out, size_t outlen,
                              ngtcp2_frame *fr, size_t frlen);
 
+/* ngtcp2_pkt_numlen returns the packet number length of QUIC long
+   packet |pkt|. */
+size_t ngtcp2_pkt_numlen(const uint8_t *pkt);
+
 #endif /* !defined(NGTCP2_TEST_HELPER_H) */

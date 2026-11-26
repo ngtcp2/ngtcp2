@@ -22956,6 +22956,7 @@ void test_ngtcp2_conn_crumble_initial_pkt(void) {
   ngtcp2_callbacks callbacks;
   conn_options opts;
   uint8_t *end_data, *sni;
+  size_t i;
 
   ngtcp2_buf_init(&tls_buf, tls_rawbuf, sizeof(tls_rawbuf));
 
@@ -23306,6 +23307,47 @@ void test_ngtcp2_conn_crumble_initial_pkt(void) {
   assert_not_null(ent->frc->next);
   assert_uint64(ngtcp2_buf_len(&tls_buf), ==, ent->frc->next->fr.stream.offset);
   assert_size(500, ==, ent->frc->next->fr.stream.data[0].len);
+
+  ngtcp2_conn_del(conn);
+
+  /* Do not crumble if CRYPTO frame has too many vectors */
+  client_default_callbacks(&callbacks);
+  callbacks.client_initial = client_initial_null;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_handshake_client_with_options(&conn, opts);
+  conn->flags |= NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO;
+
+  assert_size(110, <=, ngtcp2_buf_len(&tls_buf));
+
+  for (i = 0; i < 11; ++i) {
+    rv = ngtcp2_conn_submit_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+                                        tls_buf.pos + i * 10, 10);
+
+    assert_int(0, ==, rv);
+  }
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ssize(0, <, spktlen);
+  assert_false(conn->flags & NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO);
+
+  slen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
+
+  assert_ptrdiff(0, <, slen);
+  assert_uint8(NGTCP2_PKT_INITIAL, ==, hd.type);
+
+  slen += (ngtcp2_ssize)ngtcp2_pkt_numlen(buf);
+  slen = ngtcp2_frame_decoder_decode(&frd, &fr, buf + slen,
+                                     (size_t)(spktlen - slen));
+
+  assert_ptrdiff(0, <, slen);
+  assert_uint64(NGTCP2_FRAME_CRYPTO, ==, fr.hd.type);
+  assert_size(1, ==, fr.stream.datacnt);
+  assert_uint64(110, ==, ngtcp2_vec_len(fr.stream.data, fr.stream.datacnt));
 
   ngtcp2_conn_del(conn);
 }
