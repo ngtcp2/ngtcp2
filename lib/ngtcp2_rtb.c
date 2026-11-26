@@ -350,12 +350,19 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
 
       continue;
     case NGTCP2_FRAME_NEW_TOKEN:
+      if (fr->new_token.seq + NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES <
+          conn->tx.token.next_seq) {
+        continue;
+      }
+
       rv = ngtcp2_frame_chain_new_token_objalloc_new(
         &nfrc, fr->new_token.token, fr->new_token.tokenlen, rtb->frc_objalloc,
         rtb->mem);
       if (rv != 0) {
         return rv;
       }
+
+      nfrc->fr.new_token.seq = fr->new_token.seq;
 
       rv = ngtcp2_bind_frame_chains(frc, nfrc, rtb->mem);
       if (rv != 0) {
