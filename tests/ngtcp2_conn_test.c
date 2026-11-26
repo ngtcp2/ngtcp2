@@ -22312,7 +22312,7 @@ void test_ngtcp2_conn_submit_new_token(void) {
 
     frc = frc->next;
 
-    if (i == NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES-1) {
+    if (i == NGTCP2_MAX_INFLIGHT_NEW_TOKEN_FRAMES - 1) {
       assert_null(frc);
     } else {
       assert_not_null(frc);
