@@ -25,6 +25,7 @@
 #include "ngtcp2_dcidtr.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "ngtcp2_tstamp.h"
 #include "ngtcp2_macro.h"
@@ -35,6 +36,7 @@ void ngtcp2_dcidtr_init(ngtcp2_dcidtr *dtr) {
   ngtcp2_static_ringbuf_dcid_retired_init(&dtr->retired);
 
   dtr->retire_unacked.len = 0;
+  dtr->active.len = 0;
 }
 
 int ngtcp2_dcidtr_track_retired_seq(ngtcp2_dcidtr *dtr, uint64_t seq) {
@@ -535,4 +537,64 @@ int ngtcp2_dcidtr_unused_empty(const ngtcp2_dcidtr *dtr) {
 
 int ngtcp2_dcidtr_bound_full(const ngtcp2_dcidtr *dtr) {
   return ngtcp2_ringbuf_full(&dtr->bound.rb);
+}
+
+static size_t dcidtr_find_active_cid_token(ngtcp2_dcidtr *dtr, uint64_t seq) {
+  size_t i;
+
+  for (i = 0; i < dtr->active.len && dtr->active.cid_tokens[i].seq != seq; ++i)
+    ;
+
+  return i;
+}
+
+void ngtcp2_dcidtr_track_active_cid_token(ngtcp2_dcidtr *dtr,
+                                          const ngtcp2_dcid *dcid) {
+  ngtcp2_cid_token3 *dest;
+  size_t i;
+
+  i = dcidtr_find_active_cid_token(dtr, dcid->seq);
+  if (i < dtr->active.len) {
+    return;
+  }
+
+  assert(dtr->active.len < NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE);
+
+  dest = &dtr->active.cid_tokens[dtr->active.len++];
+
+  dest->seq = dcid->seq;
+  dest->cid = dcid->cid;
+
+  if (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) {
+    dest->token = dcid->token;
+    dest->token_present = 1;
+  } else {
+    dest->token_present = 0;
+  }
+}
+
+void ngtcp2_dcidtr_untrack_active_cid_token(ngtcp2_dcidtr *dtr, uint64_t seq) {
+  size_t i;
+
+  i = dcidtr_find_active_cid_token(dtr, seq);
+  if (i == dtr->active.len) {
+    return;
+  }
+
+  --dtr->active.len;
+
+  if (i != dtr->active.len) {
+    dtr->active.cid_tokens[i] = dtr->active.cid_tokens[dtr->active.len];
+  }
+}
+
+size_t ngtcp2_dcidtr_tracked_active_cid_token_len(const ngtcp2_dcidtr *dtr) {
+  return dtr->active.len;
+}
+
+size_t ngtcp2_dcidtr_get_tracked_active_cid_token(const ngtcp2_dcidtr *dtr,
+                                                  ngtcp2_cid_token3 *dest) {
+  memcpy(dest, dtr->active.cid_tokens, dtr->active.len * sizeof(*dest));
+
+  return dtr->active.len;
 }

@@ -78,6 +78,12 @@ typedef struct ngtcp2_dcidtr {
     /* len is the number of sequence numbers that seq contains. */
     size_t len;
   } retire_unacked;
+  struct {
+    /* cid_tokens tracks the active Destination Connection ID. */
+    ngtcp2_cid_token3 cid_tokens[NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE];
+    /* len is the number of elements that cid_tokens contains. */
+    size_t len;
+  } active;
 } ngtcp2_dcidtr;
 
 typedef int (*ngtcp2_dcidtr_cb)(ngtcp2_dcid *dcid, void *user_data);
@@ -359,5 +365,35 @@ int ngtcp2_dcidtr_unused_empty(const ngtcp2_dcidtr *dtr);
  * Destination Connection ID is full.
  */
 int ngtcp2_dcidtr_bound_full(const ngtcp2_dcidtr *dtr);
+
+/*
+ * ngtcp2_dcidtr_track_active_cid_token tracks |dcid| which has been
+ * activated.
+ */
+void ngtcp2_dcidtr_track_active_cid_token(ngtcp2_dcidtr *dtr,
+                                          const ngtcp2_dcid *dcid);
+
+/*
+ * ngtcp2_dcidtr_untrack_active_cid_token untracks the Destination
+ * Connection ID identified by |seq|.  If there is no such Destination
+ * Connection ID tracked, this function does nothing.
+ */
+void ngtcp2_dcidtr_untrack_active_cid_token(ngtcp2_dcidtr *dtr, uint64_t seq);
+
+/*
+ * ngtcp2_dcidtr_tracked_active_cid_token_len returns the number of
+ * the activated Destination Connection IDs tracked.
+ */
+size_t ngtcp2_dcidtr_tracked_active_cid_token_len(const ngtcp2_dcidtr *dtr);
+
+/*
+ * ngtcp2_dcidtr_get_tracked_active_cid_token stores the activated
+ * Destination Connection IDs to the buffer pointed by |dest|.  The
+ * buffer must have at least
+ * ngtcp2_dcidtr_tracked_active_cid_token_len(dtr) elements to store.
+ * This function returns the number of elements stored.
+ */
+size_t ngtcp2_dcidtr_get_tracked_active_cid_token(const ngtcp2_dcidtr *dtr,
+                                                  ngtcp2_cid_token3 *dest);
 
 #endif /* !defined(NGTCP2_DCIDTR_H) */

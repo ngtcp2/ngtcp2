@@ -51,5 +51,6 @@ munit_void_test_decl(test_ngtcp2_dcidtr_earliest_retired_ts)
 munit_void_test_decl(test_ngtcp2_dcidtr_pop_unused)
 munit_void_test_decl(test_ngtcp2_dcidtr_check_path_retired)
 munit_void_test_decl(test_ngtcp2_dcidtr_len)
+munit_void_test_decl(test_ngtcp2_dcidtr_track_active_cid_token)
 
 #endif /* !defined(NGTCP2_DCIDTR_TEST_H) */
