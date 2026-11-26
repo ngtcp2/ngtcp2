@@ -79,7 +79,7 @@ int ngtcp2_dcidtr_check_retired_seq_tracked(const ngtcp2_dcidtr *dtr,
   return 0;
 }
 
-static int dcidtr_on_retire(ngtcp2_dcidtr *dtr, const ngtcp2_dcid *dcid,
+static int dcidtr_on_retire(ngtcp2_dcidtr *dtr, ngtcp2_dcid *dcid,
                             ngtcp2_dcidtr_cb on_retire, void *user_data) {
   int rv;
 
@@ -227,7 +227,7 @@ static int dcidtr_retire_dcid_prior_to(ngtcp2_dcidtr *dtr, ngtcp2_ringbuf *rb,
                                        uint64_t seq, ngtcp2_dcidtr_cb on_retire,
                                        void *user_data) {
   size_t i;
-  const ngtcp2_dcid *dcid;
+  ngtcp2_dcid *dcid;
   int rv;
 
   for (i = 0; i < ngtcp2_ringbuf_len(rb);) {
@@ -269,7 +269,7 @@ int ngtcp2_dcidtr_retire_active_dcid(ngtcp2_dcidtr *dtr,
                                      ngtcp2_dcidtr_cb on_deactivate,
                                      void *user_data) {
   ngtcp2_ringbuf *rb = &dtr->retired.rb;
-  const ngtcp2_dcid *stale_dcid;
+  ngtcp2_dcid *stale_dcid;
   ngtcp2_dcid *dest;
   int rv;
 
@@ -296,7 +296,7 @@ int ngtcp2_dcidtr_remove_stale_retired_dcid(ngtcp2_dcidtr *dtr,
                                             ngtcp2_dcidtr_cb on_deactivate,
                                             void *user_data) {
   ngtcp2_ringbuf *rb = &dtr->retired.rb;
-  const ngtcp2_dcid *dcid;
+  ngtcp2_dcid *dcid;
   int rv;
 
   for (; ngtcp2_ringbuf_len(rb);) {
@@ -340,6 +340,28 @@ int ngtcp2_dcidtr_pop_bound_dcid(ngtcp2_dcidtr *dtr, ngtcp2_dcid *dest,
   return NGTCP2_ERR_INVALID_ARGUMENT;
 }
 
+int ngtcp2_dcidtr_push_bound_dcid(ngtcp2_dcidtr *dtr, const ngtcp2_dcid *dcid,
+                                  ngtcp2_tstamp ts, ngtcp2_dcidtr_cb on_retire,
+                                  void *user_data) {
+  ngtcp2_ringbuf *rb = &dtr->bound.rb;
+  ngtcp2_dcid *dest;
+  int rv;
+
+  if (ngtcp2_ringbuf_full(rb)) {
+    rv = dcidtr_on_retire(dtr, ngtcp2_ringbuf_get(rb, 0), on_retire, user_data);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  dest = ngtcp2_ringbuf_push_back(rb);
+  ngtcp2_dcid_copy(dest, dcid);
+  /* Update bound_ts to extend its retirement period */
+  dest->bound_ts = ts;
+
+  return 0;
+}
+
 int ngtcp2_dcidtr_retire_stale_bound_dcid(ngtcp2_dcidtr *dtr,
                                           ngtcp2_duration timeout,
                                           ngtcp2_tstamp ts,
@@ -347,7 +369,7 @@ int ngtcp2_dcidtr_retire_stale_bound_dcid(ngtcp2_dcidtr *dtr,
                                           void *user_data) {
   ngtcp2_ringbuf *rb = &dtr->bound.rb;
   size_t i;
-  const ngtcp2_dcid *dcid;
+  ngtcp2_dcid *dcid;
   int rv;
 
   for (i = 0; i < ngtcp2_ringbuf_len(rb);) {
@@ -459,6 +481,39 @@ size_t ngtcp2_dcidtr_unused_len(const ngtcp2_dcidtr *dtr) {
 
 size_t ngtcp2_dcidtr_bound_len(const ngtcp2_dcidtr *dtr) {
   return ngtcp2_ringbuf_len(&dtr->bound.rb);
+}
+
+size_t ngtcp2_dcidtr_activated_bound_len(const ngtcp2_dcidtr *dtr) {
+  const ngtcp2_ringbuf *rb = &dtr->bound.rb;
+  const ngtcp2_dcid *dcid;
+  size_t i, len = ngtcp2_ringbuf_len(rb);
+  size_t n = 0;
+
+  for (i = 0; i < len; ++i) {
+    dcid = ngtcp2_ringbuf_get(rb, i);
+    if (dcid->flags & NGTCP2_DCID_FLAG_ACTIVATED) {
+      ++n;
+    }
+  }
+
+  return n;
+}
+
+size_t ngtcp2_dcidtr_get_activated_bound_dcid(const ngtcp2_dcidtr *dtr,
+                                              ngtcp2_cid_token2 *dest) {
+  const ngtcp2_ringbuf *rb = &dtr->bound.rb;
+  const ngtcp2_dcid *dcid;
+  ngtcp2_cid_token2 *orig = dest;
+  size_t i, len = ngtcp2_ringbuf_len(rb);
+
+  for (i = 0; i < len; ++i) {
+    dcid = ngtcp2_ringbuf_get(rb, i);
+    if (dcid->flags & NGTCP2_DCID_FLAG_ACTIVATED) {
+      ngtcp2_cid_token2_from_dcid(dest++, dcid);
+    }
+  }
+
+  return (size_t)(dest - orig);
 }
 
 size_t ngtcp2_dcidtr_retired_len(const ngtcp2_dcidtr *dtr) {
