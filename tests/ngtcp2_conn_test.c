@@ -13753,6 +13753,71 @@ void test_ngtcp2_conn_server_path_validation(void) {
   assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
 
   ngtcp2_conn_del(conn);
+
+  /* Loss detection timer is armed when path validation times out,
+     and server falls back to the original path while packets are
+     still in flight. */
+  setup_default_server(&conn);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr.ack = (ngtcp2_ack){
+    .type = NGTCP2_FRAME_ACK,
+    .largest_ack = conn->pktns.tx.last_pkt_num,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(0, <, conn->rst.delivered);
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 1024, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
+
+  /* Congestion state is kept because only remote port changes. */
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_nat_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
+  assert_true(ngtcp2_path_eq(&new_nat_path.path, &conn->dcid.current.ps.path));
+  assert_uint64(0, <, conn->rst.delivered);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_size(0, <, ngtcp2_ringbuf_len(&conn->pv->ents.rb));
+
+  t += conn->pv->timeout;
+
+  rv = ngtcp2_conn_handle_expiry(conn, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&null_path.path, &conn->dcid.current.ps.path));
+  assert_uint64(0, ==, conn->rst.delivered);
+  assert_size(0, <, conn->pktns.rtb.num_pto_eliciting);
+  assert_uint64(UINT64_MAX, !=, ngtcp2_conn_loss_detection_expiry(conn));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_server_peer_ip_change_pmtu(void) {
