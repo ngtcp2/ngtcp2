@@ -1045,6 +1045,20 @@ client_default_remote_transport_params(ngtcp2_transport_params *params) {
   };
 }
 
+static int select_preferred_addr_ipv4(ngtcp2_conn *conn, ngtcp2_path *dest,
+                                      const ngtcp2_preferred_addr *paddr,
+                                      void *user_data) {
+  (void)conn;
+  (void)user_data;
+
+  assert(paddr->ipv4_present);
+
+  ngtcp2_addr_copy_byte(&dest->remote, (const ngtcp2_sockaddr *)&paddr->ipv4,
+                        sizeof(paddr->ipv4));
+
+  return 0;
+}
+
 static void client_default_callbacks(ngtcp2_callbacks *cb) {
   *cb = (ngtcp2_callbacks){
     .client_initial = client_initial,
@@ -14228,6 +14242,10 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   ngtcp2_settings settings;
   conn_options opts;
   ngtcp2_dcid dcid;
+  ngtcp2_transport_params remote_params;
+  ngtcp2_callbacks callbacks;
+  ngtcp2_path_storage paddr_path;
+  ngtcp2_path_storage unknown_path;
 
   /* immediate migration */
   setup_default_client(&conn);
@@ -14394,6 +14412,116 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   assert_true(ngtcp2_path_eq(&new_path.path, &conn->dcid.current.ps.path));
   assert_size(1400, ==, conn->dcid.current.max_udp_payload_size);
   assert_size(1400, ==, conn->cstat.max_tx_udp_payload_size);
+
+  ngtcp2_conn_del(conn);
+
+  /* After client migrates to server's preferred address, a packet
+     from the server address used during handshake is still accepted
+     because server keeps sending non-probing packets from its
+     original address until it validates the new path. */
+  path_init(&paddr_path, 0, 0, 2, 0);
+  path_init(&unknown_path, 0, 0, 3, 0);
+
+  client_default_remote_transport_params(&remote_params);
+  remote_params.preferred_addr_present = 1;
+  remote_params.preferred_addr.cid = cid;
+  remote_params.preferred_addr.ipv4_present = 1;
+
+  assert_size(sizeof(remote_params.preferred_addr.ipv4), ==,
+              (size_t)paddr_path.path.remote.addrlen);
+
+  memcpy(&remote_params.preferred_addr.ipv4, paddr_path.path.remote.addr,
+         sizeof(remote_params.preferred_addr.ipv4));
+
+  client_default_callbacks(&callbacks);
+  callbacks.select_preferred_addr = select_preferred_addr_ipv4;
+
+  opts = (conn_options){
+    .remote_params = &remote_params,
+    .callbacks = &callbacks,
+  };
+
+  setup_default_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  /* Rewind the state to the one before handshake is confirmed so
+     that HANDSHAKE_DONE triggers preferred address selection. */
+  ngtcp2_conn_install_initial_key(conn, &null_aead_ctx, null_iv, &null_hp_ctx,
+                                  &null_aead_ctx, null_iv, &null_hp_ctx,
+                                  sizeof(null_iv));
+  ngtcp2_conn_discard_initial_state(conn, t);
+
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+
+  fr[0].handshake_done = (ngtcp2_handshake_done){
+    .type = NGTCP2_FRAME_HANDSHAKE_DONE,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_not_null(conn->pv);
+  assert_true(conn->pv->flags & NGTCP2_PV_FLAG_PREFERRED_ADDR);
+  assert_true(ngtcp2_path_eq(&paddr_path.path, &conn->pv->dcid.ps.path));
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+
+  fr[0].path_response = (ngtcp2_path_response){
+    .type = NGTCP2_FRAME_PATH_RESPONSE,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &paddr_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_true(ngtcp2_path_eq(&paddr_path.path, &conn->dcid.current.ps.path));
+  assert_true(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
+  assert_size(1, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+
+  /* Retired Destination Connection ID which is bound to the path
+     used during handshake is removed after PTO. */
+  t += ngtcp2_conn_compute_pto(conn, &conn->pktns);
+
+  rv = ngtcp2_conn_handle_expiry(conn, t);
+
+  assert_int(0, ==, rv);
+  assert_size(0, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+
+  fr[0].ping = (ngtcp2_ping){
+    .type = NGTCP2_FRAME_PING,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(0, ==, conn->cstat.pkt_discarded);
+  assert_int64(tpe.app.last_pkt_num, ==, conn->pktns.acktr.max_pkt_num);
+
+  /* The local address does not matter. */
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(0, ==, conn->cstat.pkt_discarded);
+  assert_int64(tpe.app.last_pkt_num, ==, conn->pktns.acktr.max_pkt_num);
+
+  /* A packet from unknown server address is still ignored. */
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), fr, 1);
+
+  rv = ngtcp2_conn_read_pkt(conn, &unknown_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_uint64(1, ==, conn->cstat.pkt_discarded);
+  assert_int64(tpe.app.last_pkt_num - 1, ==, conn->pktns.acktr.max_pkt_num);
 
   ngtcp2_conn_del(conn);
 }
