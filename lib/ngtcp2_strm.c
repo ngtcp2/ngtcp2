@@ -611,6 +611,23 @@ uint64_t ngtcp2_strm_streamfrq_unacked_offset(const ngtcp2_strm *strm) {
     frc = ngtcp2_ksl_it_get(&it);
     fr = &frc->fr.stream;
 
+    if (fr->datacnt == 0) {
+      /* 0 length STREAM frame is sent only when it carries fin that
+         has not been acknowledged, or it is the one that opens a
+         stream.  Otherwise, strm_streamfrq_unacked_pop just deletes
+         it. */
+      if (fr->fin) {
+        if (!(strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED)) {
+          return fr->offset;
+        }
+      } else if (fr->offset == 0 && strm->tx.offset == 0 &&
+                 !(strm->flags & NGTCP2_STRM_FLAG_ANY_ACKED)) {
+        return fr->offset;
+      }
+
+      continue;
+    }
+
     gap = ngtcp2_strm_get_unacked_range_after(strm, fr->offset);
 
     datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
