@@ -11400,6 +11400,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   conn_options opts;
   ngtcp2_path_storage ps;
   my_user_data ud;
+  ngtcp2_dcid validated_dcid;
 
   setup_default_client(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
@@ -12074,6 +12075,99 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &ps.path, NULL, buf, pktlen, ++t);
 
   assert_int(NGTCP2_ERR_CONNECTION_ID_LIMIT, ==, rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Migrating to the path that has been validated before activates
+     new Destination Connection ID, and retires the current one
+     without path validation. */
+  server_default_callbacks(&callbacks);
+  callbacks.dcid_status2 = dcid_status2;
+
+  ud = (my_user_data){0};
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+    .user_data = &ud,
+  };
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid,
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_size(0, ==, ud.dcid_status.ncalled);
+
+  ngtcp2_dcid_copy(&validated_dcid, &conn->dcid.current);
+  ngtcp2_dcid_set_path(&validated_dcid, &new_path.path);
+  ngtcp2_conn_add_path_history(conn, &validated_dcid, t);
+
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+  assert_null(conn->pv);
+  assert_uint64(1, ==, conn->dcid.current.seq);
+  assert_size(1, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
+  assert_size(1, ==, ud.dcid_status.ncalled);
+  assert_enum(ngtcp2_connection_id_status_type,
+              NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE, ==,
+              ud.dcid_status.type);
+  assert_uint64(1, ==, ud.dcid_status.seq);
+
+  ngtcp2_conn_del(conn);
+
+  /* If the current Destination Connection ID cannot be retired
+     because of the limit for the number of unacknowledged
+     RETIRE_CONNECTION_ID, new Destination Connection ID is not
+     activated because nothing refers to it. */
+  ud = (my_user_data){0};
+
+  setup_default_server_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  fr.new_connection_id = (ngtcp2_new_connection_id){
+    .type = NGTCP2_FRAME_NEW_CONNECTION_ID,
+    .seq = 1,
+    .cid = cid,
+    .token = token,
+  };
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(0, ==, rv);
+
+  ngtcp2_dcid_copy(&validated_dcid, &conn->dcid.current);
+  ngtcp2_dcid_set_path(&validated_dcid, &new_path.path);
+  ngtcp2_conn_add_path_history(conn, &validated_dcid, t);
+
+  for (i = 0; i < ngtcp2_arraylen(conn->dcid.dtr.retire_unacked.seqs); ++i) {
+    rv = ngtcp2_dcidtr_track_retired_seq(&conn->dcid.dtr, 1000 + i);
+
+    assert_int(0, ==, rv);
+  }
+
+  fr.ping.type = NGTCP2_FRAME_PING;
+
+  pktlen = ngtcp2_tpe_write_1rtt(&tpe, buf, sizeof(buf), &fr, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, NULL, buf, pktlen, ++t);
+
+  assert_int(NGTCP2_ERR_CONNECTION_ID_LIMIT, ==, rv);
+  assert_null(conn->pv);
+  assert_uint64(0, ==, conn->dcid.current.seq);
+  assert_size(0, ==, ud.dcid_status.ncalled);
 
   ngtcp2_conn_del(conn);
 
