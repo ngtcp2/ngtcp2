@@ -927,7 +927,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       goto fail;
     }
 
-    if (rtb->largest_acked_tx_pkt_num == pkt_num) {
+    if (rtb->largest_acked_tx_pkt_num == pkt_num &&
+        pkt_num >= rtb->cc_pkt_num) {
       cc_ack.largest_pkt_sent_ts = ent->ts;
     }
 
