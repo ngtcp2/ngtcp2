@@ -226,6 +226,12 @@ int ngtcp2_dcidtr_remove_stale_retired_dcid(ngtcp2_dcidtr *dtr,
                                             void *user_data);
 
 /*
+ * ngtcp2_dcidtr_clear_retired_dcid removes all retired Destination
+ * Connection IDs without notifying their removal.
+ */
+void ngtcp2_dcidtr_clear_retired_dcid(ngtcp2_dcidtr *dtr);
+
+/*
  * ngtcp2_dcidtr_pop_bound_dcid removes Destination Connection ID that
  * is bound to |path|, and copies it into the object pointed by
  * |dest|.
