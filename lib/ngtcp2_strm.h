@@ -251,8 +251,14 @@ ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
 /*
  * ngtcp2_strm_update_rx_offset tells that data up to |offset| bytes
  * are received in order.
+ *
+ * It returns 0 if it succeeds, or one of the following negative error
+ * codes:
+ *
+ * NGTCP2_ERR_INTERNAL
+ *     The reorder buffer is too fragmented.
  */
-void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset);
+int ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset);
 
 /*
  * ngtcp2_strm_shutdown shutdowns |strm|.  |flags| should be one of

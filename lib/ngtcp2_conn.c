@@ -7644,7 +7644,11 @@ static int conn_recv_crypto(ngtcp2_conn *conn,
     uint64_t offset = rx_offset;
 
     rx_offset += datalen;
-    ngtcp2_strm_update_rx_offset(crypto, rx_offset);
+
+    rv = ngtcp2_strm_update_rx_offset(crypto, rx_offset);
+    if (rv != 0) {
+      return rv;
+    }
 
     rv =
       conn_call_recv_crypto_data(conn, encryption_level, offset, data, datalen);
@@ -7861,7 +7865,11 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
       datalen -= ncut;
 
       rx_offset += datalen;
-      ngtcp2_strm_update_rx_offset(strm, rx_offset);
+
+      rv = ngtcp2_strm_update_rx_offset(strm, rx_offset);
+      if (rv != 0) {
+        return rv;
+      }
     } else {
       data = NULL;
       datalen = 0;
