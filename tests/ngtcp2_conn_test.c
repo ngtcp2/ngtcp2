@@ -23690,7 +23690,7 @@ void test_ngtcp2_conn_crumble_initial_pkt(void) {
   assert_ptrdiff(0, <, slen);
   assert_uint8(NGTCP2_PKT_INITIAL, ==, hd.type);
 
-  slen += ngtcp2_pkt_numlen(buf);
+  slen += (ngtcp2_ssize)ngtcp2_pkt_numlen(buf);
   slen = ngtcp2_frame_decoder_decode(&frd, &fr, buf + slen,
                                      (size_t)(spktlen - slen));
 
