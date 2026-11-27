@@ -1205,28 +1205,6 @@ static int pktns_has_pending_transmission(const ngtcp2_pktns *pktns) {
                    !ngtcp2_strm_streamfrq_empty(&pktns->crypto.strm));
 }
 
-static void conn_check_app_limited(ngtcp2_conn *conn, ngtcp2_tstamp ts,
-                                   int no_app_data) {
-  const ngtcp2_conn_stat *cstat = &conn->cstat;
-  ngtcp2_rst *rst = &conn->rst;
-
-  /* The caller owns unsent application data.  Without a no-data
-     write, infer an idle restart only after some data was delivered
-     and the flight has drained. */
-  if ((!no_app_data && (cstat->bytes_in_flight || !rst->delivered)) ||
-      cstat->bytes_in_flight >= cstat->cwnd ||
-      (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) ||
-      (conn->tx.pacing.next_ts != UINT64_MAX && conn->tx.pacing.next_ts > ts) ||
-      !ngtcp2_pq_empty(&conn->tx.strmq) ||
-      pktns_has_pending_transmission(&conn->pktns) ||
-      pktns_has_pending_transmission(conn->hs_pktns) ||
-      pktns_has_pending_transmission(conn->in_pktns)) {
-    return;
-  }
-
-  rst->app_limited = ngtcp2_max(rst->delivered + cstat->bytes_in_flight, 1);
-}
-
 static void conn_update_skip_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
   const int64_t min_gap = 3;
   uint8_t r;
@@ -5957,7 +5935,6 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
     return NGTCP2_ERR_PROTO;
   }
 
-  conn_check_app_limited(conn, ts, /* no_app_data = */ 0);
   ngtcp2_acktr_recv_ack(&pktns->acktr, fr);
 
   num_acked =
@@ -11895,8 +11872,6 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return NGTCP2_ERR_IDLE_CLOSE;
   }
 
-  conn_check_app_limited(conn, ts, /* no_app_data = */ 0);
-
   ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
 
   conn_cancel_expired_keep_alive_timer(conn, ts);
@@ -12624,6 +12599,22 @@ static int conn_no_app_data_written(const ngtcp2_conn *conn) {
   return counts->crypto == 0 && counts->stream == 0;
 }
 
+static void conn_check_app_limited(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  const ngtcp2_conn_stat *cstat = &conn->cstat;
+  ngtcp2_rst *rst = &conn->rst;
+
+  if (cstat->bytes_in_flight >= cstat->cwnd ||
+      !conn_pacing_pkt_tx_allowed(conn, ts) ||
+      !conn_no_app_data_written(conn) || !ngtcp2_pq_empty(&conn->tx.strmq) ||
+      pktns_has_pending_transmission(&conn->pktns) ||
+      pktns_has_pending_transmission(conn->hs_pktns) ||
+      pktns_has_pending_transmission(conn->in_pktns)) {
+    return;
+  }
+
+  rst->app_limited = ngtcp2_max(rst->delivered + cstat->bytes_in_flight, 1);
+}
+
 static ngtcp2_ssize
 conn_write_vmsg_wrapper(ngtcp2_conn *conn, ngtcp2_path *path,
                         int pkt_info_version, ngtcp2_pkt_info *pi,
@@ -12642,10 +12633,9 @@ conn_write_vmsg_wrapper(ngtcp2_conn *conn, ngtcp2_path *path,
 
   if (cstat->bytes_in_flight >= cstat->cwnd) {
     conn->rst.is_cwnd_limited = 1;
-  } else if (conn_pacing_pkt_tx_allowed(conn, ts) && !vmsg &&
-             conn_no_app_data_written(conn) &&
+  } else if (!vmsg &&
              (!path || ngtcp2_path_eq(&conn->dcid.current.ps.path, path))) {
-    conn_check_app_limited(conn, ts, /* no_app_data = */ 1);
+    conn_check_app_limited(conn, ts);
   }
 
   return nwrite;
@@ -12822,8 +12812,6 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     conn_shape_udp_payload(conn, &conn->dcid.current, destlen);
 
   if (!ppe_pending) {
-    conn_check_app_limited(conn, ts, /* no_app_data = */ 0);
-
     if (pi) {
       pi->ecn = NGTCP2_ECN_NOT_ECT;
     }
@@ -14014,8 +14002,6 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   if (cstat->loss_detection_timer == UINT64_MAX) {
     return 0;
   }
-
-  conn_check_app_limited(conn, ts, /* no_app_data = */ 0);
 
   conn_get_loss_time_and_pktns(conn, &earliest_loss_time, &loss_pktns);
 
