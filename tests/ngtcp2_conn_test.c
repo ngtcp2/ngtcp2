@@ -18014,7 +18014,7 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
 
   assert_true(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE);
   assert_null(ent->frc);
-  assert_size(1, ==, conn->pktns.rtb.num_pto_eliciting);
+  assert_size(2, ==, conn->pktns.rtb.num_pto_eliciting);
   assert_uint64(UINT64_MAX, !=, conn->cstat.loss_detection_timer);
 
   ngtcp2_conn_del(conn);
@@ -18283,7 +18283,7 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
 
   assert_true(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE);
   assert_null(ent->frc);
-  assert_size(1, ==, conn->pktns.rtb.num_pto_eliciting);
+  assert_size(2, ==, conn->pktns.rtb.num_pto_eliciting);
   assert_uint64(UINT64_MAX, !=, conn->cstat.loss_detection_timer);
 
   ngtcp2_conn_del(conn);
