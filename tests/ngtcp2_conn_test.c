@@ -17405,6 +17405,33 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   assert_int(NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE, ==, rv);
 
   ngtcp2_conn_del(conn);
+
+  /* client: receives the current Destination Connection ID in
+     preferred address. */
+  setup_handshake_client(&conn);
+
+  conn->negotiated_version = conn->client_chosen_version;
+
+  params = (ngtcp2_transport_params){
+    .active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT,
+    .max_udp_payload_size = 1450,
+    .initial_scid = conn->dcid.current.cid,
+    .initial_scid_present = 1,
+    .original_dcid = conn->rcid,
+    .original_dcid_present = 1,
+    .preferred_addr =
+      {
+        .cid = make_rcid(),
+        .ipv4_present = 1,
+      },
+    .preferred_addr_present = 1,
+  };
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  assert_int(NGTCP2_ERR_TRANSPORT_PARAM, ==, rv);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_write_connection_close(void) {
