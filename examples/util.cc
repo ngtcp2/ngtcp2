@@ -618,6 +618,12 @@ template <typename InputIt> InputIt eat_dir(InputIt first, InputIt last) {
 }
 } // namespace
 
+namespace {
+template <typename InputIt> InputIt skip_slash(InputIt first, InputIt last) {
+  return std::ranges::find_if(first, last, [](auto c) { return c != '/'; });
+}
+} // namespace
+
 std::expected<std::string, Error> normalize_path(std::string_view path) {
   constexpr auto max_path = 1024UZ;
 
@@ -646,6 +652,7 @@ std::expected<std::string, Error> normalize_path(std::string_view path) {
       }
       if (*(first + 1) == '/') {
         first += 2;
+        first = skip_slash(first, last);
         continue;
       }
       if (*(first + 1) == '.') {
@@ -656,12 +663,10 @@ std::expected<std::string, Error> normalize_path(std::string_view path) {
         if (*(first + 2) == '/') {
           p = eat_dir(res.data(), p);
           first += 3;
+          first = skip_slash(first, last);
           continue;
         }
       }
-    }
-    if (*(p - 1) != '/') {
-      p = eat_file(res.data(), p);
     }
     auto slash = std::ranges::find(first, last, '/');
     if (slash == last) {
@@ -669,9 +674,7 @@ std::expected<std::string, Error> normalize_path(std::string_view path) {
       break;
     }
     p = std::ranges::copy(first, slash + 1, p).out;
-    first = slash + 1;
-    for (; first != last && *first == '/'; ++first)
-      ;
+    first = skip_slash(slash + 1, last);
   }
   return std::string{res.data(), p};
 }

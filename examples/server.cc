@@ -124,6 +124,10 @@ std::expected<Request, Error> Stream::request_path() {
       req.path = util::percent_decode(req.path);
     }
 
+    if (std::ranges::contains(req.path, '\0')) {
+      return std::unexpected{Error::INVALID_ARGUMENT};
+    }
+
     assert(!req.path.empty());
 
     if (req.path[0] != '/') {

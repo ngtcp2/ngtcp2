@@ -198,6 +198,9 @@ void test_util_normalize_path() {
              util::normalize_path(std::string(1025, '/')));
   assert_ok_eq("/", util::normalize_path("/.."));
   assert_ok_eq("/index.html", util::normalize_path("/../../index.html"));
+  assert_ok_eq("/", util::normalize_path("///"));
+  assert_ok_eq("/", util::normalize_path("/.//"));
+  assert_ok_eq("/", util::normalize_path("/..//"));
 }
 
 void test_util_hexdump() {
