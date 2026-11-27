@@ -197,8 +197,6 @@ public:
                                                     uint64_t max_data);
   void shutdown_read(int64_t stream_id, uint64_t app_error_code);
 
-  void write_qlog(const void *data, size_t datalen);
-
   void on_send_blocked(const ngtcp2_path &path, unsigned int ecn,
                        std::span<const uint8_t> data, size_t gso_size);
   void start_wev_endpoint(const Endpoint &ep);
@@ -220,7 +218,6 @@ private:
   Server *server_;
   ev_io wev_;
   ev_timer timer_;
-  FILE *qlog_{};
   ngtcp2_cid scid_{};
   std::unique_ptr<ProtoCodec> proto_codec_;
   std::unordered_map<int64_t, std::unique_ptr<Stream>> streams_;

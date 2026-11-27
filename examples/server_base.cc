@@ -54,8 +54,17 @@ HandlerBase::~HandlerBase() {
 
     ngtcp2_conn_del(conn_);
   }
+
+  if (qlog_) {
+    fclose(qlog_);
+  }
 }
 
 ngtcp2_conn *HandlerBase::conn() const { return conn_; }
 
 ngtcp2_crypto_conn_ref *HandlerBase::conn_ref() { return &conn_ref_; }
+
+void HandlerBase::write_qlog(const void *data, size_t datalen) {
+  assert(qlog_);
+  fwrite(data, 1, datalen, qlog_);
+}

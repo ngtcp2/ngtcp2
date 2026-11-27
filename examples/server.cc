@@ -366,10 +366,6 @@ Handler::~Handler() {
 
   ev_timer_stop(loop_, &timer_);
   ev_io_stop(loop_, &wev_);
-
-  if (qlog_) {
-    fclose(qlog_);
-  }
 }
 
 namespace {
@@ -722,11 +718,6 @@ void write_qlog(void *user_data, uint32_t flags, const void *data,
   h->write_qlog(data, datalen);
 }
 } // namespace
-
-void Handler::write_qlog(const void *data, size_t datalen) {
-  assert(qlog_);
-  fwrite(data, 1, datalen, qlog_);
-}
 
 std::expected<void, Error>
 Handler::init(const Endpoint &ep, const Address &local_addr,
