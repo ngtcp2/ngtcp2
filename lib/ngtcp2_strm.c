@@ -792,3 +792,15 @@ size_t ngtcp2_strm_discard_ordered_data(ngtcp2_strm *strm, uint64_t rx_offset) {
 
   return (size_t)(rx_offset - orig_rx_offset);
 }
+
+void ngtcp2_strm_discard_rx_data(ngtcp2_strm *strm) {
+  if (!strm->rx.rob) {
+    return;
+  }
+
+  strm->rx.cont_offset = ngtcp2_strm_rx_offset(strm);
+
+  ngtcp2_rob_free(strm->rx.rob);
+  ngtcp2_mem_free(strm->mem, strm->rx.rob);
+  strm->rx.rob = NULL;
+}
