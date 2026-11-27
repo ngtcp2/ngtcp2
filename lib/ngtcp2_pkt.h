@@ -321,6 +321,7 @@ typedef struct ngtcp2_path_response {
 
 typedef struct ngtcp2_new_token {
   uint64_t type;
+  uint64_t seq;
   uint8_t *token;
   size_t tokenlen;
 } ngtcp2_new_token;
