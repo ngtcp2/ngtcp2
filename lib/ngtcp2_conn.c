@@ -9144,6 +9144,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_duration pto;
   int local_addr_eq;
   int pref_addr_migration;
+  int activate_dcid = 0;
   uint32_t remote_addr_cmp;
   const ngtcp2_path_history_entry *validated_path;
 
@@ -9227,12 +9228,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "Found DCID which has already been bound to the new path");
 
-    if (dcid.cid.datalen) {
-      rv = conn_call_activate_dcid(conn, &dcid);
-      if (rv != 0) {
-        return rv;
-      }
-    }
+    activate_dcid = dcid.cid.datalen != 0;
   } else {
     if (conn->dcid.current.cid.datalen &&
         ((scid_seq != conn->dcid.current.scid_seq && remote_addr_cmp) ||
@@ -9243,11 +9239,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
       }
 
       ngtcp2_dcidtr_pop_unused(&conn->dcid.dtr, &dcid);
-
-      rv = conn_call_activate_dcid(conn, &dcid);
-      if (rv != 0) {
-        return rv;
-      }
+      activate_dcid = 1;
     } else {
       /* Use the current DCID if a remote endpoint does not change
          DCID. */
@@ -9327,12 +9319,24 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     conn_reset_ecn_validation_state(conn);
 
     ngtcp2_conn_stop_pmtud(conn);
+  }
 
-    if (validated_path && !conn->local.settings.no_pmtud) {
-      rv = conn_start_pmtud(conn);
-      if (rv != 0) {
-        return rv;
-      }
+  /* Activate new DCID only after conn->pv or conn->dcid.current holds
+     it.  If it is activated earlier, and this function fails before
+     storing it (e.g., the current DCID cannot be retired), nothing
+     refers to the activated DCID.  It is never deactivated, and
+     ngtcp2_conn_get_active_dcid3 does not include it. */
+  if (activate_dcid) {
+    rv = conn_call_activate_dcid(conn, &dcid);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  if (validated_path && !conn->local.settings.no_pmtud) {
+    rv = conn_start_pmtud(conn);
+    if (rv != 0) {
+      return rv;
     }
   }
 
