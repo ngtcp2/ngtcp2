@@ -837,7 +837,8 @@ ngtcp2_conn *setup_conn(FuzzedDataProvider &fuzzed_data_provider,
   conn->flags |= NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED |
                  NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED |
                  NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
-                 NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+                 NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED |
+                 NGTCP2_CONN_FLAG_DCID_STATUS_STARTED;
   conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
 
   {

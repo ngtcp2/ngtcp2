@@ -316,6 +316,10 @@ int ngtcp2_dcidtr_remove_stale_retired_dcid(ngtcp2_dcidtr *dtr,
   return 0;
 }
 
+void ngtcp2_dcidtr_clear_retired_dcid(ngtcp2_dcidtr *dtr) {
+  ngtcp2_ringbuf_resize(&dtr->retired.rb, 0);
+}
+
 int ngtcp2_dcidtr_pop_bound_dcid(ngtcp2_dcidtr *dtr, ngtcp2_dcid *dest,
                                  const ngtcp2_path *path) {
   const ngtcp2_dcid *src;

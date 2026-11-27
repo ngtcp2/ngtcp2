@@ -208,6 +208,12 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_CLIENT_INITIAL_CALLED is set when
    ngtcp2_callbacks.client_initial has been called successfully. */
 #define NGTCP2_CONN_FLAG_CLIENT_INITIAL_CALLED 0x80000U
+/* NGTCP2_CONN_FLAG_DCID_STATUS_STARTED is set when the current
+   Destination Connection ID is activated upon the completion of
+   handshake.  ngtcp2_callbacks.dcid_status2 and
+   ngtcp2_callbacks.dcid_status are not called until this flag is
+   set. */
+#define NGTCP2_CONN_FLAG_DCID_STATUS_STARTED 0x100000U
 
 typedef struct ngtcp2_pktns {
   struct {
