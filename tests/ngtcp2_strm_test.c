@@ -857,6 +857,7 @@ void test_ngtcp2_strm_recv_reordering(void) {
   ngtcp2_ssize nwrite;
   uint64_t offset;
   size_t i;
+  int rv;
 
   /* Gaps are limited in proportion to the offset range that the
      reorder buffer covers. */
@@ -915,6 +916,30 @@ void test_ngtcp2_strm_recv_reordering(void) {
   nwrite = ngtcp2_strm_recv_reordering(&strm, nulldata, 1, offset);
 
   assert_ptrdiff(NGTCP2_ERR_INTERNAL, ==, nwrite);
+
+  ngtcp2_strm_free(&strm);
+
+  /* The limit is enforced again when the read offset advances and
+     the range shrinks. */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, NULL, mem);
+
+  strm.rx.last_offset = 200 * NGTCP2_MIN_STREAM_DATALEN;
+
+  for (i = 0; i < 200; ++i) {
+    offset = strm.rx.last_offset - 1 - i * 2;
+
+    nwrite = ngtcp2_strm_recv_reordering(&strm, nulldata, 1, offset);
+
+    assert_ptrdiff(1, ==, nwrite);
+  }
+
+  rv = ngtcp2_strm_update_rx_offset(&strm, 100 * NGTCP2_MIN_STREAM_DATALEN);
+
+  assert_int(0, ==, rv);
+
+  rv = ngtcp2_strm_update_rx_offset(&strm, offset - 1);
+
+  assert_int(NGTCP2_ERR_INTERNAL, ==, rv);
 
   ngtcp2_strm_free(&strm);
 }
