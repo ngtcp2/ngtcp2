@@ -20293,12 +20293,12 @@ void test_ngtcp2_conn_get_ccerr(void) {
   setup_default_server(&conn);
   ngtcp2_tpe_init_conn(&tpe, conn);
 
-  /* Record the last error. */
+  /* Record the first error. */
   frs[0].connection_close = (ngtcp2_connection_close){
     .type = NGTCP2_FRAME_CONNECTION_CLOSE_APP,
     .error_code = 1,
     .frame_type = 99,
-    .reasonlen = 10,
+    .reasonlen = NGTCP2_CCERR_MAX_REASONLEN + 1,
     .reason = reason,
   };
 
@@ -20306,7 +20306,7 @@ void test_ngtcp2_conn_get_ccerr(void) {
     .type = NGTCP2_FRAME_CONNECTION_CLOSE,
     .error_code = NGTCP2_PROTOCOL_VIOLATION,
     .frame_type = 1000000007,
-    .reasonlen = NGTCP2_CCERR_MAX_REASONLEN + 1,
+    .reasonlen = 10,
     .reason = reason,
   };
 
@@ -20319,9 +20319,9 @@ void test_ngtcp2_conn_get_ccerr(void) {
 
   ccerr = ngtcp2_conn_get_ccerr2(conn);
 
-  assert_uint64(NGTCP2_PROTOCOL_VIOLATION, ==, ccerr->error_code);
-  assert_int((int)NGTCP2_CCERR_TYPE_TRANSPORT, ==, (int)ccerr->type);
-  assert_uint64(1000000007, ==, ccerr->frame_type);
+  assert_uint64(1, ==, ccerr->error_code);
+  assert_int((int)NGTCP2_CCERR_TYPE_APPLICATION, ==, (int)ccerr->type);
+  assert_uint64(0, ==, ccerr->frame_type);
   assert_memory_equal(ccerr->reasonlen, reason, ccerr->reason);
   assert_size(NGTCP2_CCERR_MAX_REASONLEN, ==, ccerr->reasonlen);
 

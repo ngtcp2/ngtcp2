@@ -7251,7 +7251,11 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (rv != 0) {
         return rv;
       }
-      break;
+
+      ngtcp2_qlog_write_frame(&conn->qlog, &fr);
+      ngtcp2_qlog_pkt_received_end(&conn->qlog, &hd, pktlen);
+
+      return NGTCP2_ERR_DRAINING;
     case NGTCP2_FRAME_PING:
       ++conn->cstat.ping_recv;
       require_ack = 1;
@@ -7283,8 +7287,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
 
-  return conn->state == NGTCP2_CS_DRAINING ? NGTCP2_ERR_DRAINING
-                                           : (ngtcp2_ssize)pktlen;
+  return (ngtcp2_ssize)pktlen;
 }
 
 static int is_unrecoverable_error(int liberr) {
@@ -9505,7 +9508,11 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
       if (rv != 0) {
         return rv;
       }
-      break;
+
+      ngtcp2_qlog_write_frame(&conn->qlog, &fr);
+      ngtcp2_qlog_pkt_received_end(&conn->qlog, hd, pktlen);
+
+      return NGTCP2_ERR_DRAINING;
     case NGTCP2_FRAME_PING:
       ++conn->cstat.ping_recv;
       /* fall through */
@@ -10028,7 +10035,11 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (rv != 0) {
         return rv;
       }
-      break;
+
+      ngtcp2_qlog_write_frame(&conn->qlog, &fr);
+      ngtcp2_qlog_pkt_received_end(&conn->qlog, &hd, pktlen);
+
+      return NGTCP2_ERR_DRAINING;
     case NGTCP2_FRAME_PING:
       ++conn->cstat.ping_recv;
       non_probing_pkt = 1;
@@ -10192,8 +10203,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
 
-  return conn->state == NGTCP2_CS_DRAINING ? NGTCP2_ERR_DRAINING
-                                           : (ngtcp2_ssize)pktlen;
+  return (ngtcp2_ssize)pktlen;
 }
 
 /*
