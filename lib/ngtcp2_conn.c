@@ -9021,13 +9021,17 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_crypto_aead_ctx rx_aead_ctx = {0}, tx_aead_ctx = {0};
   size_t secretlen, ivlen;
 
+  if (!tx_ckm) {
+    return 0;
+  }
+
   if (tx_ckm->use_count >= pktns->crypto.ctx.max_encryption &&
       conn_initiate_key_update(conn, ts) != 0) {
     return NGTCP2_ERR_AEAD_LIMIT_REACHED;
   }
 
   if ((conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
-      ngtcp2_tstamp_not_elapsed(confirmed_ts, pto, ts)) {
+      ngtcp2_tstamp_not_elapsed(confirmed_ts, pto, ts) || !rx_ckm) {
     return 0;
   }
 
@@ -12929,6 +12933,11 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
         origlen = (size_t)ngtcp2_min((uint64_t)origlen, server_tx_left);
       }
 
+      rv = conn_prepare_key_update(conn, ts);
+      if (rv != 0) {
+        return rv;
+      }
+
       return conn_write_ack_pkt(conn, pi, dest, origlen, NGTCP2_PKT_1RTT, ts);
     }
 
@@ -12975,11 +12984,9 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     conn->pkt.require_padding =
       (wflags & NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING);
 
-    if (conn->state == NGTCP2_CS_POST_HANDSHAKE) {
-      rv = conn_prepare_key_update(conn, ts);
-      if (rv != 0) {
-        return rv;
-      }
+    rv = conn_prepare_key_update(conn, ts);
+    if (rv != 0) {
+      return rv;
     }
 
     if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
