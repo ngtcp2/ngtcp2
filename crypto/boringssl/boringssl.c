@@ -307,6 +307,7 @@ int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
   };
 
   if (rv != 0) {
+    ngtcp2_secure_clear(ctx, sizeof(*ctx));
     free(ctx);
 
     return rv;
@@ -319,10 +320,13 @@ int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
 }
 
 void ngtcp2_crypto_cipher_ctx_free(ngtcp2_crypto_cipher_ctx *cipher_ctx) {
-  if (!cipher_ctx->native_handle) {
+  ngtcp2_crypto_boringssl_cipher_ctx *ctx = cipher_ctx->native_handle;
+
+  if (!ctx) {
     return;
   }
 
+  ngtcp2_secure_clear(ctx, sizeof(*ctx));
   free(cipher_ctx->native_handle);
 }
 
