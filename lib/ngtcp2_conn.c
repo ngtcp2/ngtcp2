@@ -11247,6 +11247,7 @@ conn_client_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint64_t write_datalen = 0;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
   uint32_t version;
+  int no_cwnd;
 
   assert(!conn->server);
 
@@ -11285,15 +11286,20 @@ conn_client_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   }
 
   if (!ppe_pending) {
-    spktlen =
-      conn_write_handshake(conn, pi, dest, destlen, wflags, write_datalen, ts);
+    /* Padding is decided by write_datalen > 0.  If cwnd is zero,
+       0-RTT packet is not written so no padding is made.  To avoid
+       that, pass 0 as write_datalen if cwnd has been spent. */
+    no_cwnd = conn_cwnd_is_zero(conn);
+
+    spktlen = conn_write_handshake(conn, pi, dest, destlen, wflags,
+                                   no_cwnd ? 0 : write_datalen, ts);
 
     if (spktlen < 0) {
       return spktlen;
     }
 
     if ((conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) ||
-        !conn->early.ckm || (!send_stream && !send_datagram)) {
+        !conn->early.ckm || (!send_stream && !send_datagram) || no_cwnd) {
       return spktlen;
     }
 
@@ -11315,10 +11321,6 @@ conn_client_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   dest += spktlen;
   destlen -= (size_t)spktlen;
-
-  if (conn_cwnd_is_zero(conn)) {
-    return spktlen;
-  }
 
   early_spktlen = conn_write_pkt(conn, pi, dest, destlen, (size_t)spktlen, vmsg,
                                  NGTCP2_PKT_0RTT, wflags, ts);
