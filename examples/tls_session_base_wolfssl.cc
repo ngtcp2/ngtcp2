@@ -57,7 +57,9 @@ std::string TLSSessionBase::get_selected_alpn() const {
   char *alpn = nullptr;
   unsigned short alpnlen;
 
-  wolfSSL_ALPN_GetProtocol(ssl_, &alpn, &alpnlen);
+  if (wolfSSL_ALPN_GetProtocol(ssl_, &alpn, &alpnlen) != WOLFSSL_SUCCESS) {
+    return {};
+  }
 
   return std::string{alpn, alpn + alpnlen};
 }
