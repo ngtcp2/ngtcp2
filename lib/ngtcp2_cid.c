@@ -148,3 +148,16 @@ void ngtcp2_dcid_apply_validated_path(ngtcp2_dcid *dcid,
   dcid->flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   dcid->max_udp_payload_size = ent->max_udp_payload_size;
 }
+
+void ngtcp2_cid_token2_from_dcid(ngtcp2_cid_token2 *dest,
+                                 const ngtcp2_dcid *src) {
+  dest->seq = src->seq;
+  dest->cid = src->cid;
+
+  ngtcp2_path_storage_init2(&dest->ps, &src->ps.path);
+
+  if ((dest->token_present =
+         (src->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) != 0)) {
+    dest->token = src->token;
+  }
+}

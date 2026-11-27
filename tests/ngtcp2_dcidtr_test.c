@@ -58,7 +58,7 @@ typedef struct userdata {
   size_t cb_called;
 } userdata;
 
-static int dcidtr_cb(const ngtcp2_dcid *dcid, void *user_data) {
+static int dcidtr_cb(ngtcp2_dcid *dcid, void *user_data) {
   userdata *ud = user_data;
   (void)dcid;
 
