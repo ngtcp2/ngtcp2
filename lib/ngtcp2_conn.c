@@ -517,6 +517,10 @@ static int conn_call_dcid_status(ngtcp2_conn *conn,
 
   if (type == NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE) {
     dcid->flags |= NGTCP2_DCID_FLAG_ACTIVATED;
+
+    ngtcp2_dcidtr_track_active_cid_token(&conn->dcid.dtr, dcid);
+  } else if (type == NGTCP2_CONNECTION_ID_STATUS_TYPE_DEACTIVATE) {
+    ngtcp2_dcidtr_untrack_active_cid_token(&conn->dcid.dtr, dcid->seq);
   }
 
   if (conn->callbacks.dcid_status2) {
@@ -550,21 +554,7 @@ static int conn_call_deactivate_dcid(ngtcp2_conn *conn, ngtcp2_dcid *dcid) {
     conn, NGTCP2_CONNECTION_ID_STATUS_TYPE_DEACTIVATE, dcid);
 }
 
-/*
- * conn_start_dcid_status starts notifying an application of the
- * status of Destination Connection ID by activating the current
- * Destination Connection ID.  It is called when handshake completes.
- * Destination Connection IDs that have been retired by then are
- * removed because they have never been activated, and thus must not
- * be deactivated.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User callback failed.
- */
-static int conn_start_dcid_status(ngtcp2_conn *conn) {
+int ngtcp2_conn_start_dcid_status(ngtcp2_conn *conn) {
   ngtcp2_dcidtr_clear_retired_dcid(&conn->dcid.dtr);
 
   conn->flags |= NGTCP2_CONN_FLAG_DCID_STATUS_STARTED;
@@ -10743,7 +10733,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
-    rv = conn_start_dcid_status(conn);
+    rv = ngtcp2_conn_start_dcid_status(conn);
     if (rv != 0) {
       return rv;
     }
@@ -11188,7 +11178,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       ngtcp2_dcid_set_token(&conn->dcid.current, &token);
     }
 
-    rv = conn_start_dcid_status(conn);
+    rv = ngtcp2_conn_start_dcid_status(conn);
     if (rv != 0) {
       return rv;
     }
@@ -14339,6 +14329,15 @@ size_t ngtcp2_conn_get_active_dcid3(const ngtcp2_conn *conn,
   dest += ngtcp2_dcidtr_get_activated_bound_dcid(&conn->dcid.dtr, dest);
 
   return (size_t)(dest - orig);
+}
+
+size_t ngtcp2_conn_get_active_dcid4(const ngtcp2_conn *conn,
+                                    ngtcp2_cid_token3 *dest) {
+  if (!dest) {
+    return ngtcp2_dcidtr_tracked_active_cid_token_len(&conn->dcid.dtr);
+  }
+
+  return ngtcp2_dcidtr_get_tracked_active_cid_token(&conn->dcid.dtr, dest);
 }
 
 void ngtcp2_conn_set_local_addr(ngtcp2_conn *conn, const ngtcp2_addr *addr) {

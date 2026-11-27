@@ -1145,4 +1145,20 @@ const ngtcp2_path_history_entry *
 ngtcp2_conn_find_path_history(const ngtcp2_conn *conn, const ngtcp2_path *path,
                               ngtcp2_tstamp ts);
 
+/*
+ * ngtcp2_conn_start_dcid_status starts notifying an application of
+ * the status of Destination Connection ID by activating the current
+ * Destination Connection ID.  It is called when handshake completes.
+ * Destination Connection IDs that have been retired by then are
+ * removed because they have never been activated, and thus must not
+ * be deactivated.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed.
+ */
+int ngtcp2_conn_start_dcid_status(ngtcp2_conn *conn);
+
 #endif /* !defined(NGTCP2_CONN_H) */

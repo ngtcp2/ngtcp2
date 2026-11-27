@@ -5830,7 +5830,7 @@ typedef struct ngtcp2_cid_token {
  * .. warning::
  *
  *   .. version-deprecated:: 1.22.0
- *     Use `ngtcp2_conn_get_active_dcid3` instead.
+ *     Use `ngtcp2_conn_get_active_dcid4` instead.
  *
  * `ngtcp2_conn_get_active_dcid` writes all active Destination
  * Connection IDs and their tokens to |dest|.  Before handshake
@@ -5847,6 +5847,12 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn,
 
 /**
  * @struct
+ *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.27.0
+ *     Use `ngtcp2_conn_get_active_dcid4` and
+ *     :type:`ngtcp2_cid_token3` instead.
  *
  * :type:`ngtcp2_cid_token2` is the convenient struct to store
  * Connection ID, its associated path, and stateless reset token.
@@ -5885,7 +5891,7 @@ typedef struct ngtcp2_cid_token2 {
  * .. warning::
  *
  *   .. version-deprecated:: 1.23.0
- *     Use `ngtcp2_conn_get_active_dcid3` instead.
+ *     Use `ngtcp2_conn_get_active_dcid4` instead.
  *
  * `ngtcp2_conn_get_active_dcid2` writes all active Destination
  * Connection IDs and their tokens to |dest|.  Before handshake
@@ -5905,6 +5911,12 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid2(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * .. warning::
+ *
+ *   .. version-deprecated:: 1.27.0
+ *     Use `ngtcp2_conn_get_active_dcid4` instead.  This function
+ *     might miss the some elements in some error situations.
+ *
  * `ngtcp2_conn_get_active_dcid3` writes all active Destination
  * Connection IDs and their tokens to |dest|.  Before handshake
  * completes, this function returns 0.  If |dest| is NULL, this
@@ -5919,6 +5931,53 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid2(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid3(const ngtcp2_conn *conn,
                                                   ngtcp2_cid_token2 *dest);
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_cid_token3` is the convenient struct to store
+ * Connection ID and stateless reset token.
+ *
+ * .. version-added:: 1.27.0
+ */
+typedef struct ngtcp2_cid_token3 {
+  /**
+   * :member:`seq` is the sequence number of this Connection ID.
+   */
+  uint64_t seq;
+  /**
+   * :member:`cid` is Connection ID.
+   */
+  ngtcp2_cid cid;
+  /**
+   * :member:`token` is the stateless reset token for this Connection
+   * ID.
+   */
+  ngtcp2_stateless_reset_token token;
+  /**
+   * :member:`token_present` is nonzero if token contains stateless
+   * reset token.
+   */
+  uint8_t token_present;
+} ngtcp2_cid_token3;
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_active_dcid4` writes all active Destination
+ * Connection IDs and their tokens to |dest|.  Before handshake
+ * completes, this function returns 0.  If |dest| is NULL, this
+ * function does not write anything, and returns the number of
+ * Destination Connection IDs that would otherwise be written to the
+ * provided buffer.  The buffer pointed by |dest| must have
+ * sizeof(:type:`ngtcp2_cid_token3`) * n bytes available, where n is
+ * the return value of `ngtcp2_conn_get_active_dcid4` with |dest| ==
+ * NULL.
+ *
+ * .. version-added:: 1.27.0
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid4(const ngtcp2_conn *conn,
+                                                  ngtcp2_cid_token3 *dest);
 
 /**
  * @function

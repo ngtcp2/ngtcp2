@@ -46,6 +46,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_dcidtr_pop_unused),
   munit_void_test(test_ngtcp2_dcidtr_check_path_retired),
   munit_void_test(test_ngtcp2_dcidtr_len),
+  munit_void_test(test_ngtcp2_dcidtr_track_active_cid_token),
   munit_test_end(),
 };
 
@@ -771,4 +772,84 @@ void test_ngtcp2_dcidtr_len(void) {
   assert_false(ngtcp2_dcidtr_unused_empty(&dtr));
   assert_false(ngtcp2_dcidtr_unused_full(&dtr));
   assert_true(ngtcp2_dcidtr_bound_full(&dtr));
+}
+
+void test_ngtcp2_dcidtr_track_active_cid_token(void) {
+  ngtcp2_cid cids[NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE];
+  ngtcp2_stateless_reset_token tokens[NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE];
+  ngtcp2_dcidtr dtr;
+  ngtcp2_dcid dcid;
+  ngtcp2_cid_token3 cid_tokens[NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE];
+  size_t n;
+  size_t i;
+
+  for (i = 0; i < ngtcp2_arraylen(cids); ++i) {
+    cids[i] = (ngtcp2_cid){
+      .data = {(uint8_t)i + 1},
+      .datalen = 10,
+    };
+  }
+
+  for (i = 0; i < ngtcp2_arraylen(tokens); ++i) {
+    tokens[i] = (ngtcp2_stateless_reset_token){
+      .data = {0x00, (uint8_t)i + 1},
+    };
+  }
+
+  ngtcp2_dcidtr_init(&dtr);
+
+  assert_size(0, ==, dtr.active.len);
+
+  for (i = 0; i < NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE; ++i) {
+    ngtcp2_dcid_init(&dcid, i, &cids[i], &tokens[i]);
+    ngtcp2_dcidtr_track_active_cid_token(&dtr, &dcid);
+
+    assert_size(i + 1, ==, dtr.active.len);
+  }
+
+  n = ngtcp2_dcidtr_get_tracked_active_cid_token(&dtr, cid_tokens);
+
+  assert_size(n, ==, dtr.active.len);
+  assert_size(n, ==, ngtcp2_dcidtr_tracked_active_cid_token_len(&dtr));
+
+  for (i = 0; i < n; ++i) {
+    assert_uint64(i, ==, cid_tokens[i].seq);
+    assert_true(
+      ngtcp2_cid_eq(&dtr.active.cid_tokens[i].cid, &cid_tokens[i].cid));
+    assert_true(ngtcp2_stateless_reset_token_eq(&dtr.active.cid_tokens[i].token,
+                                                &cid_tokens[i].token));
+    assert_true(dtr.active.cid_tokens[i].token_present);
+  }
+
+  /* Remove the last one */
+  ngtcp2_dcidtr_untrack_active_cid_token(
+    &dtr, NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE - 1);
+
+  assert_size(NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE - 1, ==, dtr.active.len);
+
+  /* Remove the entry in the middle */
+  ngtcp2_dcidtr_untrack_active_cid_token(&dtr, 1);
+
+  assert_size(NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE - 2, ==, dtr.active.len);
+  assert_uint64(NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE - 2, ==,
+                dtr.active.cid_tokens[1].seq);
+  assert_true(ngtcp2_cid_eq(&cids[NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE - 2],
+                            &dtr.active.cid_tokens[1].cid));
+  assert_true(ngtcp2_stateless_reset_token_eq(
+    &tokens[NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE - 2],
+    &dtr.active.cid_tokens[1].token));
+  assert_true(dtr.active.cid_tokens[1].token_present);
+
+  for (i = 0; i < NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE; ++i) {
+    ngtcp2_dcidtr_untrack_active_cid_token(&dtr, i);
+  }
+
+  assert_size(0, ==, dtr.active.len);
+
+  /* Check without token */
+  ngtcp2_dcid_init(&dcid, 0, &cids[0], NULL);
+  ngtcp2_dcidtr_track_active_cid_token(&dtr, &dcid);
+
+  assert_size(1, ==, dtr.active.len);
+  assert_false(dtr.active.cid_tokens[0].token_present);
 }

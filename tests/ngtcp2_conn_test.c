@@ -1243,6 +1243,10 @@ static void setup_default_server_with_options(ngtcp2_conn **pconn,
   assert_int(0, ==, rv);
 
   (*pconn)->handshake_confirmed_ts = 0;
+
+  rv = ngtcp2_conn_start_dcid_status(*pconn);
+
+  assert_int(0, ==, rv);
 }
 
 static void setup_default_server(ngtcp2_conn **pconn) {
@@ -1342,6 +1346,10 @@ static void setup_default_client_with_options(ngtcp2_conn **pconn,
   (*pconn)->dcid.current.token =
     (ngtcp2_stateless_reset_token)make_client_stateless_reset_token();
   (*pconn)->handshake_confirmed_ts = 0;
+
+  rv = ngtcp2_conn_start_dcid_status(*pconn);
+
+  assert_int(0, ==, rv);
 }
 
 static void setup_default_client(ngtcp2_conn **pconn) {
@@ -12283,7 +12291,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, ++t);
 
   assert_int(0, ==, rv);
-  assert_size(0, ==, ud.dcid_status.ncalled);
+  assert_size(1, ==, ud.dcid_status.ncalled);
 
   ngtcp2_dcid_copy(&validated_dcid, &conn->dcid.current);
   ngtcp2_dcid_set_path(&validated_dcid, &new_path.path);
@@ -12298,7 +12306,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_not_null(conn->pv);
   assert_uint64(1, ==, conn->dcid.current.seq);
   assert_size(0, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
-  assert_size(1, ==, ud.dcid_status.ncalled);
+  assert_size(2, ==, ud.dcid_status.ncalled);
   assert_enum(ngtcp2_connection_id_status_type,
               NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE, ==,
               ud.dcid_status.type);
@@ -12347,7 +12355,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_true(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_PRESENT);
   assert_uint64(0, ==, conn->pv->fallback_dcid.seq);
   assert_uint64(1, ==, conn->dcid.current.seq);
-  assert_size(1, ==, ud.dcid_status.ncalled);
+  assert_size(2, ==, ud.dcid_status.ncalled);
 
   ngtcp2_conn_del(conn);
 
@@ -12463,6 +12471,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_size(1, ==, ngtcp2_dcidtr_retired_len(&conn->dcid.dtr));
   assert_size(0, ==, ud.dcid_status.ncalled);
   assert_size(0, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(0, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -12496,6 +12505,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
               ud.dcid_status.type);
   assert_uint64(1, ==, ud.dcid_status.seq);
   assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
 
   /* The Destination Connection ID retired before handshake completes
      has never been activated, and is not deactivated. */
@@ -12508,6 +12518,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_int(0, ==, rv);
   assert_size(1, ==, ud.dcid_status.ncalled);
   assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
 
   ngtcp2_conn_del(conn);
 
@@ -12575,6 +12586,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
               conn->state);
   assert_uint64(1, ==, conn->dcid.current.seq);
   assert_size(0, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(0, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
   assert_size(0, ==, ud.dcid_status.ncalled);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -12587,6 +12599,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
               ud.dcid_status.type);
   assert_uint64(1, ==, ud.dcid_status.seq);
   assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
 
   /* The Destination Connection ID retired before handshake completes
      has never been activated, and is not deactivated. */
@@ -12599,6 +12612,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   assert_int(0, ==, rv);
   assert_size(1, ==, ud.dcid_status.ncalled);
   assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
 
   ngtcp2_conn_del(conn);
 
@@ -16634,6 +16648,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
 void test_ngtcp2_conn_get_active_dcid(void) {
   ngtcp2_conn *conn;
   ngtcp2_cid_token2 cid_token[2];
+  ngtcp2_cid_token3 cid_token3[2];
   ngtcp2_cid dcid;
   static const ngtcp2_cid new_dcid = {
     .datalen = 4,
@@ -16681,6 +16696,13 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_true(cid_token[0].token_present);
   assert_true(ngtcp2_stateless_reset_token_eq(&token, &cid_token[0].token));
 
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid4(conn, cid_token3));
+  assert_uint64(0, ==, cid_token3[0].seq);
+  assert_true(ngtcp2_cid_eq(&dcid, &cid_token3[0].cid));
+  assert_true(cid_token3[0].token_present);
+  assert_true(ngtcp2_stateless_reset_token_eq(&token, &cid_token3[0].token));
+
   ngtcp2_conn_del(conn);
 
   /* zero-length Destination Connection ID */
@@ -16698,6 +16720,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   ngtcp2_tpe_init_conn(&tpe, conn);
 
   assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
 
   fr.path_challenge = (ngtcp2_path_challenge){
     .type = NGTCP2_FRAME_PATH_CHALLENGE,
@@ -16719,6 +16742,10 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, cid_token));
   assert_uint64(0, ==, cid_token[0].seq);
   assert_true(ngtcp2_cid_eq(&dcid, &cid_token[0].cid));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid4(conn, cid_token3));
+  assert_uint64(0, ==, cid_token3[0].seq);
+  assert_true(ngtcp2_cid_eq(&dcid, &cid_token3[0].cid));
 
   ngtcp2_conn_del(conn);
 
@@ -16744,6 +16771,7 @@ void test_ngtcp2_conn_get_active_dcid(void) {
 
   assert_int(0, ==, rv);
   assert_size(1, ==, ngtcp2_conn_get_active_dcid3(conn, NULL));
+  assert_size(1, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
 
   frs[0].ping.type = NGTCP2_FRAME_PING;
   frs[1].padding = (ngtcp2_padding){
@@ -16766,6 +16794,11 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token[0].cid));
   assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
   assert_true(ngtcp2_stateless_reset_token_eq(&token, &cid_token[0].token));
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid4(conn, cid_token3));
+  assert_uint64(1, ==, cid_token3[1].seq);
+  assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token3[1].cid));
+  assert_true(ngtcp2_stateless_reset_token_eq(&token, &cid_token3[1].token));
 
   dcid = (ngtcp2_cid)make_dcid();
 
@@ -16773,6 +16806,9 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_true(ngtcp2_cid_eq(&dcid, &cid_token[1].cid));
   assert_true(ngtcp2_path_eq(&null_path.path, &cid_token[1].ps.path));
   assert_false(cid_token[1].token_present);
+  assert_uint64(0, ==, cid_token3[0].seq);
+  assert_true(ngtcp2_cid_eq(&dcid, &cid_token3[0].cid));
+  assert_false(cid_token3[0].token_present);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
@@ -16801,6 +16837,11 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token[0].cid));
   assert_true(ngtcp2_path_eq(&new_path.path, &cid_token[0].ps.path));
   assert_true(ngtcp2_stateless_reset_token_eq(&token, &cid_token[0].token));
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid4(conn, NULL));
+  assert_size(2, ==, ngtcp2_conn_get_active_dcid4(conn, cid_token3));
+  assert_uint64(1, ==, cid_token3[1].seq);
+  assert_true(ngtcp2_cid_eq(&new_dcid, &cid_token3[1].cid));
+  assert_true(ngtcp2_stateless_reset_token_eq(&token, &cid_token3[1].token));
 
   dcid = (ngtcp2_cid)make_dcid();
 
@@ -16808,6 +16849,9 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   assert_true(ngtcp2_cid_eq(&dcid, &cid_token[1].cid));
   assert_true(ngtcp2_path_eq(&null_path.path, &cid_token[1].ps.path));
   assert_false(cid_token[1].token_present);
+  assert_uint64(0, ==, cid_token3[0].seq);
+  assert_true(ngtcp2_cid_eq(&dcid, &cid_token3[0].cid));
+  assert_false(cid_token3[0].token_present);
   assert_size(0, ==, ngtcp2_ringbuf_len(&conn->dcid.dtr.retired.rb));
 
   ngtcp2_conn_del(conn);
