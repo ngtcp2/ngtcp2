@@ -9021,8 +9021,7 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_crypto_aead_ctx rx_aead_ctx = {0}, tx_aead_ctx = {0};
   size_t secretlen, ivlen;
 
-  if ((conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
-      tx_ckm->use_count >= pktns->crypto.ctx.max_encryption &&
+  if (tx_ckm->use_count >= pktns->crypto.ctx.max_encryption &&
       conn_initiate_key_update(conn, ts) != 0) {
     return NGTCP2_ERR_AEAD_LIMIT_REACHED;
   }

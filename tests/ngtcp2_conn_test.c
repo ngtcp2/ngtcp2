@@ -15701,6 +15701,34 @@ void test_ngtcp2_conn_key_update(void) {
   assert_false(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR);
 
   ngtcp2_conn_del(conn);
+
+  /* AEAD encryption limit is enforced even if client has not
+     confirmed handshake, and therefore cannot initiate key update. */
+  setup_default_client(&conn);
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+  conn->pktns.crypto.tx.ckm->use_count = fake_crypto_ctx.max_encryption - 1;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &nwrite, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 1, ++t);
+
+  assert_ptrdiff(0, <, spktlen);
+  assert_uint64(fake_crypto_ctx.max_encryption, ==,
+                conn->pktns.crypto.tx.ckm->use_count);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &nwrite, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 1, ++t);
+
+  assert_ptrdiff(NGTCP2_ERR_AEAD_LIMIT_REACHED, ==, spktlen);
+  assert_uint64(fake_crypto_ctx.max_encryption, ==,
+                conn->pktns.crypto.tx.ckm->use_count);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_crypto_buffer_exceeded(void) {
