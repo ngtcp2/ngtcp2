@@ -300,7 +300,10 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
 
 /*
  * ngtcp2_strm_streamfrq_unacked_offset returns the smallest offset of
- * unacknowledged stream data held in strm->tx.streamfrq.
+ * unacknowledged stream data held in strm->tx.streamfrq.  It returns
+ * (uint64_t)-1 if strm->tx.streamfrq has nothing to send, that is,
+ * ngtcp2_strm_streamfrq_pop would not return any frame regardless of
+ * the space left.
  */
 uint64_t ngtcp2_strm_streamfrq_unacked_offset(const ngtcp2_strm *strm);
 

@@ -595,6 +595,99 @@ void test_ngtcp2_strm_streamfrq_unacked_offset(void) {
 
   ngtcp2_strm_free(&strm);
 
+  /* 0 length STREAM frame with fin; everything acknowledged including
+     fin */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_FIN_ACKED, 0, 0, NULL,
+                   &frc_objalloc, mem);
+  strm.tx.offset = 971;
+
+  ngtcp2_frame_chain_stream_datacnt_objalloc_new(&frc, 1, &frc_objalloc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.flags = 0;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.stream_id = 0;
+  frc->fr.stream.offset = 0;
+  frc->fr.stream.datacnt = 1;
+  frc->fr.stream.data[0] = (ngtcp2_vec){
+    .len = 971,
+    .base = nulldata,
+  };
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_frame_chain_stream_datacnt_objalloc_new(&frc, 0, &frc_objalloc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.flags = 0;
+  frc->fr.stream.fin = 1;
+  frc->fr.stream.stream_id = 0;
+  frc->fr.stream.offset = 971;
+  frc->fr.stream.datacnt = 0;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_strm_ack_data(&strm, 0, 971);
+
+  assert_uint64((uint64_t)-1, ==, ngtcp2_strm_streamfrq_unacked_offset(&strm));
+
+  frc = NULL;
+  ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
+
+  assert_null(frc);
+  assert_true(ngtcp2_strm_streamfrq_empty(&strm));
+
+  ngtcp2_strm_free(&strm);
+
+  /* 0 length STREAM frame with fin; everything acknowledged but
+     fin */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_objalloc,
+                   mem);
+  strm.tx.offset = 971;
+
+  ngtcp2_frame_chain_stream_datacnt_objalloc_new(&frc, 0, &frc_objalloc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.flags = 0;
+  frc->fr.stream.fin = 1;
+  frc->fr.stream.stream_id = 0;
+  frc->fr.stream.offset = 971;
+  frc->fr.stream.datacnt = 0;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_strm_ack_data(&strm, 0, 971);
+
+  assert_uint64(971, ==, ngtcp2_strm_streamfrq_unacked_offset(&strm));
+
+  ngtcp2_strm_free(&strm);
+
+  /* 0 length STREAM frame without fin; nothing acknowledged */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_objalloc,
+                   mem);
+
+  ngtcp2_frame_chain_stream_datacnt_objalloc_new(&frc, 0, &frc_objalloc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.flags = 0;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.stream_id = 0;
+  frc->fr.stream.offset = 0;
+  frc->fr.stream.datacnt = 0;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  assert_uint64(0, ==, ngtcp2_strm_streamfrq_unacked_offset(&strm));
+
+  /* and then it is acknowledged */
+  strm.flags |= NGTCP2_STRM_FLAG_ANY_ACKED;
+
+  assert_uint64((uint64_t)-1, ==, ngtcp2_strm_streamfrq_unacked_offset(&strm));
+
+  frc = NULL;
+  ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
+
+  assert_null(frc);
+  assert_true(ngtcp2_strm_streamfrq_empty(&strm));
+
+  ngtcp2_strm_free(&strm);
+
   ngtcp2_objalloc_free(&frc_objalloc);
 }
 
