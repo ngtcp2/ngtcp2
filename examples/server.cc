@@ -1865,6 +1865,7 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
     }
 
     if (!h->on_write()) {
+      remove(h.release());
       return;
     }
 
