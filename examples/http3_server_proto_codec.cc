@@ -119,7 +119,7 @@ ngtcp2_ssize ProtoCodec::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
     int fin = 0;
     nghttp3_ssize sveccnt = 0;
 
-    if (httpconn_ && ngtcp2_conn_get_max_data_left2(conn_)) {
+    if (httpconn_ && ngtcp2_conn_get_max_data_left_write_thresh(conn_)) {
       sveccnt = nghttp3_conn_writev_stream(httpconn_, &stream_id, &fin,
                                            vec.data(), vec.size());
       if (sveccnt < 0) {
