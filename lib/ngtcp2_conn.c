@@ -8453,7 +8453,7 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
   if (conn->dcid.retire_prior_to < fr->retire_prior_to) {
     conn->dcid.retire_prior_to = fr->retire_prior_to;
 
-    rv = ngtcp2_dcidtr_retire_inactive_dcid_prior_to(
+    rv = ngtcp2_dcidtr_retire_unused_or_bound_dcid_prior_to(
       &conn->dcid.dtr, fr->retire_prior_to, dcidtr_on_retire, conn);
     if (rv != 0) {
       return rv;
@@ -8479,7 +8479,7 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     return conn_enqueue_retire_connection_id(conn, fr->seq);
   }
 
-  len = ngtcp2_dcidtr_inactive_len(&conn->dcid.dtr);
+  len = ngtcp2_dcidtr_unused_or_bound_len(&conn->dcid.dtr);
 
   if (conn->dcid.current.seq >= conn->dcid.retire_prior_to) {
     ++extra_dcid;
