@@ -12074,7 +12074,9 @@ conn_client_validate_transport_params(const ngtcp2_conn *conn,
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
-  if (params->preferred_addr_present && conn->dcid.current.cid.datalen == 0) {
+  if (params->preferred_addr_present &&
+      (conn->dcid.current.cid.datalen == 0 ||
+       ngtcp2_cid_eq(&conn->dcid.current.cid, &params->preferred_addr.cid))) {
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
