@@ -528,6 +528,19 @@ static void crypto_ossl_ctx_read_crypto_data(ngtcp2_crypto_ossl_ctx *ossl_ctx,
   }
 }
 
+static int
+crypto_ossl_ctx_has_unread_data(const ngtcp2_crypto_ossl_ctx *ossl_ctx) {
+  const crypto_buf *cbuf;
+
+  for (cbuf = ossl_ctx->crypto_read; cbuf; cbuf = cbuf->next) {
+    if (crypto_buf_len(cbuf)) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 static void
 crypto_ossl_ctx_release_crypto_data(ngtcp2_crypto_ossl_ctx *ossl_ctx,
                                     size_t released) {
@@ -1144,6 +1157,14 @@ static int ossl_yield_secret(SSL *ssl, uint32_t ossl_level, int direction,
     }
 
     return 1;
+  }
+
+  /* Because OpenSSL QUIC API does not take the encryption level, it
+     does not know which encryption level the incoming data belongs
+     to.  That means OpenSSL has no way to validate it. */
+  if (level != NGTCP2_ENCRYPTION_LEVEL_0RTT &&
+      crypto_ossl_ctx_has_unread_data(ossl_ctx)) {
+    return 0;
   }
 
   if (ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL, level,
