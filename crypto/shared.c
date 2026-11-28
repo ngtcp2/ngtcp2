@@ -300,6 +300,13 @@ int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
 
   switch (level) {
   case NGTCP2_ENCRYPTION_LEVEL_0RTT:
+    if (!ngtcp2_conn_get_negotiated_version2(conn)) {
+      rv = crypto_set_remote_transport_params(conn, tls);
+      if (rv != 0) {
+        return -1;
+      }
+    }
+
     if (ngtcp2_crypto_ctx_tls_early(&cctx, tls) == NULL) {
       return -1;
     }
