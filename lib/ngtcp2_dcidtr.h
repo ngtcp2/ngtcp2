@@ -177,7 +177,7 @@ int ngtcp2_dcidtr_verify_cid_uniqueness(const ngtcp2_dcidtr *dtr,
                                         const ngtcp2_cid *cid);
 
 /*
- * ngtcp2_dcidtr_retire_inactive_dcid_prior_to retires inactive
+ * ngtcp2_dcidtr_retire_unused_or_bound_dcid_prior_to retires
  * Destination Connection IDs (unused or bound) whose seq is less than
  * |seq|.  For each retired ngtcp2_dcid, |on_retire|, if specified, is
  * called with |user_data|.
@@ -185,10 +185,9 @@ int ngtcp2_dcidtr_verify_cid_uniqueness(const ngtcp2_dcidtr *dtr,
  * This function returns 0 if it succeeds, or negative error code that
  * |on_retire| returns.
  */
-int ngtcp2_dcidtr_retire_inactive_dcid_prior_to(ngtcp2_dcidtr *dtr,
-                                                uint64_t seq,
-                                                ngtcp2_dcidtr_cb on_retire,
-                                                void *user_data);
+int ngtcp2_dcidtr_retire_unused_or_bound_dcid_prior_to(
+  ngtcp2_dcidtr *dtr, uint64_t seq, ngtcp2_dcidtr_cb on_retire,
+  void *user_data);
 
 /*
  * ngtcp2_dcidtr_retire_active_dcid adds an active |dcid| to the
@@ -343,10 +342,10 @@ size_t ngtcp2_dcidtr_get_activated_bound_dcid(const ngtcp2_dcidtr *dtr,
 size_t ngtcp2_dcidtr_retired_len(const ngtcp2_dcidtr *dtr);
 
 /*
- * ngtcp2_dcidtr_inactive_len returns the number of unused and bound
- * Destination Connection ID.
+ * ngtcp2_dcidtr_unused_or_bound_len returns the number of unused and
+ * bound Destination Connection ID.
  */
-size_t ngtcp2_dcidtr_inactive_len(const ngtcp2_dcidtr *dtr);
+size_t ngtcp2_dcidtr_unused_or_bound_len(const ngtcp2_dcidtr *dtr);
 
 /*
  * ngtcp2_dcidtr_unused_full returns nonzero if the buffer of unused

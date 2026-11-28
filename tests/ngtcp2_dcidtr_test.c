@@ -36,7 +36,7 @@ static const MunitTest tests[] = {
   munit_void_test(test_ngtcp2_dcidtr_bind_zerolen_dcid),
   munit_void_test(test_ngtcp2_dcidtr_verify_stateless_reset),
   munit_void_test(test_ngtcp2_dcidtr_verify_cid_uniqueness),
-  munit_void_test(test_ngtcp2_dcidtr_retire_inactive_dcid_prior_to),
+  munit_void_test(test_ngtcp2_dcidtr_retire_unused_or_bound_dcid_prior_to),
   munit_void_test(test_ngtcp2_dcidtr_retire_active_dcid),
   munit_void_test(test_ngtcp2_dcidtr_retire_stale_bound_dcid),
   munit_void_test(test_ngtcp2_dcidtr_remove_stale_retired_dcid),
@@ -325,7 +325,7 @@ void test_ngtcp2_dcidtr_verify_cid_uniqueness(void) {
   assert_int(0, ==, rv);
 }
 
-void test_ngtcp2_dcidtr_retire_inactive_dcid_prior_to(void) {
+void test_ngtcp2_dcidtr_retire_unused_or_bound_dcid_prior_to(void) {
   ngtcp2_dcidtr dtr;
   ngtcp2_path_storage ps[4];
   static const ngtcp2_cid cid[] = {
@@ -382,7 +382,8 @@ void test_ngtcp2_dcidtr_retire_inactive_dcid_prior_to(void) {
   }
 
   ud.cb_called = 0;
-  rv = ngtcp2_dcidtr_retire_inactive_dcid_prior_to(&dtr, 3, dcidtr_cb, &ud);
+  rv =
+    ngtcp2_dcidtr_retire_unused_or_bound_dcid_prior_to(&dtr, 3, dcidtr_cb, &ud);
 
   assert_int(0, ==, rv);
   assert_size(3, ==, ud.cb_called);
@@ -719,7 +720,7 @@ void test_ngtcp2_dcidtr_len(void) {
   assert_size(0, ==, ngtcp2_dcidtr_unused_len(&dtr));
   assert_size(0, ==, ngtcp2_dcidtr_bound_len(&dtr));
   assert_size(0, ==, ngtcp2_dcidtr_retired_len(&dtr));
-  assert_size(0, ==, ngtcp2_dcidtr_inactive_len(&dtr));
+  assert_size(0, ==, ngtcp2_dcidtr_unused_or_bound_len(&dtr));
   assert_true(ngtcp2_dcidtr_unused_empty(&dtr));
   assert_false(ngtcp2_dcidtr_unused_full(&dtr));
   assert_false(ngtcp2_dcidtr_bound_full(&dtr));
@@ -733,7 +734,7 @@ void test_ngtcp2_dcidtr_len(void) {
   assert_size(0, ==, ngtcp2_dcidtr_bound_len(&dtr));
   assert_size(0, ==, ngtcp2_dcidtr_retired_len(&dtr));
   assert_size(NGTCP2_DCIDTR_MAX_UNUSED_DCID_SIZE, ==,
-              ngtcp2_dcidtr_inactive_len(&dtr));
+              ngtcp2_dcidtr_unused_or_bound_len(&dtr));
   assert_false(ngtcp2_dcidtr_unused_empty(&dtr));
   assert_true(ngtcp2_dcidtr_unused_full(&dtr));
   assert_false(ngtcp2_dcidtr_bound_full(&dtr));
@@ -749,7 +750,7 @@ void test_ngtcp2_dcidtr_len(void) {
               ngtcp2_dcidtr_bound_len(&dtr));
   assert_size(0, ==, ngtcp2_dcidtr_retired_len(&dtr));
   assert_size(4 + NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE, ==,
-              ngtcp2_dcidtr_inactive_len(&dtr));
+              ngtcp2_dcidtr_unused_or_bound_len(&dtr));
   assert_false(ngtcp2_dcidtr_unused_empty(&dtr));
   assert_false(ngtcp2_dcidtr_unused_full(&dtr));
   assert_true(ngtcp2_dcidtr_bound_full(&dtr));
@@ -768,7 +769,7 @@ void test_ngtcp2_dcidtr_len(void) {
   assert_size(NGTCP2_DCIDTR_MAX_RETIRED_DCID_SIZE, ==,
               ngtcp2_dcidtr_retired_len(&dtr));
   assert_size(4 + NGTCP2_DCIDTR_MAX_BOUND_DCID_SIZE, ==,
-              ngtcp2_dcidtr_inactive_len(&dtr));
+              ngtcp2_dcidtr_unused_or_bound_len(&dtr));
   assert_false(ngtcp2_dcidtr_unused_empty(&dtr));
   assert_false(ngtcp2_dcidtr_unused_full(&dtr));
   assert_true(ngtcp2_dcidtr_bound_full(&dtr));

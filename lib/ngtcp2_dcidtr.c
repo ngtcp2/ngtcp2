@@ -250,10 +250,9 @@ static int dcidtr_retire_dcid_prior_to(ngtcp2_dcidtr *dtr, ngtcp2_ringbuf *rb,
   return 0;
 }
 
-int ngtcp2_dcidtr_retire_inactive_dcid_prior_to(ngtcp2_dcidtr *dtr,
-                                                uint64_t seq,
-                                                ngtcp2_dcidtr_cb on_retire,
-                                                void *user_data) {
+int ngtcp2_dcidtr_retire_unused_or_bound_dcid_prior_to(
+  ngtcp2_dcidtr *dtr, uint64_t seq, ngtcp2_dcidtr_cb on_retire,
+  void *user_data) {
   int rv;
 
   rv =
@@ -522,7 +521,7 @@ size_t ngtcp2_dcidtr_retired_len(const ngtcp2_dcidtr *dtr) {
   return ngtcp2_ringbuf_len(&dtr->retired.rb);
 }
 
-size_t ngtcp2_dcidtr_inactive_len(const ngtcp2_dcidtr *dtr) {
+size_t ngtcp2_dcidtr_unused_or_bound_len(const ngtcp2_dcidtr *dtr) {
   return ngtcp2_ringbuf_len(&dtr->unused.rb) +
          ngtcp2_ringbuf_len(&dtr->bound.rb);
 }
