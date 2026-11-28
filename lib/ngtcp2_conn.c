@@ -9706,7 +9706,9 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    assert(conn->negotiated_version);
+    if (!conn->negotiated_version) {
+      return NGTCP2_ERR_DISCARD_PKT;
+    }
 
     if (hd.version != conn->client_chosen_version &&
         hd.version != conn->negotiated_version) {
