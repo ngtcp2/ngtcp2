@@ -5516,18 +5516,6 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
     return 0;
   }
 
-  rv = conn_call_get_path_challenge_data(conn, &lfr.path_challenge.data);
-  if (rv != 0) {
-    return rv;
-  }
-
-  lfr.path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
-
-  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
-  timeout = ngtcp2_conn_compute_pto(conn, &conn->pktns);
-  timeout = ngtcp2_max(timeout, initial_pto);
-  expiry = ts + timeout * (1ULL << pv->round);
-
   destlen = ngtcp2_min(destlen, NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   if (conn->server) {
@@ -5548,7 +5536,30 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
     flags = NGTCP2_PV_ENTRY_FLAG_NONE;
   }
 
-  ngtcp2_pv_add_entry(pv, &lfr.path_challenge.data, expiry, flags, ts);
+  /* If the buffer size is less than PATH_CHALLENGE requires, do not
+     write it. */
+  rv = conn_handle_skip_pkt(conn, &conn->pktns, ts);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (destlen < 1 + pv->dcid.cid.datalen +
+                  pktns_select_pkt_numlen(&conn->pktns) + 1 + 8 +
+                  conn->pktns.crypto.ctx.aead.max_overhead) {
+    return 0;
+  }
+
+  rv = conn_call_get_path_challenge_data(conn, &lfr.path_challenge.data);
+  if (rv != 0) {
+    return rv;
+  }
+
+  lfr.path_challenge.type = NGTCP2_FRAME_PATH_CHALLENGE;
+
+  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
+  timeout = ngtcp2_conn_compute_pto(conn, &conn->pktns);
+  timeout = ngtcp2_max(timeout, initial_pto);
+  expiry = ts + timeout * (1ULL << pv->round);
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
     conn, pi, dest, destlen, NGTCP2_PKT_1RTT, NGTCP2_WRITE_PKT_FLAG_NONE,
@@ -5558,6 +5569,8 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   if (nwrite <= 0) {
     return nwrite;
   }
+
+  ngtcp2_pv_add_entry(pv, &lfr.path_challenge.data, expiry, flags, ts);
 
   if (path) {
     ngtcp2_path_copy(path, &pv->dcid.ps.path);
