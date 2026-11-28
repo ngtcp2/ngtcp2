@@ -218,9 +218,12 @@ public:
 
   ngtcp2_crypto_conn_ref *conn_ref();
 
+  void write_qlog(const void *data, size_t datalen);
+
 protected:
   ngtcp2_crypto_conn_ref conn_ref_;
   TLSServerSession tls_session_;
+  FILE *qlog_{};
   ngtcp2_conn *conn_{};
   ngtcp2_ccerr last_error_;
 };
