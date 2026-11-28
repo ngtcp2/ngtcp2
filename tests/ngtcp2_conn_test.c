@@ -16385,7 +16385,51 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
-  assert_ptrdiff(0, <, spktlen);
+  assert_ptrdiff(1200, <=, spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Client can send PTO Initial packet even if reduced CWND is less
+     than in-flight bytes which are mostly occupied by 0-RTT packets,
+     and keep sending 0-RTT. */
+  client_early_callbacks(&callbacks);
+  callbacks.client_initial = client_initial_early_data;
+
+  opts = (conn_options){
+    .callbacks = &callbacks,
+  };
+
+  setup_early_client_with_options(&conn, opts);
+  ngtcp2_tpe_init_conn(&tpe, conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  assert_int(0, ==, rv);
+
+  for (i = 0; i < 14; ++i) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                       &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                       stream_id, null_data, 1024, ++t);
+
+    assert_ptrdiff(0, <, spktlen);
+  }
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 1024, ++t);
+
+  assert_ptrdiff(0, ==, spktlen);
+  assert_uint64(conn->cstat.bytes_in_flight, >=, conn->cstat.cwnd);
+
+  ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  assert_size(1, ==, conn->in_pktns->rtb.probe_pkt_left);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &datalen, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 1024, ++t);
+
+  assert_ptrdiff(1200, <=, spktlen);
 
   ngtcp2_conn_del(conn);
 }
